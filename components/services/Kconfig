@@ -1,0 +1,11 @@
+menu "InkFlash services"
+
+    config INK_DEMO
+        bool "Demo benchmark e-paper + IMU + loa (svc_demo)"
+        default y
+        help
+            Chạy demo đo tốc độ làm mới màn e-paper, theo dõi góc nghiêng IMU, phát tiếng bíp.
+            Bấm nút A: làm mới một phần. Bấm nút B: làm mới toàn phần. Console: gõ 1, 2 hoặc 3 rồi Enter.
+            Tắt khi làm sản phẩm.
+
+endmenu

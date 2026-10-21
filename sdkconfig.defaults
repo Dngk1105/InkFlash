@@ -1,0 +1,41 @@
+# InkFlash — cấu hình mặc định (ESP-IDF v6.1, ESP32-S3-WROOM-1-N16R8)
+# sdkconfig được sinh lại từ file này. Sửa ở đây, không sửa sdkconfig bằng tay.
+# Lưu ý: nếu đã có sdkconfig thì giá trị trong đó thắng file này. Đổi mặc định xong phải xoá sdkconfig.
+CONFIG_IDF_TARGET="esp32s3"
+
+# Flash 16MB
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# PSRAM 8MB octal (chiếm GPIO35–37)
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+# Bảng phân vùng riêng
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_PARTITION_TABLE_OFFSET=0x8000
+
+# Chịu lỗi: core dump vào flash, OTA rollback, watchdog
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+CONFIG_ESP_TASK_WDT_EN=y
+
+# Console qua cổng USB tích hợp (GPIO19/20)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Tick 1 ms: vTaskDelay và đo thời gian làm mới màn có độ phân giải 1 ms (mặc định 10 ms)
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# Linh kiện thật trên breadboard GĐ0 (docs/hardware/pinmap.md). Linh kiện chưa có thì để giả lập.
+CONFIG_INK_BOARD_BREADBOARD_GD0=y
+CONFIG_INK_IMU_BNO055=y
+CONFIG_INK_DISPLAY_UC8253=y
+CONFIG_INK_MIC_INMP441=y
+CONFIG_INK_SPEAKER_MAX98357A=y
+CONFIG_INK_LED_WS2812=y
+CONFIG_INK_POWER_FAKE=y
+CONFIG_INK_DEMO=y

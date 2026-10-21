@@ -1,0 +1,34 @@
+menu "InkFlash display driver"
+
+    choice INK_DISPLAY_DRIVER
+        prompt "Display driver"
+        default INK_DISPLAY_FAKE
+        help
+            Chọn driver màn hình. Thêm chip mới: thêm display_<chip>.c xuất drv_display_chip_t.
+
+        config INK_DISPLAY_NONE
+            bool "Không có màn"
+        config INK_DISPLAY_FAKE
+            bool "Giả lập (chưa có linh kiện)"
+        config INK_DISPLAY_UC8253
+            bool "UC8253: Good Display GDEY037T03 (WeAct 3.7\", 240x416)"
+    endchoice
+
+    config INK_DISPLAY_UC8253_FAST_FULL
+        bool "Làm mới toàn phần nhanh (~1 s, dễ để lại bóng mờ)"
+        depends on INK_DISPLAY_UC8253
+        default n
+        help
+            Bật: ép nhiệt độ để làm mới toàn phần chỉ khoảng 1 giây nhưng ảnh hơi xám, dễ còn bóng.
+            Tắt (mặc định): sóng chuẩn, khoảng 3 giây, sạch hơn.
+
+    config INK_DISPLAY_UC8253_CLEAN_CYCLES
+        int "Số vòng đen→trắng khi xoá sạch màn"
+        depends on INK_DISPLAY_UC8253
+        range 0 3
+        default 1
+        help
+            Dùng cho chế độ CLEAN và cho lần xoá lúc khởi động. Mỗi vòng gồm hai lần làm mới toàn phần
+            (cả màn đen rồi cả màn trắng), khoảng 6 giây với sóng chuẩn. 0 = chỉ xoá trắng một lần.
+
+endmenu

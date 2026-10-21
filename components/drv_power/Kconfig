@@ -1,0 +1,15 @@
+menu "InkFlash power driver"
+
+    choice INK_POWER_DRIVER
+        prompt "Power driver"
+        default INK_POWER_FAKE
+        help
+            Driver BQ25180 + TPS22916 sẽ thêm sau khi docs/hardware/power.md đã xác nhận.
+
+        config INK_POWER_NONE
+            bool "Không có (không đo pin, không ngủ sâu)"
+        config INK_POWER_FAKE
+            bool "Giả lập (pin 3900 mV, ngủ sâu chỉ ghi log)"
+    endchoice
+
+endmenu

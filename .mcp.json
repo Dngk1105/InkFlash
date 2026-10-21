@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "espressif-docs": {
+      "type": "http",
+      "url": "https://mcp.espressif.com/docs"
+    },
+    "esp-idf": {
+      "type": "stdio",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "Remove-Item Env:MSYSTEM -ErrorAction SilentlyContinue; . 'C:\\Espressif\\tools\\Microsoft.v6.1.PowerShell_profile.ps1' *> $null; idf.py -C 'E:\\ESP32_projects\\InkFlash' mcp-server"
+      ],
+      "env": {
+        "PYTHONUTF8": "1"
+      }
+    }
+  }
+}

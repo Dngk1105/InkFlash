@@ -1,0 +1,11 @@
+# InkFlash — flash 16MB. Giải thích: docs/firmware/partitions.md
+# Name,     Type, SubType,  Offset,   Size
+nvs,        data, nvs,      0x9000,   0x4000
+otadata,    data, ota,      0xD000,   0x2000
+phy_init,   data, phy,      0xF000,   0x1000
+ota_0,      app,  ota_0,    0x10000,  0x300000
+ota_1,      app,  ota_1,    0x310000, 0x300000
+nvs_keys,   data, nvs_keys, 0x610000, 0x1000
+coredump,   data, coredump, 0x611000, 0x10000
+model,      data, spiffs,   0x621000, 0x400000
+storage,    data, littlefs, 0xA21000, 0x5DF000
