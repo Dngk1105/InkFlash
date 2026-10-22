@@ -4,7 +4,7 @@ menu "InkFlash IMU driver"
         prompt "IMU driver"
         default INK_IMU_FAKE
         help
-            Chọn driver cho cảm biến gia tốc. Thêm chip mới: xem components/drv_imu/README.md.
+            Chọn driver cho cảm biến gia tốc. Thêm chip mới: xem components/drivers/drv_imu/README.md.
 
         config INK_IMU_NONE
             bool "Không có IMU"

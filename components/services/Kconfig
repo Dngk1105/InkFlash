@@ -1,11 +1,39 @@
 menu "InkFlash services"
 
-    config INK_DEMO
-        bool "Demo benchmark e-paper + IMU + loa (svc_demo)"
+    config INK_SVC_POWER
+        bool "Power & sleep management (svc_power)"
         default y
         help
-            Chạy demo đo tốc độ làm mới màn e-paper, theo dõi góc nghiêng IMU, phát tiếng bíp.
-            Bấm nút A: làm mới một phần. Bấm nút B: làm mới toàn phần. Console: gõ 1, 2 hoặc 3 rồi Enter.
-            Tắt khi làm sản phẩm.
+            Quản lý nguồn, nút bấm điều khiển ngủ sâu (2s) và ship mode (8s).
+
+    config INK_SVC_GUI
+        bool "GUI & e-paper display (svc_gui)"
+        default y
+        help
+            Dịch vụ vẽ giao diện, thẻ flashcard lên màn hình e-paper.
+
+    config INK_SVC_STORAGE
+        bool "Storage & flashcard SRS (svc_storage)"
+        default n
+        help
+            Lưu trữ flashcard trên LittleFS và thuật toán ôn tập lặp lại ngắt quãng (FSRS).
+
+    config INK_SVC_AUDIO
+        bool "Audio playback & recording (svc_audio)"
+        default n
+        help
+            Dịch vụ phát âm thanh (MAX98357A) và ghi âm từ micro (INMP441).
+
+    config INK_SVC_AI
+        bool "On-device AI speech recognition (svc_ai)"
+        default n
+        help
+            Nhận diện giọng nói offline với ESP-SR MultiNet7.
+
+    config INK_SVC_GESTURE
+        bool "IMU gesture recognition (svc_gesture)"
+        default n
+        help
+            Nhận diện cử chỉ lật, úp mặt hoặc xoay màn hình từ IMU.
 
 endmenu

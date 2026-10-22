@@ -4,6 +4,7 @@
 #include "esp_err.h"
 #include "ink_bus.h"
 #include "ink_comp.h"
+#include "sdkconfig.h"
 
 #define INK_SVC_MSG_DATA_MAX 16
 
@@ -30,14 +31,30 @@ typedef struct {
 
 esp_err_t ink_service_start(const ink_service_def_t *def);
 
-/* Khởi động toàn bộ service. */
+/* Khởi động các service được kích hoạt trong Kconfig. */
 esp_err_t ink_services_start(void);
 
 /* Định nghĩa của từng service (svc_*.c). */
+#if CONFIG_INK_SVC_POWER
 extern const ink_service_def_t svc_power_def;
+#endif
+
+#if CONFIG_INK_SVC_GUI
 extern const ink_service_def_t svc_gui_def;
+#endif
+
+#if CONFIG_INK_SVC_STORAGE
 extern const ink_service_def_t svc_storage_def;
+#endif
+
+#if CONFIG_INK_SVC_AUDIO
 extern const ink_service_def_t svc_audio_def;
+#endif
+
+#if CONFIG_INK_SVC_AI
 extern const ink_service_def_t svc_ai_def;
+#endif
+
+#if CONFIG_INK_SVC_GESTURE
 extern const ink_service_def_t svc_gesture_def;
-extern const ink_service_def_t svc_demo_def; /* chỉ có khi CONFIG_INK_DEMO */
+#endif

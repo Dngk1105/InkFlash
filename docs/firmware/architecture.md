@@ -49,7 +49,7 @@ Quy tắc:
 | Mic | `ink_hal_audio.h` (PCM 16 bit mono 16 kHz) | `drv_audio` | `INK_MIC_DRIVER` | INMP441 (thật, chưa chạy trên máy); giả lập |
 | Loa | `ink_hal_audio.h` | `drv_audio` | `INK_SPEAKER_DRIVER` | MAX98357A (thật, chưa chạy trên máy); giả lập |
 | LED trạng thái | `ink_hal_led.h` | `drv_led` | `INK_LED_DRIVER` | WS2812 qua RMT (thật, chưa chạy trên máy) |
-| Nguồn (pin, sạc, ngủ, ship mode, nguồn khối phụ) | `ink_hal_power.h` | `drv_power` | `INK_POWER_DRIVER` | Giả lập (breadboard chưa có phần cứng) |
+| Nguồn (pin, sạc, ngủ, ship mode, nguồn khối phụ) | `ink_hal_power.h` | `drv_power` | `INK_POWER_DRIVER` | ESP32-S3 deep sleep (RTC GPIO wake); giả lập |
 | microSD | chưa có | chưa có | | Chưa làm |
 
 Hai component dùng chung, chỉ driver được gọi (service không được):
@@ -67,7 +67,7 @@ Demo benchmark dùng toàn bộ các khối trên: xem [demo.md](demo.md).
 | Đổi chân | `boards/<board>.h` | Không |
 | Nút nối kéo lên hay kéo xuống | `BSP_BTN_ACTIVE_LOW` | Không |
 | Gắn chip IMU xoay hướng khác | `BSP_IMU_MOUNT` | Không |
-| Đổi chip (IMU, màn, mic, loa, chip sạc) | thêm 1 file driver + 3 dòng (khuôn: `components/drv_imu/README.md`) | Không |
+| Đổi chip (IMU, màn, mic, loa, chip sạc) | thêm 1 file driver + 3 dòng (khuôn: `components/drivers/drv_imu/README.md`) | Không |
 | Mic và loa dùng chung BCLK/WS, hoặc nhiều khối chung một công tắc tải | khai báo cùng chân; cặp hợp lệ nằm trong `BSP_PIN_SHARE_LIST` | Không |
 | Thêm loại linh kiện mới (ví dụ cảm biến ánh sáng) | thêm `ink_hal_*.h` + `drv_*` + cấu hình trong `bsp.c` | Chỉ service dùng nó |
 

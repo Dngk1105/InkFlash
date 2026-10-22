@@ -74,14 +74,23 @@ esp_err_t ink_service_start(const ink_service_def_t *def)
 esp_err_t ink_services_start(void)
 {
     const ink_service_def_t *defs[] = {
+#if CONFIG_INK_SVC_STORAGE
         &svc_storage_def, /* trước GUI: GUI cần dữ liệu thẻ */
+#endif
+#if CONFIG_INK_SVC_POWER
         &svc_power_def,
+#endif
+#if CONFIG_INK_SVC_GUI
         &svc_gui_def,
+#endif
+#if CONFIG_INK_SVC_AUDIO
         &svc_audio_def,
+#endif
+#if CONFIG_INK_SVC_AI
         &svc_ai_def,
+#endif
+#if CONFIG_INK_SVC_GESTURE
         &svc_gesture_def,
-#if CONFIG_INK_DEMO
-        &svc_demo_def,
 #endif
     };
     for (size_t i = 0; i < sizeof(defs) / sizeof(defs[0]); i++) {

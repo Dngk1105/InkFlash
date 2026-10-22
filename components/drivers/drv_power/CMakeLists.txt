@@ -3,9 +3,12 @@ set(srcs "drv_power.c")
 if(CONFIG_INK_POWER_FAKE)
     list(APPEND srcs "power_fake.c")
 endif()
+if(CONFIG_INK_POWER_ESP32)
+    list(APPEND srcs "power_esp32.c")
+endif()
 
 idf_component_register(
     SRCS ${srcs}
     INCLUDE_DIRS "include"
-    REQUIRES ink_hal core device_registry esp_driver_gpio
+    REQUIRES ink_hal core device_registry esp_driver_gpio esp_hw_support
 )

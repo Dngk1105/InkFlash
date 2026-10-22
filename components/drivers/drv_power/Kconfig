@@ -2,14 +2,16 @@ menu "InkFlash power driver"
 
     choice INK_POWER_DRIVER
         prompt "Power driver"
-        default INK_POWER_FAKE
+        default INK_POWER_ESP32
         help
-            Driver BQ25180 + TPS22916 sẽ thêm sau khi docs/hardware/power.md đã xác nhận.
+            Chọn driver nguồn và quản lý deep sleep.
 
         config INK_POWER_NONE
             bool "Không có (không đo pin, không ngủ sâu)"
         config INK_POWER_FAKE
             bool "Giả lập (pin 3900 mV, ngủ sâu chỉ ghi log)"
+        config INK_POWER_ESP32
+            bool "ESP32-S3 sleep (ngủ sâu thật bằng RTC GPIO, tắt rail phụ)"
     endchoice
 
 endmenu

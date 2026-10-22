@@ -1,8 +1,8 @@
 # Demo benchmark e-paper + IMU + loa
 
 Demo chuyển thể từ `E:\ESP32_projects\test\src\main.cpp` (PlatformIO + Arduino) sang kiến trúc InkFlash.
-Code nằm ở `components/services/svc_demo.c`, chỉ dùng HAL nên không biết chip nào đang chạy.
-Tắt demo: `idf.py menuconfig` → InkFlash services → bỏ chọn "Demo benchmark".
+Code lưu trữ tại `examples/demo_benchmark/svc_demo.c`, chỉ dùng HAL nên không biết chip nào đang chạy.
+Mặc định dự án đã tắt demo để chuẩn bị lập trình sản phẩm theo từng module.
 
 ## Cách chạy
 

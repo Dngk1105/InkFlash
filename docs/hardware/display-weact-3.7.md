@@ -1,7 +1,7 @@
 # Màn e-paper WeAct 3.7"
 
 Trạng thái chung: **Chưa đối chiếu datasheet.** Thông số dưới đây lấy từ thư viện GxEPD2 và demo `test/src/main.cpp`
-(đang chạy được trên thiết bị với Arduino). Driver `components/drv_display/display_uc8253.c` viết theo đó.
+(đang chạy được trên thiết bị với Arduino). Driver `components/drivers/drv_display/display_uc8253.c` viết theo đó.
 
 ## Thông số chính
 

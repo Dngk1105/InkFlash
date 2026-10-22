@@ -5,6 +5,9 @@
 #if CONFIG_INK_POWER_FAKE
 extern const ink_power_ops_t power_fake_ops;
 #define POWER_OPS (&power_fake_ops)
+#elif CONFIG_INK_POWER_ESP32
+extern const ink_power_ops_t power_esp32_ops;
+#define POWER_OPS (&power_esp32_ops)
 #endif
 
 #ifdef POWER_OPS

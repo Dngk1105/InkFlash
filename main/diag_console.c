@@ -137,6 +137,12 @@ static int cmd_hw(int argc, char **argv)
     return 0;
 }
 
+static int cmd_sleep(int argc, char **argv)
+{
+    printf("Yeu cau deep sleep...\n");
+    return ink_bus_post(INK_EVT_SLEEP_REQUEST, NULL, 0) == ESP_OK ? 0 : 1;
+}
+
 #if CONFIG_INK_DEMO
 /* Phím 1/2/3 của demo gốc: gõ phím rồi Enter. Chuyển thành event để svc_demo xử lý trong task của nó. */
 static int cmd_demo_key(int argc, char **argv)
@@ -161,6 +167,7 @@ esp_err_t diag_console_start(void)
         { .command = "pinscan", .help = "Dò dây nút: báo chân GPIO nào xuống mức thấp trong 60 giây", .func = cmd_pinscan },
         { .command = "btn", .help = "Chẩn đoán nút bấm: mức điện thật, số lần ngắt, số event", .func = cmd_btn },
         { .command = "imu", .help = "Đọc gia tốc (mg). Driver giả lập: imu <x> <y> <z> để đặt giá trị", .func = cmd_imu },
+        { .command = "sleep", .help = "Đưa máy vào deep sleep ngay lập tức (bấm nút để thức)", .func = cmd_sleep },
     };
     for (size_t i = 0; i < sizeof(cmds) / sizeof(cmds[0]); i++) {
         ESP_RETURN_ON_ERROR(esp_console_cmd_register(&cmds[i]), "diag", "register");

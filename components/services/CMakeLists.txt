@@ -1,7 +1,22 @@
-set(srcs "ink_service.c"
-         "svc_power.c" "svc_gui.c" "svc_storage.c" "svc_audio.c" "svc_ai.c" "svc_gesture.c")
-if(CONFIG_INK_DEMO)
-    list(APPEND srcs "svc_demo.c")
+set(srcs "ink_service.c")
+
+if(CONFIG_INK_SVC_POWER)
+    list(APPEND srcs "svc_power.c")
+endif()
+if(CONFIG_INK_SVC_GUI)
+    list(APPEND srcs "svc_gui.c")
+endif()
+if(CONFIG_INK_SVC_STORAGE)
+    list(APPEND srcs "svc_storage.c")
+endif()
+if(CONFIG_INK_SVC_AUDIO)
+    list(APPEND srcs "svc_audio.c")
+endif()
+if(CONFIG_INK_SVC_AI)
+    list(APPEND srcs "svc_ai.c")
+endif()
+if(CONFIG_INK_SVC_GESTURE)
+    list(APPEND srcs "svc_gesture.c")
 endif()
 
 idf_component_register(
