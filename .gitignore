@@ -77,3 +77,7 @@ Desktop.ini
 *.suo       # Visual Studio Solution User Options
 *.sln.docstates # Visual Studio
 build-host/
+
+# Cache và cấu hình cục bộ của công cụ
+.cache/
+.claude/

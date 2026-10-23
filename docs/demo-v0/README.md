@@ -1,4 +1,4 @@
-# Code demo v0 (lưu trữ)
+# Code demo v0 (lưu trữ không sử dụng/tham khảo)
 
 Thư mục này là code firmware của bản demo phần cứng (breadboard), lấy nguyên từ tag `demo-v0` (commit `2e03eaf`).
 

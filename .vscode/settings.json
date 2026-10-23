@@ -1,24 +1,5 @@
 {
-  "C_Cpp.intelliSenseEngine": "disabled",
   "idf.extensionActivationMode": "always",
-  "cmake.configureOnOpen": false,
-  "cmake.configureOnEdit": false,
-  "cmake.automaticReconfigure": false,
-  "cmake.autoSelectActiveFolder": false,
-  "cmake.options.advanced": {
-    "build": {
-      "statusBarVisibility": "inherit",
-      "inheritDefault": "hidden"
-    },
-    "launch": {
-      "statusBarVisibility": "inherit",
-      "inheritDefault": "hidden"
-    },
-    "debug": {
-      "statusBarVisibility": "inherit",
-      "inheritDefault": "hidden"
-    }
-  },
   "idf.openOcdConfigs": [
     "board/esp32s3-builtin.cfg"
   ],
@@ -36,7 +17,12 @@
   "clangd.path": "C:\\Espressif\\tools\\esp-clangd\\esp-21.1.3_20260408\\esp-clangd\\bin\\clangd.exe",
   "idf.flashType": "UART",
   "editor.fontFamily": "\"Cascadia Code\", monospace",
+  "files.associations": {
+    "CMakeLists.txt": "cmake",
+    "*.cmake": "cmake",
+    ".clangd": "yaml"
+  },
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
-  },
+  }
 }
