@@ -1,0 +1,17 @@
+menu "InkFlash IMU driver"
+
+    choice INK_IMU_DRIVER
+        prompt "IMU driver"
+        default INK_IMU_FAKE
+        help
+            Chọn driver cho cảm biến gia tốc. Thêm chip mới: xem components/drivers/drv_imu/README.md.
+
+        config INK_IMU_NONE
+            bool "Không có IMU"
+        config INK_IMU_FAKE
+            bool "Giả lập (chưa có linh kiện)"
+        config INK_IMU_BNO055
+            bool "BNO055 (I2C, có fusion)"
+    endchoice
+
+endmenu

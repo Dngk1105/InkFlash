@@ -34,5 +34,9 @@
     "--compile-commands-dir=${workspaceFolder}/build"
   ],
   "clangd.path": "C:\\Espressif\\tools\\esp-clangd\\esp-21.1.3_20260408\\esp-clangd\\bin\\clangd.exe",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "editor.fontFamily": "\"Cascadia Code\", monospace",
+  "yaml.schemas": {
+    "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
+  },
 }

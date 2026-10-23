@@ -22,9 +22,18 @@ Mỗi thông số ghi kèm nguồn và trạng thái. Ví dụ:
 - [parts.md](hardware/parts.md): IMU, audio, microSD và các linh kiện khác.
 
 ### Firmware (`firmware/`)
-- [architecture.md](firmware/architecture.md): kiến trúc 5 tầng, event bus, device registry, chịu lỗi.
+- [architecture.md](firmware/architecture.md): kiến trúc v2: các tầng, luật phụ thuộc và cách ép, sự kiện/lệnh, vòng đời app, lộ trình.
 - [partitions.md](firmware/partitions.md): bảng phân vùng flash 16MB.
-- [demo.md](firmware/demo.md): demo benchmark màn e-paper + IMU + loa, cách chạy và những gì cần kiểm tra lần đầu.
+
+### Quyết định kiến trúc (`adr/`)
+- [0001](adr/0001-ngon-ngu-c11.md): viết bằng C11.
+- [0002](adr/0002-event-bus-esp-event.md): event bus dùng `esp_event`.
+- [0003](adr/0003-cap-phat-dong.md): cho phép cấp phát động, có quy tắc.
+- [0004](adr/0004-vong-doi-app-task.md): vòng đời app và task.
+
+### Bản demo cũ
+Code và tài liệu bản demo (driver UC8253/BNO055/I2S, benchmark) nằm ở tag git `demo-v0`.
+Xem lại một file: `git show demo-v0:docs/firmware/demo.md`.
 
 ### Datasheet
 - Lưu file PDF vào `datasheets/`, đặt tên theo mã linh kiện (ví dụ `BQ25180.pdf`).

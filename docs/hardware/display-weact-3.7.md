@@ -1,7 +1,8 @@
 # Màn e-paper WeAct 3.7"
 
 Trạng thái chung: **Chưa đối chiếu datasheet.** Thông số dưới đây lấy từ thư viện GxEPD2 và demo `test/src/main.cpp`
-(đang chạy được trên thiết bị với Arduino). Driver `components/drivers/drv_display/display_uc8253.c` viết theo đó.
+(đang chạy được trên thiết bị với Arduino). Driver của bản demo viết theo đó, xem lại bằng
+`git show demo-v0:components/drivers/drv_display/display_uc8253.c`. Kiến trúc v2 sẽ có driver `drv_uc8253` mới (người dùng viết).
 
 ## Thông số chính
 
@@ -34,11 +35,11 @@ Xem [pinmap.md](pinmap.md). Tên chân in trên module: SCL, SDA, CS, D/C, RES, 
 | RES | 15 | Reset phần cứng: cao 10 ms, thấp 50 ms, cao 50 ms |
 | BUSY | 16 | Kéo lên nội |
 
-## Chống bóng mờ và chấm lốm đốm
+## Chống bóng mờ và chấm lốm đốm (kết quả từ bản demo)
 
-- **Sóng chuẩn** (mặc định) cho FULL: sạch hơn sóng nhanh, chậm hơn khoảng 0,5 s. Bật lại sóng nhanh bằng `INK_DISPLAY_UC8253_FAST_FULL`.
-- **Deep clean** (`INK_REFRESH_CLEAN`): đảo cả màn đen rồi trắng trước khi vẽ. Lần xoá lúc khởi động cũng làm vậy.
-  Số vòng đen → trắng đặt bằng `INK_DISPLAY_UC8253_CLEAN_CYCLES` (0–3, mặc định 1, mỗi vòng thêm khoảng 5,5 s).
+- **Sóng chuẩn** cho FULL sạch hơn sóng nhanh (bỏ lệnh ép nhiệt độ `E0 02` / `E5 5A`), chậm hơn khoảng 0,5 s.
+- **Deep clean** (HAL: `INK_REFRESH_CLEAN`): đảo cả màn đen rồi trắng trước khi vẽ; nên dùng cho lần xoá lúc khởi động.
+  Mỗi vòng đen → trắng thêm khoảng 5,5 s. Bản demo đã xác nhận cách này xoá được chấm lốm đốm ở góc phải.
 - Làm mới cục bộ (partial) nhiều lần sẽ tích bóng mờ. Cứ vài chục lần nên deep clean một lần.
 
 ## Mô hình bộ nhớ ảnh và lệnh

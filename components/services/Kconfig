@@ -1,0 +1,11 @@
+menu "InkFlash services"
+
+    config INK_INPUT_LONG_PRESS_MS
+        int "Ngưỡng nhấn giữ (ms)"
+        default 600
+
+    config INK_POWER_IDLE_SLEEP_S
+        int "Không thao tác bao lâu thì ngủ sâu (giây)"
+        default 120
+
+endmenu

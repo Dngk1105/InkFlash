@@ -29,21 +29,16 @@ thì đồng bộ, chia sẻ deck và tích hợp thêm tính năng AI.
   công tắc tải TPS22916 cho khối phụ. microSD tuỳ chọn (SDMMC 1-bit).
 - Lập lịch ôn: FSRS. ReviewLog chỉ ghi thêm (có CRC); nội dung thẻ: bản sửa sau thắng. Media lưu theo hash nội dung.
 
-## Kiến trúc firmware
+## Kiến trúc firmware (v2, nhánh `arch-v2`)
 
-- 5 tầng: Cloud Server → Remote (WiFi/sync/OTA/hàng đợi offline)
-  → Services (GUI, Audio, AI, Storage+SRS, Power) → Core (event bus, log, health, config) → HAL/driver + BSP.
-- Mỗi service một task, chỉ giao tiếp qua event bus. Device registry: init/self_test/suspend/resume/recover.
-- Chịu lỗi: thử lại → reset bus → bật/tắt nguồn → DEGRADED. Watchdog, core dump, safe mode khi crash liên tục,
-  OTA rollback (cấm deep sleep đến khi firmware mới được xác nhận).
-- Tách firmware/hardware (bắt buộc): service chỉ `REQUIRES` core, device_registry, ink_hal; không bao giờ bsp hay drv_*.
-  Chân chỉ khai báo trong `components/bsp/include/boards/*.h`. Driver nhận chân qua struct cấu hình. Chi tiết: `docs/firmware/architecture.md`.
-  Đã có HAL + driver (hiện là giả lập, trừ nút bấm): imu, display, mic, speaker, power. Linh kiện mới theo cùng khuôn `drv_imu`.
-  Đặt tên component mới không trùng component của IDF (đã gặp: `hal`).
-- Log: mỗi linh kiện một mã component, có event ID; ra console, RAM ring buffer, flash; console chẩn đoán `esp_console`.
-- Phân vùng 16MB: offset 0x10000; nvs, nvs_keys, otadata, phy, coredump 64K, ota_0/ota_1 3M,
-  model 4M (srmodels), storage ~5.7M (LittleFS).
-- Tham khảo: InfiniTime, Flipper Zero firmware, esp-box/esp-bsp, Watchy, Memfault SDK.
+Chi tiết: `docs/firmware/architecture.md`; lý do từng quyết định: `docs/adr/`.
+
+- Luật phụ thuộc ép bằng CMake (`PRIV_REQUIRES ink_hal` trong services) và host test (domain/ui): vi phạm là lỗi build.
+  Đã thử phá cả 4 luật ngày 2026-10-23.
+- **Tầng dưới (drivers/) người dùng TỰ VIẾT và tối ưu.** Không tự viết driver thay người dùng trừ khi được yêu cầu.
+  Hợp đồng driver: `components/drivers/README.md`. Code driver demo cũ ở tag `demo-v0` để tham khảo.
+- Đặt tên component không trùng component của IDF (đã gặp: `hal`).
+- Tham khảo: Flipper Zero (furi_hal, InputService, SceneManager), Watchy (deep sleep), InfiniTime, esp-bsp, Memfault SDK.
 
 ## Tra tài liệu (ESP-IDF v6.1, cài ở `C:\esp\v6.1\esp-idf`)
 
@@ -63,14 +58,7 @@ Build/flash: dùng MCP `esp-idf` (`build_project`, `flash_project`), cấu hình
 
 ## Trạng thái
 
-- Xong: nghiên cứu, báo cáo phần cứng, sơ đồ kiến trúc, pinmap GPIO (breadboard + PCB).
-- Xong (2026-10-21): khung project build được với v6.1. Có `sdkconfig.defaults` (16MB, PSRAM octal, rollback, coredump),
-  `partitions.csv`, components `core`, `device_registry`, `bsp`, `services`, `remote`, console `status`/`log`.
-  Cấu hình nằm trong `sdkconfig.defaults`; `sdkconfig` là file sinh ra.
-- Xong (2026-10-21): driver thật cho màn UC8253, BNO055, INMP441, MAX98357A, WS2812 (đã build, CHƯA chạy trên máy)
-  + `svc_demo` chuyển thể từ `E:\ESP32_projects\test\src\main.cpp`. Hướng dẫn chạy và checklist lần đầu: `docs/firmware/demo.md`.
-  Mặc định breadboard nằm trong `sdkconfig.defaults` (sdkconfig sinh ra, xoá đi khi đổi mặc định).
-  Phép xoay tọa độ và đóng gói bit của driver màn đã thử trên máy tính (host test, 4 hướng xoay).
-- Việc tiếp theo:
-  1. Flash và chạy demo trên breadboard, đối chiếu bảng "Lần chạy đầu tiên" trong `docs/firmware/demo.md`
-  2. Đối chiếu chuỗi lệnh UC8253 với datasheet; viết driver nguồn thật khi có BQ25180/TPS22916
+- Build: xoá `sdkconfig` khi đổi `sdkconfig.defaults`. Trình biên dịch đôi khi crash ngẫu nhiên (segfault ở esp_lcd): build lại là qua.
+- Việc tiếp theo (GĐ1):
+  1. Người dùng viết `drv_uc8253` và `drv_buttons_gpio` theo `components/drivers/README.md`, đăng ký trong `bsp_init()`.
+  2. Mình làm font tiếng Việt cho `ui/`, dirty rect + chính sách làm mới + benchmark cho service render.
