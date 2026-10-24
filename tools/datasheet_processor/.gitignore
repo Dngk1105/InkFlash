@@ -1,7 +1,0 @@
-.venv/
-__pycache__/
-*.pyc
-.cache/
-input_datasheets/*.pdf
-output_markdown/*.md
-!output_markdown/.gitkeep
