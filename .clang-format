@@ -10,5 +10,5 @@ AllowShortBlocksOnASingleLine: Never
 AllowShortEnumsOnASingleLine: false
 IndentCaseLabels: false
 PointerAlignment: Right
-SortIncludes: false
+SortIncludes: { Enabled: false }
 AlignConsecutiveMacros: Consecutive
