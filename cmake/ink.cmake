@@ -2,11 +2,23 @@
 #
 # Hàm CMake chung cho firmware, templates/ và host test. Mỗi luật viết một lần ở đây; CMakeLists của từng khối chỉ gọi lại.
 
+# Gốc repo. Đặt ở đây (không phải trong macro) vì CMAKE_CURRENT_LIST_DIR trong macro là thư mục của nơi gọi.
+get_filename_component(INK_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+
 # Cờ build chung, gọi sau include(project.cmake) và trước project().
 # API deprecated và #warning thành lỗi build (docs/design/esp-idf-api.md, lớp 2).
 macro(ink_project_flags)
     idf_build_set_property(COMPILE_OPTIONS "-Werror=deprecated-declarations" APPEND)
     idf_build_set_property(COMPILE_OPTIONS "-Werror=cpp" APPEND)
+endmacro()
+
+# Gọi sau project(). Sau mỗi lần build, xoá cờ -m*/-f* khỏi compile_commands.json cho clangd
+# (tools/fix_compile_commands.py giải thích lý do).
+macro(ink_fix_clangd)
+    add_custom_target(ink_fix_clangd ALL
+        COMMAND ${PYTHON} ${INK_ROOT_DIR}/tools/fix_compile_commands.py ${CMAKE_BINARY_DIR}/compile_commands.json
+        COMMENT "Cleaning compile_commands.json for clangd"
+        VERBATIM)
 endmacro()
 
 # Thêm các thư mục chứa component vào EXTRA_COMPONENT_DIRS, bỏ qua thư mục chưa có.
