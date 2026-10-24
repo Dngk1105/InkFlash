@@ -17,8 +17,12 @@ Kiểm trong `C:\esp\v6.1\esp-idf`
 | I2S (loa, mic)          | `driver/i2s.h`                    | Đã xoá                                | `driver/i2s_std.h`                                     |
 | Timer phần cứng       | `driver/timer.h`                  | Đã xoá                                | `driver/gptimer.h`                                     |
 | Đánh thức bằng nút | `esp_sleep_enable_ext1_wakeup()`  | Còn, header ghi sắp bỏ                | `esp_sleep_enable_ext1_wakeup_io()`                    |
+| Đọc nguyên nhân thức | `esp_sleep_get_wakeup_cause()` | Còn, đánh dấu deprecated | `esp_sleep_get_wakeup_causes()` (trả bitmap, kiểm bằng `BIT(ESP_SLEEP_WAKEUP_EXT1)`) |
 | SPI (màn)              |                                     | Không đổi                             | `driver/spi_master.h`                                  |
 | GPIO                    |                                     | Không đổi                             | `driver/gpio.h`, `driver/rtc_io.h`                   |
+
+Ví dụ chính thức đúng bản nằm ở `C:\esp\v6.1\esp-idf\examples\` (ví dụ `system/deep_sleep`, `peripherals/i2c/i2c_basic`,
+`peripherals/i2s/i2s_basic/i2s_std`, `peripherals/adc/oneshot_read`). Mỗi file mẫu ngoại vi ghi rõ ví dụ nó dựa theo.
 
 Hướng dẫn chuyển đổi đúng bản nằm offline ở `C:\esp\v6.1\esp-idf\docs\en\migration-guides\`
 (`release-5.x`, `release-6.x/6.0`, `release-6.x/6.1`). Đây là nguồn để lập danh sách API cấm.
