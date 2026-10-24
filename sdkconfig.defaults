@@ -1,4 +1,4 @@
-# InkFlash v2 — cấu hình mặc định (ESP-IDF v6.1, ESP32-S3-WROOM-1-N16R8)
+# InkFlash — cấu hình mặc định (ESP-IDF v6.1, ESP32-S3-WROOM-1-N16R8)
 # sdkconfig được sinh ra từ file này. Đã có sdkconfig thì giá trị trong đó thắng: đổi mặc định xong phải xoá sdkconfig.
 CONFIG_IDF_TARGET="esp32s3"
 
@@ -10,7 +10,7 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_USE_MALLOC=y
 
-# Bảng phân vùng riêng (docs/firmware/partitions.md)
+# Bảng phân vùng riêng
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_PARTITION_TABLE_OFFSET=0x8000
@@ -27,12 +27,10 @@ CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
 CONFIG_FREERTOS_HZ=1000
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
 
-# Lệnh console `tasks` (vTaskList)
+# Liệt kê task để chẩn đoán (vTaskList)
 CONFIG_FREERTOS_USE_TRACE_FACILITY=y
 CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS=y
 
-# Bắt lỗi ghi tràn heap khi phát triển (docs/adr/0003-cap-phat-dong.md)
+# Bắt lỗi ghi tràn heap khi phát triển
 CONFIG_HEAP_POISONING_LIGHT=y
 
-# Board
-CONFIG_INK_BOARD_BREADBOARD_GD0=y
