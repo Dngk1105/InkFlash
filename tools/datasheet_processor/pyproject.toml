@@ -1,0 +1,23 @@
+[project]
+name = "datasheet-processor"
+version = "0.1.0"
+description = "Fast, lightweight electronic datasheet extraction pipeline to clean GFM Markdown"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pdfplumber>=0.11.0",
+    "pypdf>=5.0.0",
+    "pandas>=2.0.0",
+    "rich>=13.0.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+ai = ["docling>=2.0.0"]
+
+[project.scripts]
+datasheet-processor = "src.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
