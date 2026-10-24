@@ -9,7 +9,7 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 
 ## Luật
 
-- Repo được AI hỗ trợ viết khi dev yêu cầu; dev làm duyệt và tối ưu.
+- Repo được AI hỗ trợ viết khi dev yêu cầu; dev làm duyệt và tối ưu. Cần đảm bảo kết nối được mcp đầu phiên trước khi trả lời
 - Code tuân thủ yêu cầu trong docs. Thấy code lệch docs hoặc lệch template: cảnh báo người làm và viết lại cho khớp.
 - Kiến trúc chốt cùng người làm từng phần. Chưa chốt thì bàn trong chat, không ghi vào docs.
 - Thông số phần cứng chưa có trong `docs/hardware/` thì hỏi, không đoán.
