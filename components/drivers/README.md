@@ -1,8 +1,6 @@
-# Drivers (người dùng viết)
+# Drivers
 
-Thư mục này chứa driver linh kiện. **Hiện để trống có chủ đích**: tầng dưới được viết lại từ đầu và tối ưu riêng.
-Code driver của bản demo nằm ở tag `demo-v0` (ví dụ `git show demo-v0:components/drivers/drv_display/display_uc8253.c`)
-để tham khảo.
+Thư mục này chứa driver linh kiện.
 
 CMake gốc đã khai báo `EXTRA_COMPONENT_DIRS "components/drivers"`, nên mỗi thư mục con có `CMakeLists.txt` là một component.
 
@@ -20,14 +18,5 @@ CMake gốc đã khai báo `EXTRA_COMPONENT_DIRS "components/drivers"`, nên m�
 6. **Bộ nhớ** (docs/adr/0003-cap-phat-dong.md): buffer DMA cấp một lần trong `init` bằng
    `heap_caps_malloc(MALLOC_CAP_DMA)`; không cấp phát trong ISR hay vòng lặp truyền dữ liệu.
 7. **Bus dùng chung** (I2C cho IMU + chip sạc, I2S cho mic + loa): không tự tạo bus nếu khối khác cũng dùng.
-   Tạo component `hw_bus` khi gặp trường hợp đầu tiên.
-
-## Driver cần có cho MVP
-
-| Driver | HAL | Giai đoạn | Tham khảo |
-|---|---|---|---|
-| `drv_uc8253` (màn GDEY037T03) | `ink_hal_display.h` | GĐ1 | `docs/hardware/display-weact-3.7.md`, demo-v0 |
-| `drv_buttons_gpio` | `ink_hal_button.h` | GĐ1 | demo-v0 `drv_buttons` |
-| `drv_max98357a` (loa) | `ink_hal_audio.h` | GĐ5 | demo-v0 `drv_audio` |
-| `drv_esp32_power` (deep sleep, đọc nguyên nhân thức) | `ink_hal_power.h` | GĐ6 | |
-| `drv_ws2812` (LED, tuỳ chọn) | `ink_hal_led.h` | bất kỳ | demo-v0 `drv_led` |
+   Tạo component `hw_bus` khi gặp trường hợp đầu tiên
+8.

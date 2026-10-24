@@ -1,6 +1,6 @@
 # InkFlash — thiết bị học flashcard e-ink
 
-## Người dùng
+## Người làm
 
 - Sinh viên, làm đề tài cá nhân. Kết hợp học thiết kế PCB và 3D
 - Trả lời tiếng Việt, ngắn gọn, giải thích thuật ngữ ở lần đầu xuất hiện.
