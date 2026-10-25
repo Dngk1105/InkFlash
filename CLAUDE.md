@@ -16,7 +16,7 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Viết code ESP-IDF: chép từ `templates/`, không viết API theo trí nhớ. Tra thêm: docs offline v6.1 → MCP
   `espressif-docs` (bản mới nhất, phải đối chiếu lại v6.1) → web.
 - Tạo khối mới bằng `tools/new.py`; `tools/check.py` phải qua trước khi báo xong.
-- Build và kiểm tra toàn bộ: `python tools/build_all.py` trong terminal ESP-IDF. Build lẻ: `idf.py build`
-  (firmware), `idf.py -C templates build`. MCP `esp-idf` `build_project` từng treo 30 phút ở lần build đầu:
-  build lần đầu thì chạy `idf.py` trực tiếp, chạy nền.
+- Build và kiểm tra toàn bộ: `python tools/build_all.py` trong terminal ESP-IDF.
+- Build lẻ: `idf.py build (firmware)`, `idf.py -C templates build`.
+- MCP `esp-idf`: `build_project` từng treo 30 phút ở lần build đầu: build lần đầu thì chạy`idf.py` trực tiếp, chạy nền.
 - Viết hoặc sửa docs: đọc `docs/writing-docs.md` trước.

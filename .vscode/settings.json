@@ -11,8 +11,7 @@
   "idf.buildPath": "${workspaceFolder}/build",
   "clangd.arguments": [
     "--background-index",
-    "--query-driver=C:/Espressif/tools/**",
-    "--compile-commands-dir=${workspaceFolder}/build"
+    "--query-driver=C:/Espressif/tools/**"
   ],
   "clangd.path": "C:\\Espressif\\tools\\esp-clangd\\esp-21.1.3_20260408\\esp-clangd\\bin\\clangd.exe",
   "idf.flashType": "UART",
