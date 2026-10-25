@@ -22,7 +22,7 @@ typedef enum : uint8_t {
 
 typedef struct {
     ink_example_event_type_t type;
-    uint32_t time_ms; /* thời điểm do bên gọi truyền vào; khối không tự đọc đồng hồ */
+    uint32_t                 time_ms; /* thời điểm do bên gọi truyền vào; khối không tự đọc đồng hồ */
 } ink_example_event_t;
 
 typedef enum : uint8_t {

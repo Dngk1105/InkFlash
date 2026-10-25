@@ -15,8 +15,8 @@ void app_main(void)
         ESP_LOGE(TAG, "core init failed");
         return;
     }
-    const ink_example_event_t tick = {.type = INK_EXAMPLE_EVENT_TICK, .time_ms = 0};
-    ink_example_action_t action = INK_EXAMPLE_ACTION_NONE;
+    const ink_example_event_t tick   = {.type = INK_EXAMPLE_EVENT_TICK, .time_ms = 0};
+    ink_example_action_t      action = INK_EXAMPLE_ACTION_NONE;
     for (int i = 0; i < 2; i++) {
         if (ink_example_handle(&state, &tick, &action) != INK_EXAMPLE_OK) {
             ESP_LOGE(TAG, "core handle failed");

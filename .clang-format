@@ -4,11 +4,20 @@ IndentWidth: 4
 ColumnLimit: 120
 BreakBeforeBraces: Linux
 AllowShortFunctionsOnASingleLine: None
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortLoopsOnASingleLine: false
-AllowShortBlocksOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: OnlyFirstIf
+AllowShortLoopsOnASingleLine: true
+AllowShortBlocksOnASingleLine: Always
 AllowShortEnumsOnASingleLine: false
-IndentCaseLabels: false
+IndentCaseLabels: true
 PointerAlignment: Right
 SortIncludes: { Enabled: false }
 AlignConsecutiveMacros: Consecutive
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignArrayOfStructures: Left
+AlignTrailingComments: { Kind: Always, OverEmptyLines: 0 }
+AlignEscapedNewlines: Left
+InsertBraces: true
+InsertNewlineAtEOF: true
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always

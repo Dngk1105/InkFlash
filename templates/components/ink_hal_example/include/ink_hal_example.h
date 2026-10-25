@@ -20,6 +20,6 @@ typedef struct {
 
 typedef struct {
     const ink_hal_example_ops_t *ops;
-    void *ctx;
-    ink_hal_example_caps_t caps;
+    void                        *ctx;
+    ink_hal_example_caps_t       caps;
 } ink_hal_example_dev_t;

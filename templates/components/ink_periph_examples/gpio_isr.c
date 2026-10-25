@@ -11,10 +11,10 @@ esp_err_t ink_periph_examples_gpio_isr_init(gpio_num_t pin, gpio_isr_t isr, void
 {
     const gpio_config_t io = {
         .pin_bit_mask = 1ULL << pin,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .mode         = GPIO_MODE_INPUT,
+        .pull_up_en   = GPIO_PULLUP_ENABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_ANYEDGE,
+        .intr_type    = GPIO_INTR_ANYEDGE,
     };
     ESP_RETURN_ON_ERROR(gpio_config(&io), TAG, "gpio_config");
     /* Dịch vụ ngắt GPIO cài một lần cho cả chip; gọi lại trả ESP_ERR_INVALID_STATE, coi như đã có. */

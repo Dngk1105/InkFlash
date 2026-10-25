@@ -13,7 +13,7 @@
 
 typedef struct {
     gpio_num_t pin;
-    bool active_low; /* true: chân ở mức 0 nghĩa là đang tác động (ví dụ nút nối GND) */
+    bool       active_low; /* true: chân ở mức 0 nghĩa là đang tác động (ví dụ nút nối GND) */
 } ink_drv_example_config_t;
 
 typedef struct {
