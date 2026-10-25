@@ -1,3 +1,5 @@
-# templates/ là project ESP-IDF riêng, có build/ riêng; clangd mặc định chỉ đọc build/ của firmware.
+# templates/ là project ESP-IDF riêng, có build/ riêng. File */test/*.c là host test, dùng .clangd ở gốc.
+If:
+  PathExclude: .*/test/.*\.c
 CompileFlags:
   CompilationDatabase: build

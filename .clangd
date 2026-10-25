@@ -1,3 +1,6 @@
+# Firmware: cờ build của ESP-IDF (gcc Xtensa), lấy từ build/compile_commands.json.
+If:
+  PathExclude: .*/test/.*\.c
 CompileFlags:
   CompilationDatabase: build
   Add:
@@ -8,5 +11,13 @@ CompileFlags:
     - --target=xtensa-esp-elf
   Remove: [-f*, -m*]
 
+---
+# Host test (*/test/*.c): build bằng gcc trên PC, lấy từ build-host/compile_commands.json (test/host).
+If:
+  PathMatch: .*/test/.*\.c
+CompileFlags:
+  CompilationDatabase: build-host
+
+---
 Diagnostics:
   UnusedIncludes: None
