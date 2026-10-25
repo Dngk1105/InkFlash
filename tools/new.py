@@ -74,6 +74,7 @@ def main():
     print("  2. Khai báo REQUIRES trong CMakeLists.txt theo bảng 'Được gọi' trong docs/architecture.md.")
     if args.kind == "driver":
         print("  3. Đổi ink_hal_example (interface mẫu) thành interface HAL thật mà driver làm theo.")
+    print("  Để clangd thấy khối mới: chạy idf.py reconfigure (terminal ESP-IDF), rồi khởi động lại clangd.")
     print("  Cuối cùng: chạy python tools/check.py.")
 
 
