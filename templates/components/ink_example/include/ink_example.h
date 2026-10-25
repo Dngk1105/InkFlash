@@ -30,9 +30,13 @@ typedef enum : uint8_t {
     INK_EXAMPLE_ACTION_NOTIFY,
 } ink_example_action_t;
 
+/* Bên gọi giữ struct nhưng không đụng trường bên trong: mọi trường nằm trong `priv`, tools/check.py chặn truy cập
+ * `priv` ngoài thư mục khối lõi. */
 typedef struct {
-    uint32_t count;
-    uint32_t limit;
+    struct {
+        uint32_t count;
+        uint32_t limit;
+    } priv;
 } ink_example_state_t;
 
 /*

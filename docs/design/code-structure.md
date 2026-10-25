@@ -48,7 +48,7 @@ Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã c�
 | Khối trong `core/` không dùng ESP-IDF | Host test biên dịch chúng bằng gcc trên PC; include header IDF là lỗi build |
 | App không gọi `storage` hay `hal` | CMake của app không khai báo hai khối này; include là lỗi build |
 | Chỉ `bsp` biết chân GPIO | Bảng chân nằm trong component `bsp`, không công khai |
-| Bên giữ trạng thái của khối lõi không đụng trường bên trong | Trường nội bộ gom trong struct con `priv`; `tools/check.py` báo lỗi khi `.priv.` hoặc `->priv.` xuất hiện ngoài thư mục của khối đó |
+| Bên giữ trạng thái của khối lõi không đụng trường bên trong | Trường nội bộ gom trong struct con `priv`; `tools/check.py` báo lỗi khi `.priv` hoặc `->priv` xuất hiện ngoài thư mục khối lõi |
 | Định dạng code | `.clang-format` |
 
 Mỗi luật viết một lần trong hàm CMake chung (ví dụ `ink_core_component(...)` tự chặn IDF và tự đưa khối vào host
@@ -116,4 +116,4 @@ Dòng đầu mỗi file: `Thiết kế: docs/design/<file>.md`. Đổi một fil
 | Định dạng | Đúng `.clang-format` |
 | Dòng `Thiết kế:` | Có, và file docs đó tồn tại |
 | API cấm | Không dùng API ESP-IDF cũ hay API Arduino |
-| `priv` | Trường trong `priv` của khối lõi chỉ được truy cập từ trong thư mục của khối đó |
+| `priv` | Truy cập `priv` chỉ nằm trong thư mục khối lõi |

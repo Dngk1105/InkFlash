@@ -104,6 +104,20 @@ def check_board_if(path, text):
             err(path, lineno, "#if BOARD chỉ được viết trong components/ink_bsp/ (docs/design/hardware-variants.md)")
 
 
+PRIV_RE = re.compile(r"(\.|->)\s*priv\b")
+
+
+def check_priv(path, text, core_dirs):
+    """Trường `priv` của khối lõi chỉ được truy cập trong thư mục khối lõi. Chưa phân biệt khối lõi này đụng `priv`
+    của khối lõi khác."""
+    if any(os.path.normpath(path).startswith(d + os.sep) for d in core_dirs):
+        return
+    for lineno, line in enumerate(strip_comments(text).splitlines(), 1):
+        if PRIV_RE.search(line):
+            err(path, lineno, "chỉ khối lõi được đụng trường priv của nó; dùng hàm của khối "
+                "(docs/design/code-structure.md)")
+
+
 def component_dirs():
     for base in ("components", "templates/components"):
         top = os.path.join(ROOT, base)
@@ -207,6 +221,8 @@ def check_format(files):
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
+    core_dirs = [os.path.normpath(c) for c in component_dirs()
+                 if "ink_core_component(" in read(os.path.join(c, "CMakeLists.txt"))]
     code_files = []
     for path in walk_files():
         text = read(path) if path.endswith((".c", ".h", ".cmake", ".py", ".txt")) else ""
@@ -215,6 +231,7 @@ def main():
             code_files.append(path)
             check_banned(path, text)
             check_board_if(path, text)
+            check_priv(path, text, core_dirs)
     for comp in component_dirs():
         check_component(comp)
     check_format(code_files)
