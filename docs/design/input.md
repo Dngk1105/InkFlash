@@ -14,7 +14,7 @@ thì lật thẻ; code app không đổi.
 | Lớp | Đầu vào → đầu ra | Khối |
 |---|---|---|
 | Cử chỉ | Nút bấm/nhả lúc t, tín hiệu IMU → cử chỉ (nút × kiểu: nhấn, nhấn kép, giữ, A+B...) | `gesture` |
-| Bảng gán | Cử chỉ → intent, theo app đang mở | `keymap` |
+| Bảng gán | Cử chỉ → intent, theo app và scene đang mở | `keymap` |
 | App | Intent → hành động | app |
 
 ### Khối `gesture` là C thuần
@@ -22,14 +22,66 @@ thì lật thẻ; code app không đổi.
 Đầu vào: chuỗi "nút X bấm/nhả lúc t" và tín hiệu IMU. Đầu ra: cử chỉ. Không dính FreeRTOS hay phần cứng, nên mọi
 trường hợp khó test được trên PC.
 
-Các ngưỡng thời gian (lọc rung, nhấn kép, giữ, khoảng cách tính là A+B, giữ A+B) nằm trong một struct cấu hình,
-đổi được lúc máy đang chạy, không cần build lại.
+Mỗi cạnh nút vào kèm mức của chân (bấm hay nhả), không chỉ "có cạnh". Lọc rung làm trong `gesture`: nhận cạnh đầu
+tiên ngay, bỏ các cạnh trong `debounce_ms` sau đó, hết khoảng này thì so mức cuối cùng với mức đã nhận.
+
+### Cử chỉ gồm modifier và trigger
+
+Cử chỉ là cặp (modifier, trigger).
+
+| Trường | Nghĩa | Giá trị |
+|---|---|---|
+| trigger: nguồn | Cử chỉ đến từ đâu | Nút. IMU và giọng nói thêm vào trường này |
+| trigger: mã | Nút nào | A, B, A+B |
+| trigger: kiểu | Làm gì | Nhấn, nhấn kép, giữ, giữ A+B 2 s, giữ A+B 8 s |
+| modifier | Nút đang được giữ khi trigger bắt đầu | Không có, A, B |
+
+Ví dụ: giữ A rồi nhấn B ra (modifier A, trigger B nhấn).
+
+Enum kiểu, mã, nguồn chỉ được thêm giá trị vào cuối, không đổi thứ tự: bảng gán người dùng sửa lưu cử chỉ dạng số,
+đổi thứ tự thì bảng đã lưu trỏ sai cử chỉ mà không báo lỗi.
+
+### Cạnh nào phát ra cử chỉ nào
+
+| Cử chỉ | Phát lúc |
+|---|---|
+| Nhấn, nút không bật nhấn kép | Nhả, nếu đã giữ dưới `hold_ms` |
+| Nhấn, nút có bật nhấn kép | Hết `double_ms` sau lần nhả mà không có lần bấm thứ hai |
+| Nhấn kép | Bấm lần thứ hai trong `double_ms`. Lần nhả sau đó bỏ qua |
+| Giữ, nút không bật modifier | Giữ đủ `hold_ms`, không chờ nhả. Lần nhả sau đó bỏ qua |
+| Giữ, nút có bật modifier | Nhả, nếu đã giữ đủ `hold_ms` và trong lúc giữ không bấm nút kia |
+| A+B | Nút thứ hai bấm trong `combo_ms` sau nút đầu thì thành A+B. Phát lúc nhả nút cuối, nếu đã giữ dưới `ab_sleep_ms` |
+| Giữ A+B 2 s | Nhả nút cuối, nếu đã giữ từ `ab_sleep_ms` tới dưới `ab_ship_ms`. Phát lúc nhả để còn tới được mốc 8 s |
+| Giữ A+B 8 s | Giữ đủ `ab_ship_ms`, không chờ nhả |
+| Có modifier | Nút thứ hai bấm sau `combo_ms` khi nút đầu còn giữ và nút đầu có bật modifier. Modifier chốt lúc nút thứ hai bấm; cử chỉ của nút thứ hai theo các dòng trên. Nhả nút đầu sau đó không phát gì |
+
+Nút thứ hai bấm sau `combo_ms` mà nút đầu không bật modifier thì bỏ qua cả hai nút cho tới khi nhả hết.
+
+### Ngưỡng đổi được lúc chạy
+
+Các ngưỡng thời gian (`debounce_ms`, `double_ms`, `hold_ms`, `combo_ms`, `ab_sleep_ms`, `ab_ship_ms`) nằm trong một
+struct cấu hình, đổi được lúc máy đang chạy, không cần build lại. `gesture` kiểm tra struct trước khi nhận, ví dụ
+`ab_sleep_ms` phải nhỏ hơn `ab_ship_ms`.
+
+Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>` đổi một ngưỡng.
 
 ### Chạy theo sự kiện, không quét
 
-- Ngắt GPIO khi chân nút đổi mức → sự kiện vào hàng đợi task main.
-- Hẹn giờ chỉ chạy khi đang có cử chỉ dở (ví dụ đang giữ nút, chờ xem có đủ 2 s không).
+- Ngắt GPIO khi chân nút đổi mức → callback của `system` đóng dấu thời gian bằng giờ của `platform` → sự kiện vào
+  hàng đợi task main. Driver nút không đóng dấu thời gian, nên chỉ có một nguồn giờ.
+- Hẹn giờ một lần của `platform` chỉ chạy khi đang có cử chỉ dở (ví dụ đang giữ nút, chờ xem có đủ 2 s không).
+  `gesture` cho biết thời điểm cần được gọi lại tiếp theo, hoặc không cần.
 - Thời gian được truyền vào làm tham số, `gesture` không tự đọc đồng hồ.
+- Callback hẹn giờ và lệnh console chạy trên task khác, nên chỉ đẩy message vào hàng đợi task main, không gọi
+  thẳng `gesture`.
+
+| Khối | Việc |
+|---|---|
+| `bsp` | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm |
+| Driver nút | Ngắt GPIO, đọc mức, gọi callback qua interface nút của `hal` |
+| `platform` | Giờ, hẹn giờ một lần, console |
+| `system` | Hàng đợi, đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, lệnh `gesture` |
+| `gesture` | Lọc rung, máy trạng thái từng nút, ra cử chỉ |
 
 ### Ai nhận cử chỉ
 
@@ -55,11 +107,17 @@ Các ngưỡng thời gian (lọc rung, nhấn kép, giữ, khoảng cách tính
 
 Lần bấm làm máy thức không tính là thao tác: lần nhả đầu tiên mà không thấy lần nhấn tương ứng thì bỏ qua.
 
-### Nhấn kép làm chậm nhấn đơn
+### Kiểu cử chỉ bắt phải chờ thì bật riêng từng nút
 
 Nút nào có nhấn kép thì mỗi lần nhấn đơn phải chờ hết khoảng chờ nhấn kép (thường ~400 ms) mới biết là nhấn đơn.
-Chỉ bật nhấn kép cho nút thật sự cần: khi mở app, `system` bật nhận nhấn kép cho nút nào có cử chỉ nhấn kép trong
-bảng gán của app đó.
+Nút nào làm modifier thì "giữ" phải chờ tới lúc nhả mới biết người dùng giữ để làm modifier hay để giữ.
+
+Vì vậy mỗi nút có một mask các kiểu bắt phải chờ (nhấn kép, modifier), mặc định tắt hết. `system` tính mask từ bảng
+gán đang dùng (bảng scene và bảng app) mỗi khi mở app hoặc đổi scene: bật kiểu nào bảng gán có dùng trên nút đó.
+
+Mask của một nút đổi khi nút đó đang có cử chỉ dở thì cử chỉ dở bị bỏ, và nút phải nhả hẳn mới nhận cử chỉ mới.
+Lý do: cử chỉ được tra theo scene ở lúc phát, nên phát tiếp sẽ biến lần bấm trong scene cũ thành lệnh trong scene
+mới. Mất một lần bấm ít hại hơn, vì người dùng thấy màn đã đổi và bấm lại.
 
 ### IMU
 
