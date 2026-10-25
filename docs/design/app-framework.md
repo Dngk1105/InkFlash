@@ -25,8 +25,9 @@ Cài đặt là một app như mọi app khác. Nó đọc và ghi cấu hình t
 | `save(snapshot)` | Trước khi ngủ hoặc chuyển app |
 | `stop()` | Đóng app, giải phóng bộ nhớ đã cấp ở `start` |
 
-App chạy trong task main và chỉ nhận intent, không biết nút nào. App chỉ gọi `system`, `study`, `display`, `ui`;
-không gọi thẳng `storage` hay phần cứng.
+App chạy trong task main và chỉ nhận intent, không biết nút nào. Ngoài 5 hàm, app khai báo danh sách intent của
+mình kèm cử chỉ mặc định, và bảng riêng cho scene nào cần nghĩa riêng; Cài đặt đọc danh sách này để người dùng gán
+lại cử chỉ. App chỉ gọi `system`, `study`, `display`, `ui`; không gọi thẳng `storage` hay phần cứng.
 
 ### Scene trong app
 

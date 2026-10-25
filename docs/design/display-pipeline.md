@@ -7,14 +7,14 @@ lúc panel quét (~350 ms theo thư viện GxEPD2, chưa đo), nằm trong drive
 
 ## Một lần vẽ đi qua đâu
 
-| # | Đoạn                                                                          | Ai làm      | Task         |
-| - | ------------------------------------------------------------------------------- | ------------ | ------------ |
-| 1 | Bấm → intent                                                                  | `gesture`  | main         |
-| 2 | App vẽ vào canvas (ảnh 1 bit cả màn)                                       | app + `ui` | main         |
-| 3 | Giao khung cho task màn qua vùng đệm "khung mới nhất" (3 khung, RAM nội) | `display`  | main → màn |
-| 4 | So với khung cũ, tìm vùng đổi, chọn partial/full                         | `display`  | màn         |
-| 5 | Gửi ảnh qua SPI                                                               | driver       | màn         |
-| 6 | Panel quét, chờ chân BUSY                                                    | driver       | màn         |
+| # | Đoạn                                                                          | Ai làm                 | Task         |
+| - | ------------------------------------------------------------------------------- | ----------------------- | ------------ |
+| 1 | Bấm → cử chỉ → intent                                                      | `gesture`, `keymap` | main         |
+| 2 | App vẽ vào canvas (ảnh 1 bit cả màn)                                       | app + `ui`            | main         |
+| 3 | Giao khung cho task màn qua vùng đệm "khung mới nhất" (3 khung, RAM nội) | `display`             | main → màn |
+| 4 | So với khung cũ, tìm vùng đổi, chọn partial/full                         | `display`             | màn         |
+| 5 | Gửi ảnh qua SPI                                                               | driver                  | màn         |
+| 6 | Panel quét, chờ chân BUSY                                                    | driver                  | màn         |
 
 Bấm nhanh hơn tốc độ màn thì các khung giữa bị bỏ, chỉ khung mới nhất được vẽ.
 

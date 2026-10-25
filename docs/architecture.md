@@ -8,11 +8,12 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | Khối | Việc | Task | C thuần | Được gọi |
 |---|---|---|---|---|
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `gesture`, `scene`, `hal`, `platform` |
+| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `gesture`, `keymap`, `scene`, `hal`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
 | `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | Phần quyết định | `ui`, `hal` |
 | `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
-| `gesture/` | Nút, IMU → intent | main | Có | Chỉ thư viện C chuẩn |
+| `gesture/` | Nút, IMU → cử chỉ | main | Có | Chỉ thư viện C chuẩn |
+| `keymap/` | Cử chỉ → intent theo bảng gán của app; kiểm tra bảng gán | main | Có | Chỉ thư viện C chuẩn |
 | `scene/` | Ngăn xếp scene trong app | main | Có | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chỉ thư viện C chuẩn |
 | `ui/` | Canvas, font | main | Có | Chỉ thư viện C chuẩn |
@@ -34,7 +35,7 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 
 ## Hai luồng chính
 
-**Lật thẻ:** ngắt nút → hàng đợi main → `gesture` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
+**Lật thẻ:** ngắt nút → hàng đợi main → `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
 `display` chọn partial/full → driver vẽ.
 
 **Ngủ và thức:** hết giờ chờ hoặc giữ A+B → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
@@ -49,7 +50,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Sản phẩm cần làm gì, tính năng có trong phạm vi không | [requirements.md](requirements.md) |
 | Khối này có được gọi khối kia không; logic dính FreeRTOS nên khó test; muốn thêm biến toàn cục; một thông tin nằm hai nơi; định làm sẵn cho tính năng chưa có | [design/principles.md](design/principles.md) |
 | Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
-| Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức | [design/input.md](design/input.md) |
+| Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input.md](design/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
 | Màn vẽ chậm, chớp, bóng mờ, viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display-pipeline.md](design/display-pipeline.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
