@@ -1,0 +1,3 @@
+# InkFlash Rules
+
+@./CLAUDE.md
