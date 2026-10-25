@@ -1,0 +1,3 @@
+# templates/ là project ESP-IDF riêng, có build/ riêng; clangd mặc định chỉ đọc build/ của firmware.
+CompileFlags:
+  CompilationDatabase: build
