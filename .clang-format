@@ -21,3 +21,7 @@ InsertBraces: true
 InsertNewlineAtEOF: true
 MaxEmptyLinesToKeep: 1
 SeparateDefinitionBlocks: Always
+BreakBeforeBinaryOperators: NonAssignment
+AlignOperands: DontAlign
+ContinuationIndentWidth: 4
+BreakBinaryOperations: RespectPrecedence

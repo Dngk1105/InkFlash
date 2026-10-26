@@ -34,8 +34,8 @@ esp_err_t ink_example_shell_start(void)
     if (s_queue != NULL) { return ESP_ERR_INVALID_STATE; }
     s_queue = xQueueCreate(QUEUE_LEN, sizeof(ink_example_shell_msg_t));
     if (s_queue == NULL) { return ESP_ERR_NO_MEM; }
-    if (xTaskCreatePinnedToCore(task_main, "ink_example", TASK_STACK, NULL, TASK_PRIO, NULL, tskNO_AFFINITY) !=
-        pdPASS) {
+    if (xTaskCreatePinnedToCore(task_main, "ink_example", TASK_STACK, NULL, TASK_PRIO, NULL, tskNO_AFFINITY)
+        != pdPASS) {
         vQueueDelete(s_queue);
         s_queue = NULL;
         return ESP_ERR_NO_MEM;
