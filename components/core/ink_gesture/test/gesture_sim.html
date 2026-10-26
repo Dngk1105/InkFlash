@@ -1,0 +1,2015 @@
+<!DOCTYPE html>
+<!-- Thiết kế: docs/design/input.md -->
+<!--
+  Mô phỏng ink_gesture trên trình duyệt. Phần "Lõi" chép từng hàm của ink_gesture.c sang JS, cùng tên; sửa
+  ink_gesture.c thì sửa phần này trong cùng commit. Tab "Host test" chạy lại test_ink_gesture.c trên bản JS:
+  qua ở đây và qua ở ctest thì bản JS khớp bản C ở các ca đó.
+-->
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gesture Simulator</title>
+<style>
+    /* ---- Theme: Rose Petal DocGraph HC ---- */
+    :root {
+        --background: #fffafc;
+        --surface: #fbf4f6;
+        --surface-strong: #ebdce2;
+        --surface-hover: #f5e6ec;
+        --highlight: #f3dce4;
+        --selection: #cca2ae;
+        --border: #8c3a52;
+        --border-soft: #d9b2bf;
+        --accent: #782239;
+        --accent-strong: #561324;
+        --text: #1f120f;
+        --text-muted: #63404b;
+        --code-background: #f4e6ec;
+        --error: #be123c;
+        --warning: #a16207;
+        --info: #1d4ed8;
+        --success: #096d48;
+        --link: #0f5499;
+        --button-a: #0f4a85;
+        --button-b: #a16207;
+        --deadline: #5e2cbc;
+        --gesture: #782239;
+        --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+        --font-sans: "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        background: var(--background);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 14px;
+    }
+
+    header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
+        padding: 10px 16px;
+        background: var(--surface-strong);
+        border-bottom: 2px solid var(--border);
+    }
+
+    header h1 { margin: 0; font-size: 17px; color: var(--accent-strong); }
+
+    .tabs { display: flex; gap: 4px; }
+
+    .tab {
+        padding: 6px 14px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        color: var(--accent-strong);
+        cursor: pointer;
+        font: inherit;
+    }
+
+    .tab.active { background: var(--accent); color: #fff; }
+
+    .clock { margin-left: auto; font-family: var(--font-mono); color: var(--accent-strong); }
+
+    .clock-controls { display: flex; gap: 6px; align-items: center; }
+
+    button.small, select {
+        padding: 4px 10px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    button.small:hover { background: var(--surface-hover); }
+
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent-strong); }
+
+    button.primary:hover { background: var(--accent-strong); }
+
+    main { padding: 14px 16px; }
+
+    .page { display: none; }
+
+    .page.active { display: grid; gap: 14px; }
+
+    #pageLive.active { grid-template-columns: 280px minmax(0, 1fr) 300px; }
+
+    #pageTests.active { grid-template-columns: 320px minmax(0, 1fr); }
+
+    @media (max-width: 1100px) {
+        #pageLive.active, #pageTests.active { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        padding: 12px;
+        min-width: 0;
+    }
+
+    .card h2 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--accent-strong);
+    }
+
+    .column { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+    .hint { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+
+    code, .mono { font-family: var(--font-mono); }
+
+    code { background: var(--code-background); color: var(--accent-strong); padding: 0 4px; }
+
+    /* ---- Nút bấm ảo ---- */
+    .hardware-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .hardware-button {
+        height: 86px;
+        border: 2px solid var(--border);
+        background: #fff;
+        font: 600 20px var(--font-sans);
+        cursor: pointer;
+        user-select: none;
+        touch-action: none;
+    }
+
+    .hardware-button span { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); }
+
+    #buttonA { color: var(--button-a); }
+
+    #buttonB { color: var(--button-b); }
+
+    .hardware-button.pressed { background: var(--highlight); box-shadow: inset 0 3px 0 var(--border); }
+
+    .toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+    /* ---- Mask và config ---- */
+    table.form { width: 100%; border-collapse: collapse; }
+
+    table.form td { padding: 3px 0; }
+
+    table.form td:last-child { text-align: right; }
+
+    input[type="number"] {
+        width: 90px;
+        padding: 3px 6px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        font: 13px var(--font-mono);
+        text-align: right;
+    }
+
+    .button-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+    .message { margin-top: 8px; font-size: 12px; min-height: 16px; }
+
+    .message.error { color: var(--error); }
+
+    .message.ok { color: var(--success); }
+
+    /* ---- Timeline ---- */
+    canvas.timeline { width: 100%; height: 300px; display: block; background: #fff; border: 1px solid var(--border-soft); }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+
+    .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 4px; }
+
+    /* ---- Progress ---- */
+    .progress-track { height: 14px; background: #fff; border: 1px solid var(--border); position: relative; }
+
+    .progress-fill { height: 100%; width: 0; background: var(--accent); }
+
+    .progress-text { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 12px; }
+
+    /* ---- State machine ---- */
+    .machines { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    @media (max-width: 700px) { .machines { grid-template-columns: 1fr; } }
+
+    svg.machine { width: 100%; height: auto; background: #fff; border: 1px solid var(--border-soft); }
+
+    svg.machine .node rect { fill: var(--surface); stroke: var(--border-soft); stroke-width: 1.5; }
+
+    svg.machine .node text { font: 12px var(--font-mono); fill: var(--text-muted); text-anchor: middle; }
+
+    svg.machine .node.active-a rect { stroke: var(--button-a); stroke-width: 3; fill: #eef3fa; }
+
+    svg.machine .node.active-b rect { stroke: var(--button-b); stroke-width: 3; fill: #fbf3e4; }
+
+    svg.machine .node.active-a.active-b rect { stroke: var(--accent); fill: var(--highlight); }
+
+    svg.machine .node.active-mode rect { stroke: var(--accent); stroke-width: 3; fill: var(--highlight); }
+
+    svg.machine .node[class*="active"] text { fill: var(--text); font-weight: 600; }
+
+    svg.machine .edge { fill: none; stroke: var(--selection); stroke-width: 1.4; marker-end: url(#arrowHead); }
+
+    svg.machine .edge-label { font: 10px var(--font-sans); fill: var(--text-muted); }
+
+    /* ---- Bảng trạng thái ---- */
+    table.state { width: 100%; border-collapse: collapse; font: 12px var(--font-mono); }
+
+    table.state th, table.state td { border: 1px solid var(--border-soft); padding: 3px 6px; text-align: left; }
+
+    table.state th { background: var(--surface-strong); color: var(--accent-strong); font-weight: 600; }
+
+    /* ---- Log ---- */
+    .log { height: 560px; overflow-y: auto; background: #fff; border: 1px solid var(--border-soft); font: 12px var(--font-mono); }
+
+    .log div { padding: 2px 6px; border-bottom: 1px solid var(--surface-strong); }
+
+    .log .time { color: var(--text-muted); margin-right: 6px; }
+
+    .log .gesture { color: var(--gesture); font-weight: 600; background: var(--highlight); }
+
+    .log .edge-a { color: var(--button-a); }
+
+    .log .edge-b { color: var(--button-b); }
+
+    .log .timer { color: var(--deadline); }
+
+    .log .progress { color: var(--text-muted); }
+
+    .log .warning { color: var(--error); }
+
+    /* ---- Host test ---- */
+    .summary { font-weight: 600; margin-bottom: 8px; }
+
+    .summary.pass { color: var(--success); }
+
+    .summary.fail { color: var(--error); }
+
+    .test-group { margin: 10px 0 4px; font-size: 12px; color: var(--accent-strong); font-weight: 600; }
+
+    .test-item {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        width: 100%;
+        padding: 5px 6px;
+        border: 1px solid transparent;
+        background: none;
+        text-align: left;
+        font: inherit;
+        color: var(--text);
+        cursor: pointer;
+    }
+
+    .test-item:hover { background: var(--surface-hover); }
+
+    .test-item.selected { background: var(--highlight); border-color: var(--border); }
+
+    .badge { font: 600 11px var(--font-mono); padding: 1px 5px; border: 1px solid currentColor; }
+
+    .badge.pass { color: var(--success); }
+
+    .badge.fail { color: var(--error); }
+
+    .test-list { max-height: 720px; overflow-y: auto; }
+
+    .checks { list-style: none; padding: 0; margin: 0; font: 12px var(--font-mono); }
+
+    .checks li { padding: 3px 0; border-bottom: 1px solid var(--surface-strong); }
+
+    .checks .pass::before { content: "✓ "; color: var(--success); }
+
+    .checks .fail { color: var(--error); }
+
+    .checks .fail::before { content: "✗ "; }
+
+    .test-title { margin: 0 0 4px; font-size: 16px; color: var(--accent-strong); }
+</style>
+</head>
+<body>
+
+<header>
+    <h1>InkFlash · Gesture Simulator</h1>
+    <div class="tabs">
+        <button class="tab active" id="tabLive">Thử trực tiếp</button>
+        <button class="tab" id="tabTests">Host test <span id="tabTestsSummary"></span></button>
+    </div>
+    <div class="clock">t = <span id="clockText">0</span> ms</div>
+    <div class="clock-controls">
+        <label>Tốc độ
+            <select id="speedSelect">
+                <option value="0.1">0.1×</option>
+                <option value="0.25">0.25×</option>
+                <option value="1" selected>1×</option>
+                <option value="4">4×</option>
+            </select>
+        </label>
+        <button class="small" id="pauseButton">Tạm dừng</button>
+        <button class="small" id="resetButton">Reset</button>
+    </div>
+</header>
+
+<main>
+    <!-- ---- Trang thử trực tiếp ---- -->
+    <section class="page active" id="pageLive">
+        <div class="column">
+            <div class="card">
+                <h2>Nút</h2>
+                <div class="hardware-buttons">
+                    <button class="hardware-button" id="buttonA">A<span>giữ chuột hoặc phím A</span></button>
+                    <button class="hardware-button" id="buttonB">B<span>giữ chuột hoặc phím B</span></button>
+                </div>
+                <label class="toggle-row"><input type="checkbox" id="bounceToggle">Giả lập rung: thêm 2 edge trong 4 ms sau mỗi lần bấm, nhả</label>
+            </div>
+
+            <div class="card">
+                <h2>Mask kiểu phải chờ</h2>
+                <table class="form">
+                    <tr><td></td><td>A</td><td>B</td></tr>
+                    <tr><td>Nhấn kép (bit 1)</td><td><input type="checkbox" id="maskADouble"></td><td><input type="checkbox" id="maskBDouble"></td></tr>
+                    <tr><td>Modifier (bit 2)</td><td><input type="checkbox" id="maskAModifier"></td><td><input type="checkbox" id="maskBModifier"></td></tr>
+                </table>
+                <p class="hint">Giống lệnh <code>gesture enable &lt;a|b&gt; &lt;mask&gt;</code>.</p>
+            </div>
+
+            <div class="card">
+                <h2>Ngưỡng (ms)</h2>
+                <table class="form" id="configTable"></table>
+                <div class="button-row">
+                    <button class="small primary" id="applyConfigButton">Áp dụng</button>
+                    <button class="small" id="firmwareConfigButton">Mặc định firmware</button>
+                    <button class="small" id="testConfigButton">Như host test</button>
+                </div>
+                <div class="message" id="configMessage"></div>
+                <p class="hint">Giống lệnh <code>gesture set &lt;field&gt; &lt;ms&gt;</code>; config sai thì giữ config cũ.</p>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="card">
+                <h2>Timeline</h2>
+                <canvas class="timeline" id="liveCanvas"></canvas>
+                <div class="legend">
+                    <span><i style="background: var(--button-a)"></i>A sau debounce</span>
+                    <span><i style="background: var(--button-b)"></i>B sau debounce</span>
+                    <span><i style="background: var(--border-soft)"></i>edge thô</span>
+                    <span><i style="background: var(--selection); height: 10px"></i>debounce lock</span>
+                    <span><i style="background: var(--gesture)"></i>gesture</span>
+                    <span><i style="background: var(--deadline)"></i>deadline kế tiếp / timer</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Progress <span class="mono" style="text-transform: none">(ink_gesture_progress)</span></h2>
+                <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+                <div class="progress-text">
+                    <span id="progressLeft">Không có gesture dở</span>
+                    <span id="progressRight"></span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>State machine</h2>
+                <div class="machines">
+                    <svg class="machine" id="phaseMachine" viewBox="0 0 420 250"></svg>
+                    <svg class="machine" id="modeMachine" viewBox="0 0 420 250"></svg>
+                </div>
+                <p class="hint">Sơ đồ đầu: phase từng nút (viền xanh là A, viền vàng là B). Sơ đồ sau: mode chung của hai nút.</p>
+            </div>
+
+            <div class="card">
+                <h2>Trạng thái trong priv</h2>
+                <table class="state" id="stateTable"></table>
+            </div>
+        </div>
+
+        <div class="column">
+            <div class="card">
+                <h2>Log</h2>
+                <div class="log" id="logBox"></div>
+                <div class="button-row"><button class="small" id="clearLogButton">Xoá log</button></div>
+                <p class="hint">Dòng gesture và progress in giống log của ink_system trên BB0.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ---- Trang host test ---- -->
+    <section class="page" id="pageTests">
+        <div class="card">
+            <h2>Ca test</h2>
+            <div class="summary" id="testSummary"></div>
+            <div class="button-row"><button class="small primary" id="runTestsButton">Chạy lại tất cả</button></div>
+            <div class="test-list" id="testList"></div>
+        </div>
+        <div class="column">
+            <div class="card">
+                <h3 class="test-title" id="testTitle"></h3>
+                <div class="mono hint" id="testFunction"></div>
+                <p id="testDescription"></p>
+                <canvas class="timeline" id="testCanvas"></canvas>
+                <div class="legend">
+                    <span><i style="background: var(--button-a)"></i>A sau debounce</span>
+                    <span><i style="background: var(--button-b)"></i>B sau debounce</span>
+                    <span><i style="background: var(--border-soft)"></i>edge thô</span>
+                    <span><i style="background: var(--gesture)"></i>gesture</span>
+                    <span><i style="background: var(--success)"></i>kiểm tra qua</span>
+                    <span><i style="background: var(--error)"></i>kiểm tra trượt</span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Kiểm tra</h2>
+                <ul class="checks" id="testChecks"></ul>
+            </div>
+            <div class="card">
+                <h2>Gesture phát ra</h2>
+                <table class="state" id="testGestures"></table>
+            </div>
+        </div>
+    </section>
+</main>
+
+<script>
+/* ---- Hằng số: giống ink_gesture.h ---- */
+
+const BUTTON_A  = 1 << 0;
+const BUTTON_B  = 1 << 1;
+const BUTTON_AB = BUTTON_A | BUTTON_B;
+
+const MODIFIER_NONE = 0;
+const MODIFIER_A    = BUTTON_A;
+const MODIFIER_B    = BUTTON_B;
+
+const TYPE_PRESS         = 0;
+const TYPE_DOUBLE_PRESS  = 1;
+const TYPE_HOLD          = 2;
+const TYPE_HOLD_AB_SHORT = 3;
+const TYPE_HOLD_AB_LONG  = 4;
+const TYPE_NAMES = ["press", "double", "hold", "hold_ab_short", "hold_ab_long"];
+
+const SOURCE_BUTTON = 0;
+
+const LEVEL_RELEASED = 0;
+const LEVEL_PRESSED  = 1;
+
+const WAIT_NONE     = 0;
+const WAIT_DOUBLE   = 1 << 0;
+const WAIT_MODIFIER = 1 << 1;
+
+const OUTPUT_MAX = 4;
+
+const CONFIG_FIELDS = ["debounce_ms", "double_ms", "hold_ms", "combo_ms", "ab_short_ms", "ab_long_ms"];
+
+/* Giống s_default_gesture_config trong ink_system.c. */
+const FIRMWARE_CONFIG = {debounce_ms: 20, double_ms: 400, hold_ms: 600, combo_ms: 100, ab_short_ms: 2000, ab_long_ms: 30000};
+
+/* Giống TEST_CONFIG trong test_ink_gesture.c. */
+const TEST_CONFIG = {debounce_ms: 20, double_ms: 300, hold_ms: 600, combo_ms: 100, ab_short_ms: 2000, ab_long_ms: 8000};
+
+function button_name(button)
+{
+    return {[BUTTON_A]: "A", [BUTTON_B]: "B", [BUTTON_AB]: "AB"}[button] ?? "-";
+}
+
+/* ---- Lõi: chép từ ink_gesture.c ---- */
+/* uint32_t của C: mọi phép cộng trừ thời gian bọc qua u32(), phép ép (int32_t) bọc qua i32(). */
+
+const u32 = (value) => value >>> 0;
+const i32 = (value) => value | 0;
+
+const BUTTON_COUNT = 2;
+
+const PHASE_IDLE         = 0;
+const PHASE_DOWN         = 1;
+const PHASE_UP_WAIT      = 2;
+const PHASE_WAIT_RELEASE = 3;
+const PHASE_NAMES = ["IDLE", "DOWN", "UP_WAIT", "WAIT_RELEASE"];
+
+const MODE_NORMAL  = 0;
+const MODE_AB      = 1;
+const MODE_AB_DONE = 2;
+const MODE_BLOCK   = 3;
+const MODE_NAMES = ["NORMAL", "AB", "AB_DONE", "BLOCK"];
+
+const DEADLINE_DEBOUNCE = 0;
+const DEADLINE_HOLD     = 1;
+const DEADLINE_DOUBLE   = 2;
+const DEADLINE_AB_LONG  = 3;
+const DEADLINE_NAMES = ["debounce", "hold", "double", "ab_long"];
+
+function new_button_state()
+{
+    return {
+        phase: PHASE_IDLE,
+        wait_mask: WAIT_NONE,
+        modifier: MODIFIER_NONE,
+        stable: false,
+        raw: false,
+        locked: false,
+        used_as_modifier: false,
+        lock_until_ms: 0,
+        pressed_at_ms: 0,
+        released_at_ms: 0,
+    };
+}
+
+function time_reached(now_ms, time_ms)
+{
+    return i32(now_ms - time_ms) >= 0;
+}
+
+function config_valid(config)
+{
+    return config.debounce_ms < config.double_ms
+        && config.debounce_ms < config.hold_ms
+        && config.combo_ms < config.hold_ms
+        && config.ab_short_ms > 0
+        && config.ab_short_ms < config.ab_long_ms;
+}
+
+function button_bit(button_index)
+{
+    return 1 << button_index;
+}
+
+function button_index_of(button)
+{
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+        if (button === button_bit(i)) { return i; }
+    }
+    return -1;
+}
+
+/* state.trace và state.current_time_ms chỉ có ở bản JS, để vẽ timeline; bản C không có. */
+function emit(state, out, modifier, button, type)
+{
+    if (out.length < OUTPUT_MAX) {
+        const gesture = {modifier, source: SOURCE_BUTTON, button, type, time_ms: state.current_time_ms};
+        out.push(gesture);
+        state.trace?.gesture(gesture);
+    }
+}
+
+function clear_gesture(button)
+{
+    button.phase            = button.stable ? PHASE_WAIT_RELEASE : PHASE_IDLE;
+    button.modifier         = MODIFIER_NONE;
+    button.used_as_modifier = false;
+}
+
+function flush_pending_press(state, button, button_index, out)
+{
+    if (button.phase === PHASE_UP_WAIT) { emit(state, out, button.modifier, button_bit(button_index), TYPE_PRESS); }
+    button.phase    = PHASE_IDLE;
+    button.modifier = MODIFIER_NONE;
+}
+
+function press_single(state, button, button_index, time_ms, modifier, out)
+{
+    if (button.phase === PHASE_UP_WAIT) {
+        emit(state, out, button.modifier, button_bit(button_index), TYPE_DOUBLE_PRESS);
+        button.phase = PHASE_WAIT_RELEASE;
+        return;
+    }
+    button.phase         = PHASE_DOWN;
+    button.pressed_at_ms = time_ms;
+    button.modifier      = modifier;
+}
+
+function on_press(state, button_index, time_ms, out)
+{
+    const button = state.buttons[button_index];
+    const other  = state.buttons[1 - button_index];
+    if (state.mode !== MODE_NORMAL) { return; }
+    if (!other.stable) {
+        press_single(state, button, button_index, time_ms, MODIFIER_NONE, out);
+        return;
+    }
+    const other_fresh = other.phase === PHASE_DOWN && other.modifier === MODIFIER_NONE && !other.used_as_modifier;
+    if (other_fresh && u32(time_ms - other.pressed_at_ms) <= state.config.combo_ms) {
+        flush_pending_press(state, button, button_index, out);
+        other.phase            = PHASE_IDLE;
+        state.mode             = MODE_AB;
+        state.ab_pressed_at_ms = time_ms;
+        return;
+    }
+    if (other.phase === PHASE_DOWN && (other.wait_mask & WAIT_MODIFIER)) {
+        other.used_as_modifier = true;
+        press_single(state, button, button_index, time_ms, button_bit(1 - button_index), out);
+        return;
+    }
+    flush_pending_press(state, button, button_index, out);
+    clear_gesture(other);
+    state.mode = MODE_BLOCK;
+}
+
+function on_release(state, button_index, time_ms, out)
+{
+    const config = state.config;
+    const button = state.buttons[button_index];
+    const other  = state.buttons[1 - button_index];
+    if (state.mode !== MODE_NORMAL) {
+        if (other.stable) { return; }
+        if (state.mode === MODE_AB) {
+            const held_short = u32(time_ms - state.ab_pressed_at_ms) >= config.ab_short_ms;
+            emit(state, out, MODIFIER_NONE, BUTTON_AB, held_short ? TYPE_HOLD_AB_SHORT : TYPE_PRESS);
+        }
+        state.mode = MODE_NORMAL;
+        clear_gesture(button);
+        clear_gesture(other);
+        return;
+    }
+    if (button.used_as_modifier) {
+        clear_gesture(button);
+        return;
+    }
+    if (button.phase === PHASE_DOWN) {
+        const held = u32(time_ms - button.pressed_at_ms) >= config.hold_ms;
+        if ((button.wait_mask & WAIT_MODIFIER) && held) {
+            emit(state, out, button.modifier, button_bit(button_index), TYPE_HOLD);
+        } else if (button.wait_mask & WAIT_DOUBLE) {
+            button.phase          = PHASE_UP_WAIT;
+            button.released_at_ms = time_ms;
+            return;
+        } else {
+            emit(state, out, button.modifier, button_bit(button_index), TYPE_PRESS);
+        }
+    }
+    clear_gesture(button);
+}
+
+function accept_edge(state, button_index, pressed, time_ms, out)
+{
+    const button         = state.buttons[button_index];
+    button.stable        = pressed;
+    button.locked        = true;
+    button.lock_until_ms = u32(time_ms + state.config.debounce_ms);
+    state.trace?.stable(button_index, pressed, time_ms, button.lock_until_ms);
+    if (pressed) {
+        on_press(state, button_index, time_ms, out);
+    } else {
+        on_release(state, button_index, time_ms, out);
+    }
+}
+
+function keep_earlier(deadline, time_ms, kind, button_index)
+{
+    if (!deadline.found || i32(time_ms - deadline.time_ms) < 0) {
+        Object.assign(deadline, {found: true, kind, button_index, time_ms});
+    }
+}
+
+function earliest_deadline(state)
+{
+    const config   = state.config;
+    const deadline = {found: false, kind: 0, button_index: 0, time_ms: 0};
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+        const button = state.buttons[i];
+        if (button.locked) { keep_earlier(deadline, button.lock_until_ms, DEADLINE_DEBOUNCE, i); }
+        if (state.mode !== MODE_NORMAL) { continue; }
+        if (button.phase === PHASE_DOWN && !button.used_as_modifier && !(button.wait_mask & WAIT_MODIFIER)) {
+            keep_earlier(deadline, u32(button.pressed_at_ms + config.hold_ms), DEADLINE_HOLD, i);
+        }
+        if (button.phase === PHASE_UP_WAIT) {
+            keep_earlier(deadline, u32(button.released_at_ms + config.double_ms), DEADLINE_DOUBLE, i);
+        }
+    }
+    if (state.mode === MODE_AB) {
+        keep_earlier(deadline, u32(state.ab_pressed_at_ms + config.ab_long_ms), DEADLINE_AB_LONG, 0);
+    }
+    return deadline;
+}
+
+function run_deadline(state, deadline, out)
+{
+    const button          = state.buttons[deadline.button_index];
+    state.current_time_ms = deadline.time_ms;
+    switch (deadline.kind) {
+        case DEADLINE_DEBOUNCE:
+            button.locked = false;
+            if (button.raw !== button.stable) {
+                accept_edge(state, deadline.button_index, button.raw, deadline.time_ms, out);
+            }
+            break;
+        case DEADLINE_HOLD:
+            emit(state, out, button.modifier, button_bit(deadline.button_index), TYPE_HOLD);
+            button.phase = PHASE_WAIT_RELEASE;
+            break;
+        case DEADLINE_DOUBLE:
+            emit(state, out, button.modifier, button_bit(deadline.button_index), TYPE_PRESS);
+            clear_gesture(button);
+            break;
+        case DEADLINE_AB_LONG:
+            emit(state, out, MODIFIER_NONE, BUTTON_AB, TYPE_HOLD_AB_LONG);
+            state.mode = MODE_AB_DONE;
+            break;
+    }
+}
+
+function run_due_deadlines(state, now_ms, out)
+{
+    while (out.length < OUTPUT_MAX) {
+        const deadline = earliest_deadline(state);
+        if (!deadline.found || !time_reached(now_ms, deadline.time_ms)) { return; }
+        run_deadline(state, deadline, out);
+    }
+}
+
+/* ---- Lõi: API, giống các hàm ink_gesture_* ---- */
+/* Trả "OK", "ERROR_ARGUMENT", "ERROR_CONFIG" thay cho enum lỗi. */
+
+function gesture_init(config)
+{
+    if (!config_valid(config)) { return {error: "ERROR_CONFIG", state: null}; }
+    const state = {
+        config: {...config},
+        buttons: [new_button_state(), new_button_state()],
+        mode: MODE_NORMAL,
+        ab_pressed_at_ms: 0,
+        current_time_ms: 0,
+        trace: null,
+    };
+    return {error: "OK", state};
+}
+
+function gesture_set_config(state, config)
+{
+    if (!config_valid(config)) { return "ERROR_CONFIG"; }
+    state.config = {...config};
+    return "OK";
+}
+
+function gesture_set_enabled(state, button, wait_mask)
+{
+    const button_index = button_index_of(button);
+    if (button_index < 0 || (wait_mask & ~(WAIT_DOUBLE | WAIT_MODIFIER)) !== 0) { return "ERROR_ARGUMENT"; }
+    const button_state = state.buttons[button_index];
+    if (button_state.wait_mask === wait_mask) { return "OK"; }
+    button_state.wait_mask = wait_mask;
+    if (state.mode === MODE_NORMAL && (button_state.phase !== PHASE_IDLE || button_state.used_as_modifier)) {
+        clear_gesture(button_state);
+    }
+    return "OK";
+}
+
+/* Trả mảng gesture (ink_gesture_output_t). */
+function gesture_feed(state, event)
+{
+    const button_index = button_index_of(event.button);
+    if (button_index < 0) { return []; }
+    const out = [];
+    run_due_deadlines(state, event.time_ms, out);
+    const button          = state.buttons[button_index];
+    const pressed         = event.level === LEVEL_PRESSED;
+    button.raw            = pressed;
+    state.current_time_ms = event.time_ms;
+    if (!button.locked && pressed !== button.stable) { accept_edge(state, button_index, pressed, event.time_ms, out); }
+    return out;
+}
+
+function gesture_tick(state, now_ms)
+{
+    const out = [];
+    run_due_deadlines(state, now_ms, out);
+    return out;
+}
+
+function gesture_next_deadline(state)
+{
+    return earliest_deadline(state);
+}
+
+/* Trả null khi C trả false. */
+function gesture_progress(state, now_ms)
+{
+    const config = state.config;
+    if (state.mode === MODE_AB) {
+        const ab_pressed_at_ms = state.ab_pressed_at_ms;
+        const past_short       = time_reached(now_ms, u32(ab_pressed_at_ms + config.ab_short_ms));
+        return {
+            modifier: MODIFIER_NONE,
+            button: BUTTON_AB,
+            on_release: past_short ? TYPE_HOLD_AB_SHORT : TYPE_PRESS,
+            has_next: true,
+            next: past_short ? TYPE_HOLD_AB_LONG : TYPE_HOLD_AB_SHORT,
+            start_ms: ab_pressed_at_ms,
+            next_ms: u32(ab_pressed_at_ms + (past_short ? config.ab_long_ms : config.ab_short_ms)),
+        };
+    }
+    if (state.mode !== MODE_NORMAL) { return null; }
+    for (let i = 0; i < BUTTON_COUNT; i++) {
+        const button = state.buttons[i];
+        if (button.phase !== PHASE_DOWN || button.used_as_modifier) { continue; }
+        const hold_at_ms = u32(button.pressed_at_ms + config.hold_ms);
+        const past_hold  = time_reached(now_ms, hold_at_ms);
+        return {
+            modifier: button.modifier,
+            button: button_bit(i),
+            on_release: past_hold ? TYPE_HOLD : TYPE_PRESS,
+            has_next: !past_hold,
+            next: TYPE_HOLD,
+            start_ms: button.pressed_at_ms,
+            next_ms: hold_at_ms,
+        };
+    }
+    return null;
+}
+
+/* ---- Ghi lại diễn biến để vẽ timeline ---- */
+/* Thời gian lưu dạng tương đối so với origin_ms, để ca quay vòng qua 0 vẫn vẽ liền. */
+
+class Recorder {
+    constructor(origin_ms)
+    {
+        this.origin_ms   = origin_ms;
+        this.raw_edges   = [[], []];
+        this.stable_edges = [[], []];
+        this.locks       = [];
+        this.gestures    = [];
+        this.checks      = [];
+    }
+
+    relative(time_ms)
+    {
+        return i32(time_ms - this.origin_ms);
+    }
+
+    raw_edge(button_index, pressed, time_ms)
+    {
+        this.raw_edges[button_index].push({time: this.relative(time_ms), pressed});
+    }
+
+    stable(button_index, pressed, time_ms, lock_until_ms)
+    {
+        this.stable_edges[button_index].push({time: this.relative(time_ms), pressed});
+        this.locks.push({button_index, start: this.relative(time_ms), end: this.relative(lock_until_ms)});
+    }
+
+    gesture(gesture)
+    {
+        this.gestures.push({...gesture, time: this.relative(gesture.time_ms)});
+    }
+
+    check(passed, text, time_ms)
+    {
+        this.checks.push({passed, text, time: this.relative(time_ms)});
+    }
+
+    last_time()
+    {
+        const times = [0];
+        for (const list of [...this.raw_edges, ...this.stable_edges, this.gestures, this.checks]) {
+            for (const item of list) { times.push(item.time); }
+        }
+        for (const lock of this.locks) { times.push(lock.end); }
+        return Math.max(...times);
+    }
+}
+
+/* ---- Vẽ timeline ---- */
+
+function theme_color(name)
+{
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function choose_grid_step(span_ms)
+{
+    for (const step of [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000]) {
+        if (span_ms / step <= 12) { return step; }
+    }
+    return 20000;
+}
+
+function prepare_canvas(canvas)
+{
+    const ratio  = window.devicePixelRatio || 1;
+    const width  = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+        canvas.width  = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+    }
+    const context = canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    return {context, width, height};
+}
+
+function level_at(edges, time)
+{
+    let pressed = false;
+    for (const edge of edges) {
+        if (edge.time > time) { break; }
+        pressed = edge.pressed;
+    }
+    return pressed;
+}
+
+/*
+ * view: {start, end} tính theo thời gian tương đối; now (tuỳ chọn) để tô vùng tương lai;
+ * markers (tuỳ chọn): [{time, label}] cho deadline và timer.
+ */
+function draw_timeline(canvas, recorder, view)
+{
+    const {context, width, height} = prepare_canvas(canvas);
+    const left       = 34;
+    const right      = width - 8;
+    const span       = Math.max(1, view.end - view.start);
+    const x_of       = (time) => left + ((time - view.start) / span) * (right - left);
+    const label_band = 46;
+    const rows       = [
+        {index: 0, name: "A", color: theme_color("--button-a"), top: label_band + 16},
+        {index: 1, name: "B", color: theme_color("--button-b"), top: label_band + 118},
+    ];
+    const row_height = 70;
+    const font_mono  = theme_color("--font-mono");
+
+    if (view.now !== undefined && view.now < view.end) {
+        context.fillStyle = theme_color("--surface");
+        context.fillRect(x_of(view.now), 0, right - x_of(view.now), height);
+    }
+
+    const step = choose_grid_step(span);
+    context.font = `10px ${font_mono}`;
+    for (let time = Math.ceil(view.start / step) * step; time <= view.end; time += step) {
+        const x = x_of(time);
+        context.strokeStyle = theme_color("--surface-strong");
+        context.lineWidth = 1;
+        context.beginPath();
+        context.moveTo(x, label_band);
+        context.lineTo(x, height - 18);
+        context.stroke();
+        context.fillStyle = theme_color("--text-muted");
+        context.fillText(`${time}`, x + 2, height - 6);
+    }
+
+    for (const row of rows) {
+        context.fillStyle = theme_color("--surface");
+        context.fillRect(left, row.top - 8, right - left, row_height + 16);
+        context.fillStyle = theme_color("--text-muted");
+        context.font = `10px ${font_mono}`;
+        context.fillText("bấm", 4, row.top + 4);
+        context.fillText("nhả", 4, row.top + row_height + 4);
+    }
+
+    for (const lock of recorder.locks) {
+        if (lock.end < view.start || lock.start > view.end) { continue; }
+        const row = rows[lock.button_index];
+        context.fillStyle = theme_color("--selection") + "66";
+        context.fillRect(x_of(lock.start), row.top - 4, Math.max(2, x_of(lock.end) - x_of(lock.start)), row_height + 8);
+    }
+
+    const draw_level = (edges, row, color, line_width, end_time) => {
+        const high = row.top;
+        const low  = row.top + row_height;
+        let pressed = level_at(edges, view.start);
+        context.strokeStyle = color;
+        context.lineWidth = line_width;
+        context.beginPath();
+        context.moveTo(x_of(view.start), pressed ? high : low);
+        for (const edge of edges) {
+            if (edge.time <= view.start) { continue; }
+            if (edge.time > end_time) { break; }
+            const x = x_of(edge.time);
+            context.lineTo(x, pressed ? high : low);
+            pressed = edge.pressed;
+            context.lineTo(x, pressed ? high : low);
+        }
+        context.lineTo(x_of(end_time), pressed ? high : low);
+        context.stroke();
+    };
+
+    const end_time = view.now !== undefined ? Math.min(view.now, view.end) : view.end;
+    for (const row of rows) {
+        context.fillStyle = row.color;
+        context.font = `600 12px ${font_mono}`;
+        context.fillText(row.name, 12, row.top + row_height / 2 + 4);
+        draw_level(recorder.raw_edges[row.index], {top: row.top + 6}, theme_color("--border-soft"), 1.5, end_time);
+        draw_level(recorder.stable_edges[row.index], row, row.color, 3, end_time);
+    }
+
+    let stagger = 0;
+    for (const gesture of recorder.gestures) {
+        if (gesture.time < view.start || gesture.time > view.end) { continue; }
+        const x = x_of(gesture.time);
+        context.strokeStyle = theme_color("--gesture");
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(x, label_band - 4);
+        context.lineTo(x, height - 18);
+        context.stroke();
+        const modifier = gesture.modifier ? `${button_name(gesture.modifier)}+` : "";
+        const label    = `${modifier}${button_name(gesture.button)} ${TYPE_NAMES[gesture.type]}`;
+        context.font = `600 11px ${font_mono}`;
+        const label_width = context.measureText(label).width + 8;
+        const label_x     = Math.min(x + 3, right - label_width);
+        const label_y     = 4 + (stagger % 2) * 20;
+        context.fillStyle = theme_color("--highlight");
+        context.fillRect(label_x, label_y, label_width, 17);
+        context.strokeStyle = theme_color("--gesture");
+        context.lineWidth = 1;
+        context.strokeRect(label_x, label_y, label_width, 17);
+        context.fillStyle = theme_color("--gesture");
+        context.fillText(label, label_x + 4, label_y + 12);
+        stagger++;
+    }
+
+    for (const marker of view.markers ?? []) {
+        if (marker.time < view.start || marker.time > view.end) { continue; }
+        const x = x_of(marker.time);
+        context.strokeStyle = theme_color("--deadline");
+        context.lineWidth = 1.5;
+        context.setLineDash([5, 4]);
+        context.beginPath();
+        context.moveTo(x, label_band);
+        context.lineTo(x, height - 18);
+        context.stroke();
+        context.setLineDash([]);
+        context.fillStyle = theme_color("--deadline");
+        context.font = `11px ${font_mono}`;
+        context.fillText(marker.label, Math.min(x + 3, right - context.measureText(marker.label).width), marker.row ?? label_band + 8);
+    }
+
+    for (const check of recorder.checks) {
+        if (check.time < view.start || check.time > view.end) { continue; }
+        const x = x_of(check.time);
+        context.fillStyle = check.passed ? theme_color("--success") : theme_color("--error");
+        context.beginPath();
+        context.moveTo(x, height - 26);
+        context.lineTo(x - 5, height - 18);
+        context.lineTo(x + 5, height - 18);
+        context.closePath();
+        context.fill();
+    }
+
+    if (view.now !== undefined) {
+        const x = x_of(view.now);
+        context.strokeStyle = theme_color("--accent-strong");
+        context.lineWidth = 1.5;
+        context.beginPath();
+        context.moveTo(x, label_band);
+        context.lineTo(x, height - 18);
+        context.stroke();
+    }
+}
+
+/* ---- Thử trực tiếp: giả lập ink_system ---- */
+/* Cùng thứ tự như task main: edge → feed → log gesture → update_gesture_timer; timer hết → tick → ... */
+
+const PROGRESS_LOG_INTERVAL_MS = 1000; /* giống ink_system.c */
+const LIVE_WINDOW_PAST_MS      = 6000;
+const LIVE_WINDOW_FUTURE_MS    = 1500;
+const BOUNCE_GAP_MS            = 2;
+
+const live = {
+    state: null,
+    recorder: null,
+    clock_ms: 0,
+    timer_at_ms: null,
+    raw_pressed: [false, false],
+    scheduled_edges: [], /* edge rung giả lập, chờ tới giờ */
+    paused: false,
+    speed: 1,
+    held_by_input: [false, false],
+};
+
+function live_reset()
+{
+    const config = live.state ? live.state.config : FIRMWARE_CONFIG;
+    const masks  = live.state ? live.state.buttons.map((button) => button.wait_mask) : [0, 0];
+    live.state = gesture_init(config).state;
+    live.state.buttons.forEach((button, i) => { button.wait_mask = masks[i]; });
+    live.recorder = new Recorder(0);
+    live.state.trace = live.recorder;
+    live.clock_ms = 0;
+    live.timer_at_ms = null;
+    live.raw_pressed = [false, false];
+    live.scheduled_edges = [];
+    document.getElementById("logBox").innerHTML = "";
+    log_line("Reset: t = 0", "timer");
+}
+
+function log_line(text, kind)
+{
+    const box  = document.getElementById("logBox");
+    const line = document.createElement("div");
+    line.className = kind ?? "";
+    line.innerHTML = `<span class="time">${String(live.clock_ms).padStart(6, " ")}</span>`;
+    line.append(text);
+    box.append(line);
+    while (box.childElementCount > 400) { box.firstElementChild.remove(); }
+    box.scrollTop = box.scrollHeight;
+}
+
+function log_gestures(gestures)
+{
+    for (const gesture of gestures) {
+        log_line(`gesture modifier=${button_name(gesture.modifier)} button=${button_name(gesture.button)} type=${TYPE_NAMES[gesture.type]}`, "gesture");
+    }
+}
+
+function log_progress(progress)
+{
+    const held_ms = u32(live.clock_ms - progress.start_ms);
+    let text = `progress modifier=${button_name(progress.modifier)} button=${button_name(progress.button)} held=${held_ms} ms release=${TYPE_NAMES[progress.on_release]}`;
+    if (progress.has_next) { text += ` next=${TYPE_NAMES[progress.next]} in ${i32(progress.next_ms - live.clock_ms)} ms`; }
+    log_line(text, "progress");
+}
+
+/* Giống update_gesture_timer() trong ink_system.c. */
+function live_update_gesture_timer()
+{
+    const now_ms   = live.clock_ms;
+    const progress = gesture_progress(live.state, now_ms);
+    if (progress) { log_progress(progress); }
+    const deadline = gesture_next_deadline(live.state);
+    if (!deadline.found && !progress) {
+        live.timer_at_ms = null;
+        return;
+    }
+    let delay_ms = Infinity;
+    if (deadline.found) {
+        const remaining_ms = i32(deadline.time_ms - now_ms);
+        delay_ms = remaining_ms > 0 ? remaining_ms : 1;
+    }
+    if (progress && delay_ms > PROGRESS_LOG_INTERVAL_MS) { delay_ms = PROGRESS_LOG_INTERVAL_MS; }
+    live.timer_at_ms = now_ms + delay_ms;
+}
+
+function live_apply_edge(button_index, pressed)
+{
+    if (live.raw_pressed[button_index] === pressed) { return; } /* GPIO chỉ báo khi mức đổi */
+    live.raw_pressed[button_index] = pressed;
+    live.recorder.raw_edge(button_index, pressed, live.clock_ms);
+    const button = button_bit(button_index);
+    log_line(`${button_name(button)} ${pressed ? "bấm" : "nhả"}`, button_index === 0 ? "edge-a" : "edge-b");
+    const event = {button, level: pressed ? LEVEL_PRESSED : LEVEL_RELEASED, time_ms: live.clock_ms};
+    log_gestures(gesture_feed(live.state, event));
+    live_update_gesture_timer();
+}
+
+function live_input(button_index, pressed)
+{
+    if (live.held_by_input[button_index] === pressed) { return; }
+    sync_clock();
+    live.held_by_input[button_index] = pressed;
+    document.getElementById(button_index === 0 ? "buttonA" : "buttonB").classList.toggle("pressed", pressed);
+    live_apply_edge(button_index, pressed);
+    if (document.getElementById("bounceToggle").checked) {
+        live.scheduled_edges.push({time_ms: live.clock_ms + BOUNCE_GAP_MS, button_index, pressed: !pressed});
+        live.scheduled_edges.push({time_ms: live.clock_ms + 2 * BOUNCE_GAP_MS, button_index, pressed});
+    }
+}
+
+/* Chạy đồng hồ tới target_ms, xử lý edge giả lập và timer đúng thứ tự thời gian. */
+function live_advance_to(target_ms)
+{
+    for (;;) {
+        live.scheduled_edges.sort((first, second) => first.time_ms - second.time_ms);
+        const next_edge  = live.scheduled_edges[0];
+        const edge_time  = next_edge ? next_edge.time_ms : Infinity;
+        const timer_time = live.timer_at_ms ?? Infinity;
+        const next_time  = Math.min(edge_time, timer_time);
+        if (next_time > target_ms) { break; }
+        live.clock_ms = next_time;
+        if (edge_time <= timer_time) {
+            live.scheduled_edges.shift();
+            live_apply_edge(next_edge.button_index, next_edge.pressed);
+        } else {
+            live.timer_at_ms = null;
+            log_line("timer → tick", "timer");
+            log_gestures(gesture_tick(live.state, live.clock_ms));
+            live_update_gesture_timer();
+        }
+    }
+    live.clock_ms = target_ms;
+}
+
+/* ---- Thử trực tiếp: hiển thị ---- */
+
+function render_progress()
+{
+    const progress = gesture_progress(live.state, live.clock_ms);
+    const fill     = document.getElementById("progressFill");
+    const left     = document.getElementById("progressLeft");
+    const right    = document.getElementById("progressRight");
+    if (!progress) {
+        fill.style.width = "0";
+        left.textContent = "Không có gesture dở";
+        right.textContent = "";
+        return;
+    }
+    const modifier = progress.modifier ? `${button_name(progress.modifier)}+` : "";
+    const held_ms  = u32(live.clock_ms - progress.start_ms);
+    left.textContent = `${modifier}${button_name(progress.button)}: giữ ${held_ms} ms, nhả lúc này ra ${TYPE_NAMES[progress.on_release]}`;
+    if (progress.has_next) {
+        const total_ms = u32(progress.next_ms - progress.start_ms);
+        fill.style.width = `${Math.min(100, (held_ms / total_ms) * 100)}%`;
+        right.textContent = `giữ thêm ${Math.max(0, i32(progress.next_ms - live.clock_ms))} ms ra ${TYPE_NAMES[progress.next]}`;
+    } else {
+        fill.style.width = "100%";
+        right.textContent = "không còn mốc kế tiếp";
+    }
+}
+
+function render_state_table()
+{
+    const state = live.state;
+    const rows  = [
+        ["phase", (button) => PHASE_NAMES[button.phase]],
+        ["wait_mask", (button) => button.wait_mask],
+        ["modifier", (button) => button_name(button.modifier)],
+        ["stable", (button) => button.stable],
+        ["raw", (button) => button.raw],
+        ["locked", (button) => button.locked],
+        ["used_as_modifier", (button) => button.used_as_modifier],
+        ["lock_until_ms", (button) => button.lock_until_ms],
+        ["pressed_at_ms", (button) => button.pressed_at_ms],
+        ["released_at_ms", (button) => button.released_at_ms],
+    ];
+    const deadline = gesture_next_deadline(state);
+    let html = "<tr><th>buttons[i]</th><th>A</th><th>B</th></tr>";
+    for (const [name, read] of rows) {
+        html += `<tr><td>${name}</td><td>${read(state.buttons[0])}</td><td>${read(state.buttons[1])}</td></tr>`;
+    }
+    html += `<tr><th>chung</th><th colspan="2"></th></tr>`;
+    html += `<tr><td>mode</td><td colspan="2">${MODE_NAMES[state.mode]}</td></tr>`;
+    html += `<tr><td>ab_pressed_at_ms</td><td colspan="2">${state.ab_pressed_at_ms}</td></tr>`;
+    const deadline_text = deadline.found
+        ? `${deadline.time_ms} (${DEADLINE_NAMES[deadline.kind]}, nút ${button_name(button_bit(deadline.button_index))})`
+        : "không có";
+    html += `<tr><td>next_deadline</td><td colspan="2">${deadline_text}</td></tr>`;
+    html += `<tr><td>timer hẹn lúc</td><td colspan="2">${live.timer_at_ms ?? "không chạy"}</td></tr>`;
+    document.getElementById("stateTable").innerHTML = html;
+}
+
+function render_live_timeline()
+{
+    const markers  = [];
+    const deadline = gesture_next_deadline(live.state);
+    if (deadline.found) {
+        markers.push({time: deadline.time_ms, label: `deadline ${DEADLINE_NAMES[deadline.kind]}`});
+    }
+    if (live.timer_at_ms !== null && (!deadline.found || live.timer_at_ms !== deadline.time_ms)) {
+        markers.push({time: live.timer_at_ms, label: "timer", row: 290 - 26});
+    }
+    draw_timeline(document.getElementById("liveCanvas"), live.recorder, {
+        start: live.clock_ms - LIVE_WINDOW_PAST_MS,
+        end: live.clock_ms + LIVE_WINDOW_FUTURE_MS,
+        now: live.clock_ms,
+        markers,
+    });
+}
+
+/* ---- State machine: sơ đồ ---- */
+
+/* DOWN nằm giữa tam giác IDLE, UP_WAIT, WAIT_RELEASE để các cạnh không cắt nhau. */
+const PHASE_LAYOUT = [
+    {id: PHASE_IDLE, x: 70, y: 205},
+    {id: PHASE_DOWN, x: 210, y: 125},
+    {id: PHASE_UP_WAIT, x: 350, y: 205},
+    {id: PHASE_WAIT_RELEASE, x: 210, y: 30},
+];
+
+const PHASE_EDGES = [
+    {from: PHASE_IDLE, to: PHASE_DOWN, label: "bấm", bend: -18},
+    {from: PHASE_DOWN, to: PHASE_IDLE, label: "nhả → press", bend: -18, label_dx: 10, label_dy: 8},
+    {from: PHASE_DOWN, to: PHASE_UP_WAIT, label: "nhả, có DOUBLE", bend: 0, label_dx: 18, label_dy: 6},
+    {from: PHASE_DOWN, to: PHASE_WAIT_RELEASE, label: "hold_ms → hold", bend: 0, label_dx: 44},
+    {from: PHASE_UP_WAIT, to: PHASE_WAIT_RELEASE, label: "bấm lần 2 → double", bend: 0, label_dx: 52},
+    {from: PHASE_UP_WAIT, to: PHASE_IDLE, label: "hết double_ms → press", bend: -26, label_dy: 14},
+    {from: PHASE_WAIT_RELEASE, to: PHASE_IDLE, label: "nhả", bend: 0, label_dx: -20},
+];
+
+const MODE_LAYOUT = [
+    {id: MODE_NORMAL, x: 80, y: 125},
+    {id: MODE_AB, x: 320, y: 55},
+    {id: MODE_AB_DONE, x: 320, y: 200},
+    {id: MODE_BLOCK, x: 80, y: 220},
+];
+
+const MODE_EDGES = [
+    {from: MODE_NORMAL, to: MODE_AB, label: "nút 2 trong combo_ms", bend: -25},
+    {from: MODE_AB, to: MODE_NORMAL, label: "nhả hết → AB press / short", bend: -25},
+    {from: MODE_AB, to: MODE_AB_DONE, label: "ab_long_ms → long", bend: 0},
+    {from: MODE_AB_DONE, to: MODE_NORMAL, label: "nhả hết", bend: 0},
+    {from: MODE_NORMAL, to: MODE_BLOCK, label: "nút 2 muộn", bend: -22, label_dx: 48},
+    {from: MODE_BLOCK, to: MODE_NORMAL, label: "nhả hết", bend: -22, label_dx: -36},
+];
+
+function build_machine(svg_id, layout, edges, names, node_prefix)
+{
+    const width = 104;
+    const height = 30;
+    let html = `<defs><marker id="arrowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${theme_color("--selection")}"/></marker></defs>`;
+    const position = (id) => layout.find((node) => node.id === id);
+    for (const edge of edges) {
+        const from = position(edge.from);
+        const to   = position(edge.to);
+        const middle_x = (from.x + to.x) / 2;
+        const middle_y = (from.y + to.y) / 2;
+        const length   = Math.hypot(to.x - from.x, to.y - from.y);
+        const normal_x = -(to.y - from.y) / length;
+        const normal_y = (to.x - from.x) / length;
+        const control_x = middle_x + normal_x * edge.bend;
+        const control_y = middle_y + normal_y * edge.bend;
+        const shrink = (point, toward) => {
+            const dx = toward.x - point.x;
+            const dy = toward.y - point.y;
+            const scale = Math.min(Math.abs((width / 2 + 2) / (dx || 1e-6)), Math.abs((height / 2 + 2) / (dy || 1e-6)));
+            return {x: point.x + dx * Math.min(scale, 1), y: point.y + dy * Math.min(scale, 1)};
+        };
+        const start = shrink(from, {x: control_x, y: control_y});
+        const end   = shrink(to, {x: control_x, y: control_y});
+        html += `<path class="edge" d="M${start.x},${start.y} Q${control_x},${control_y} ${end.x},${end.y}"/>`;
+        const label_x = control_x + (edge.label_dx ?? 0);
+        const label_y = control_y - 3 + (edge.label_dy ?? 0);
+        html += `<text class="edge-label" x="${label_x}" y="${label_y}" text-anchor="middle">${edge.label}</text>`;
+    }
+    for (const node of layout) {
+        html += `<g class="node" id="${node_prefix}${node.id}"><rect x="${node.x - width / 2}" y="${node.y - height / 2}" width="${width}" height="${height}" rx="4"/><text x="${node.x}" y="${node.y + 4}">${names[node.id]}</text></g>`;
+    }
+    document.getElementById(svg_id).innerHTML = html;
+}
+
+function render_machines()
+{
+    for (const node of PHASE_LAYOUT) {
+        const element = document.getElementById(`phase${node.id}`);
+        element.classList.toggle("active-a", live.state.buttons[0].phase === node.id);
+        element.classList.toggle("active-b", live.state.buttons[1].phase === node.id);
+    }
+    for (const node of MODE_LAYOUT) {
+        document.getElementById(`mode${node.id}`).classList.toggle("active-mode", live.state.mode === node.id);
+    }
+}
+
+/* ---- Thử trực tiếp: điều khiển ---- */
+
+function build_config_table()
+{
+    let html = "";
+    for (const field of CONFIG_FIELDS) {
+        html += `<tr><td class="mono">${field}</td><td><input type="number" min="0" id="config_${field}"></td></tr>`;
+    }
+    document.getElementById("configTable").innerHTML = html;
+}
+
+function fill_config_inputs(config)
+{
+    for (const field of CONFIG_FIELDS) { document.getElementById(`config_${field}`).value = config[field]; }
+}
+
+function apply_config(config)
+{
+    const message = document.getElementById("configMessage");
+    if (gesture_set_config(live.state, config) !== "OK") {
+        message.className = "message error";
+        message.textContent = "config sai, giữ config cũ";
+        log_line("config sai, giữ config cũ", "warning");
+        fill_config_inputs(live.state.config);
+        return;
+    }
+    message.className = "message ok";
+    message.textContent = "Đã áp dụng";
+    log_line(`config ${CONFIG_FIELDS.map((field) => `${field}=${config[field]}`).join(" ")}`, "timer");
+    fill_config_inputs(config);
+    live_update_gesture_timer();
+}
+
+function read_config_inputs()
+{
+    const config = {};
+    for (const field of CONFIG_FIELDS) { config[field] = Number(document.getElementById(`config_${field}`).value); }
+    return config;
+}
+
+function apply_masks()
+{
+    const masks = [
+        (document.getElementById("maskADouble").checked ? WAIT_DOUBLE : 0) | (document.getElementById("maskAModifier").checked ? WAIT_MODIFIER : 0),
+        (document.getElementById("maskBDouble").checked ? WAIT_DOUBLE : 0) | (document.getElementById("maskBModifier").checked ? WAIT_MODIFIER : 0),
+    ];
+    masks.forEach((wait_mask, i) => {
+        if (live.state.buttons[i].wait_mask === wait_mask) { return; }
+        gesture_set_enabled(live.state, button_bit(i), wait_mask);
+        log_line(`mask ${button_name(button_bit(i))} = ${wait_mask}`, "timer");
+    });
+    live_update_gesture_timer();
+}
+
+function bind_hardware_button(element_id, button_index)
+{
+    const element = document.getElementById(element_id);
+    element.addEventListener("pointerdown", (event) => {
+        element.setPointerCapture(event.pointerId);
+        live_input(button_index, true);
+    });
+    element.addEventListener("pointerup", () => live_input(button_index, false));
+    element.addEventListener("pointercancel", () => live_input(button_index, false));
+}
+
+function bind_live_controls()
+{
+    bind_hardware_button("buttonA", 0);
+    bind_hardware_button("buttonB", 1);
+    const key_to_index = {a: 0, b: 1};
+    window.addEventListener("keydown", (event) => {
+        const index = key_to_index[event.key.toLowerCase()];
+        if (index === undefined || event.repeat || event.target.tagName === "INPUT") { return; }
+        live_input(index, true);
+    });
+    window.addEventListener("keyup", (event) => {
+        const index = key_to_index[event.key.toLowerCase()];
+        if (index !== undefined) { live_input(index, false); }
+    });
+    for (const id of ["maskADouble", "maskAModifier", "maskBDouble", "maskBModifier"]) {
+        document.getElementById(id).addEventListener("change", apply_masks);
+    }
+    document.getElementById("applyConfigButton").addEventListener("click", () => apply_config(read_config_inputs()));
+    document.getElementById("firmwareConfigButton").addEventListener("click", () => apply_config(FIRMWARE_CONFIG));
+    document.getElementById("testConfigButton").addEventListener("click", () => apply_config(TEST_CONFIG));
+    document.getElementById("clearLogButton").addEventListener("click", () => { document.getElementById("logBox").innerHTML = ""; });
+    document.getElementById("speedSelect").addEventListener("change", (event) => { live.speed = Number(event.target.value); });
+    document.getElementById("pauseButton").addEventListener("click", (event) => {
+        live.paused = !live.paused;
+        event.target.textContent = live.paused ? "Chạy tiếp" : "Tạm dừng";
+    });
+    document.getElementById("resetButton").addEventListener("click", live_reset);
+}
+
+/* Đồng hồ ảo chạy theo giờ thật × tốc độ. Gọi cả lúc có input, vì tab ẩn thì requestAnimationFrame dừng. */
+let last_real_ms = null;
+
+function sync_clock()
+{
+    const real_ms = performance.now();
+    if (last_real_ms !== null && !live.paused) {
+        const elapsed_ms = Math.min(10000, real_ms - last_real_ms) * live.speed;
+        live_advance_to(Math.round(live.clock_ms + elapsed_ms));
+    }
+    last_real_ms = real_ms;
+}
+
+function animation_frame()
+{
+    sync_clock();
+    document.getElementById("clockText").textContent = live.clock_ms;
+    if (document.getElementById("pageLive").classList.contains("active")) {
+        render_live_timeline();
+        render_progress();
+        render_machines();
+        render_state_table();
+    }
+    requestAnimationFrame(animation_frame);
+}
+
+/* ---- Host test: harness, giống advance/edge/expect trong test_ink_gesture.c ---- */
+
+class TestFailure extends Error {}
+
+function create_harness(recorder)
+{
+    const state = gesture_init(TEST_CONFIG).state;
+    state.trace = recorder;
+    let current_ms = recorder.origin_ms;
+    const log = [];
+    const check = (passed, text) => {
+        recorder.check(passed, text, current_ms);
+        if (!passed) { throw new TestFailure(text); }
+    };
+    const harness = {
+        state,
+        log,
+        advance(time_ms) {
+            for (let guard = 0;; guard++) {
+                const deadline = gesture_next_deadline(state);
+                if (!deadline.found || i32(time_ms - deadline.time_ms) < 0) { break; }
+                if (guard >= 100) { check(false, "tick không tiêu hạn"); }
+                log.push(...gesture_tick(state, deadline.time_ms));
+            }
+            current_ms = time_ms;
+        },
+        edge(button, level, time_ms) {
+            harness.advance(time_ms);
+            recorder.raw_edge(button_index_of(button), level === LEVEL_PRESSED, time_ms);
+            log.push(...gesture_feed(state, {button, level, time_ms}));
+        },
+        down(button, time_ms) { harness.edge(button, LEVEL_PRESSED, time_ms); },
+        up(button, time_ms) { harness.edge(button, LEVEL_RELEASED, time_ms); },
+        enable(button, wait_mask) {
+            check(gesture_set_enabled(state, button, wait_mask) === "OK", `set_enabled(${button_name(button)}, ${wait_mask}) == OK`);
+        },
+        set_config(changes, expected) {
+            const result = gesture_set_config(state, {...state.config, ...changes});
+            check(result === expected, `set_config(${JSON.stringify(changes)}) == ${expected}`);
+        },
+        expect_config(field, value) {
+            check(state.config[field] === value, `config.${field} == ${value} (đang ${state.config[field]})`);
+        },
+        expect_count(count) {
+            check(log.length === count, `số gesture == ${count} (đang ${log.length})`);
+        },
+        expect(index, modifier, button, type) {
+            const gesture = log[index];
+            const want    = `${button_name(modifier)} ${button_name(button)} ${TYPE_NAMES[type]}`;
+            const got     = gesture ? `${button_name(gesture.modifier)} ${button_name(gesture.button)} ${TYPE_NAMES[gesture.type]}` : "không có";
+            check(gesture !== undefined && gesture.modifier === modifier && gesture.source === SOURCE_BUTTON
+                      && gesture.button === button && gesture.type === type,
+                  `gesture[${index}] == ${want} (đang ${got})`);
+        },
+        expect_no_deadline() {
+            check(!gesture_next_deadline(state).found, "next_deadline == false");
+        },
+        progress_at(time_ms) {
+            harness.advance(time_ms);
+            const progress = gesture_progress(state, time_ms);
+            check(progress !== null, `progress(${time_ms}) == true`);
+            return progress;
+        },
+        expect_no_progress(time_ms) {
+            harness.advance(time_ms);
+            check(gesture_progress(state, time_ms) === null, `progress(${time_ms}) == false`);
+        },
+        expect_equal(actual, expected, text) {
+            const show = (value) => (typeof value === "number" && text.includes("type") ? TYPE_NAMES[value] : value);
+            check(actual === expected, `${text} == ${show(expected)} (đang ${show(actual)})`);
+        },
+    };
+    return harness;
+}
+
+/* ---- Host test: các ca, chép từ test_ink_gesture.c ---- */
+/* Bỏ các ca chỉ kiểm tra con trỏ NULL và giá trị số của enum: không có gì để vẽ. */
+
+const A = BUTTON_A;
+const B = BUTTON_B;
+const AB = BUTTON_AB;
+const NONE = MODIFIER_NONE;
+
+const TEST_CASES = [
+    {group: "Argument, config", name: "test_bad_config_rejected_and_old_kept", title: "Config sai bị từ chối, giữ config cũ",
+     description: "ab_short_ms bằng ab_long_ms, rồi combo_ms bằng hold_ms: cả hai lần đều trả ERROR_CONFIG.",
+     run(test) {
+         test.set_config({ab_short_ms: TEST_CONFIG.ab_long_ms}, "ERROR_CONFIG");
+         test.set_config({combo_ms: TEST_CONFIG.hold_ms}, "ERROR_CONFIG");
+         test.expect_config("combo_ms", TEST_CONFIG.combo_ms);
+         test.expect_config("ab_short_ms", TEST_CONFIG.ab_short_ms);
+     }},
+    {group: "Argument, config", name: "test_set_config_applies_new_threshold", title: "Đổi hold_ms lúc chạy",
+     description: "hold_ms = 1000: hold ra đúng t = 1000, không ra ở 999.",
+     run(test) {
+         test.set_config({hold_ms: 1000}, "OK");
+         test.down(A, 0);
+         test.advance(999);
+         test.expect_count(0);
+         test.advance(1000);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_HOLD);
+     }},
+    {group: "Press, hold, debounce", name: "test_idle_needs_no_timer", title: "Rảnh thì không cần timer",
+     description: "Trước và sau một lần nhấn, next_deadline trả false: firmware tắt timer.",
+     run(test) {
+         test.expect_no_deadline();
+         test.down(A, 0);
+         test.up(A, 100);
+         test.advance(10000);
+         test.expect_no_deadline();
+     }},
+    {group: "Press, hold, debounce", name: "test_press_emitted_on_release", title: "Press phát lúc nhả",
+     description: "Bấm B chưa ra gì; nhả ở t = 100 ra B press.",
+     run(test) {
+         test.down(B, 0);
+         test.expect_count(0);
+         test.up(B, 100);
+         test.expect_count(1);
+         test.expect(0, NONE, B, TYPE_PRESS);
+     }},
+    {group: "Press, hold, debounce", name: "test_wake_release_ignored", title: "Bỏ lần nhả của lần bấm đánh thức",
+     description: "Nhả mà không thấy bấm trước đó (nút làm máy thức): không phát gì.",
+     run(test) {
+         test.up(A, 50);
+         test.advance(5000);
+         test.expect_count(0);
+     }},
+    {group: "Press, hold, debounce", name: "test_bounce_gives_one_press", title: "Rung chỉ ra một press",
+     description: "Edge rung trong debounce_ms sau lần bấm và lần nhả bị bỏ.",
+     run(test) {
+         test.down(A, 0);
+         test.up(A, 3);
+         test.down(A, 6);
+         test.up(A, 100);
+         test.down(A, 104);
+         test.up(A, 108);
+         test.advance(5000);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+     }},
+    {group: "Press, hold, debounce", name: "test_level_after_lock_is_checked", title: "Hết debounce thì so lại mức",
+     description: "Nhả ở t = 10, trong debounce: tới t = 20 mới nhận lần nhả và ra press.",
+     run(test) {
+         test.down(A, 0);
+         test.up(A, 10);
+         test.expect_count(0);
+         test.advance(20);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+     }},
+    {group: "Press, hold, debounce", name: "test_hold_emitted_at_threshold_not_on_release", title: "Hold phát lúc đủ hold_ms",
+     description: "Hold ra ở t = 600, không chờ nhả; lần nhả sau đó bỏ qua.",
+     run(test) {
+         test.down(A, 0);
+         test.advance(599);
+         test.expect_count(0);
+         test.advance(600);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_HOLD);
+         test.up(A, 900);
+         test.expect_count(1);
+     }},
+    {group: "Press, hold, debounce", name: "test_time_wraps", title: "Đồng hồ quay vòng qua 0",
+     description: "Bắt đầu ở UINT32_MAX - 50: press và hold vẫn đúng khi uint32_t tràn. Trục thời gian vẽ tương đối.",
+     origin_ms: u32(0xFFFFFFFF - 50),
+     run(test) {
+         const start_ms = u32(0xFFFFFFFF - 50);
+         test.down(A, start_ms);
+         test.up(A, u32(start_ms + 100));
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+         test.down(B, u32(start_ms + 200));
+         test.advance(u32(start_ms + 800));
+         test.expect_count(2);
+         test.expect(1, NONE, B, TYPE_HOLD);
+     }},
+    {group: "Double press", name: "test_double_off_gives_two_presses", title: "Tắt nhấn kép: hai press",
+     description: "Không bật WAIT_DOUBLE: hai lần nhấn nhanh ra hai press, không chờ.",
+     run(test) {
+         test.down(A, 0);
+         test.up(A, 50);
+         test.down(A, 150);
+         test.up(A, 200);
+         test.expect_count(2);
+         test.expect(1, NONE, A, TYPE_PRESS);
+     }},
+    {group: "Double press", name: "test_double_on_single_press_waits_window", title: "Bật nhấn kép: press chờ hết double_ms",
+     description: "Nhả ở t = 50, press ra ở t = 350 (50 + double_ms).",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.up(A, 50);
+         test.advance(349);
+         test.expect_count(0);
+         test.advance(350);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+     }},
+    {group: "Double press", name: "test_double_emitted_on_second_down", title: "Double phát lúc bấm lần hai",
+     description: "Double ra ngay lúc bấm lần hai; lần nhả sau đó bỏ qua.",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.up(A, 50);
+         test.down(A, 150);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_DOUBLE_PRESS);
+         test.up(A, 200);
+         test.advance(5000);
+         test.expect_count(1);
+     }},
+    {group: "Double press", name: "test_double_on_other_button_unaffected", title: "Mask theo từng nút",
+     description: "Bật nhấn kép cho A thì B vẫn ra press ngay lúc nhả.",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(B, 0);
+         test.up(B, 50);
+         test.expect_count(1);
+         test.expect(0, NONE, B, TYPE_PRESS);
+     }},
+    {group: "A+B", name: "test_ab_press", title: "A+B nhấn",
+     description: "B bấm trong combo_ms sau A: thành A+B, phát lúc nhả nút cuối.",
+     run(test) {
+         test.down(A, 0);
+         test.down(B, 50);
+         test.up(A, 300);
+         test.expect_count(0);
+         test.up(B, 400);
+         test.expect_count(1);
+         test.expect(0, NONE, AB, TYPE_PRESS);
+     }},
+    {group: "A+B", name: "test_ab_hold_short_on_release", title: "Giữ A+B ngắn (về menu)",
+     description: "Giữ quá ab_short_ms rồi nhả: hold_ab_short phát lúc nhả nút cuối.",
+     run(test) {
+         test.down(B, 0);
+         test.down(A, 80);
+         test.advance(3000);
+         test.expect_count(0);
+         test.up(A, 3000);
+         test.up(B, 3010);
+         test.expect_count(1);
+         test.expect(0, NONE, AB, TYPE_HOLD_AB_SHORT);
+     }},
+    {group: "A+B", name: "test_ab_hold_long_at_threshold", title: "Giữ A+B dài (tắt nguồn)",
+     description: "Hold_ab_long ra đúng lúc đủ ab_long_ms tính từ nút thứ hai, không chờ nhả.",
+     run(test) {
+         test.down(A, 0);
+         test.down(B, 50);
+         test.advance(8049);
+         test.expect_count(0);
+         test.advance(8050);
+         test.expect_count(1);
+         test.expect(0, NONE, AB, TYPE_HOLD_AB_LONG);
+         test.up(A, 9000);
+         test.up(B, 9000);
+         test.expect_count(1);
+     }},
+    {group: "A+B", name: "test_late_second_button_without_mod_ignored", title: "Nút thứ hai bấm muộn, không modifier",
+     description: "B bấm sau combo_ms mà A không bật modifier: bỏ cả hai tới khi nhả hết.",
+     run(test) {
+         test.down(A, 0);
+         test.down(B, 200);
+         test.up(B, 300);
+         test.up(A, 400);
+         test.advance(10000);
+         test.expect_count(0);
+         test.down(A, 11000);
+         test.up(A, 11100);
+         test.expect_count(1);
+     }},
+    {group: "A+B", name: "test_pending_press_flushed_before_combo", title: "Press còn treo phát trước A+B",
+     description: "A đang chờ double thì thành A+B: press của A ra trước, A+B ra sau.",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.up(A, 50);
+         test.down(B, 100);
+         test.down(A, 150);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+         test.up(A, 300);
+         test.up(B, 300);
+         test.expect_count(2);
+         test.expect(1, NONE, AB, TYPE_PRESS);
+     }},
+    {group: "Modifier", name: "test_modifier_press", title: "Giữ A rồi nhấn, giữ B",
+     description: "A bật modifier: B nhấn ra (A, B press); B giữ ra (A, B hold). Nhả A sau đó không phát gì.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.down(A, 0);
+         test.down(B, 300);
+         test.up(B, 400);
+         test.expect_count(1);
+         test.expect(0, MODIFIER_A, B, TYPE_PRESS);
+         test.down(B, 500);
+         test.advance(1100);
+         test.expect_count(2);
+         test.expect(1, MODIFIER_A, B, TYPE_HOLD);
+         test.up(B, 1200);
+         test.up(A, 1300);
+         test.advance(5000);
+         test.expect_count(2);
+     }},
+    {group: "Modifier", name: "test_modifier_kept_when_released_first", title: "Modifier giữ nguyên khi nhả trước",
+     description: "Nhả A trước khi B hết double_ms: press của B vẫn mang modifier A.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.enable(B, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.down(B, 300);
+         test.up(B, 350);
+         test.up(A, 400);
+         test.advance(5000);
+         test.expect_count(1);
+         test.expect(0, MODIFIER_A, B, TYPE_PRESS);
+     }},
+    {group: "Modifier", name: "test_modifier_enabled_hold_waits_release", title: "Bật modifier: hold chờ nhả",
+     description: "Nút có modifier thì hold chỉ biết lúc nhả (t = 800), không phát ở t = 600.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.down(A, 0);
+         test.advance(700);
+         test.expect_count(0);
+         test.up(A, 800);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_HOLD);
+     }},
+    {group: "Modifier", name: "test_modifier_enabled_short_press_still_press", title: "Bật modifier: nhấn ngắn vẫn là press",
+     description: "Nhả trước hold_ms thì vẫn ra press.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.down(A, 0);
+         test.up(A, 200);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_PRESS);
+     }},
+    {group: "Đổi mask giữa chừng", name: "test_mask_change_drops_pending_after_release", title: "Đổi mask lúc chờ double: bỏ press dở",
+     description: "A đang chờ lần bấm thứ hai thì scene đổi, tắt double: press dở bị bỏ.",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.up(A, 50);
+         test.advance(100);
+         test.enable(A, WAIT_NONE);
+         test.advance(5000);
+         test.expect_count(0);
+     }},
+    {group: "Đổi mask giữa chừng", name: "test_mask_change_drops_pending_while_held", title: "Đổi mask lúc đang giữ",
+     description: "Đổi mask khi A đang giữ: không ra hold; phải nhả hẳn mới nhận lần sau.",
+     run(test) {
+         test.down(A, 0);
+         test.advance(100);
+         test.enable(A, WAIT_DOUBLE);
+         test.advance(1000);
+         test.up(A, 1100);
+         test.advance(5000);
+         test.expect_count(0);
+         test.down(A, 6000);
+         test.up(A, 6100);
+         test.advance(7000);
+         test.expect_count(1);
+     }},
+    {group: "Đổi mask giữa chừng", name: "test_same_mask_keeps_pending", title: "Đặt lại mask cũ: giữ gesture dở",
+     description: "Gọi set_enabled với mask không đổi thì không bỏ gì.",
+     run(test) {
+         test.enable(A, WAIT_DOUBLE);
+         test.down(A, 0);
+         test.up(A, 50);
+         test.enable(A, WAIT_DOUBLE);
+         test.advance(5000);
+         test.expect_count(1);
+     }},
+    {group: "Progress", name: "test_progress_hold", title: "Progress khi giữ một nút",
+     description: "t = 100: nhả ra press, giữ tới 600 ra hold. Sau khi hold phát thì hết progress.",
+     run(test) {
+         test.down(A, 0);
+         const progress = test.progress_at(100);
+         test.expect_equal(progress.modifier, NONE, "progress.modifier");
+         test.expect_equal(progress.button, A, "progress.button");
+         test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
+         test.expect_equal(progress.has_next, true, "progress.has_next");
+         test.expect_equal(progress.next, TYPE_HOLD, "progress.next (type)");
+         test.expect_equal(progress.start_ms, 0, "progress.start_ms");
+         test.expect_equal(progress.next_ms, 600, "progress.next_ms");
+         test.expect_no_progress(700);
+     }},
+    {group: "Progress", name: "test_progress_modifier_hold_waits_release", title: "Progress của nút có modifier",
+     description: "Quá hold_ms: nhả ra hold, không còn mốc kế tiếp.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.down(A, 0);
+         const progress = test.progress_at(700);
+         test.expect_equal(progress.on_release, TYPE_HOLD, "progress.on_release (type)");
+         test.expect_equal(progress.has_next, false, "progress.has_next");
+     }},
+    {group: "Progress", name: "test_progress_ab_short_then_long", title: "Progress A+B: short rồi long",
+     description: "Đếm ngược tới ab_short_ms, rồi tới ab_long_ms; hold_ab_long phát thì hết progress.",
+     run(test) {
+         test.down(A, 0);
+         test.down(B, 50);
+         let progress = test.progress_at(100);
+         test.expect_equal(progress.button, AB, "progress.button");
+         test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
+         test.expect_equal(progress.next, TYPE_HOLD_AB_SHORT, "progress.next (type)");
+         test.expect_equal(progress.start_ms, 50, "progress.start_ms");
+         test.expect_equal(progress.next_ms, 2050, "progress.next_ms");
+         progress = test.progress_at(3000);
+         test.expect_equal(progress.on_release, TYPE_HOLD_AB_SHORT, "progress.on_release (type)");
+         test.expect_equal(progress.next, TYPE_HOLD_AB_LONG, "progress.next (type)");
+         test.expect_equal(progress.next_ms, 8050, "progress.next_ms");
+         test.expect_no_progress(8050);
+     }},
+    {group: "Progress", name: "test_progress_modifier_target", title: "Progress của nút được modifier",
+     description: "Giữ A (modifier) rồi giữ B: progress là của B, mang modifier A.",
+     run(test) {
+         test.enable(A, WAIT_MODIFIER);
+         test.down(A, 0);
+         test.down(B, 300);
+         const progress = test.progress_at(400);
+         test.expect_equal(progress.modifier, MODIFIER_A, "progress.modifier");
+         test.expect_equal(progress.button, B, "progress.button");
+         test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
+         test.expect_equal(progress.next, TYPE_HOLD, "progress.next (type)");
+         test.expect_equal(progress.next_ms, 900, "progress.next_ms");
+     }},
+    {group: "Progress", name: "test_progress_none_when_blocked", title: "Không có progress khi bị chặn",
+     description: "Nút thứ hai bấm muộn: mode BLOCK, không có gì để báo.",
+     run(test) {
+         test.down(A, 0);
+         test.down(B, 200);
+         test.expect_no_progress(300);
+     }},
+];
+
+/* ---- Host test: chạy và hiển thị ---- */
+
+let test_results = [];
+let selected_test_index = 0;
+
+function run_test_case(test_case)
+{
+    const recorder = new Recorder(test_case.origin_ms ?? 0);
+    const harness  = create_harness(recorder);
+    let error = null;
+    try {
+        test_case.run(harness);
+    } catch (exception) {
+        error = exception instanceof TestFailure ? exception.message : `lỗi JS: ${exception.message}`;
+        if (!(exception instanceof TestFailure)) { recorder.check(false, error, recorder.origin_ms); }
+    }
+    return {test_case, recorder, gestures: harness.log, passed: error === null};
+}
+
+function run_all_tests()
+{
+    test_results = TEST_CASES.map(run_test_case);
+    const passed_count = test_results.filter((result) => result.passed).length;
+    const all_passed   = passed_count === test_results.length;
+    const summary      = document.getElementById("testSummary");
+    summary.textContent = `${passed_count}/${test_results.length} ca qua`;
+    summary.className = `summary ${all_passed ? "pass" : "fail"}`;
+    document.getElementById("tabTestsSummary").textContent = `(${passed_count}/${test_results.length})`;
+
+    let html = "";
+    let group = null;
+    test_results.forEach((result, index) => {
+        if (result.test_case.group !== group) {
+            group = result.test_case.group;
+            html += `<div class="test-group">${group}</div>`;
+        }
+        const badge = result.passed ? '<span class="badge pass">PASS</span>' : '<span class="badge fail">FAIL</span>';
+        html += `<button class="test-item" data-index="${index}">${badge}<span>${result.test_case.title}</span></button>`;
+    });
+    const list = document.getElementById("testList");
+    list.innerHTML = html;
+    list.querySelectorAll(".test-item").forEach((item) => {
+        item.addEventListener("click", () => select_test(Number(item.dataset.index)));
+    });
+    select_test(selected_test_index);
+}
+
+function select_test(index)
+{
+    selected_test_index = index;
+    document.querySelectorAll(".test-item").forEach((item) => {
+        item.classList.toggle("selected", Number(item.dataset.index) === index);
+    });
+    const result = test_results[index];
+    document.getElementById("testTitle").textContent = result.test_case.title;
+    document.getElementById("testFunction").textContent = `${result.test_case.name}() · TEST_CONFIG: ${CONFIG_FIELDS.map((field) => `${field}=${TEST_CONFIG[field]}`).join(" ")}`;
+    document.getElementById("testDescription").textContent = result.test_case.description;
+    document.getElementById("testChecks").innerHTML = result.recorder.checks
+        .map((check) => `<li class="${check.passed ? "pass" : "fail"}">t=${check.time}: ${check.text}</li>`)
+        .join("");
+    let gesture_html = "<tr><th>#</th><th>t (tương đối)</th><th>modifier</th><th>button</th><th>type</th></tr>";
+    result.recorder.gestures.forEach((gesture, i) => {
+        gesture_html += `<tr><td>${i}</td><td>${gesture.time}</td><td>${button_name(gesture.modifier)}</td><td>${button_name(gesture.button)}</td><td>${TYPE_NAMES[gesture.type]}</td></tr>`;
+    });
+    if (result.recorder.gestures.length === 0) { gesture_html += '<tr><td colspan="5">Không có gesture</td></tr>'; }
+    document.getElementById("testGestures").innerHTML = gesture_html;
+    render_test_timeline();
+}
+
+function render_test_timeline()
+{
+    const result = test_results[selected_test_index];
+    if (!result) { return; }
+    const end = result.recorder.last_time();
+    const padding = Math.max(20, end * 0.04);
+    draw_timeline(document.getElementById("testCanvas"), result.recorder, {start: -padding, end: end + padding});
+}
+
+/* ---- Khởi động ---- */
+
+function show_page(page)
+{
+    document.getElementById("pageLive").classList.toggle("active", page === "live");
+    document.getElementById("pageTests").classList.toggle("active", page === "tests");
+    document.getElementById("tabLive").classList.toggle("active", page === "live");
+    document.getElementById("tabTests").classList.toggle("active", page === "tests");
+    if (page === "tests") { render_test_timeline(); }
+}
+
+function start()
+{
+    build_config_table();
+    build_machine("phaseMachine", PHASE_LAYOUT, PHASE_EDGES, PHASE_NAMES, "phase");
+    build_machine("modeMachine", MODE_LAYOUT, MODE_EDGES, MODE_NAMES, "mode");
+    live_reset();
+    fill_config_inputs(live.state.config);
+    bind_live_controls();
+    document.getElementById("tabLive").addEventListener("click", () => show_page("live"));
+    document.getElementById("tabTests").addEventListener("click", () => show_page("tests"));
+    document.getElementById("runTestsButton").addEventListener("click", run_all_tests);
+    window.addEventListener("resize", render_test_timeline);
+    run_all_tests();
+    requestAnimationFrame(animation_frame);
+}
+
+start();
+</script>
+</body>
+</html>

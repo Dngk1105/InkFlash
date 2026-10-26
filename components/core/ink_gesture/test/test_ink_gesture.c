@@ -356,7 +356,7 @@ static void test_modifier_kept_when_released_first(void)
     expect(0, INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_PRESS);
 }
 
-static void test_mod_enabled_hold_waits_release(void)
+static void test_modifier_enabled_hold_waits_release(void)
 {
     TEST_ASSERT_EQUAL(INK_GESTURE_OK,
                       ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
@@ -368,7 +368,7 @@ static void test_mod_enabled_hold_waits_release(void)
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD);
 }
 
-static void test_mod_enabled_short_press_still_press(void)
+static void test_modifier_enabled_short_press_still_press(void)
 {
     TEST_ASSERT_EQUAL(INK_GESTURE_OK,
                       ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
@@ -456,7 +456,7 @@ static void test_progress_hold(void)
     expect_no_progress(700); /* HOLD đã phát */
 }
 
-static void test_progress_mod_hold_waits_release(void)
+static void test_progress_modifier_hold_waits_release(void)
 {
     TEST_ASSERT_EQUAL(INK_GESTURE_OK,
                       ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
@@ -529,14 +529,14 @@ int main(void)
     RUN_TEST(test_pending_press_flushed_before_combo);
     RUN_TEST(test_modifier_press);
     RUN_TEST(test_modifier_kept_when_released_first);
-    RUN_TEST(test_mod_enabled_hold_waits_release);
-    RUN_TEST(test_mod_enabled_short_press_still_press);
+    RUN_TEST(test_modifier_enabled_hold_waits_release);
+    RUN_TEST(test_modifier_enabled_short_press_still_press);
     RUN_TEST(test_mask_change_drops_pending_after_release);
     RUN_TEST(test_mask_change_drops_pending_while_held);
     RUN_TEST(test_same_mask_keeps_pending);
     RUN_TEST(test_progress_none_when_idle);
     RUN_TEST(test_progress_hold);
-    RUN_TEST(test_progress_mod_hold_waits_release);
+    RUN_TEST(test_progress_modifier_hold_waits_release);
     RUN_TEST(test_progress_ab_short_then_long);
     RUN_TEST(test_progress_modifier_target);
     RUN_TEST(test_progress_none_when_blocked);
