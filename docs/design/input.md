@@ -69,7 +69,8 @@ Các ngưỡng thời gian (`debounce_ms`, `double_ms`, `hold_ms`, `combo_ms`, `
 struct cấu hình, đổi được lúc máy đang chạy, không cần build lại. `gesture` kiểm tra struct trước khi nhận, ví dụ
 `ab_short_ms` phải nhỏ hơn `ab_long_ms`. `ab_long_ms` khoảng 30 s.
 
-Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>` đổi một ngưỡng.
+Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>` đổi một ngưỡng, `gesture enable <a|b>
+<mask>` đặt mask kiểu phải chờ của một nút (bit 1 nhấn kép, bit 2 modifier) để thử khi chưa có bảng gán.
 
 ### Chạy theo sự kiện, không quét
 

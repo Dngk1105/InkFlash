@@ -38,6 +38,7 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 | Hàm public | `ink_<khối>_<động từ>` | `ink_study_next_card` |
 | Hàm, biến nội bộ | `static`, không tiền tố; biến bắt đầu `s_` | `choose_mode`, `s_state` |
 | Kiểu dữ liệu | `ink_<khối>_<tên>_t` | `ink_gesture_event_t` |
+| Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
 
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
 
