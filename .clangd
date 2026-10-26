@@ -21,3 +21,7 @@ CompileFlags:
 ---
 Diagnostics:
   UnusedIncludes: None
+  Suppress:
+    # Clang với --target=xtensa-esp-elf báo sai atomic 32-bit; gcc Xtensa compile sạch (đã kiểm tra).
+    - atomic_op_needs_atomic_int_ptr_or_fp
+    - atomic_op_needs_trivial_copy
