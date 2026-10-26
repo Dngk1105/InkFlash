@@ -11,7 +11,7 @@ Ví dụ: đang ở màn Đáp án của thẻ #42 thì máy ngủ. Bấm nút, 
 
 ### Menu
 
-Máy khởi động vào menu. Menu có hai mục: Flashcard và Cài đặt.
+Máy khởi động vào menu. Menu có ba mục: Flashcard, Cài đặt và Ngủ.
 
 Cài đặt là một app như mọi app khác. Nó đọc và ghi cấu hình thiết bị qua API của `system`, không đụng thẳng NVS.
 
@@ -42,7 +42,7 @@ lại cử chỉ. App chỉ gọi `system`, `study`, `display`, `ui`; không g�
 | Việc | Ai lo |
 |---|---|
 | Màn nền khi ngủ (số thẻ cần ôn, pin) | `system`, lấy số thẻ từ `study` |
-| Giữ A+B 2 s (ngủ) / 8 s (ship mode) | `system` nhận trước, app không thấy |
+| Giữ A+B ngắn (về menu) / dài (tắt nguồn) | `system` nhận trước, app không thấy |
 | BACK ở màn gốc của app | App tự xử lý; app báo không xử lý thì `system` đưa về menu |
 | Giữ máy thức (ví dụ đang phát âm thanh) | App xin `system`, có giới hạn thời gian |
 

@@ -14,7 +14,7 @@ Người dùng vẫn phải thấy máy về đúng màn, đúng thẻ trước 
 | Ngủ sâu | Khởi động | Bấm nút |
 | Khởi động | Khôi phục | Xong khởi động |
 | Khôi phục | Hoạt động | Đọc xong snapshot |
-| Hoạt động | Lưu | Hết giờ chờ, hoặc giữ A+B 2 s |
+| Hoạt động | Lưu | Hết giờ chờ, hoặc chọn Ngủ trong menu |
 | Lưu | Ngủ sâu | Lưu xong, màn nền vẽ xong |
 
 Máy trạng thái này nằm trong khối `session`, viết bằng C thuần: nhận sự kiện (nút, hết giờ chờ, pin yếu, vẽ xong),

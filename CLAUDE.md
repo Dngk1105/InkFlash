@@ -20,3 +20,4 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Build lẻ: `idf.py build (firmware)`, `idf.py -C templates build`.
 - MCP `esp-idf`: `build_project` từng treo 30 phút ở lần build đầu: build lần đầu thì chạy`idf.py` trực tiếp, chạy nền.
 - Viết hoặc sửa docs: đọc `docs/writing-docs.md` trước.
+- Viết hoặc sửa comment trong code: đọc `docs/writing-comments.md` trước.

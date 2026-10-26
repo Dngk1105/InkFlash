@@ -38,7 +38,7 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 **Lật thẻ:** ngắt nút → hàng đợi main → `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
 `display` chọn partial/full → driver vẽ.
 
-**Ngủ và thức:** hết giờ chờ hoặc giữ A+B → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
+**Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
 vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → nạp màn nền làm ảnh cũ → vẽ lại đúng màn trước, không chớp.
 
 ## Gặp vấn đề thì đọc file nào
@@ -60,3 +60,4 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Viết code gọi ESP-IDF, không chắc API còn dùng được ở v6.1, build báo deprecated | [design/esp-idf-api.md](design/esp-idf-api.md) |
 | Thông số, chân, lệnh của một linh kiện; board dùng linh kiện nào, đấu chân nào | [hardware/index.md](hardware/index.md), rồi chỉ mở file cần |
 | Viết hoặc sửa docs | [writing-docs.md](writing-docs.md) |
+| Viết comment trong code, comment có cần không, comment lệch code | [writing-comments.md](writing-comments.md) |
