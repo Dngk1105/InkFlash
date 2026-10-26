@@ -17,12 +17,12 @@ typedef struct {
 } ink_drv_example_config_t;
 
 typedef struct {
-    ink_drv_example_config_t cfg;
+    ink_drv_example_config_t config;
 } ink_drv_example_t;
 
 /*
- * Cấu hình chân và điền `out_dev` để tầng trên dùng qua HAL.
+ * Cấu hình chân và điền `out_device` để tầng trên dùng qua HAL.
  * Trả ESP_ERR_INVALID_ARG nếu có con trỏ NULL, hoặc lỗi của gpio_config().
  */
-esp_err_t ink_drv_example_init(ink_drv_example_t *drv, const ink_drv_example_config_t *cfg,
-                               ink_hal_example_dev_t *out_dev);
+esp_err_t ink_drv_example_init(ink_drv_example_t *driver, const ink_drv_example_config_t *config,
+                               ink_hal_example_device_t *out_device);

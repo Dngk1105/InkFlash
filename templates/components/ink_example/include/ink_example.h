@@ -8,11 +8,15 @@
  */
 #include <stdint.h>
 
+/* ---- Lỗi ---- */
+
 /* Lỗi riêng của khối. Chỉ gồm lỗi khối thật sự trả về. */
 typedef enum : uint8_t {
     INK_EXAMPLE_OK = 0,
-    INK_EXAMPLE_ERR_ARG,
-} ink_example_err_t;
+    INK_EXAMPLE_ERROR_ARGUMENT,
+} ink_example_error_t;
+
+/* ---- Sự kiện vào, hành động ra ---- */
 
 /* Enum có kiểu nền cố định 1 byte: kích thước không đổi khi lưu xuống flash hay RTC memory. */
 typedef enum : uint8_t {
@@ -30,6 +34,8 @@ typedef enum : uint8_t {
     INK_EXAMPLE_ACTION_NOTIFY,
 } ink_example_action_t;
 
+/* ---- Trạng thái ---- */
+
 /* Bên gọi giữ struct nhưng không đụng trường bên trong: mọi trường nằm trong `priv`, tools/check.py chặn truy cập
  * `priv` ngoài thư mục khối lõi. */
 typedef struct {
@@ -39,15 +45,17 @@ typedef struct {
     } priv;
 } ink_example_state_t;
 
+/* ---- API ---- */
+
 /*
  * Khởi tạo trạng thái.
- * Trả INK_EXAMPLE_ERR_ARG nếu `state` là nullptr hoặc `limit` bằng 0.
+ * Trả INK_EXAMPLE_ERROR_ARGUMENT nếu `state` là nullptr hoặc `limit` bằng 0.
  */
-[[nodiscard]] ink_example_err_t ink_example_init(ink_example_state_t *state, uint32_t limit);
+[[nodiscard]] ink_example_error_t ink_example_init(ink_example_state_t *state, uint32_t limit);
 
 /*
  * Xử lý một sự kiện, ghi hành động cần làm vào `out_action`.
- * Trả INK_EXAMPLE_ERR_ARG nếu có con trỏ nullptr hoặc loại sự kiện không hợp lệ.
+ * Trả INK_EXAMPLE_ERROR_ARGUMENT nếu có con trỏ nullptr hoặc loại sự kiện không hợp lệ.
  */
-[[nodiscard]] ink_example_err_t ink_example_handle(ink_example_state_t *state, const ink_example_event_t *event,
-                                                   ink_example_action_t *out_action);
+[[nodiscard]] ink_example_error_t ink_example_handle(ink_example_state_t *state, const ink_example_event_t *event,
+                                                     ink_example_action_t *out_action);

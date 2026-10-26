@@ -17,13 +17,13 @@ static void test_handle_rejects_null(void)
     ink_example_state_t state;
     TEST_ASSERT_EQUAL(INK_EXAMPLE_OK, ink_example_init(&state, 1));
     ink_example_action_t action;
-    TEST_ASSERT_EQUAL(INK_EXAMPLE_ERR_ARG, ink_example_handle(&state, nullptr, &action));
+    TEST_ASSERT_EQUAL(INK_EXAMPLE_ERROR_ARGUMENT, ink_example_handle(&state, nullptr, &action));
 }
 
 static void test_init_rejects_zero_limit(void)
 {
     ink_example_state_t state;
-    TEST_ASSERT_EQUAL(INK_EXAMPLE_ERR_ARG, ink_example_init(&state, 0));
+    TEST_ASSERT_EQUAL(INK_EXAMPLE_ERROR_ARGUMENT, ink_example_init(&state, 0));
 }
 
 static void test_notify_after_limit_ticks(void)

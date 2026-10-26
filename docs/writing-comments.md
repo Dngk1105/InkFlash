@@ -6,7 +6,7 @@ Ví dụ:
 | Comment                                                                      | Giữ hay bỏ                                           | Vì sao                                                                            |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `/* Enum chỉ thêm giá trị vào cuối: bảng gán đã lưu dạng số */` | Giữ                                                   | Ràng buộc đến từ nơi khác, đọc code không thấy                          |
-| `/* Trả ERR_CONFIG và giữ config cũ */` trên hàm public                | Giữ                                                   | Hợp đồng với bên gọi                                                         |
+| `/* Trả ERROR_CONFIG và giữ config cũ */` trên hàm public                | Giữ                                                   | Hợp đồng với bên gọi                                                         |
 | `bool stable; /* level sau debounce; true = bấm */`                         | Giữ                                                   | Tên chưa nói hết nghĩa của biến                                             |
 | `/* Config đúng khi debounce_ms < double_ms, ... */`                       | Bỏ                                                    | Chép lại điều kiện trong code: code đổi thì comment sai mà không ai báo |
 | `/* Mask đổi giữa chừng thì bỏ cử chỉ dở */`                        | Bỏ                                                    | Hành vi đã có trong `docs/design/` và host test                               |

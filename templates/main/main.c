@@ -26,6 +26,6 @@ void app_main(void)
     ESP_LOGI(TAG, "core action %d", action);
 
     ESP_ERROR_CHECK(ink_example_shell_start());
-    const ink_example_shell_msg_t msg = {.value = 1};
-    ESP_ERROR_CHECK(ink_example_shell_post(&msg));
+    const ink_example_shell_message_t message = {.value = 1};
+    ESP_ERROR_CHECK(ink_example_shell_post(&message));
 }

@@ -11,7 +11,7 @@
 
 typedef struct {
     uint32_t value;
-} ink_example_shell_msg_t;
+} ink_example_shell_message_t;
 
 /*
  * Tạo hàng đợi và task. Gọi một lần lúc khởi động, từ task main.
@@ -23,10 +23,10 @@ esp_err_t ink_example_shell_start(void);
  * Gửi message từ task, không chờ.
  * Trả ESP_ERR_INVALID_STATE nếu chưa start, ESP_ERR_TIMEOUT nếu hàng đợi đầy.
  */
-esp_err_t ink_example_shell_post(const ink_example_shell_msg_t *msg);
+esp_err_t ink_example_shell_post(const ink_example_shell_message_t *message);
 
 /*
  * Gửi message từ ISR. Hàm nằm trong IRAM, không log, không cấp phát.
  * Trả false nếu hàng đợi đầy hoặc chưa start.
  */
-bool ink_example_shell_post_from_isr(const ink_example_shell_msg_t *msg);
+bool ink_example_shell_post_from_isr(const ink_example_shell_message_t *message);

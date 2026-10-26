@@ -69,7 +69,8 @@ esp_err_t ink_drv_gpio_button_init(ink_drv_gpio_button_t *driver, const ink_drv_
 {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");
     ESP_RETURN_ON_ERROR(configure_pin(config, GPIO_INTR_DISABLE), TAG, "gpio_config pin %d", config->pin);
-    *driver     = (ink_drv_gpio_button_t){.config = *config};
+    *driver = (ink_drv_gpio_button_t){.config = *config};
+
     *out_device = (ink_hal_button_device_t){
         .operations   = &s_operations,
         .context      = driver,

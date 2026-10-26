@@ -38,7 +38,7 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 | Hàm public | `ink_<khối>_<động từ>` | `ink_study_next_card` |
 | Hàm, biến nội bộ | `static`, không tiền tố; biến bắt đầu `s_` | `choose_mode`, `s_state` |
 | Kiểu dữ liệu | `ink_<khối>_<tên>_t` | `ink_gesture_event_t` |
-| Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
+| Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`, `mv`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`, `u32`), tên chân và tín hiệu theo datasheet (`sda`, `scl`, `mosi`, `cs`, `bclk`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
 
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
 
@@ -61,7 +61,7 @@ test). CMake của từng khối chỉ gọi hàm đó, không chép lại luậ
 |---|---|---|
 | Vỏ ↔ lõi C thuần | Sự kiện vào, hành động ra (struct) | `session` nhận "hết giờ chờ", trả "lưu snapshot", "ngủ" |
 | `study` ↔ storage, đồng hồ | Cổng: struct con trỏ hàm, cắm lúc khởi tạo | Trên PC cắm file thử, đồng hồ giả |
-| `display`, `system` ↔ driver | Bảng hàm (ops) + bảng khả năng | Driver màn điền `draw`, `load_old_image` |
+| `display`, `system` ↔ driver | Bảng hàm (operations) + bảng khả năng (capabilities) | Driver màn điền `draw`, `load_old_image` |
 | Ngắt, task phụ → task main | Hàng đợi của task main | Ngắt nút đẩy "nút B nhả lúc t" |
 
 ### Chuẩn C
