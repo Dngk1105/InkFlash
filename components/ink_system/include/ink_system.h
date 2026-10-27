@@ -11,7 +11,7 @@
 
 /*
  * Tạo hàng đợi, timer, task main; bật ngắt nút và console. Gọi một lần lúc khởi động, sau ink_bsp_init().
- * `buttons`: index 0 là A, 1 là B.
+ * `buttons`: index 0 là A, 1 là B; mảng phải sống suốt chương trình (system đọc lại chân khi mất edge).
  * Trả ESP_ERR_INVALID_ARG nếu số nút khác 2, ESP_ERR_NOT_SUPPORTED nếu nút không có ngắt,
  * ESP_ERR_INVALID_STATE nếu đã chạy, ESP_ERR_NO_MEM nếu không tạo được hàng đợi hoặc task.
  */

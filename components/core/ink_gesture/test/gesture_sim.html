@@ -1122,11 +1122,11 @@ function log_progress(progress)
 }
 
 /* Giống update_gesture_timer() trong ink_system.c. */
-function live_update_gesture_timer()
+function live_update_gesture_timer(log = false)
 {
     const now_ms   = live.clock_ms;
     const progress = gesture_progress(live.state, now_ms);
-    if (progress) { log_progress(progress); }
+    if (progress && log) { log_progress(progress); }
     const deadline = gesture_next_deadline(live.state);
     if (!deadline.found && !progress) {
         live.timer_at_ms = null;
@@ -1184,7 +1184,7 @@ function live_advance_to(target_ms)
             live.timer_at_ms = null;
             log_line("timer → tick", "timer");
             log_gestures(gesture_tick(live.state, live.clock_ms));
-            live_update_gesture_timer();
+            live_update_gesture_timer(true);
         }
     }
     live.clock_ms = target_ms;

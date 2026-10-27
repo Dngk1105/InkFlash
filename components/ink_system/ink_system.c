@@ -197,8 +197,13 @@ static const ink_gesture_config_t s_default_gesture_config = {
     .ab_long_ms  = 30000,
 };
 
-static ink_gesture_state_t  s_gesture_state;
-static ink_platform_timer_t s_gesture_timer;
+#define BUTTON_COUNT 2
+
+static ink_gesture_state_t            s_gesture_state;
+static ink_platform_timer_t           s_gesture_timer;
+static const ink_hal_button_device_t *s_buttons;                    /* index 0 là A, 1 là B */
+static bool                           s_last_pressed[BUTTON_COUNT]; /* level của edge cuối đã đưa vào gesture */
+static bool                           s_resync_pending;             /* có message rơi, chưa đọc lại chân */
 
 /* ---- Log gesture và progress ---- */
 
@@ -261,13 +266,16 @@ static void log_progress(const ink_gesture_progress_t *progress, uint32_t now_ms
 
 #define PROGRESS_LOG_INTERVAL_MS 1000
 
-/* Log progress, hẹn timer theo deadline gần nhất; có gesture dở thì hẹn không quá PROGRESS_LOG_INTERVAL_MS. */
-static void update_gesture_timer(void)
+/*
+ * Hẹn timer theo deadline gần nhất; có gesture dở thì hẹn không quá PROGRESS_LOG_INTERVAL_MS.
+ * Chỉ log progress khi gọi từ timer: gọi từ edge thì một chùm rung in vài chục dòng.
+ */
+static void update_gesture_timer(bool log)
 {
     const uint32_t         now_ms = ink_platform_now_ms();
     ink_gesture_progress_t progress;
     const bool             has_progress = ink_gesture_progress(&s_gesture_state, now_ms, &progress);
-    if (has_progress) { log_progress(&progress, now_ms); }
+    if (has_progress && log) { log_progress(&progress, now_ms); }
 
     uint32_t   deadline_ms  = 0;
     const bool has_deadline = ink_gesture_next_deadline(&s_gesture_state, &deadline_ms);
@@ -321,14 +329,44 @@ static void set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask)
 #define TASK_STACK_BYTES 4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
 #define TASK_PRIORITY    5
 
+static void feed_edge(const ink_gesture_event_t *event)
+{
+    ink_gesture_output_t gestures = {0};
+    if (ink_gesture_feed(&s_gesture_state, event, &gestures) != INK_GESTURE_OK) {
+        ESP_LOGE(TAG, "feed button %u", event->button);
+        return;
+    }
+    s_last_pressed[event->button == INK_GESTURE_BUTTON_A ? 0 : 1] = event->level == INK_GESTURE_LEVEL_PRESSED;
+    log_gestures(&gestures);
+}
+
+/*
+ * Edge cuối của một chùm rung có thể rơi khi hàng đợi đầy; gesture giữ level sai tới lần bấm sau. Đọc chân thật,
+ * khác level edge cuối thì đưa edge bù. Chỉ gọi khi hàng đợi rỗng: còn edge chưa xử lý thì level chân chưa phải
+ * level cuối.
+ */
+static void resync_buttons(void)
+{
+    for (size_t i = 0; i < BUTTON_COUNT; i++) {
+        bool pressed = false;
+        if (s_buttons[i].operations->read(s_buttons[i].context, &pressed) != ESP_OK) { continue; }
+        if (pressed == s_last_pressed[i]) { continue; }
+        const ink_gesture_event_t event = {
+            .button  = (ink_gesture_button_t)(1u << i),
+            .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
+            .time_ms = ink_platform_now_ms(),
+        };
+        ESP_LOGW(TAG, "button %s: mất edge, đưa edge bù", button_name(event.button));
+        feed_edge(&event);
+    }
+}
+
 static void handle_message(const message_t *message)
 {
     ink_gesture_output_t gestures = {0};
     switch (message->type) {
         case MESSAGE_BUTTON_EDGE:
-            if (ink_gesture_feed(&s_gesture_state, &message->button_edge, &gestures) != INK_GESTURE_OK) {
-                ESP_LOGE(TAG, "feed button %u", message->button_edge.button);
-            }
+            feed_edge(&message->button_edge);
             break;
         case MESSAGE_TIMER_EXPIRED:
             if (ink_gesture_tick(&s_gesture_state, ink_platform_now_ms(), &gestures) != INK_GESTURE_OK) {
@@ -346,7 +384,6 @@ static void handle_message(const message_t *message)
             break;
     }
     log_gestures(&gestures);
-    update_gesture_timer();
 }
 
 static void task_main(void *user_data)
@@ -356,14 +393,21 @@ static void task_main(void *user_data)
     for (;;) {
         if (xQueueReceive(s_queue, &message, portMAX_DELAY) != pdTRUE) { continue; }
         const unsigned dropped_count = atomic_exchange(&s_dropped_count, 0);
-        if (dropped_count) { ESP_LOGW(TAG, "hàng đợi đầy, rơi %u message", dropped_count); }
+        if (dropped_count) {
+            ESP_LOGW(TAG, "hàng đợi đầy, rơi %u message", dropped_count);
+            s_resync_pending = true;
+        }
         handle_message(&message);
+        const bool from_timer = message.type == MESSAGE_TIMER_EXPIRED;
+        if ((from_timer || s_resync_pending) && uxQueueMessagesWaiting(s_queue) == 0) {
+            s_resync_pending = false;
+            resync_buttons();
+        }
+        update_gesture_timer(from_timer);
     }
 }
 
 /* ---- Khởi động ---- */
-
-#define BUTTON_COUNT 2
 
 static esp_err_t create_queue_timer_task(void)
 {
@@ -406,6 +450,7 @@ esp_err_t ink_system_start(const ink_hal_button_device_t *buttons, size_t count)
         if (!buttons[i].capabilities.has_interrupt) { return ESP_ERR_NOT_SUPPORTED; }
     }
     if (ink_gesture_init(&s_gesture_state, &s_default_gesture_config) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
+    s_buttons = buttons;
 
     esp_err_t error = create_queue_timer_task();
     if (error == ESP_OK) { error = connect_buttons(buttons); }

@@ -81,6 +81,11 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 - Thời gian được truyền vào làm tham số, `gesture` không tự đọc đồng hồ.
 - Callback hẹn giờ và lệnh console chạy trên task khác, nên chỉ đẩy message vào hàng đợi task main, không gọi
   thẳng `gesture`.
+- Hàng đợi đầy thì message mới bị rơi. Rơi đúng cạnh cuối của một chùm rung thì `gesture` giữ mức sai, ví dụ tưởng
+  nút vẫn đang giữ, cho tới lần bấm sau. Vì vậy mỗi khi hẹn giờ chạy hoặc vừa có message rơi, đợi hàng đợi rỗng rồi
+  `system` đọc lại mức thật của chân; khác mức của cạnh cuối đã xử lý thì đưa thêm một cạnh bù. Thời điểm bấm, nhả
+  vẫn lấy từ ngắt, nên không mất độ chính xác.
+- Log tiến độ cử chỉ dở chỉ in khi hẹn giờ chạy, không in ở mỗi cạnh, để một chùm rung không in vài chục dòng.
 
 
 | Khối       | Việc                                                                                                            |
@@ -88,7 +93,7 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 | `bsp`       | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm                                                     |
 | Driver nút | Ngắt GPIO, đọc mức, gọi callback qua interface nút của `hal`                                              |
 | `platform`  | Giờ, hẹn giờ một lần, console                                                                               |
-| `system`    | Hàng đợi, đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, lệnh `gesture` |
+| `system`    | Hàng đợi, đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, lệnh `gesture` |
 | `gesture`   | Lọc rung, máy trạng thái từng nút, ra cử chỉ                                                             |
 
 ### Ai nhận cử chỉ

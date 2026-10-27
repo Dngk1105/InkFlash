@@ -20,8 +20,8 @@ Cột "Trạng thái": `Đã xác nhận` (đã chạy thử được với các
 
 | Chức năng | GPIO | Ghi chú | Trạng thái |
 |---|---|---|---|
-| Nút A | GPIO8 | RTC GPIO, đánh thức được. Nối GND khi bấm (đo bằng đồng hồ) | Chưa xác nhận |
-| Nút B | GPIO46 | Không phải RTC GPIO. Nối GND khi bấm (đo bằng đồng hồ) | Chưa xác nhận |
+| Nút A | GPIO8 | RTC GPIO, đánh thức được. Nối GND khi bấm (đo bằng đồng hồ) | Đã xác nhận |
+| Nút B | GPIO46 | Không phải RTC GPIO. Nối GND khi bấm (đo bằng đồng hồ) | Đã xác nhận |
 | Màn SCK (module ghi SCL) | GPIO4 | | Đã xác nhận |
 | Màn MOSI (module ghi SDA) | GPIO5 | | Đã xác nhận |
 | Màn CS | GPIO6 | | Đã xác nhận |
