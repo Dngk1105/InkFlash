@@ -61,3 +61,4 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Thông số, chân, lệnh của một linh kiện; board dùng linh kiện nào, đấu chân nào | [hardware/index.md](hardware/index.md), rồi chỉ mở file cần |
 | Viết hoặc sửa docs | [writing-docs.md](writing-docs.md) |
 | Viết comment trong code, comment có cần không, comment lệch code | [writing-comments.md](writing-comments.md) |
+| Làm visualize, file mô phỏng chạy trên trình duyệt, mô phỏng lệch code C | [writing-visualizations.md](writing-visualizations.md) |

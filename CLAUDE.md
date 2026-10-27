@@ -18,6 +18,9 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Tạo khối mới bằng `tools/new.py`; `tools/check.py` phải qua trước khi báo xong.
 - Build và kiểm tra toàn bộ: `python tools/build_all.py` trong terminal ESP-IDF.
 - Build lẻ: `idf.py build (firmware)`, `idf.py -C templates build`.
+- Terminal ESP-IDF trên máy này: trong PowerShell chạy `. C:\Espressif\tools\Microsoft.v6.1.PowerShell_profile.ps1`
+  (profile của EIM). Không dùng `C:\esp\v6.1\esp-idf\export.ps1`: nó tìm venv Python ở chỗ của cách cài cũ, nên lỗi.
 - MCP `esp-idf`: `build_project` từng treo 30 phút ở lần build đầu: build lần đầu thì chạy`idf.py` trực tiếp, chạy nền.
 - Viết hoặc sửa docs: đọc `docs/writing-docs.md` trước.
 - Viết hoặc sửa comment trong code: đọc `docs/writing-comments.md` trước.
+- Làm visualize hoặc file mô phỏng (`*_sim.html`): đọc `docs/writing-visualizations.md` trước.
