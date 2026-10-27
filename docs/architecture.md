@@ -13,7 +13,7 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | Phần quyết định | `ui`, `hal` |
 | `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
 | `gesture/` | Nút, IMU → cử chỉ | main | Có | Chỉ thư viện C chuẩn |
-| `keymap/` | Cử chỉ → intent theo bảng gán của app; kiểm tra bảng gán | main | Có | Chỉ thư viện C chuẩn |
+| `keymap/` | Cử chỉ → intent theo bảng gán của app; kiểm tra bảng gán | main | Có | `gesture` (chỉ dùng kiểu cử chỉ) |
 | `scene/` | Ngăn xếp scene trong app | main | Có | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chỉ thư viện C chuẩn |
 | `ui/` | Canvas, font | main | Có | Chỉ thư viện C chuẩn |

@@ -108,14 +108,19 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 ### Bảng gán (`keymap`)
 
 - Mỗi app khai báo danh sách intent của mình: mã, tên hiện trong Cài đặt, cử chỉ mặc định.
-- Intent chung (`NEXT`, `PREV`, `SELECT`, `BACK`) có mã cố định, dùng chung mọi app. Intent riêng của app đánh mã
-  sau các mã chung.
-- Bảng gán theo app. Scene nào cần nghĩa riêng thì app khai báo thêm bảng cho scene đó: tra bảng scene trước, không
-  có thì tra bảng app.
-- Khi lưu, `keymap` kiểm tra: mỗi cử chỉ chỉ trỏ tới một intent, và `BACK` luôn được gán, để người dùng không bị kẹt
-  trong app.
+- Intent chung (`NEXT`, `PREV`, `SELECT`, `BACK`) có mã cố định 0 đến 3, dùng chung mọi app. Intent riêng của app
+  đánh mã từ 16, chừa 4 đến 15 cho intent chung thêm sau: mã đã lưu dạng số, nếu intent chung mới trùng mã intent
+  riêng thì bảng đã lưu trỏ sai intent mà không báo lỗi.
+- Một bảng gán là danh sách dòng `{cử chỉ, intent}`, số dòng tối đa cố định. Một intent gán được nhiều cử chỉ; một
+  cử chỉ chỉ trỏ tới một intent.
+- Bảng gán theo app. Scene nào cần nghĩa riêng thì app khai báo thêm bảng cho scene đó, chỉ gồm các dòng khác bảng
+  app: tra bảng scene trước, không có thì tra bảng app.
+- Khi lưu, `keymap` kiểm tra bảng hiệu dụng (scene gộp với app): không dòng nào gán Giữ A+B ngắn hoặc dài, không
+  cử chỉ nào trỏ tới hai intent trong cùng một bảng, và có ít nhất một cử chỉ tra ra `BACK`, để người dùng không bị
+  kẹt trong scene. Scene đè mất `BACK` của app thì bị từ chối.
 - Cài đặt có mục khôi phục bảng gán mặc định.
-- Phần tra và kiểm tra là C thuần, test trên PC. `system` giữ bảng của app đang mở và lưu bảng người dùng đã sửa.
+- Phần tra và kiểm tra là C thuần, hàm không giữ trạng thái, nhận con trỏ bảng (bảng scene có thể không có), test
+  trên PC. `system` giữ bảng của app đang mở và scene đang mở, và lưu bảng người dùng đã sửa.
 
 ### Lần bấm đánh thức
 
@@ -127,7 +132,8 @@ Nút nào có nhấn kép thì mỗi lần nhấn đơn phải chờ hết kho�
 Nút nào làm modifier thì "giữ" phải chờ tới lúc nhả mới biết người dùng giữ để làm modifier hay để giữ.
 
 Vì vậy mỗi nút có một mask các kiểu bắt phải chờ (nhấn kép, modifier), mặc định tắt hết. `system` tính mask từ bảng
-gán đang dùng (bảng scene và bảng app) mỗi khi mở app hoặc đổi scene: bật kiểu nào bảng gán có dùng trên nút đó.
+gán đang dùng (bảng scene và bảng app) mỗi khi mở app hoặc đổi scene, bằng hàm của `keymap`: bật kiểu nào bảng gán
+có dùng trên nút đó. Dòng của bảng app bị scene đè vẫn được tính, nên có thể bật dư, không bao giờ thiếu.
 
 Mask của một nút đổi khi nút đó đang có cử chỉ dở thì cử chỉ dở bị bỏ, và nút phải nhả hẳn mới nhận cử chỉ mới.
 Lý do: cử chỉ được tra theo scene ở lúc phát, nên phát tiếp sẽ biến lần bấm trong scene cũ thành lệnh trong scene
