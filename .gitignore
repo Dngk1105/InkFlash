@@ -86,3 +86,4 @@ build-host/
 # Cache và cấu hình cục bộ của công cụ
 .cache/
 .claude/
+.claude/agy-runs/
