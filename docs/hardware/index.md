@@ -11,7 +11,7 @@ Mỗi linh kiện một thư mục trong `parts/`, mỗi board một file trong 
 | Thư mục | Vai trò | File |
 |---|---|---|
 | `esp32-s3-wroom-1` | MCU | `overview`, `pins` (ràng buộc chân, strapping) |
-| `weact-epaper-3.7` | Màn e-paper (panel GDEY037T03, controller UC8253) | `overview`, `refresh` (thời gian, bóng mờ), `commands` (bộ nhớ ảnh, lệnh) |
+| `weact-epaper-3.7` | Màn e-paper (controller UC8253; panel GDEY037T03 hoặc E037A75, xem overview) | Bắt đầu từ `index` (chỉ mục tra cứu). `overview`, `pins`, `electrical`, `mechanical`, `interface` (SPI, reset, BUSY), `image-memory`, `commands`, `waveform`, `sequences`, `refresh`, `glossary`, `sources`; PDF gốc trong `source/` |
 | `bq25180` | Sạc pin, ship mode | `overview` |
 | `rt9080` | LDO 3,3 V | `overview` |
 | `tps22916` | Công tắc tải cho khối phụ | `overview` |
