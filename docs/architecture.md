@@ -8,11 +8,12 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | Khối | Việc | Task | C thuần | Được gọi |
 |---|---|---|---|---|
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `gesture`, `keymap`, `scene`, `hal`, `platform` |
+| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `keymap`, `scene`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
 | `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, chọn partial/full, đếm bóng mờ | màn | Có | Chỉ thư viện C chuẩn |
 | `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
+| `input/` | Vỏ của input: ngắt nút, đóng dấu giờ, hẹn giờ theo deadline của `gesture`, đọc lại chân, lệnh `gesture` | main | | `gesture`, `hal`, `platform` |
 | `gesture/` | Nút, IMU → cử chỉ | main | Có | Chỉ thư viện C chuẩn |
 | `keymap/` | Cử chỉ → intent theo bảng gán của app; kiểm tra bảng gán | main | Có | `gesture` (chỉ dùng kiểu cử chỉ) |
 | `scene/` | Ngăn xếp scene trong app | main | Có | Chỉ thư viện C chuẩn |
@@ -36,7 +37,7 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 
 ## Hai luồng chính
 
-**Lật thẻ:** ngắt nút → hàng đợi main → `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
+**Lật thẻ:** ngắt nút → hàng đợi main → `input` gọi `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
 `display` chọn partial/full → driver vẽ.
 
 **Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →

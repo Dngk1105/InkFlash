@@ -13,7 +13,7 @@ driver là vỏ mỏng bọc bên ngoài.
 | Khối | Phần C thuần | Phần vỏ |
 |---|---|---|
 | `session/` | Máy trạng thái phiên thức: thức → hoạt động → lưu → ngủ | `system/`: hàng đợi sự kiện, gọi driver nguồn |
-| `gesture/` | Nút, IMU → cử chỉ | Ngắt GPIO, hẹn giờ |
+| `gesture/` | Nút, IMU → cử chỉ | `input/`: ngắt GPIO, hẹn giờ |
 | `keymap/` | Cử chỉ → intent theo bảng gán | `system`: giữ và lưu bảng gán |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | Cổng nối storage và đồng hồ |
 | `display/` | So khung, chọn partial/full, đếm bóng mờ | Task màn, gọi driver |

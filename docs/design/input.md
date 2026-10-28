@@ -93,7 +93,8 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 | `bsp`       | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm                                                     |
 | Driver nút | Ngắt GPIO, đọc mức, gọi callback qua interface nút của `hal`                                              |
 | `platform`  | Giờ, hẹn giờ một lần, console                                                                               |
-| `system`    | Hàng đợi, đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, lệnh `gesture` |
+| `input`     | Đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, lệnh `gesture`. Không có task riêng: chạy trên task main khi `system` giao message |
+| `system`    | Hàng đợi và task main: nhận message, giao cho khối chủ (`input`), nhận cử chỉ ra |
 | `gesture`   | Lọc rung, máy trạng thái từng nút, ra cử chỉ                                                             |
 
 ### Ai nhận cử chỉ
