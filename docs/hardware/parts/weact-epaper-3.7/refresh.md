@@ -13,6 +13,7 @@ Vẽ một ảnh mới đầy màn bằng sóng chuẩn mất khoảng 2,8 giây
 | Kiểu làm mới | Thời gian | Nguồn | Trạng thái |
 |---|---|---|---|
 | Full refresh (gồm truyền dữ liệu) | Sóng chuẩn 2,8 s; sóng nhanh 2,3 s. Thư viện ghi ~1,0 s cho riêng phần panel quét | Đo bằng demo, 2026-10-21 | Đã xác nhận |
+| Full refresh bằng `ink_drv_uc8253` (sóng OTP, ép nhiệt độ 90 như GxEPD2, SPI 4 MHz) | Gửi ảnh 25 ms; PON + DRF tới khi BUSY lên cao 2 137 ms; POF + ghi lại ảnh cũ 65 ms | Đo trên BB0, 2026-10-28, một lần, lần vẽ đầu sau khi cấp điện | Đã xác nhận |
 | Deep clean | 8,3 s (1 vòng đen → trắng, rồi vẽ) | Đo bằng demo | Đã xác nhận |
 | Partial refresh | ~0,35 s | GxEPD2 `partial_refresh_time` | Chưa xác nhận |
 
@@ -20,6 +21,7 @@ Tài liệu hãng (panel và datasheet UC8253) không ghi thời gian làm mới
 
 ## Chống bóng mờ và chấm lốm đốm (kết quả từ bản demo)
 
+- Full refresh đầu tiên sau khi cấp điện bằng sóng nhanh (ép nhiệt độ 90) còn để lại bóng ảnh cũ (đo trên BB0 bằng `ink_drv_uc8253`, 2026-10-28; lúc đó vùng ảnh cũ trong controller chưa được ghi).
 - Sóng chuẩn cho full refresh sạch hơn sóng nhanh (bỏ lệnh ép nhiệt độ `E0 02` / `E5 5A`), chậm hơn khoảng 0,5 s.
 - Deep clean: đảo cả màn đen rồi trắng trước khi vẽ. Mỗi vòng đen → trắng thêm khoảng 5,5 s. Bản demo xác nhận cách này xoá được chấm lốm đốm ở góc phải.
 - Partial refresh nhiều lần sẽ tích bóng mờ; cứ vài chục lần nên deep clean một lần.

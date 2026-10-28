@@ -31,8 +31,32 @@ Driver khai báo nó làm được gì qua bảng khả năng: cỡ màn, có pa
 
 ## Hợp đồng driver màn
 
+Ví dụ: `display` muốn đổi một ô chữ ở góc trên. Nó gọi hàm vẽ của driver với con trỏ tới cả khung mới, vùng cần đổi
+(x 0–79, y 0–39) và kiểu partial. Driver tự cắt 40 hàng × 10 byte của vùng đó, gửi qua SPI, cho panel quét, chờ BUSY
+lên cao rồi trả về thời gian SPI và thời gian panel.
+
 - **Đồng bộ:** hàm vẽ gửi ảnh rồi ngủ chờ ngắt BUSY, xong mới trả về. Chỉ task màn gọi nên không chặn ai khác.
 - Driver báo lại thời gian đoạn 5 và đoạn 6 sau mỗi lần vẽ.
+
+| Điều khoản | Quy định |
+| ---------- | -------- |
+| Toạ độ | Theo hướng gốc của panel (với màn 3,7" là 240 × 416, dọc). Xoay màn do tầng trên lo. |
+| Khung ảnh | 1 bit mỗi điểm, bit 1 = trắng, bit 0 = đen. Gói theo hàng, điểm trái nhất ở bit cao nhất của byte. |
+| Ảnh đưa vào | Luôn là con trỏ tới cả khung kèm vùng cần vẽ; driver tự cắt vùng, `display` không phải chép ảnh. |
+| Kiểu vẽ | Full (cả màn, sạch, chậm) hoặc partial (chỉ vùng đã cho, nhanh). |
+| Mép vùng partial | Driver làm tròn ra ngoài theo bước căn mép x mà nó khai báo trong bảng khả năng. |
+| Ảnh cũ trong controller | Driver tự giữ cho khớp với ảnh đang hiện: sau khi panel quét xong, nó ghi lại vùng vừa vẽ vào vùng ảnh cũ. Việc này nằm ngoài đường đo bấm → BUSY lên cao. |
+| Thời gian trả về | Ba số: SPI trước khi quét (đoạn 5), panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét (tắt nguồn analog, ghi lại ảnh cũ). |
+| Giữa các lần vẽ | Controller tắt nguồn analog nhưng giữ thanh ghi và RAM ảnh, không ngủ sâu. |
+
+Bảng khả năng của driver màn:
+
+| Mục | Nghĩa |
+| --- | ----- |
+| Cỡ gốc | Rộng và cao theo hướng gốc của panel |
+| Có partial | Driver vẽ được kiểu partial |
+| Bước căn mép x | Mép trái và mép phải vùng partial phải là bội của số này |
+| Thời gian điển hình | Một lần full và một lần partial, để `display` ước lượng |
 
 ## Đo
 

@@ -27,7 +27,7 @@ Sau khi controller reset hoặc ngủ sâu, vùng ảnh cũ không còn khớp v
 
 | DDX[0] (bit 4 của tham số CDI) | Bit 1 | Bit 0 | Giá trị CDI dùng bởi | Trạng thái |
 |---|---|---|---|---|
-| 1 (mặc định sau reset) | Trắng | Đen | GxEPD2: `0x97` full, `0xD7` partial | Đã xác nhận (UC8253 tr.29) |
+| 1 (mặc định sau reset) | Trắng | Đen | GxEPD2 và `ink_drv_uc8253`: `0x97` full; GxEPD2: `0xD7` partial | Đã xác nhận (UC8253 tr.29; đo trên BB0 với `0x97`, 2026-10-28) |
 | 0 | Đen | Trắng | Mã mẫu hãng: `0x47`, `0xC7` | Đã xác nhận (UC8253 tr.29; mã mẫu hãng) |
 
 Với DDX[0] = 1, bảng chuyển trạng thái (NEW, OLD) như sau (UC8253 tr.29):
@@ -52,7 +52,7 @@ Bit DDX[1] = 1 chọn chế độ "chỉ có ảnh mới, không có ảnh cũ" 
 | Số hàng (gate) | 416 | Panel tr.6 | Đã xác nhận |
 | Thứ tự gửi | Từng hàng một, mỗi hàng 30 byte; mã mẫu hãng lặp 416 hàng × 30 byte | Mã mẫu hãng dòng 188–226 | Đã xác nhận |
 | Kích thước một vùng RAM | 12 480 byte | Tính | Đã xác nhận |
-| Điểm đầu tiên ứng với góc nào của màn | Phụ thuộc bit UD, SHL của lệnh `0x00` (mặc định: quét gate lên, dịch source sang phải) và cách panel nối dây | UC8253 tr.14 | Chưa xác nhận trên máy |
+| Điểm đầu tiên ứng với góc nào của màn | Với PSR `1F 0D` (UD = 1, SHL = 1, như GxEPD2): góc trên trái khi cầm màn dọc, đầu nối FPC ở dưới; x tăng sang phải, hàng tăng xuống dưới. Đổi bit UD hoặc SHL thì đổi góc | UC8253 tr.14; đo trên BB0 bằng `ink_drv_uc8253`, 2026-10-28 | Đã xác nhận |
 
 Độ phân giải do lệnh `0x61` (TRES) hoặc bit RES của lệnh `0x00` quyết định, và OTP của controller có thể đổi giá trị mặc định (UC8253 tr.51). Mã mẫu hãng không gửi `0x61` mà vẫn ghi đủ 416 hàng; nhiều khả năng OTP đã đặt sẵn 240 × 416, nhưng chưa xác nhận.
 

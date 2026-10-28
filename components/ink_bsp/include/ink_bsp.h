@@ -14,3 +14,6 @@ esp_err_t ink_bsp_init(void);
  * Trả ESP_ERR_INVALID_ARG nếu NULL, ESP_ERR_INVALID_STATE nếu chưa init.
  */
 esp_err_t ink_bsp_buttons(const ink_hal_button_device_t **out_devices, size_t *out_count);
+
+/* Màn của board. Trả ESP_ERR_INVALID_ARG nếu NULL, ESP_ERR_INVALID_STATE nếu chưa init. */
+esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device);
