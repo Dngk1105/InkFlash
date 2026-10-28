@@ -1,8 +1,9 @@
 /* Thiết kế: docs/design/esp-idf-api.md */
 
 /*
- * Dựa theo: examples/peripherals/adc/oneshot_read. Không dùng driver/adc.h, esp_adc_cal.h (đã xoá trong v6.1).
- * Đo pin phải dùng ADC1, vì ADC2 tranh với WiFi.
+ * Dựa theo: examples/peripherals/adc/oneshot_read. Không dùng driver/adc.h,
+ * esp_adc_cal.h (đã xoá trong v6.1). Đo pin phải dùng ADC1, vì ADC2 tranh với
+ * WiFi.
  */
 #include "ink_periph_examples.h"
 
@@ -12,33 +13,40 @@
 
 static const char *TAG = "periph_adc";
 
-esp_err_t ink_periph_examples_adc_read_mv(adc_channel_t channel, int *out_mv)
-{
-    adc_oneshot_unit_handle_t         unit;
-    const adc_oneshot_unit_init_cfg_t unit_config = {
-        .unit_id = ADC_UNIT_1,
-    };
-    ESP_RETURN_ON_ERROR(adc_oneshot_new_unit(&unit_config, &unit), TAG, "adc_oneshot_new_unit");
+esp_err_t ink_periph_examples_adc_read_mv(adc_channel_t channel, int *out_mv) {
+  adc_oneshot_unit_handle_t unit;
+  const adc_oneshot_unit_init_cfg_t unit_config = {
+      .unit_id = ADC_UNIT_1,
+  };
+  ESP_RETURN_ON_ERROR(adc_oneshot_new_unit(&unit_config, &unit), TAG,
+                      "adc_oneshot_new_unit");
 
-    adc_cali_handle_t            calibration    = nullptr;
-    const adc_oneshot_chan_cfg_t channel_config = {
-        .atten    = ADC_ATTEN_DB_12,
+  adc_cali_handle_t calibration = nullptr;
+  const adc_oneshot_chan_cfg_t channel_config = {
+      .atten = ADC_ATTEN_DB_12,
+      .bitwidth = ADC_BITWIDTH_DEFAULT,
+  };
+  esp_err_t error = adc_oneshot_config_channel(unit, channel, &channel_config);
+  if (error == ESP_OK) {
+    const adc_cali_curve_fitting_config_t calibration_config = {
+        .unit_id = ADC_UNIT_1,
+        .chan = channel,
+        .atten = ADC_ATTEN_DB_12,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    esp_err_t error = adc_oneshot_config_channel(unit, channel, &channel_config);
-    if (error == ESP_OK) {
-        const adc_cali_curve_fitting_config_t calibration_config = {
-            .unit_id  = ADC_UNIT_1,
-            .chan     = channel,
-            .atten    = ADC_ATTEN_DB_12,
-            .bitwidth = ADC_BITWIDTH_DEFAULT,
-        };
-        error = adc_cali_create_scheme_curve_fitting(&calibration_config, &calibration);
-    }
-    int raw_value = 0;
-    if (error == ESP_OK) { error = adc_oneshot_read(unit, channel, &raw_value); }
-    if (error == ESP_OK) { error = adc_cali_raw_to_voltage(calibration, raw_value, out_mv); }
-    if (calibration != nullptr) { adc_cali_delete_scheme_curve_fitting(calibration); }
-    adc_oneshot_del_unit(unit);
-    return error;
+    error =
+        adc_cali_create_scheme_curve_fitting(&calibration_config, &calibration);
+  }
+  int raw_value = 0;
+  if (error == ESP_OK) {
+    error = adc_oneshot_read(unit, channel, &raw_value);
+  }
+  if (error == ESP_OK) {
+    error = adc_cali_raw_to_voltage(calibration, raw_value, out_mv);
+  }
+  if (calibration != nullptr) {
+    adc_cali_delete_scheme_curve_fitting(calibration);
+  }
+  adc_oneshot_del_unit(unit);
+  return error;
 }
