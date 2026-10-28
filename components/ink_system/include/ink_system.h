@@ -17,5 +17,4 @@
  * ESP_ERR_INVALID_STATE nếu đã chạy, ESP_ERR_NO_MEM nếu không tạo được hàng đợi
  * hoặc task.
  */
-esp_err_t ink_system_start(const ink_hal_button_device_t *buttons,
-                           size_t count);
+esp_err_t ink_system_start(const ink_hal_button_device_t *buttons, size_t count);

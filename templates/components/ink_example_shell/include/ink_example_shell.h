@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 typedef struct {
-  uint32_t value;
+    uint32_t value;
 } ink_example_shell_message_t;
 
 /*
@@ -31,5 +31,4 @@ esp_err_t ink_example_shell_post(const ink_example_shell_message_t *message);
  * Gửi message từ ISR. Hàm nằm trong IRAM, không log, không cấp phát.
  * Trả false nếu hàng đợi đầy hoặc chưa start.
  */
-bool ink_example_shell_post_from_isr(
-    const ink_example_shell_message_t *message);
+bool ink_example_shell_post_from_isr(const ink_example_shell_message_t *message);

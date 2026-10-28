@@ -24,14 +24,12 @@ typedef void (*ink_platform_timer_callback_t)(void *user_data);
  * Trả ESP_ERR_INVALID_ARG nếu callback hoặc out_timer là NULL, ESP_ERR_NO_MEM
  * nếu hết bộ nhớ.
  */
-esp_err_t ink_platform_timer_create(ink_platform_timer_callback_t callback,
-                                    void *user_data, const char *name,
+esp_err_t ink_platform_timer_create(ink_platform_timer_callback_t callback, void *user_data, const char *name,
                                     ink_platform_timer_t *out_timer);
 
 /* Hẹn callback sau delay_ms. Timer đang chạy thì huỷ hẹn cũ. Trả
  * ESP_ERR_INVALID_ARG nếu timer NULL. */
-esp_err_t ink_platform_timer_start(ink_platform_timer_t timer,
-                                   uint32_t delay_ms);
+esp_err_t ink_platform_timer_start(ink_platform_timer_t timer, uint32_t delay_ms);
 
 /* Huỷ hẹn; timer không chạy thì không làm gì. Trả ESP_ERR_INVALID_ARG nếu timer
  * NULL. */
@@ -54,9 +52,7 @@ esp_err_t ink_platform_console_init(const char *prompt);
  * Trả ESP_ERR_INVALID_STATE nếu chưa init, hoặc lỗi của
  * esp_console_cmd_register().
  */
-esp_err_t ink_platform_console_add(const char *name, const char *help,
-                                   const char *hint,
-                                   ink_platform_command_handler_t handler);
+esp_err_t ink_platform_console_add(const char *name, const char *help, const char *hint, ink_platform_command_handler_t handler);
 
 /* Bắt đầu đọc lệnh trên task REPL. Trả ESP_ERR_INVALID_STATE nếu chưa init hoặc
  * đã start. */

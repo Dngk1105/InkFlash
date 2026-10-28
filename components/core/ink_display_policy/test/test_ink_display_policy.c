@@ -14,8 +14,7 @@
 static uint8_t s_shown[SIZE];
 static uint8_t s_next[SIZE];
 
-static ink_display_policy_config_t default_config(void)
-{
+static ink_display_policy_config_t default_config(void) {
     return (ink_display_policy_config_t){
         .width                = WIDTH,
         .height               = HEIGHT,
@@ -27,38 +26,32 @@ static ink_display_policy_config_t default_config(void)
 }
 
 /* Khởi tạo và vẽ lần đầu (FULL), để màn có khung hiện là s_shown. */
-static void start(ink_display_policy_state_t *state, const ink_display_policy_config_t *config)
-{
+static void start(ink_display_policy_state_t *state, const ink_display_policy_config_t *config) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_init(state, config));
     ink_display_policy_decision_t decision;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(state, nullptr, s_shown, &decision));
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decision.mode);
 }
 
-static void set_black(uint8_t *frame, uint32_t x, uint32_t y)
-{
+static void set_black(uint8_t *frame, uint32_t x, uint32_t y) {
     frame[y * ROW_BYTES + x / 8] &= (uint8_t)~(0x80U >> (x % 8));
 }
 
-static ink_display_policy_decision_t decide_next(ink_display_policy_state_t *state)
-{
+static ink_display_policy_decision_t decide_next(ink_display_policy_state_t *state) {
     ink_display_policy_decision_t decision;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(state, s_shown, s_next, &decision));
     return decision;
 }
 
-void setUp(void)
-{
+void setUp(void) {
     memset(s_shown, 0xFF, SIZE);
     memset(s_next, 0xFF, SIZE);
 }
 
-void tearDown(void)
-{
+void tearDown(void) {
 }
 
-static void test_init_rejects_bad_config(void)
-{
+static void test_init_rejects_bad_config(void) {
     ink_display_policy_state_t  state;
     ink_display_policy_config_t config = default_config();
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(nullptr, &config));
@@ -73,8 +66,7 @@ static void test_init_rejects_bad_config(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(&state, &config));
 }
 
-static void test_first_decide_is_full_screen(void)
-{
+static void test_first_decide_is_full_screen(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_init(&state, &config));
@@ -87,27 +79,23 @@ static void test_first_decide_is_full_screen(void)
     TEST_ASSERT_EQUAL(HEIGHT, decision.window.height);
 }
 
-static void test_decide_rejects_missing_shown(void)
-{
+static void test_decide_rejects_missing_shown(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
     ink_display_policy_decision_t decision;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_decide(&state, nullptr, s_next, &decision));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT,
-                      ink_display_policy_decide(&state, s_shown, nullptr, &decision));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_decide(&state, s_shown, nullptr, &decision));
 }
 
-static void test_same_frame_is_none(void)
-{
+static void test_same_frame_is_none(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_NONE, decide_next(&state).mode);
 }
 
-static void test_padding_bits_are_ignored(void)
-{
+static void test_padding_bits_are_ignored(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
@@ -115,8 +103,7 @@ static void test_padding_bits_are_ignored(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_NONE, decide_next(&state).mode);
 }
 
-static void test_partial_window_is_aligned_outward(void)
-{
+static void test_partial_window_is_aligned_outward(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
@@ -130,8 +117,7 @@ static void test_partial_window_is_aligned_outward(void)
     TEST_ASSERT_EQUAL(2, decision.window.height);
 }
 
-static void test_aligned_window_stops_at_screen_edge(void)
-{
+static void test_aligned_window_stops_at_screen_edge(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
@@ -142,8 +128,7 @@ static void test_aligned_window_stops_at_screen_edge(void)
     TEST_ASSERT_EQUAL(4, decision.window.width);
 }
 
-static void test_full_after_partial_threshold(void)
-{
+static void test_full_after_partial_threshold(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
@@ -159,8 +144,7 @@ static void test_full_after_partial_threshold(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_PARTIAL, decide_next(&state).mode);
 }
 
-static void test_full_when_window_too_large(void)
-{
+static void test_full_when_window_too_large(void) {
     ink_display_policy_state_t  state;
     ink_display_policy_config_t config = default_config();
     config.max_partial_percent         = 50;
@@ -170,8 +154,7 @@ static void test_full_when_window_too_large(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decide_next(&state).mode);
 }
 
-static void test_full_without_partial(void)
-{
+static void test_full_without_partial(void) {
     ink_display_policy_state_t  state;
     ink_display_policy_config_t config = default_config();
     config.has_partial                 = false;
@@ -180,8 +163,7 @@ static void test_full_without_partial(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decide_next(&state).mode);
 }
 
-static void test_invalidate_forces_full(void)
-{
+static void test_invalidate_forces_full(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
     start(&state, &config);
@@ -191,8 +173,7 @@ static void test_invalidate_forces_full(void)
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decision.mode);
 }
 
-int main(void)
-{
+int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_rejects_bad_config);
     RUN_TEST(test_first_decide_is_full_screen);

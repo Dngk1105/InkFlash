@@ -12,19 +12,18 @@ typedef void (*ink_hal_button_callback_t)(void *user_data, bool pressed);
 
 /* Bảng khả năng: driver khai báo nó làm được gì. */
 typedef struct {
-  bool has_interrupt; /* báo edge bằng ngắt qua set_callback */
+    bool has_interrupt; /* báo edge bằng ngắt qua set_callback */
 } ink_hal_button_capabilities_t;
 
 /* Bảng hàm. `context` là dữ liệu riêng của driver. */
 typedef struct {
-  esp_err_t (*read)(void *context, bool *out_pressed);
-  /* Đăng ký callback rồi bật ngắt; gọi một lần, từ task. */
-  esp_err_t (*set_callback)(void *context, ink_hal_button_callback_t callback,
-                            void *user_data);
+    esp_err_t (*read)(void *context, bool *out_pressed);
+    /* Đăng ký callback rồi bật ngắt; gọi một lần, từ task. */
+    esp_err_t (*set_callback)(void *context, ink_hal_button_callback_t callback, void *user_data);
 } ink_hal_button_operations_t;
 
 typedef struct {
-  const ink_hal_button_operations_t *operations;
-  void *context;
-  ink_hal_button_capabilities_t capabilities;
+    const ink_hal_button_operations_t *operations;
+    void                              *context;
+    ink_hal_button_capabilities_t      capabilities;
 } ink_hal_button_device_t;

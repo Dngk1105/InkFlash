@@ -1,8 +1,8 @@
 # Thiết kế: docs/design/code-structure.md
 BasedOnStyle: LLVM
 IndentWidth: 4
-ColumnLimit: 120
-BreakBeforeBraces: Java
+ColumnLimit: 140
+BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: OnlyFirstIf
 AllowShortLoopsOnASingleLine: true

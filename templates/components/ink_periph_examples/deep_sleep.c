@@ -18,20 +18,22 @@
 static RTC_DATA_ATTR uint32_t s_rtc_counter;
 
 void ink_periph_examples_deep_sleep(uint64_t wake_pin_mask) {
-  /* Nút nối GND: giữ chân ở mức cao bằng pull-up của RTC trong lúc ngủ. Chân
-   * phải là RTC GPIO. */
-  for (int pin = 0; pin < GPIO_NUM_MAX; pin++) {
-    if (wake_pin_mask & (1ULL << pin)) {
-      rtc_gpio_pulldown_dis(pin);
-      rtc_gpio_pullup_en(pin);
+    /* Nút nối GND: giữ chân ở mức cao bằng pull-up của RTC trong lúc ngủ. Chân
+     * phải là RTC GPIO. */
+    for (int pin = 0; pin < GPIO_NUM_MAX; pin++) {
+        if (wake_pin_mask & (1ULL << pin)) {
+            rtc_gpio_pulldown_dis(pin);
+            rtc_gpio_pullup_en(pin);
+        }
     }
-  }
-  esp_sleep_enable_ext1_wakeup_io(wake_pin_mask, ESP_EXT1_WAKEUP_ANY_LOW);
-  esp_deep_sleep_start();
+    esp_sleep_enable_ext1_wakeup_io(wake_pin_mask, ESP_EXT1_WAKEUP_ANY_LOW);
+    esp_deep_sleep_start();
 }
 
 bool ink_periph_examples_woke_by_button(void) {
-  return (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT1)) != 0;
+    return (esp_sleep_get_wakeup_causes() & BIT(ESP_SLEEP_WAKEUP_EXT1)) != 0;
 }
 
-uint32_t ink_periph_examples_rtc_counter_next(void) { return ++s_rtc_counter; }
+uint32_t ink_periph_examples_rtc_counter_next(void) {
+    return ++s_rtc_counter;
+}
