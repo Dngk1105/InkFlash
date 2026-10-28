@@ -57,6 +57,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |
 | Tạo khối mới, đặt tên, repo xếp thế nào, mã lỗi, template, `tools/check.py` báo lỗi | [design/code-structure.md](design/code-structure.md) |
+| Vẽ chữ hoặc hình lên canvas, chữ Việt ra `?`, màn ngang bị xoay sai, thêm hoặc đổi font | [design/ui-canvas.md](design/ui-canvas.md) |
 | Viết code gọi ESP-IDF, không chắc API còn dùng được ở v6.1, build báo deprecated | [design/esp-idf-api.md](design/esp-idf-api.md) |
 | Thông số, chân, lệnh của một linh kiện; board dùng linh kiện nào, đấu chân nào | [hardware/index.md](hardware/index.md), rồi chỉ mở file cần |
 | Viết hoặc sửa docs | [writing-docs.md](writing-docs.md) |
