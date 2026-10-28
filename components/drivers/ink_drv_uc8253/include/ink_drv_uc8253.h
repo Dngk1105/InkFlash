@@ -5,6 +5,7 @@
  * Driver màn WeAct 3,7" (controller UC8253, 240 × 416), làm theo interface ink_hal_display.
  * BSP khởi tạo bus SPI và truyền chân qua config. Bộ nhớ do bên gọi cấp, phải nằm trong RAM nội vì DMA đọc nó.
  */
+#include <stdbool.h>
 #include <stdint.h>
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
@@ -25,12 +26,22 @@ typedef struct {
     gpio_num_t        busy;
 } ink_drv_uc8253_config_t;
 
+/* Biến thể partial refresh, để đo và so sánh. */
 typedef struct {
-    ink_drv_uc8253_config_t config;
-    spi_device_handle_t     spi;
-    SemaphoreHandle_t       busy_ready; /* ISR give khi BUSY lên cao */
-    StaticSemaphore_t       busy_ready_storage;
-    uint8_t                 window_buffer[INK_DRV_UC8253_FRAME_BYTES] __attribute__((aligned(4)));
+    bool    pt_scan;           /* true: quét gate cả ngoài window (mặc định của PTL); false: chỉ trong window */
+    bool    force_temperature; /* true: ép nhiệt độ `temperature`; false: cảm biến trong controller */
+    uint8_t temperature;       /* mã °C cho lệnh TSSET; GxEPD2 dùng 110 */
+    bool    keep_power_on;     /* true: không POF sau partial, lần partial sau bỏ được PON (như GxEPD2) */
+} ink_drv_uc8253_partial_options_t;
+
+typedef struct {
+    ink_drv_uc8253_config_t          config;
+    ink_drv_uc8253_partial_options_t partial_options;
+    bool                             power_on; /* nguồn analog đang bật (sau PON, chưa POF) */
+    spi_device_handle_t              spi;
+    SemaphoreHandle_t                busy_ready; /* ISR give khi BUSY lên cao */
+    StaticSemaphore_t                busy_ready_storage;
+    uint8_t                          window_buffer[INK_DRV_UC8253_FRAME_BYTES] __attribute__((aligned(4)));
 } ink_drv_uc8253_t;
 
 /*
@@ -39,3 +50,6 @@ typedef struct {
  */
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config,
                               ink_hal_display_device_t *out_device);
+
+/* Đổi biến thể partial cho các lần vẽ sau. Chỉ task màn gọi, giữa hai lần vẽ. Mặc định cả hai true. */
+void ink_drv_uc8253_set_partial_options(ink_drv_uc8253_t *driver, const ink_drv_uc8253_partial_options_t *options);

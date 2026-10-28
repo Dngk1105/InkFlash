@@ -69,6 +69,20 @@ Nguồn: `GxEPD2_370_GDEY037T03.cpp`, đã chạy trên máy; dòng "Giải mã"
 
 Sóng "chuẩn" của GxEPD2 (full refresh sạch hơn) bỏ lệnh ép nhiệt độ `E0 02` / `E5 5A`; sóng "nhanh" giữ lệnh đó (xem `refresh.md`).
 
+## Trình tự của `ink_drv_uc8253`
+
+Đã chạy trên BB0 (2026-10-28); thời gian đo ở `refresh.md`. Khởi tạo như GxEPD2. Controller không ngủ sâu giữa các lần vẽ.
+
+| Bước | Full refresh | Partial refresh |
+|---|---|---|
+| 1. Ghi ảnh mới | `0x91`, `0x90` (cả màn), `0x13` + 12 480 byte, `0x92` | `0x91`, `0x90` (window, mép x căn theo bội 8), `0x13` + dữ liệu window, `0x92` |
+| 2. Làm mới | `E0 02`, `E5 5A`, `50 97`, PON, DRF | `0x91`, `0x90` (window), `E0 02`, `E5 6E`, `50 D7`, PON, DRF, `0x92` |
+| 3. Sau khi quét | POF, rồi ghi lại cả màn vào `0x10` | POF, rồi ghi lại window vào `0x10` |
+
+- Lệnh `0x90` có cờ BUSY (UC8253 tr.46), nên driver chờ BUSY cao sau lệnh này.
+- PON gửi khi nguồn analog đang tắt. Nếu giữ nguồn bật giữa các lần partial (tuỳ chọn của driver, mặc định tắt) thì bỏ POF ở bước 3 và PON ở lần sau.
+- Không ép nhiệt độ thì phải gửi `E0 00`: bit TSFIX do lần vẽ trước bật vẫn còn trong thanh ghi.
+
 ## So sánh hai trình tự
 
 | Hạng mục | Mã mẫu hãng | GxEPD2 |
