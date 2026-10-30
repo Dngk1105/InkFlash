@@ -37,10 +37,15 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 | Component | Tiền tố `ink_` | `ink_display`, `ink_hal` |
 | Hàm public | `ink_<khối>_<động từ>` | `ink_study_next_card` |
 | Hàm, biến nội bộ | `static`, không tiền tố; biến bắt đầu `s_` | `choose_mode`, `s_state` |
+| Hàm dùng chung giữa các file trong một component | `<khối>_<động từ>`, không có `ink_`; khai báo trong `<component>_internal.h` đặt cạnh file `.c`, không đặt trong `include/` nên khối khác không include được | `input_log_gestures` trong `ink_input_internal.h` |
 | Kiểu dữ liệu | `ink_<khối>_<tên>_t` | `ink_gesture_event_t` |
 | Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`, `mv`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`, `u32`), tên chân và tín hiệu theo datasheet (`sda`, `scl`, `mosi`, `cs`, `bclk`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
 
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
+
+Component dài thì tách file theo nơi code chạy, không theo kích thước. Ví dụ `ink_input`: `ink_input.c` giữ trạng thái
+và chạy trên task main, `ink_input_console.c` chạy trên task REPL và chỉ đẩy message, `ink_input_log.c` là hàm thuần
+không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
 
 ### Luật phụ thuộc và cách ép
 
