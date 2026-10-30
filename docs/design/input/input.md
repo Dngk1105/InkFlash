@@ -11,6 +11,16 @@ liên tục thì CPU không được ngủ, tốn pin.
 Ví dụ: app Flashcard gán mặc định "B nhấn" → `NEXT`. Người dùng vào Cài đặt đổi `NEXT` sang "B giữ". Từ đó giữ B
 thì lật thẻ; code app không đổi.
 
+Sơ đồ cùng thư mục, vẽ từ code ở commit ghi trong mỗi file, mở bằng trình duyệt:
+
+| File | Cho thấy |
+|---|---|
+| `architecture.html` | Các khối firmware hiện có và ai gọi ai (chưa gồm màn) |
+| `sequence.html` | Một lần bấm nhanh nút A: ISR → hàng đợi → task main → gesture, kể cả timer debounce và đọc lại chân |
+| `dataflow.html` | Dữ liệu đổi dạng qua từng tầng: mức chân → `pressed` → message → event → `ink_gesture_t` |
+
+Đổi luồng input trong code thì vẽ lại ba sơ đồ trong cùng commit.
+
 
 | Lớp       | Đầu vào → đầu ra                                                                             | Khối     |
 | ------------ | ---------------------------------------------------------------------------------------------------- | ----------- |
