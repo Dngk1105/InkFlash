@@ -82,6 +82,8 @@ Desktop.ini
 # Visual Studio
 *.sln.docstates
 build-host/
+# archify
+.archify
 
 # Cache và cấu hình cục bộ của công cụ
 .cache/
