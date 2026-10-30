@@ -74,23 +74,23 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 
 ### Chạy theo sự kiện, không quét
 
-- Ngắt GPIO khi chân nút đổi mức → callback của `system` đóng dấu thời gian bằng giờ của `platform` → sự kiện vào
-  hàng đợi task main. Driver nút không đóng dấu thời gian, nên chỉ có một nguồn giờ.
+- Ngắt GPIO khi chân nút đổi mức → callback của `input` đóng dấu thời gian bằng giờ của `platform` → sự kiện vào
+  hàng đợi task main qua hàm post của `system`. Driver nút không đóng dấu thời gian, nên chỉ có một nguồn giờ.
 - Hẹn giờ một lần của `platform` chỉ chạy khi đang có cử chỉ dở (ví dụ đang giữ nút, chờ xem có đủ `hold_ms` không).
   `gesture` cho biết thời điểm cần được gọi lại tiếp theo, hoặc không cần.
 - Thời gian được truyền vào làm tham số, `gesture` không tự đọc đồng hồ.
 - Callback hẹn giờ và lệnh console chạy trên task khác, nên chỉ đẩy message vào hàng đợi task main, không gọi
   thẳng `gesture`.
 - Hàng đợi đầy thì message mới bị rơi. Rơi đúng cạnh cuối của một chùm rung thì `gesture` giữ mức sai, ví dụ tưởng
-  nút vẫn đang giữ, cho tới lần bấm sau. Vì vậy mỗi khi hẹn giờ chạy hoặc vừa có message rơi, đợi hàng đợi rỗng rồi
-  `system` đọc lại mức thật của chân; khác mức của cạnh cuối đã xử lý thì đưa thêm một cạnh bù. Thời điểm bấm, nhả
+  nút vẫn đang giữ, cho tới lần bấm sau. Vì vậy mỗi khi hẹn giờ chạy hoặc vừa có message rơi, `system` báo khi hàng đợi
+  rỗng, rồi `input` đọc lại mức thật của chân; khác mức của cạnh cuối đã xử lý thì đưa thêm một cạnh bù. Thời điểm bấm, nhả
   vẫn lấy từ ngắt, nên không mất độ chính xác.
 - Log tiến độ cử chỉ dở chỉ in khi hẹn giờ chạy, không in ở mỗi cạnh, để một chùm rung không in vài chục dòng.
 
 
 | Khối       | Việc                                                                                                            |
 | ------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `bsp`       | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm                                                     |
+| `bsp`       | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm. Cài dịch vụ ngắt GPIO một lần cho cả chip |
 | Driver nút | Ngắt GPIO, đọc mức, gọi callback qua interface nút của `hal`                                              |
 | `platform`  | Giờ, hẹn giờ một lần, console                                                                               |
 | `input`     | Đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, lệnh `gesture`. Không có task riêng: chạy trên task main khi `system` giao message |
@@ -146,7 +146,7 @@ Ví dụ: người dùng giữ A+B để tắt nguồn. Màn hiện thanh đếm
 làm gì và còn bao lâu; nhả ra trước thì không tắt.
 
 `gesture` cho biết cử chỉ nào đang dở, bắt đầu lúc nào, ngưỡng kế tiếp lúc nào; hàm này chỉ đọc trạng thái, không
-phát cử chỉ. Đang có cử chỉ dở thì `system` hẹn thêm giờ để vẽ lại tiến độ.
+phát cử chỉ. Đang có cử chỉ dở thì `input` hẹn thêm giờ, mỗi giây một lần, để báo lại tiến độ.
 
 | Thao tác | Màn hiện |
 |---|---|

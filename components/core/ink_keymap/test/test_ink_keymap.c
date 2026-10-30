@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 
 /* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
 #include "ink_keymap.h"

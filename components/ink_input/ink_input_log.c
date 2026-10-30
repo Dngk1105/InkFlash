@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 
 /* Đổi mã gesture thành chữ và in log. Hàm thuần, không giữ trạng thái; gọi từ task main. */
 #include "esp_log.h"

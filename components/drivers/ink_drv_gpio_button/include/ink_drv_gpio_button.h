@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 #pragma once
 
 /*

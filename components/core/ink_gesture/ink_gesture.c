@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 #include "ink_gesture.h"
 
 /* Hai lớp: debounce từng nút, rồi state machine gesture. Mọi deadline tính

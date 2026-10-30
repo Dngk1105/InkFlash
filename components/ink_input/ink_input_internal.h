@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 #pragma once
 
 /* Hàm dùng chung giữa các file của ink_input. Không nằm trong include/: khối khác không thấy. */

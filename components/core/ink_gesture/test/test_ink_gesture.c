@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 
 /* Host test (Unity). advance() gọi tick đúng từng deadline, như system với timer thật. */
 #include "ink_gesture.h"

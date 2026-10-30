@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 
 /* Lệnh console `gesture`. Chạy trên task REPL: chỉ kiểm tra cú pháp rồi đẩy message; task main làm và log kết quả. */
 #include "ink_input_internal.h"

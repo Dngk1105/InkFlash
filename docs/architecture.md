@@ -52,7 +52,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Sản phẩm cần làm gì, tính năng có trong phạm vi không | [requirements.md](requirements.md) |
 | Khối này có được gọi khối kia không; logic dính FreeRTOS nên khó test; muốn thêm biến toàn cục; một thông tin nằm hai nơi; định làm sẵn cho tính năng chưa có | [design/principles.md](design/principles.md) |
 | Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
-| Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input.md](design/input.md) |
+| Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
 | Màn vẽ chậm, chớp, bóng mờ, viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display-pipeline.md](design/display-pipeline.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |

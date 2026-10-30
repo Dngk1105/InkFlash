@@ -4,7 +4,7 @@
     python tools/new.py <loại> <tên> --design docs/design/<file>.md
 
 Loại: core (khối C thuần), shell (khối vỏ có task), driver (driver chip).
-Ví dụ: python tools/new.py core gesture --design docs/design/input.md
+Ví dụ: python tools/new.py core gesture --design docs/design/input/input.md
 """
 import argparse
 import os
@@ -37,7 +37,7 @@ def main():
     parser = argparse.ArgumentParser(description="Tạo khối mới từ template")
     parser.add_argument("kind", choices=KINDS.keys())
     parser.add_argument("name", help="tên khối, chữ thường và gạch dưới, không có tiền tố ink_")
-    parser.add_argument("--design", required=True, help="file thiết kế khối này làm theo, ví dụ docs/design/input.md")
+    parser.add_argument("--design", required=True, help="file thiết kế khối này làm theo, ví dụ docs/design/input/input.md")
     args = parser.parse_args()
 
     if not re.fullmatch(r"[a-z][a-z0-9_]*", args.name) or args.name.startswith("ink_"):

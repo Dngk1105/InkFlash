@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 
 /* Trạng thái của khối và phần chạy trên task main: edge → gesture, timer theo deadline, đọc lại chân, config. */
 #include "esp_attr.h"

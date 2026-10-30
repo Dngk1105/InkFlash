@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input.md */
+/* Thiết kế: docs/design/input/input.md */
 #pragma once
 
 /* Interface nút: một device cho một nút. Driver không đóng dấu thời gian, bên
