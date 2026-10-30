@@ -21,6 +21,9 @@ typedef enum : uint8_t {
     INK_GESTURE_BUTTON_AB = INK_GESTURE_BUTTON_A | INK_GESTURE_BUTTON_B,
 } ink_gesture_button_t;
 
+/* Số nút gesture hiểu được: mã nút ở trên có đúng chừng này bit. Thêm nút là thêm bit và tăng số này. */
+#define INK_GESTURE_BUTTON_COUNT 2
+
 typedef enum : uint8_t {
     INK_GESTURE_TYPE_PRESS = 0,
     INK_GESTURE_TYPE_DOUBLE_PRESS,
@@ -126,7 +129,7 @@ typedef struct {
 typedef struct {
     struct {
         ink_gesture_config_t       config;
-        ink_gesture_button_state_t buttons[2];
+        ink_gesture_button_state_t buttons[INK_GESTURE_BUTTON_COUNT];
         uint8_t                    mode;
         uint32_t                   ab_pressed_at_ms; /* lúc bấm nút thứ hai của A+B */
     } priv;

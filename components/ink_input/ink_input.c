@@ -11,8 +11,6 @@
 
 static const char *TAG = "ink_input";
 
-#define BUTTON_COUNT 2
-
 /* ---- Hàm post của system ---- */
 /* Gán một lần trong ink_input_start(), trước khi bật ngắt và timer; sau đó chỉ đọc. */
 
@@ -56,9 +54,9 @@ static const ink_gesture_config_t s_default_gesture_config = {
 
 static ink_gesture_state_t            s_gesture_state;
 static ink_platform_timer_t           s_gesture_timer;
-static const ink_hal_button_device_t *s_buttons;                    /* index 0 là A, 1 là B; nullptr khi chưa start */
-static bool                           s_last_pressed[BUTTON_COUNT]; /* level của edge cuối đã đưa vào gesture */
-static bool                           s_resync_pending;             /* timer vừa chạy, chưa đọc lại chân */
+static const ink_hal_button_device_t *s_buttons;                                /* index 0 là A, 1 là B; nullptr khi chưa start */
+static bool                           s_last_pressed[INK_GESTURE_BUTTON_COUNT]; /* level của edge cuối đã đưa vào gesture */
+static bool                           s_resync_pending;                         /* timer vừa chạy, chưa đọc lại chân */
 
 bool input_is_started(void) {
     return s_buttons != nullptr;
@@ -153,7 +151,7 @@ static void feed_edge(const ink_gesture_event_t *event, ink_gesture_output_t *ou
  */
 static bool resync_buttons(ink_gesture_output_t *out) {
     bool fed = false;
-    for (size_t i = 0; i < BUTTON_COUNT; i++) {
+    for (size_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         bool pressed = false;
         if (s_buttons[i].operations->read(s_buttons[i].context, &pressed) != ESP_OK) { continue; }
         if (pressed == s_last_pressed[i]) { continue; }
@@ -209,7 +207,7 @@ void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_g
 
 /* Nút index i có mã bit i (A = 1, B = 2). */
 static esp_err_t connect_buttons(const ink_hal_button_device_t *buttons) {
-    for (size_t i = 0; i < BUTTON_COUNT; i++) {
+    for (size_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const ink_gesture_button_t button = (ink_gesture_button_t)(1u << i);
         const esp_err_t error = buttons[i].operations->set_callback(buttons[i].context, on_button_edge, (void *)(uintptr_t)button);
         if (error != ESP_OK) {
@@ -223,7 +221,9 @@ static esp_err_t connect_buttons(const ink_hal_button_device_t *buttons) {
 esp_err_t ink_input_start(const ink_hal_button_device_t *buttons, size_t count, ink_input_post_t post,
                           ink_input_post_from_isr_t post_from_isr) {
     if (s_buttons != nullptr) { return ESP_ERR_INVALID_STATE; }
-    if (buttons == nullptr || count != BUTTON_COUNT || post == nullptr || post_from_isr == nullptr) { return ESP_ERR_INVALID_ARG; }
+    if (buttons == nullptr || count != INK_GESTURE_BUTTON_COUNT || post == nullptr || post_from_isr == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
     for (size_t i = 0; i < count; i++) {
         if (!buttons[i].capabilities.has_interrupt) { return ESP_ERR_NOT_SUPPORTED; }
     }

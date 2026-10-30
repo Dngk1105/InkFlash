@@ -481,7 +481,7 @@ function button_name(button)
 const u32 = (value) => value >>> 0;
 const i32 = (value) => value | 0;
 
-const BUTTON_COUNT = 2;
+const INK_GESTURE_BUTTON_COUNT = 2; /* ink_gesture.h */
 
 const PHASE_IDLE         = 0;
 const PHASE_DOWN         = 1;
@@ -538,7 +538,7 @@ function button_bit(button_index)
 
 function button_index_of(button)
 {
-    for (let i = 0; i < BUTTON_COUNT; i++) {
+    for (let i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         if (button === button_bit(i)) { return i; }
     }
     return -1;
@@ -667,7 +667,7 @@ function earliest_deadline(state)
 {
     const config   = state.config;
     const deadline = {found: false, kind: 0, button_index: 0, time_ms: 0};
-    for (let i = 0; i < BUTTON_COUNT; i++) {
+    for (let i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const button = state.buttons[i];
         if (button.locked) { keep_earlier(deadline, button.lock_until_ms, DEADLINE_DEBOUNCE, i); }
         if (state.mode !== MODE_NORMAL) { continue; }
@@ -801,7 +801,7 @@ function gesture_progress(state, now_ms)
         };
     }
     if (state.mode !== MODE_NORMAL) { return null; }
-    for (let i = 0; i < BUTTON_COUNT; i++) {
+    for (let i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const button = state.buttons[i];
         if (button.phase !== PHASE_DOWN || button.used_as_modifier) { continue; }
         const hold_at_ms = u32(button.pressed_at_ms + config.hold_ms);

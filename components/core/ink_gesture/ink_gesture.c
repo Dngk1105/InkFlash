@@ -7,8 +7,7 @@
 
 /* ---- Trạng thái nội bộ ---- */
 
-/* bên trong đánh số nút 0..BUTTON_COUNT-1; ra ngoài đổi sang bit */
-#define BUTTON_COUNT 2
+/* Bên trong đánh số nút 0..INK_GESTURE_BUTTON_COUNT-1; ra ngoài đổi sang bit. */
 
 enum : uint8_t {
     PHASE_IDLE,         /* nhả, không có gì dở */
@@ -44,7 +43,7 @@ static uint8_t button_bit(uint8_t button_index) {
 
 /* Mã nút → số thứ tự (A = 1 → 0); -1 nếu không phải đúng một nút. */
 static int button_index_of(ink_gesture_button_t button) {
-    for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
+    for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         if (button == button_bit(i)) { return i; }
     }
     return -1;
@@ -188,7 +187,7 @@ static void keep_earlier(deadline_t *deadline, uint32_t time_ms, uint8_t kind, u
 static deadline_t earliest_deadline(const ink_gesture_state_t *state) {
     const ink_gesture_config_t *config   = &state->priv.config;
     deadline_t                  deadline = {.found = false};
-    for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
+    for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const ink_gesture_button_state_t *button = &state->priv.buttons[i];
         if (button->locked) { keep_earlier(&deadline, button->lock_until_ms, DEADLINE_DEBOUNCE, i); }
         if (state->priv.mode != MODE_NORMAL) { continue; }
@@ -322,7 +321,7 @@ bool ink_gesture_progress(const ink_gesture_state_t *state, uint32_t now_ms, ink
         return true;
     }
     if (state->priv.mode != MODE_NORMAL) { return false; }
-    for (uint8_t i = 0; i < BUTTON_COUNT; i++) {
+    for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const ink_gesture_button_state_t *button = &state->priv.buttons[i];
         if (button->phase != PHASE_DOWN || button->used_as_modifier) { continue; }
         const uint32_t hold_at_ms = button->pressed_at_ms + config->hold_ms;
