@@ -18,7 +18,7 @@ Vẽ một ảnh mới đầy màn bằng sóng chuẩn mất khoảng 2,8 giây
 | Partial refresh bằng `ink_drv_uc8253` (ép nhiệt độ 110 như GxEPD2, SPI 4 MHz), một khung chữ 80 × 40 | 422 ms từ lúc gọi vẽ tới khi BUSY lên cao: gửi ảnh 1 ms, PON 75 ms, DRF 344 ms; sau đó POF + ghi lại ảnh cũ 41 ms | Đo trên BB0, 2026-10-28, 10 lần (lệch nhau dưới 2 ms) | Đã xác nhận |
 | Partial refresh như trên, vùng cả màn 240 × 416 | Gửi ảnh 25 ms, panel 420 ms; sau đó 65 ms | Như trên | Đã xác nhận |
 
-Tài liệu hãng (panel và datasheet UC8253) không ghi thời gian làm mới. Về nguyên tắc, thời gian bằng số khung hình của bảng sóng dài nhất chia cho tần số khung hình của dải nhiệt độ đang dùng (xem `waveform.md`); hai số này nằm trong OTP của controller và chưa được đọc ra.
+Tài liệu hãng (panel và datasheet UC8253) không ghi thời gian làm mới. Thời gian DRF bằng (số khung của bảng sóng dài nhất + 2) chia cho tần số khung của dải nhiệt độ đang dùng; số khung và tần số khung đã đọc từ OTP và khớp số đo (`waveform.md`).
 
 ## Các biến thể partial refresh
 
@@ -49,7 +49,7 @@ Kết luận từ số đo:
 
 - `PT_SCAN` không đổi thời gian.
 - Phải ép nhiệt độ. Không ép thì controller đo nhiệt độ phòng và chạy bảng sóng dài khoảng 2,6 s. Muốn không ép thì phải gửi `E0 00`, vì bit TSFIX do full refresh bật vẫn còn trong thanh ghi.
-- Ép từ 110 trở lên chọn dải nhiệt độ nóng nhất trong OTP, DRF 344 ms. Không dải OTP nào cho DRF ngắn hơn, nên với bảng sóng OTP thì một lần partial không xuống dưới khoảng 420 ms (PON + DRF).
+- Ép từ 110 trở lên chọn dải nhiệt độ nóng nhất trong OTP (TR8), DRF 344 ms. Không dải OTP nào cho DRF ngắn hơn, nên với bảng sóng OTP thì một lần partial không xuống dưới khoảng 420 ms (PON + DRF), hoặc 344 ms nếu giữ nguồn bật. Bảng sóng nạp qua thanh ghi thì ngắn hơn được (phần "Bảng sóng nạp qua thanh ghi").
 - Gửi ảnh qua SPI chỉ đáng kể khi vùng lớn: 1 ms cho 80 × 40, 25 ms cho cả màn.
 - Đo từ cạnh bấm nút (ISR) tới khi BUSY lên cao, chưa qua nhận dạng cử chỉ, ép 110: vùng 80 × 40 mất 423–425 ms (6 lần); cả màn mất 462–469 ms (58 lần), trong đó khoảng 18 ms là chương trình đo tô lại cả khung.
 
@@ -64,9 +64,53 @@ Cách này bỏ được PON (75 ms) và POF (40 ms), nhưng DRF 344 ms vẫn c�
 
 Biến thể nhanh nhất mà không để lại bóng mờ rõ: ép 110, `PT_SCAN` = 1, đây là mặc định của driver.
 
+## Bảng sóng nạp qua thanh ghi
+
+Bảng TR8 đọc từ OTP, nạp lại qua thanh ghi (REG = 1, `waveform.md`), cắt bớt khung hoặc đổi tần số khung. Đo trên BB0, 2026-10-30, ô 80 × 40, giữ nguồn analog bật, mỗi dòng 5–10 lần, lệch nhau dưới 0,1 ms.
+
+| Bảng sóng | Panel (DRF) | (N + 2) × chu kỳ khung |
+|---|---|---|
+| TR8 từ OTP, REG = 0 | 344,6 ms | 17 × 20 = 340 ms |
+| TR8 qua thanh ghi, 15 khung, 50 Hz | 343,1 ms | 340 ms |
+| 12 khung, 50 Hz | 283,1 ms | 280 ms |
+| 10 khung, 50 Hz | 242,9 ms | 240 ms |
+| 6 khung, 50 Hz | 162,8 ms | 160 ms |
+| 4 khung, 50 Hz | 122,7 ms | 120 ms |
+| 2 khung, 50 Hz | 82,6 ms | 80 ms |
+| 1 khung, 50 Hz | 62,6 ms | 60 ms |
+| 15 khung, 65 Hz | 266,1 ms | 262 ms |
+| 15 khung, 75 Hz | 227,5 ms | 227 ms |
+| 15 khung, 100 Hz | 171,8 ms | 170 ms |
+| 15 khung, 150 Hz | Khoảng 113 ms (đo cả PON rồi trừ 75 ms) | 113 ms |
+| 15 khung, 200 Hz | 86,1 ms | 85 ms |
+| 4 khung, 200 Hz | 31,0 ms | 30 ms |
+
+Thời gian DRF chỉ phụ thuộc số khung và tần số khung, không phụ thuộc cỡ vùng. POF mất khoảng 2 khung: 44 ms ở 50 Hz, 24 ms ở 100 Hz, 18 ms ở 150 Hz.
+
+## Bóng mờ theo bảng sóng
+
+Bài đo: full refresh màn trắng hai lần; mỗi dải dọc rộng 40 điểm đảo N lần giữa ô cờ 8 × 8 điểm và ô cờ ngược, rồi về trắng, bằng một bảng sóng; nhìn bằng mắt trên BB0, 2026-10-30. Dải tham chiếu không đảo lần nào, chỉ có màu trắng của full refresh.
+
+| Bảng sóng | Panel mỗi lần đổi | N = 20 | N = 100 |
+|---|---|---|---|
+| TR8: 15 khung, 50 Hz | 344 ms | Sạch | Sạch, trắng hơn dải tham chiếu |
+| 12 khung, 50 Hz | 283 ms | | Xám rất nhẹ, gần như TR8 |
+| 15 khung, 65 Hz | 266 ms | | Sạch, như TR8 |
+| 10 khung, 50 Hz | 243 ms | | Xám nhẹ, không thấy ô cờ |
+| 15 khung, 75 Hz | 228 ms | | Xám nhẹ hơn 10 khung một chút |
+| 15 khung, 100 Hz | 172 ms | Xám rất nhẹ | Thấy bóng ô cờ khi soi kỹ |
+| 6 khung, 50 Hz | 163 ms | Xám rất nhẹ | Xám rõ hơn 100 Hz, không thấy ô cờ |
+| TR8, `LUTKK` toàn 0 V | 343 ms | | Xám rất nhẹ, không thấy ô cờ |
+| 3 lần quét 5 khung, 50 Hz, cho mỗi lần đổi | Khoảng 430 ms (3 × 143 ms) | Sạch | Sạch, như TR8 |
+
+- Một lần full refresh (ép 90) sau N = 100 xoá sạch mọi vết.
+- Hai cách hỏng khác nhau: kéo đủ số khung nhưng mỗi khung ngắn (100 Hz) thì còn lại hình cũ; ít khung (6 khung) thì xám đều, không nhớ hình cũ.
+- Mép giữa vùng được vẽ partial nhiều lần và vùng bên cạnh để lại một vệt xám rất nhẹ, chỉ thấy khi soi kỹ (15 khung, 65 Hz, N = 100).
+- Dải TR8 và dải `LUTKK` toàn 0 V lẽ ra như nhau (mọi điểm đều đổi màu ở mỗi lần đảo nên `LUTKK` không được dùng), nhưng nhìn lệch nhau một chút: mức "xám rất nhẹ" nằm trong độ lệch của phép so bằng mắt và độ đều của panel.
+
 ## Chống bóng mờ và chấm lốm đốm
 
-- 50 lần partial liên tiếp (ép 110, `PT_SCAN` = 1) trong ô 80 × 40, nội dung là 10 cột đen trắng đổi theo số đếm: không thấy bóng mờ. Ở 1–2 lần cuối, cột đổi màu nhiều nhất (đảo màu mỗi lần vẽ) hiện màu xám (nhìn bằng mắt trên BB0, 2026-10-28).
+- 50 lần partial liên tiếp (ép 110, `PT_SCAN` = 1) trong ô 80 × 40, nội dung là 10 cột đen trắng đổi theo số đếm: không thấy bóng mờ. Ở 1–2 lần cuối, cột đổi màu nhiều nhất (đảo màu mỗi lần vẽ) hiện màu xám (nhìn bằng mắt trên BB0, 2026-10-28). Bài này chạy với trình tự driver cũ, vốn không vẽ ở mọi lần DRF thứ chẵn (`image-memory.md`), nên chỉ khoảng một nửa số lần là vẽ thật; số liệu bóng mờ dùng bảng ở phần trên.
 
 Kết quả từ bản demo:
 

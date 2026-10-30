@@ -16,8 +16,8 @@ Các cột "Dùng" ghi lệnh đó có xuất hiện ở trình tự của GxEPD
 | `0x04` | PON, Power ON | 0 | | Bật tăng áp; BUSY thấp tới khi sẵn sàng | G, H | tr.19 |
 | `0x02` | POF, Power OFF | 0 | | Tắt tăng áp, giữ thanh ghi | G, H | tr.18 |
 | `0x07` | DSLP, Deep Sleep | 1 (`0xA5`) | | Ngủ sâu; thoát bằng reset phần cứng | G, H | tr.20 |
-| `0x10` | DTM1 | 12 480 (cả màn) | | Ghi vùng ảnh cũ (OLD) | G, H | tr.20 |
-| `0x13` | DTM2 | 12 480 (cả màn) | | Ghi vùng ảnh mới (NEW) | G, H | tr.21 |
+| `0x10` | DTM1 | 12 480 (cả màn) | | Ghi vùng ảnh cũ (OLD) ngay sau reset; vai đổi sau mỗi DRF (`image-memory.md`) | G, H | tr.20 |
+| `0x13` | DTM2 | 12 480 (cả màn) | | Ghi vùng ảnh mới (NEW) ngay sau reset; như trên | G, H | tr.21 |
 | `0x12` | DRF, Display Refresh | 0 | | Bắt đầu đảo màn theo RAM và bảng sóng; BUSY thấp | G, H | tr.20 |
 | `0x50` | CDI | 1 | `0xD7` | Cực tính dữ liệu (DDX), viền (VBD), khoảng VCOM–dữ liệu | G, H | tr.29–30 |
 | `0x90` | PTL, Partial Window | 7 | | Đặt cửa sổ partial | G | tr.37 |
@@ -43,7 +43,7 @@ Các cột "Dùng" ghi lệnh đó có xuất hiện ở trình tự của GxEPD
 | `0x23` | LUTWK / LUTW | 56 hoặc 42 | | Bảng sóng trắng → đen | tr.24 |
 | `0x24` | LUTKK / LUTK | 56 hoặc 42 | | Bảng sóng đen → đen | tr.24 |
 | `0x2A` | LUTOPT | 5 | | Tuỳ chọn bảng sóng: XON, nhóm bỏ qua | tr.25 |
-| `0x30` | PLL | 1 | `0x06` | Tần số khung hình 5–200 Hz | tr.26 |
+| `0x30` | PLL | 1 | `0x06` theo bảng lệnh tr.8–13; `09H` theo trang mô tả tr.26 | Tần số khung hình 5–200 Hz; có tác dụng khi REG = 1 (đo trên BB0). OTP của module đặt `09` (50 Hz) cho mọi dải | tr.26 |
 | `0x40` | TSC | đọc 2 | | Đọc nhiệt độ từ cảm biến trong | tr.27 |
 | `0x41` | TSE | 1 | `0x00` | Chọn cảm biến trong hoặc ngoài; bù nhiệt độ TO[3:0] | tr.27 |
 | `0x42`, `0x43` | TSW, TSR | 3 ghi, 2 đọc | | Ghi/đọc cảm biến ngoài LM75 qua I2C (không nối trên module) | tr.28 |
@@ -55,7 +55,8 @@ Các cột "Dùng" ghi lệnh đó có xuất hiện ở trình tự của GxEPD
 | `0x70` | REV | đọc 5 | | Phiên bản chip (`0x09`) và LUT | tr.33 |
 | `0x72` | CRC | đọc | | CRC dữ liệu | tr.33 |
 | `0x80`, `0x81`, `0x82` | AMV, VV, VDCS | | | Đo và đặt VCOM | tr.34–36 |
-| `0xA0`, `0xA1`, `0xA2` | PGM, APG, ROTP | | | Lập trình và đọc OTP | tr.37–38 |
+| `0xA0`, `0xA1` | PGM, APG | | | Lập trình OTP. Không bao giờ gửi: ghi OTP không đảo ngược được | tr.37–38 |
+| `0xA2` | ROTP | đọc | | Đọc OTP; byte đầu là byte giả. Đã đọc được trên BB0 qua chân SDA (`interface.md`, nội dung ở `waveform.md`) | tr.38 |
 | `0xE3` | PWS | 1 | `0x00` | Tiết kiệm năng lượng khi đảo cực VCOM/source | tr.39 |
 | `0xE4` | LVSEL | 1 | `0x03` | Ngưỡng báo nguồn thấp (mặc định < 2,5 V) | tr.40 |
 

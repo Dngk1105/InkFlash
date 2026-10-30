@@ -23,7 +23,7 @@ Cùng 8 tín hiệu có hai chỗ hàn song song: hàng chân 2 × 4 bước 2,5
 
 Ghi chú:
 
-- Không có chân MISO. Controller có chế độ đọc qua chính chân SDA (UC8253 tr.41–42), nhưng module chỉ có một dây SDA nên muốn đọc phải đổi chân MOSI sang đầu vào; chưa thử.
+- Không có chân MISO. Controller trả dữ liệu đọc trên chính chân SDA (UC8253 tr.41–42). ESP32 đọc được bằng device SPI bán song công 3 dây, để chân MOSI vừa ghi vừa đọc; đã chạy trên BB0 (2026-10-30, `interface.md`).
 - Bản vẽ hình dạng in nhãn theo cột dọc, số chân 1 và 2 nằm ở đầu dưới của hàng 2 × 4, số 7 và 8 ở đầu trên.
 
 ## Điện trở nối tiếp trên tín hiệu

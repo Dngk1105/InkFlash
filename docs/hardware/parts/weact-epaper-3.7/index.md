@@ -15,11 +15,11 @@ Câu hỏi: "Gửi ảnh xong thì phải làm gì để màn đổi hình?" Tra
 | Cấp nguồn bao nhiêu V, dòng tiêu thụ, nhiệt độ, độ ẩm, giới hạn | `electrical.md` | `panel-e037a75-a0-spec.pdf` tr.11–12; `uc8253-datasheet.pdf` tr.58–59 |
 | Kích thước, lỗ bắt vít, đầu nối, lưu ý lắp | `mechanical.md` | `module-board-shape-3.7.pdf`; `panel-e037a75-a0-spec.pdf` tr.5–6, 14 |
 | SPI, mức logic, reset, chân BUSY, deep sleep | `interface.md` | `uc8253-datasheet.pdf` tr.6–7, 41–46, 53, 60–61 |
-| Dữ liệu ảnh nằm trong RAM thế nào, bit 1 là đen hay trắng, partial window | `image-memory.md` | `uc8253-datasheet.pdf` tr.20–21, 29, 32, 37 |
+| Dữ liệu ảnh nằm trong RAM thế nào, bit 1 là đen hay trắng, partial window, vì sao lần vẽ thứ hai không đổi hình (vai OLD/NEW đổi sau mỗi lần làm mới) | `image-memory.md` | `uc8253-datasheet.pdf` tr.20–21, 29, 32, 37; `gdey037t03-spec.pdf` tr.39 |
 | Lệnh nào, tham số gì, mặc định bao nhiêu | `commands.md` | `uc8253-datasheet.pdf` tr.8–40 |
-| Dạng sóng, bảng LUT, vì sao nhiệt độ ảnh hưởng, ý nghĩa `E0`/`E5` | `waveform.md` | `uc8253-datasheet.pdf` tr.22–26, 47–52 |
-| Thứ tự gửi lệnh: khởi tạo, vẽ, ngủ, đánh thức | `sequences.md` | `panel-vendor-init-uc8253.c`; `uc8253-datasheet.pdf` tr.43–46 |
-| Thời gian làm mới, bóng mờ, cách chống | `refresh.md` | Không có số liệu trong tài liệu hãng; xem file |
+| Dạng sóng, bảng LUT, vì sao nhiệt độ ảnh hưởng, ý nghĩa `E0`/`E5`, nội dung OTP của module, nạp LUT qua thanh ghi | `waveform.md` | `uc8253-datasheet.pdf` tr.22–26, 47–52 |
+| Thứ tự gửi lệnh: khởi tạo, vẽ, ngủ, đánh thức | `sequences.md` | `panel-vendor-init-uc8253.c`; `gdey037t03-spec.pdf` tr.39; `uc8253-datasheet.pdf` tr.43–46 |
+| Thời gian làm mới, bảng sóng ngắn, bóng mờ, cách chống | `refresh.md` | Không có số liệu trong tài liệu hãng; xem file |
 | Từ viết tắt và thuật ngữ | `glossary.md` | |
 | Danh mục tài liệu gốc, trang nào chứa gì | `sources.md` | |
 

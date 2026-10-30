@@ -16,7 +16,8 @@ Gửi lệnh `0x12` (Display Refresh): kéo D/C xuống thấp, kéo CS xuống 
 | Xung SCL lúc nghỉ | Mức thấp (mã mẫu hãng kéo SCL xuống trước khi truyền) | Mã mẫu hãng | Đã xác nhận |
 | Tham số thừa | Controller chỉ nhận đúng số tham số định nghĩa, bỏ phần dư | UC8253 tr.41 | Đã xác nhận |
 | Khi nào lệnh có hiệu lực | Lệnh được xử lý ở điều kiện "stop" của giao tiếp (CS lên cao) | UC8253 tr.13 ghi chú 3 | Đã xác nhận |
-| Lệnh đọc | Datasheet có (ví dụ `0x71`, `0x70`), dữ liệu ra trên SDA; module chỉ có một dây SDA | UC8253 tr.42 | Chưa xác nhận (chưa thử trên module) |
+| Lệnh đọc | Gửi byte lệnh (DC thấp), rồi DC cao và đọc dữ liệu trên chính chân SDA. Trên ESP32: device SPI bán song công, 3 dây (MOSI dùng cả ghi lẫn đọc), 1 MHz | UC8253 tr.42; đo trên BB0, 2026-10-30 | Đã xác nhận |
+| Kết quả đọc thử | `0x70` (REV) → `00 09 FE FF FF` (mã chip `09`); `0x71` (FLG) → `0x13` sau reset; `0xA2` (ROTP) đọc 8 KB hai lần khớp nhau từng byte, byte đầu là byte giả | Đo trên BB0, 2026-10-30 | Đã xác nhận |
 
 ## Thời gian SPI tối thiểu
 
@@ -37,7 +38,9 @@ Gửi lệnh `0x12` (Display Refresh): kéo D/C xuống thấp, kéo CS xuống 
 
 Demo chạy SCL 4 MHz (chu kỳ 250 ns) nằm trong giới hạn này.
 
-## SPI 3 dây (không dùng trên module này)
+## Chế độ SPI 3 dây của controller (không dùng trên module này)
+
+Đây là chế độ 9 bit của controller, khác với cách ESP32 đọc qua SDA ở bảng trên (vẫn là SPI 4 dây có DC, chỉ đổi chiều chân SDA).
 
 Khi BS ở mức cao, controller chuyển sang 3 dây: mỗi lần truyền 9 bit, bit đầu cho biết lệnh hay dữ liệu, chân DC phải nối GND (UC8253 tr.41). Cầu hàn chọn chế độ nằm ở `pins.md`.
 
@@ -51,15 +54,17 @@ Khi BS ở mức cao, controller chuyển sang 3 dây: mỗi lần truyền 9 bi
 | Trình tự dùng ở mã mẫu hãng | Cao 1 ms, thấp 5 ms, cao 1 ms | Mã mẫu hãng dòng 78 | Đã xác nhận |
 | Reset mềm | Gửi lệnh `0x00` với bit RST_N = 0; mất ít nhất 50 µs, BUSY thấp, lệnh khác bị bỏ qua | UC8253 tr.14 | Đã xác nhận |
 | Hiệu ứng của reset | Mọi thanh ghi về mặc định, mọi chức năng tắt | UC8253 tr.6 | Đã xác nhận |
-| Vùng ảnh cũ sau reset | Không còn khớp với ảnh đang hiện (datasheet không nói rõ RAM có bị xoá không) | Demo; `image-memory.md` | Chưa xác nhận |
+| RAM ảnh sau reset mềm | Thành rác; lần làm mới sau đó kéo cả điểm ngoài window | Đo trên BB0, 2026-10-30; `image-memory.md` | Đã xác nhận |
+| RAM ảnh sau reset cứng | Không còn khớp với ảnh đang hiện; chưa đo riêng có thành rác không | Demo | Chưa xác nhận |
+| Vai hai vùng RAM sau reset | Về mặc định (`0x10` là OLD) | Đo trên BB0, 2026-10-30; `image-memory.md` | Đã xác nhận |
 
 ## Chân BUSY
 
 | Hạng mục | Giá trị | Nguồn |
 |---|---|---|
 | Mức | Thấp = đang bận; cao = sẵn sàng nhận lệnh | UC8253 tr.6 |
-| Lệnh làm BUSY xuống thấp | `0x02` POF, `0x04` PON, `0x05` PMES, `0x07` DSLP, `0x12` DRF, `0x11` DSP, `0x17` AUTO, `0x2A`, `0x44`, `0x65`, `0x90` | UC8253 tr.46 |
-| Lệnh không đặt BUSY | PSR, PWR, PFS, BTST, DTM1, DTM2, các lệnh LUT, CDI, TCON... | UC8253 tr.46 |
+| Lệnh làm BUSY xuống thấp | `0x02` POF, `0x04` PON, `0x05` PMES, `0x07` DSLP, `0x11` DSP, `0x12` DRF, `0x17` AUTO, `0x40` TSC, `0x51` LPD, `0x80` AMV, `0xA1` APG | UC8253 tr.46 (bảng BUSY_N, cột "Flag") |
+| Lệnh không đặt BUSY | PSR, PWR, PFS, BTST, DTM1, DTM2, các lệnh LUT, LUTOPT (`0x2A`), PLL, CDI, TCON, GSST (`0x65`), PTL (`0x90`), PTIN, PTOUT... | UC8253 tr.46 (cột "No action") |
 | Trong lúc làm mới | Hầu hết lệnh bị bỏ qua; riêng TCON, TRES, REV được nhận | UC8253 tr.46 |
 | Chờ sau DRF | Từ lúc BUSY xuống thấp tới lệnh đọc `0x71` đầu tiên phải lớn hơn 200 µs | UC8253 tr.20 |
 | Cấu hình chân ESP32 | Đầu vào kéo lên trong | Demo |

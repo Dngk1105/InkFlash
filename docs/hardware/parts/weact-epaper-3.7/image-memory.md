@@ -10,16 +10,45 @@ Màn rộng 240 điểm, cao 416 điểm. Tám điểm gói vào một byte nên
 
 | Lệnh | Vùng (chế độ KW, đen trắng) | Ghi chú |
 |---|---|---|
-| `0x10` (DTM1) | Ảnh cũ (OLD) | Ảnh đang hiện trên màn |
-| `0x13` (DTM2) | Ảnh mới (NEW) | Ảnh muốn hiện |
+| `0x10` (DTM1) | Ảnh cũ (OLD) | Ảnh đang hiện trên màn. Đúng ngay sau reset; vai đổi sau mỗi DRF (phần dưới) |
+| `0x13` (DTM2) | Ảnh mới (NEW) | Ảnh muốn hiện. Như trên |
 
 Ở chế độ KWR (đen/trắng/đỏ), hai lệnh này mang ý nghĩa khác: `0x10` là lớp đen trắng, `0x13` là lớp đỏ (UC8253 tr.20–21). Module này dùng chế độ KW.
 
 Khi làm mới, controller lấy từng điểm một cặp bit (mới, cũ) và chọn một trong bốn bảng sóng: trắng giữ trắng, đen giữ đen, đen thành trắng, trắng thành đen (xem `waveform.md`). Nhờ vậy partial refresh chỉ đổi những điểm cần đổi.
 
-Datasheet không mô tả việc controller tự chép ảnh mới sang ảnh cũ sau khi làm mới (đã tìm ở tr.20–21, 29). Thư viện GxEPD2 và demo xử lý bằng cách ghi ảnh mới vào vùng ảnh cũ sau mỗi lần làm mới.
+## Vai của hai vùng đổi sau mỗi lần làm mới
 
-Sau khi controller reset hoặc ngủ sâu, vùng ảnh cũ không còn khớp với ảnh đang hiện trên panel. Demo xử lý bằng cách xoá trắng toàn màn (màn chớp). Có thể thay bằng cách nạp lại đúng ảnh đang hiện vào vùng `0x10` rồi mới partial refresh; cách này chưa thử trên máy.
+Ví dụ: vừa reset, ghi ảnh A bằng `0x13` rồi DRF, màn hiện A. Sau DRF đó, vùng mà lệnh `0x10` ghi vào trở thành vùng NEW, vùng của `0x13` trở thành OLD. Lần vẽ sau mà vẫn ghi ảnh mới B bằng `0x13` thì controller thấy NEW = A, OLD = B, kéo màn về A: màn trông như không đổi, thời gian DRF vẫn bình thường.
+
+| Hiện tượng | Nguồn | Trạng thái |
+|---|---|---|
+| Sau mỗi DRF, cả full lẫn partial, hai vùng đổi vai cho nhau; DRF kế tiếp đổi lại | Đo trên BB0, 2026-10-30: 5 vòng vẽ dải dọc, gồm dải đối chứng cố ý chọn sai lượt; datasheet và tài liệu panel không mô tả | Đã xác nhận (đo) |
+| Sau reset, hai vùng về vai mặc định: `0x10` là OLD, `0x13` là NEW | Như trên: đếm lượt từ lần reset khớp mọi vòng đo | Đã xác nhận (đo) |
+| Reset mềm (lệnh `0x00` với RST_N = 0) làm nội dung hai vùng thành rác; lần làm mới sau đó kéo cả điểm ngoài window theo dữ liệu rác, màn nhiễu sọc toàn bộ | Đo trên BB0, 2026-10-30. Datasheet tr.14 cam kết giữ SRAM khi SHD_N = 0, không cam kết gì khi reset mềm | Đã xác nhận (đo) |
+| Gửi `0x10` khi `data_flag` = 1 không tự kích làm mới: BUSY không xuống, cờ `data_flag` về 0 | Đo trên BB0, 2026-10-30; câu ở UC8253 tr.20 ("After Data Start (R10h) ... the refreshing of panel starts") không ứng với trường hợp này | Đã xác nhận (đo) |
+| Một khung dữ liệu gồm cả DTM1 lẫn DTM2 | UC8253 tr.20 (`data_flag`) | Đã xác nhận |
+| Luồng của hãng: mỗi lần cập nhật bắt đầu từ reset, ghi DTM1 rồi DTM2 trước DRF | GDEY037T03 tr.39; mã mẫu hãng | Đã xác nhận |
+
+Cách ghi đã chạy đúng trên BB0: trước mỗi DRF ghi cả ảnh mới lẫn ảnh cũ trong window, chọn lệnh theo số lần DRF kể từ lần reset gần nhất. Kiểm bằng 5 dải vẽ liên tiếp và 7 lần lật liên tiếp, không reset xen giữa (2026-10-30).
+
+| Số DRF từ lần reset gần nhất | Ảnh mới ghi bằng | Ảnh cũ ghi bằng |
+|---|---|---|
+| Chẵn (kể cả 0) | `0x13` | `0x10` |
+| Lẻ | `0x10` | `0x13` |
+
+Hai cách khác cũng tránh được lỗi đổi vai vì không bao giờ dựa vào nội dung RAM của lần trước:
+
+| Ai | Cách làm |
+|---|---|
+| Mã mẫu hãng | Reset cứng trước mỗi ảnh, ghi cả màn `0x10` và `0x13` |
+| GxEPD2 | Mỗi lần vẽ ghi cả màn `0x13`, làm mới, ghi cả màn `0x10`, rồi reset mềm (xem `sequences.md`) |
+
+Chỉ ghi ảnh mới bằng `0x13` trước DRF và ghi lại `0x10` sau DRF, không reset, thì mọi lần DRF thứ chẵn kể từ reset không đổi hình (đo trên BB0, 2026-10-30).
+
+## Sau reset và ngủ sâu
+
+Sau reset cứng, reset mềm hoặc ngủ sâu, nội dung hai vùng không còn đáng tin. Lần vẽ đầu tiên phải ghi cả màn cho cả hai vùng: ảnh mới, và ảnh cũ là ảnh đang hiện trên panel. Demo xử lý bằng cách xoá trắng toàn màn (màn chớp).
 
 ## Bit 1 là đen hay trắng
 
@@ -81,4 +110,4 @@ Ví dụ: cửa sổ rộng hết màn (x từ 0 tới 239) và cao 100 hàng (y
 
 Hệ quả: vùng partial luôn rộng theo bội 8 điểm theo trục ngang gốc (240 điểm). Khi xoay màn ngang (416 × 240) thì ràng buộc bội 8 áp lên trục dọc của hình xoay.
 
-Đối chiếu gốc: `source/uc8253-datasheet.pdf` tr.14, 20–21, 29, 32, 37; `source/panel-vendor-init-uc8253.c` dòng 176–348.
+Đối chiếu gốc: `source/uc8253-datasheet.pdf` tr.14, 20–21, 29, 32, 37; `source/gdey037t03-spec.pdf` tr.39; `source/panel-vendor-init-uc8253.c` dòng 176–348.

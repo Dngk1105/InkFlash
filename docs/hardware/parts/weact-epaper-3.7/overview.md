@@ -24,7 +24,7 @@ Cột "Trạng thái": xem `index.md`.
 | Partial refresh | Có; làm mới vùng chữ nhật, mép ngang căn theo 8 điểm | UC8253 tr.37 (lệnh `0x90`); GxEPD2 `hasPartialUpdate = true` | Đã xác nhận |
 | Điện áp cấp module | 3,3–5 V nếu hàn cầu SB4 + SB5 (qua LDO); chỉ 3,3 V nếu hàn cầu SB3 | In trên bản vẽ hình dạng; sơ đồ | Đã xác nhận |
 | Mức logic tín hiệu | 3,3 V | In trên bản vẽ hình dạng | Đã xác nhận |
-| Giao tiếp | SPI 4 dây, chỉ ghi (module không nối MISO); ghi MSB trước, lấy mẫu ở cạnh lên của SCL | UC8253 tr.41–42; GxEPD2 | Đã xác nhận |
+| Giao tiếp | SPI 4 dây, không nối MISO; đọc được qua chính chân SDA (`interface.md`); ghi MSB trước, lấy mẫu ở cạnh lên của SCL | UC8253 tr.41–42; GxEPD2; đo trên BB0 | Đã xác nhận |
 | Tốc độ SCL dùng được | Demo chạy 4 MHz; bảng AC ghi chu kỳ ghi tối thiểu 170 ns (khoảng 5,9 MHz) ở VDD = 2,3 V | UC8253 tr.61 | Đã xác nhận |
 | BUSY | Mức thấp = đang bận | UC8253 tr.6; Panel tr.8 | Đã xác nhận |
 | Nhiệt độ hoạt động | 0–40 °C | Panel tr.11 | Đã xác nhận |
