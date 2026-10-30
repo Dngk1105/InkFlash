@@ -82,7 +82,6 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
 
 esp_err_t ink_bsp_init(void) {
     ESP_RETURN_ON_FALSE(!s_initialized, ESP_ERR_INVALID_STATE, TAG, "already init");
-    /* Dịch vụ ngắt GPIO dùng chung cả chip: cài một lần ở đây, driver nút và driver màn chỉ gắn handler. */
     ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "gpio_install_isr_service");
     ESP_RETURN_ON_ERROR(init_buttons(), TAG, "buttons");
     ESP_RETURN_ON_ERROR(init_display(), TAG, "display");

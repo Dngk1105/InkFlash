@@ -9,7 +9,8 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 
 ## Luật
 
-- Repo được AI hỗ trợ viết khi dev yêu cầu; dev làm duyệt và tối ưu. Cần đảm bảo kết nối được mcp đầu phiên trước khi trả lời
+- Không commit nhánh main nếu chưa được sự cho phép
+- Repo được AI hỗ trợ viết khi dev yêu cầu; dev làm duyệt và tối ưu. Cần đảm bảo kết nối được mcp đầu phiên trước khi trả lời.
 - Code tuân thủ yêu cầu trong docs. Thấy code lệch docs hoặc lệch template: cảnh báo người làm và viết lại cho khớp.
 - Kiến trúc chốt cùng người làm từng phần. Chưa chốt thì bàn trong chat, không ghi vào docs.
 - Thông số phần cứng chưa có trong `docs/hardware/` thì hỏi, không đoán.
@@ -26,8 +27,12 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Làm visualize hoặc file mô phỏng (`*_sim.html`): đọc `docs/writing-visualizations.md` trước.
 
 <!-- agy-dieu-phoi -->
+
 ## Điều phối (giảm hạn mức Claude)
+
 Cấu hình: `.claude/agy.json`. Trạng thái agy in ở đầu phiên (hook SessionStart).
+
+
 | Tình huống                                                       | Làm gì                                  |
 | -------------------------------------------------------------------- | ------------------------------------------- |
 | Repo có MCP DocGraph                                              | `trace` / `pack` của DocGraph trước    |
@@ -35,5 +40,6 @@ Cấu hình: `.claude/agy.json`. Trạng thái agy in ở đầu phiên (hook Se
 | Code theo mẫu có sẵn, có test, > ~150 dòng                    | skill `agy-build` (theo `build_mode`)     |
 | Sửa nhỏ < ~50 dòng, nghiệp vụ tinh tế, bảo mật             | Claude tự làm                           |
 | Trước khi kết luận / sửa code                                 | Mở lại 1–3 `file:dòng` để xác minh |
+
 - Đặc tả: `.claude/specs/<task>.md`. Log: `.claude/agy-runs/` (không commit).
 - KHÔNG merge nhánh `agy/*` khi người dùng chưa đồng ý.
