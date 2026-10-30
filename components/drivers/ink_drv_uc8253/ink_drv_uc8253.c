@@ -269,10 +269,6 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
     ESP_RETURN_ON_ERROR(spi_bus_add_device(config->host, &device_config, &driver->spi), TAG, "spi_bus_add_device");
 
     driver->busy_ready = xSemaphoreCreateBinaryStatic(&driver->busy_ready_storage);
-    /* Dịch vụ ngắt GPIO cài một lần cho cả chip; gọi lại trả
-     * ESP_ERR_INVALID_STATE, coi như đã có. */
-    const esp_err_t error = gpio_install_isr_service(0);
-    ESP_RETURN_ON_FALSE(error == ESP_OK || error == ESP_ERR_INVALID_STATE, error, TAG, "gpio_install_isr_service");
     ESP_RETURN_ON_ERROR(gpio_isr_handler_add(config->busy, on_busy_rise, driver), TAG, "gpio_isr_handler_add");
 
     ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset");

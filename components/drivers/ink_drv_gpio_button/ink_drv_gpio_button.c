@@ -45,10 +45,6 @@ static esp_err_t set_callback(void *context, ink_hal_button_callback_t callback,
     driver->callback           = callback;
     driver->callback_user_data = user_data;
     ESP_RETURN_ON_ERROR(configure_pin(&driver->config, GPIO_INTR_ANYEDGE), TAG, "gpio_config pin %d", driver->config.pin);
-    /* Dịch vụ ngắt GPIO cài một lần cho cả chip; gọi lại trả
-     * ESP_ERR_INVALID_STATE, coi như đã có. */
-    const esp_err_t error = gpio_install_isr_service(0);
-    ESP_RETURN_ON_FALSE(error == ESP_OK || error == ESP_ERR_INVALID_STATE, error, TAG, "gpio_install_isr_service");
     return gpio_isr_handler_add(driver->config.pin, on_pin_edge, driver);
 }
 

@@ -24,7 +24,7 @@ typedef struct {
 } ink_drv_gpio_button_t;
 
 /*
- * Cấu hình chân (chưa bật ngắt) và điền `out_device`.
+ * Cấu hình chân (chưa bật ngắt) và điền `out_device`. Bên gọi cài gpio_install_isr_service() trước khi gọi set_callback.
  * Trả ESP_ERR_INVALID_ARG nếu có con trỏ NULL, hoặc lỗi của gpio_config().
  */
 esp_err_t ink_drv_gpio_button_init(ink_drv_gpio_button_t *driver, const ink_drv_gpio_button_config_t *config,

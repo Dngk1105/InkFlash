@@ -50,7 +50,7 @@ typedef struct {
 
 /*
  * Reset controller, gửi cấu hình panel và điền `out_device`. Không đổi ảnh trên
- * màn. Gọi một lần, từ task. Trả ESP_ERR_INVALID_ARG nếu có con trỏ NULL,
+ * màn. Gọi một lần, từ task, sau gpio_install_isr_service(). Trả ESP_ERR_INVALID_ARG nếu có con trỏ NULL,
  * ESP_ERR_TIMEOUT nếu BUSY không lên, hoặc lỗi GPIO, SPI.
  */
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device);
