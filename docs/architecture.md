@@ -8,7 +8,7 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | Khối | Việc | Task | C thuần | Được gọi |
 |---|---|---|---|---|
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `keymap`, `scene`, `platform` |
+| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
 | `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, chọn partial/full, đếm bóng mờ | màn | Có | Chỉ thư viện C chuẩn |
@@ -22,8 +22,9 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
 | `platform/` | Log, config, giờ, hẹn giờ, console, RTC memory | nơi gọi | | ESP-IDF |
 | `hal/` | Interface phần cứng | nơi gọi | | |
-| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal` |
-| `bsp/` | Bảng chân, chọn driver theo board | lúc khởi động | | `hal`, `drivers` |
+| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal`; driver màn gọi `waveform` |
+| `waveform/` | Dựng bảng sóng (LUT) theo nhóm và pha, đếm khung, kiểm cân bằng điện tích | màn | Có | Chỉ thư viện C chuẩn |
+| `bsp/` | Bảng chân, chọn driver theo board, lệnh console riêng của chip (`epd`) | lúc khởi động | | `hal`, `drivers`, `platform` |
 
 Khối không có trong cột "Được gọi" của một khối thì khối đó không được gọi tới.
 
@@ -41,7 +42,7 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 `display` chọn partial/full → driver vẽ.
 
 **Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
-vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → nạp màn nền làm ảnh cũ → vẽ lại đúng màn trước, không chớp.
+vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → `display` coi màn nền là khung đang hiện → vẽ partial cả màn ra đúng màn trước, không chớp.
 
 ## Gặp vấn đề thì đọc file nào
 
@@ -54,7 +55,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
 | Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
-| Màn vẽ chậm, chớp, bóng mờ, viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display-pipeline.md](design/display-pipeline.md) |
+| Màn vẽ chậm, chớp, bóng mờ, viền xám, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |

@@ -1,19 +1,14 @@
-/* Thiết kế: docs/design/display-pipeline.md */
+/* Thiết kế: docs/design/display/display.md */
 #pragma once
 
-/*
- * Interface màn: một device cho một màn. Toạ độ theo hướng gốc của panel.
- * Khung ảnh 1 bit, bit 1 = trắng, gói theo hàng, điểm trái nhất ở bit cao nhất;
- * mỗi hàng (width + 7) / 8 byte.
+/* Mỗi pixel 1 bit black/white (white = bit 1)
+ * Tọa độ theo hướng gốc của panel
+ * Khung theo từng hàng, điểm trái nhất ở bit cao nhất của byte
+ * Chỉ Display task gọi các hàm trong operations
  */
 #include "esp_err.h"
-#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-
-typedef enum {
-    INK_HAL_DISPLAY_MODE_FULL,    /* cả màn, sạch, chậm; bỏ qua window */
-    INK_HAL_DISPLAY_MODE_PARTIAL, /* chỉ window */
-} ink_hal_display_mode_t;
 
 typedef struct {
     uint16_t x;
@@ -22,34 +17,45 @@ typedef struct {
     uint16_t height;
 } ink_hal_display_rect_t;
 
-/* Thời gian một lần vẽ, micro giây. */
+typedef enum : uint8_t {
+    INK_HAL_DISPLAY_SLOT_FULL,
+    INK_HAL_DISPLAY_SLOT_PARTIAL,
+    INK_HAL_DISPLAY_SLOT_COUNT,
+} ink_hal_display_slot_t;
+
 typedef struct {
-    uint32_t spi_us;   /* gửi ảnh, trước khi panel quét */
-    uint32_t panel_us; /* panel quét tới khi BUSY lên cao */
-    uint32_t after_us; /* sau khi quét: tắt nguồn analog, ghi lại ảnh cũ */
+    uint32_t spi_us;   /* Gửi ảnh và bảng sóng, trước khi quét*/
+    uint32_t panel_us; /* panel quét tới khi BUSY cao (rảnh)*/
+    uint32_t after_us; /* sau khi quét: tắt nguồn */
 } ink_hal_display_timing_t;
 
-/* Bảng khả năng: driver khai báo nó làm được gì. */
 typedef struct {
-    uint16_t width; /* cỡ gốc */
-    uint16_t height;
-    bool     has_partial;
-    uint8_t  partial_x_align;    /* mép x của window partial là bội của số này */
-    uint16_t typical_full_ms;    /* gồm SPI và panel */
-    uint16_t typical_partial_ms; /* 0 nếu không có partial */
+    const char *name;
+    uint32_t    typical_ms;
+} ink_hal_display_profile_info_t;
+
+typedef struct {
+    uint16_t                              width; /* Cỡ gốc panel*/
+    uint16_t                              height;
+    uint8_t                               x_align; /* Mép trái/phải là bội của x_align*/
+    const ink_hal_display_profile_info_t *profiles;
+    size_t                                profile_count;
+    size_t                                default_profiles[INK_HAL_DISPLAY_SLOT_COUNT]; /* profile gán lúc khởi tạo */
 } ink_hal_display_capabilities_t;
 
-/* Bảng hàm. `context` là dữ liệu riêng của driver. */
 typedef struct {
     /*
-     * Gửi ảnh, cho panel quét, ngủ chờ BUSY rồi mới trả về. Chỉ task màn gọi.
-     * `frame` là cả khung; driver tự cắt window và làm tròn mép x ra ngoài theo
-     * partial_x_align. Trả ESP_ERR_INVALID_ARG nếu NULL hoặc window ra ngoài màn,
-     * ESP_ERR_NOT_SUPPORTED nếu không có kiểu vẽ đó, ESP_ERR_TIMEOUT nếu BUSY
-     * không lên, hoặc lỗi SPI.
+     * Vẽ window theo cặp bit (mới, cũ) của từng điểm, chờ panel quét xong. Hai
+     * mặt phẳng là con trỏ tới cả khung, nằm trong RAM nội. Driver làm tròn mép x
+     * ra ngoài theo x_align, và tự nới ra cả màn ở lần vẽ đầu sau reset.
      */
-    esp_err_t (*draw)(void *context, const uint8_t *frame, ink_hal_display_rect_t window, ink_hal_display_mode_t mode,
-                      ink_hal_display_timing_t *out_timing);
+    esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
+                      ink_hal_display_slot_t slot, ink_hal_display_timing_t *out_timing);
+    /* Gán profile thứ `index` trong capabilities.profiles cho slot, có tác dụng từ
+     * lần vẽ sau. */
+    esp_err_t (*select_profile)(void *context, ink_hal_display_slot_t slot, size_t index);
+    /* Đọc cảm biến nhiệt độ của controller, đơn vị Celsius. */
+    esp_err_t (*read_temperature)(void *context, int8_t *out_celsius);
 } ink_hal_display_operations_t;
 
 typedef struct {

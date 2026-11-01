@@ -4,7 +4,7 @@
 
 App nghĩ về màn ngang 416 × 240, nhưng panel lưu ảnh dọc 240 × 416 và `display` đưa nguyên vùng nhớ ảnh cho driver.
 Nếu app vẽ theo màn ngang rồi xoay cả khung sang bố cục panel thì tốn thêm 12 480 byte RAM và thời gian ở đoạn 2 của
-đường vẽ (phải nhỏ hơn 50 ms, xem `display-pipeline.md`). Chữ phải có tiếng Việt có dấu, mà máy không có font hệ thống.
+đường vẽ (phải nhỏ hơn 50 ms). Chữ phải có tiếng Việt có dấu, mà máy không có font hệ thống.
 
 ## Cách xử lý
 

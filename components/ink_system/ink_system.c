@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "ink_display.h"
 #include "ink_input.h"
 #include "ink_platform.h"
 #include <stdatomic.h>
@@ -101,19 +102,24 @@ static esp_err_t create_queue_task(void) {
     return ESP_OK;
 }
 
-static esp_err_t start_console(void) {
+static esp_err_t start_console(ink_system_console_hook_t add_board_commands) {
     esp_err_t error = ink_platform_console_init("ink> ");
     if (error == ESP_OK) { error = ink_input_add_console_command(); }
+    if (error == ESP_OK) { error = ink_display_add_console_command(); }
+    if (error == ESP_OK && add_board_commands != nullptr) { error = add_board_commands(); }
     if (error == ESP_OK) { error = ink_platform_console_start(); }
     return error;
 }
 
-esp_err_t ink_system_start(const ink_hal_button_device_t *buttons, size_t count) {
+esp_err_t ink_system_start(const ink_system_config_t *config) {
+    if (config == nullptr || config->display == nullptr) { return ESP_ERR_INVALID_ARG; }
     if (s_queue != nullptr) { return ESP_ERR_INVALID_STATE; }
     esp_err_t error = create_queue_task();
-    if (error == ESP_OK) { error = ink_input_start(buttons, count, post_input, post_input_from_isr); }
+    if (error == ESP_OK) { error = ink_input_start(config->buttons, config->button_count, post_input, post_input_from_isr); }
+    /* Chưa có snapshot: luôn khởi động như cấp điện lần đầu (không có màn nền). */
+    if (error == ESP_OK) { error = ink_display_start(config->display, nullptr); }
     if (error == ESP_OK) {
-        error = start_console();
+        error = start_console(config->add_board_commands);
         if (error != ESP_OK) { ESP_LOGE(TAG, "console: %s", esp_err_to_name(error)); }
     }
     return error;

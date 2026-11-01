@@ -1,4 +1,4 @@
-# Thiết kế: docs/design/display-pipeline.md
+# Thiết kế: docs/design/display/display.md
 idf_component_register(SRCS "ink_display.c"
                        INCLUDE_DIRS "include"
                        REQUIRES ink_hal

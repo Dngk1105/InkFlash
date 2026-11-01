@@ -19,5 +19,13 @@ void app_main(void) {
     const ink_hal_button_device_t *buttons      = nullptr;
     size_t                         button_count = 0;
     ESP_ERROR_CHECK(ink_bsp_buttons(&buttons, &button_count));
-    ESP_ERROR_CHECK(ink_system_start(buttons, button_count));
+    const ink_hal_display_device_t *display = nullptr;
+    ESP_ERROR_CHECK(ink_bsp_display(&display));
+    const ink_system_config_t config = {
+        .buttons            = buttons,
+        .button_count       = button_count,
+        .display            = display,
+        .add_board_commands = ink_bsp_add_console_command,
+    };
+    ESP_ERROR_CHECK(ink_system_start(&config));
 }

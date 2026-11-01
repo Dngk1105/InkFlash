@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/display-pipeline.md */
+/* Thiết kế: docs/design/display/display.md */
 #pragma once
 
 /*
@@ -11,12 +11,14 @@
 #include <stdint.h>
 
 /*
- * Cấp 3 khung trong RAM nội, tạo task màn. Gọi một lần lúc khởi động, từ task
- * main. Chép `*device`. Trả ESP_ERR_INVALID_STATE nếu đã chạy,
- * ESP_ERR_INVALID_ARG nếu device thiếu bảng hàm hoặc cỡ màn bằng 0,
- * ESP_ERR_NO_MEM nếu không cấp được khung hoặc task.
+ * Cấp khung trong RAM nội, tạo task màn. Gọi một lần lúc khởi động, từ task
+ * main. Chép `*device`. `background`: màn nền đã vẽ trước khi ngủ sâu, coi là
+ * khung đang hiện để lần vẽ đầu là partial cả màn; nullptr khi khởi động nguội.
+ * Trả ESP_ERR_INVALID_STATE nếu đã chạy, ESP_ERR_INVALID_ARG nếu device thiếu
+ * bảng hàm hoặc bảng khả năng sai, ESP_ERR_NO_MEM nếu không cấp được khung hoặc
+ * task.
  */
-esp_err_t ink_display_start(const ink_hal_display_device_t *device);
+esp_err_t ink_display_start(const ink_hal_display_device_t *device, const uint8_t *background);
 
 /*
  * Mượn một khung để vẽ, chỉ từ task main. Khung đã có sẵn ảnh của lần giao gần
@@ -33,8 +35,8 @@ uint8_t *ink_display_acquire(void);
 esp_err_t ink_display_submit(uint8_t *frame, uint32_t press_ms);
 
 /*
- * Thêm lệnh console `display stats`. Gọi sau ink_display_start() và
- * ink_platform_console_init(). Trả ESP_ERR_INVALID_STATE nếu chưa start, hoặc
- * lỗi của ink_platform_console_add().
+ * Thêm lệnh console `display` (stats, profile, edge, temp). Gọi sau
+ * ink_display_start() và ink_platform_console_init(). Trả ESP_ERR_INVALID_STATE
+ * nếu chưa start, hoặc lỗi của ink_platform_console_add().
  */
 esp_err_t ink_display_add_console_command(void);

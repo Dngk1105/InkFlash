@@ -1,9 +1,9 @@
-/* Thiết kế: docs/design/display-pipeline.md */
+/* Thiết kế: docs/design/display/display.md */
 
 /* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
-#include <string.h>
 #include "ink_display_policy.h"
 #include "unity.h"
+#include <string.h>
 
 /* Màn nhỏ 20 × 4: mỗi hàng 3 byte, 4 bit đệm cuối hàng. */
 #define WIDTH     20
@@ -13,15 +13,16 @@
 
 static uint8_t s_shown[SIZE];
 static uint8_t s_next[SIZE];
+static uint8_t s_old[SIZE];
 
 static ink_display_policy_config_t default_config(void) {
     return (ink_display_policy_config_t){
         .width                = WIDTH,
         .height               = HEIGHT,
-        .has_partial          = true,
         .x_align              = 8,
         .partials_before_full = 3,
         .max_partial_percent  = 100,
+        .edge_margin          = 0,
     };
 }
 
@@ -46,6 +47,7 @@ static ink_display_policy_decision_t decide_next(ink_display_policy_state_t *sta
 void setUp(void) {
     memset(s_shown, 0xFF, SIZE);
     memset(s_next, 0xFF, SIZE);
+    memset(s_old, 0xAA, SIZE);
 }
 
 void tearDown(void) {
@@ -63,6 +65,9 @@ static void test_init_rejects_bad_config(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(&state, &config));
     config                     = default_config();
     config.max_partial_percent = 101;
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(&state, &config));
+    config             = default_config();
+    config.edge_margin = INK_DISPLAY_POLICY_MAX_EDGE_MARGIN + 1;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(&state, &config));
 }
 
@@ -154,15 +159,6 @@ static void test_full_when_window_too_large(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decide_next(&state).mode);
 }
 
-static void test_full_without_partial(void) {
-    ink_display_policy_state_t  state;
-    ink_display_policy_config_t config = default_config();
-    config.has_partial                 = false;
-    start(&state, &config);
-    set_black(s_next, 0, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decide_next(&state).mode);
-}
-
 static void test_invalidate_forces_full(void) {
     ink_display_policy_state_t        state;
     const ink_display_policy_config_t config = default_config();
@@ -171,6 +167,72 @@ static void test_invalidate_forces_full(void) {
     ink_display_policy_decision_t decision;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(&state, nullptr, s_next, &decision));
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_FULL, decision.mode);
+}
+
+static void test_after_wake_partial_full_screen_once(void) {
+    ink_display_policy_state_t        state;
+    const ink_display_policy_config_t config = default_config();
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_init(&state, &config));
+    ink_display_policy_assume_shown(&state);
+    set_black(s_next, 9, 1);
+    ink_display_policy_decision_t decision = decide_next(&state);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_PARTIAL, decision.mode);
+    TEST_ASSERT_EQUAL(WIDTH, decision.window.width);
+    TEST_ASSERT_EQUAL(HEIGHT, decision.window.height);
+    memcpy(s_shown, s_next, SIZE);
+    set_black(s_next, 0, 3);
+    decision = decide_next(&state);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_PARTIAL, decision.mode);
+    TEST_ASSERT_EQUAL(1, decision.window.height);
+}
+
+static void test_edge_margin_widens_window(void) {
+    ink_display_policy_state_t  state;
+    ink_display_policy_config_t config = default_config();
+    config.edge_margin                 = 1;
+    start(&state, &config);
+    set_black(s_next, 9, 1);
+    const ink_display_policy_decision_t decision = decide_next(&state);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_MODE_PARTIAL, decision.mode);
+    TEST_ASSERT_EQUAL(8, decision.window.x);
+    TEST_ASSERT_EQUAL(0, decision.window.y);
+    TEST_ASSERT_EQUAL(8, decision.window.width);
+    TEST_ASSERT_EQUAL(3, decision.window.height);
+}
+
+static void test_edge_plane_flips_neighbours(void) {
+    ink_display_policy_state_t  state;
+    ink_display_policy_config_t config = default_config();
+    config.edge_margin                 = 1;
+    start(&state, &config);
+    set_black(s_next, 9, 1);
+    const ink_display_policy_decision_t decision = decide_next(&state);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_edge_plane(&state, s_shown, s_next, decision.window, s_old));
+    TEST_ASSERT_EQUAL_HEX8(0x1F, s_old[0 * ROW_BYTES + 1]); /* x 8–10 đảo */
+    TEST_ASSERT_EQUAL_HEX8(0x5F, s_old[1 * ROW_BYTES + 1]); /* x 8, 10 đảo; x 9 là điểm đổi */
+    TEST_ASSERT_EQUAL_HEX8(0x1F, s_old[2 * ROW_BYTES + 1]);
+    TEST_ASSERT_EQUAL_HEX8(0xAA, s_old[3 * ROW_BYTES + 1]); /* ngoài window, không ghi */
+    TEST_ASSERT_EQUAL_HEX8(0xAA, s_old[0]);
+}
+
+static void test_edge_plane_crosses_byte(void) {
+    ink_display_policy_state_t  state;
+    ink_display_policy_config_t config = default_config();
+    config.edge_margin                 = 1;
+    start(&state, &config);
+    set_black(s_next, 8, 1);
+    const ink_display_policy_decision_t decision = decide_next(&state);
+    TEST_ASSERT_EQUAL(0, decision.window.x);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_edge_plane(&state, s_shown, s_next, decision.window, s_old));
+    TEST_ASSERT_EQUAL_HEX8(0xFE, s_old[1 * ROW_BYTES + 0]); /* x 7 đảo */
+}
+
+static void test_edge_plane_rejects_window_outside(void) {
+    ink_display_policy_state_t        state;
+    const ink_display_policy_config_t config = default_config();
+    start(&state, &config);
+    const ink_display_policy_rect_t window = {.x = 16, .y = 0, .width = 8, .height = 1};
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_edge_plane(&state, s_shown, s_next, window, s_old));
 }
 
 int main(void) {
@@ -184,7 +246,11 @@ int main(void) {
     RUN_TEST(test_aligned_window_stops_at_screen_edge);
     RUN_TEST(test_full_after_partial_threshold);
     RUN_TEST(test_full_when_window_too_large);
-    RUN_TEST(test_full_without_partial);
     RUN_TEST(test_invalidate_forces_full);
+    RUN_TEST(test_after_wake_partial_full_screen_once);
+    RUN_TEST(test_edge_margin_widens_window);
+    RUN_TEST(test_edge_plane_flips_neighbours);
+    RUN_TEST(test_edge_plane_crosses_byte);
+    RUN_TEST(test_edge_plane_rejects_window_outside);
     return UNITY_END();
 }
