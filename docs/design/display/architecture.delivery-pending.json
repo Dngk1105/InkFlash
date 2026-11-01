@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "command": "deliver",
+  "status": "pending",
+  "receiptId": "93a33934-f1eb-4a54-9efd-2b1a1fad6a96",
+  "input": "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+  "output": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.html"
+}

@@ -41,6 +41,6 @@ App có thể xin giữ máy thức (ví dụ đang phát âm thanh), có giới
 
 1. Đọc nguyên nhân thức. Thức từ ngủ sâu thì dùng kết quả dò phần cứng đã lưu, không dò lại.
 2. Đọc snapshot.
-3. Nạp màn nền vào controller làm "ảnh cũ" mà không làm mới màn, rồi vẽ màn cần hiện bằng partial refresh. Màn không chớp.
+3. Coi màn nền là ảnh đang hiện (máy đã vẽ nó trước khi ngủ, màn e-ink giữ hình khi mất nguồn), rồi vẽ màn cần hiện bằng partial refresh cả màn. Màn không chớp.
 
 Lần khởi động nguội (cấp điện lần đầu) thì dò phần cứng, không có snapshot, máy vào menu.

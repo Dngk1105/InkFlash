@@ -85,9 +85,9 @@ Hàm `display()` của GxEPD2 ghi **cả màn**: `0x13` trước khi làm mới,
 
 Sóng "chuẩn" của GxEPD2 (full refresh sạch hơn) bỏ lệnh ép nhiệt độ `E0 02` / `E5 5A`; sóng "nhanh" giữ lệnh đó (xem `refresh.md`).
 
-## Trình tự của `ink_drv_uc8253`
+## Trình tự chỉ ghi một vùng RAM trước DRF (sai)
 
-Đã chạy trên BB0 (2026-10-28); thời gian đo ở `refresh.md`. Khởi tạo như GxEPD2. Controller không ngủ sâu giữa các lần vẽ.
+Bản driver `ink_drv_uc8253` đầu tiên (đã xoá, xem git) dùng trình tự này. Nó đã chạy trên BB0 (2026-10-28), và các số đo trong `refresh.md` ghi "bằng `ink_drv_uc8253`" là đo bằng nó. Khởi tạo như GxEPD2. Controller không ngủ sâu giữa các lần vẽ.
 
 | Bước | Full refresh | Partial refresh |
 |---|---|---|
@@ -96,7 +96,7 @@ Sóng "chuẩn" của GxEPD2 (full refresh sạch hơn) bỏ lệnh ép nhiệt 
 | 3. Sau khi quét | POF, rồi ghi lại cả màn vào `0x10` | POF, rồi ghi lại window vào `0x10` |
 
 - Driver chờ BUSY cao sau lệnh `0x90`. Bảng BUSY_N ở UC8253 tr.46 ghi PTL là "No action", nên bước chờ này không cần.
-- PON gửi khi nguồn analog đang tắt. Nếu giữ nguồn bật giữa các lần partial (tuỳ chọn của driver, mặc định tắt) thì bỏ POF ở bước 3 và PON ở lần sau.
+- PON gửi khi nguồn analog đang tắt. Nếu giữ nguồn bật giữa các lần partial thì bỏ POF ở bước 3 và PON ở lần sau.
 - Không ép nhiệt độ thì phải gửi `E0 00`: bit TSFIX do lần vẽ trước bật vẫn còn trong thanh ghi.
 - **Lỗi đã đo:** trình tự này chỉ ghi ảnh mới bằng `0x13` trước DRF và ghi lại `0x10` sau DRF, không reset giữa các lần vẽ. Do hai vùng RAM đổi vai sau mỗi DRF, mọi lần DRF thứ chẵn kể từ reset không đổi hình, trong khi thời gian đo vẫn bình thường (BB0, 2026-10-30; `image-memory.md`).
 

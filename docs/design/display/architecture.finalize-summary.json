@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+    "sha256": "af4add5025808f88efee956665dbc1bd2040ab7ef7eed47a52ab718ff830223a",
+    "bytes": 4017
+  },
+  "artifact": {
+    "path": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.html"
+  },
+  "gates": {
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
+  },
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "i18n/locale-fallback",
+      "severity": "warning",
+      "message": "meta.locale \"vi\" has no bundled catalog and no usable meta.translations; the Viewer chrome and <html lang> fall back to English.",
+      "subject": {
+        "diagramType": "architecture",
+        "path": "/meta/locale"
+      },
+      "evidence": {
+        "locale": "vi",
+        "bundledLocales": [
+          "en",
+          "zh-CN",
+          "zh-TW",
+          "es",
+          "ko",
+          "ar"
+        ]
+      },
+      "supportedFixes": [
+        "Supply meta.translations for this locale.",
+        "Use a bundled locale: en, zh-CN, zh-TW, es, ko, ar."
+      ]
+    },
+    {
+      "code": "repository-evidence/repository-required",
+      "severity": "error",
+      "message": "Repository evidence requires /meta/repository.",
+      "subject": {
+        "surface": "repository-evidence",
+        "path": "/meta/repository",
+        "diagramType": "architecture",
+        "collection": "components"
+      },
+      "supportedFixes": [
+        "add the pinned repository metadata or remove /components sources"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 2,
+    "shown": 2,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.finalize.json",
+    "summaryReceipt": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 661,
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  },
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+    "constraint": "Preserve unaffected semantics and geometry; apply each diagnostic's supportedFixes, or the fix its message names, and do not replace the whole candidate.",
+    "then": "finalize-once"
+  }
+}

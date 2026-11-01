@@ -41,7 +41,7 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 `display` chọn partial/full → driver vẽ.
 
 **Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
-vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → nạp màn nền làm ảnh cũ → vẽ lại đúng màn trước, không chớp.
+vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → `display` coi màn nền là khung đang hiện → vẽ partial cả màn ra đúng màn trước, không chớp.
 
 ## Gặp vấn đề thì đọc file nào
 
@@ -54,7 +54,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
 | Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
-| Màn vẽ chậm, chớp, bóng mờ, viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display-pipeline.md](design/display-pipeline.md) |
+| Màn vẽ chậm, chớp, bóng mờ, viền xám, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |

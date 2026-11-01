@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-11-01T04:52:18.160Z",
+  "specification": {
+    "path": "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+    "sha256": "af4add5025808f88efee956665dbc1bd2040ab7ef7eed47a52ab718ff830223a",
+    "bytes": 4017
+  },
+  "artifact": {
+    "path": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.html"
+  },
+  "stages": {
+    "validate": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": null,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "E:\\ESP32_projects\\InkFlash\\.claude\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+        "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "E:\\ESP32_projects\\InkFlash",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "deliver",
+        "receiptId": "93a33934-f1eb-4a54-9efd-2b1a1fad6a96",
+        "stage": "render",
+        "type": "architecture",
+        "input": "E:\\ESP32_projects\\InkFlash\\.archify\\architecture-display-20261101-115156\\candidate.json",
+        "output": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.html",
+        "error": "Repository evidence requires /meta/repository.",
+        "diagnostics": [
+          {
+            "code": "i18n/locale-fallback",
+            "severity": "warning",
+            "message": "meta.locale \"vi\" has no bundled catalog and no usable meta.translations; the Viewer chrome and <html lang> fall back to English.",
+            "subject": {
+              "diagramType": "architecture",
+              "path": "/meta/locale"
+            },
+            "evidence": {
+              "locale": "vi",
+              "bundledLocales": [
+                "en",
+                "zh-CN",
+                "zh-TW",
+                "es",
+                "ko",
+                "ar"
+              ]
+            },
+            "supportedFixes": [
+              "Supply meta.translations for this locale.",
+              "Use a bundled locale: en, zh-CN, zh-TW, es, ko, ar."
+            ]
+          },
+          {
+            "code": "repository-evidence/repository-required",
+            "severity": "error",
+            "message": "Repository evidence requires /meta/repository.",
+            "subject": {
+              "surface": "repository-evidence",
+              "path": "/meta/repository",
+              "diagramType": "architecture",
+              "collection": "components"
+            },
+            "evidence": {},
+            "supportedFixes": [
+              "add the pinned repository metadata or remove /components sources"
+            ]
+          }
+        ],
+        "provenance": "absent",
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      },
+      "execution": "embedded-in-deliver"
+    },
+    "deliver": {
+      "status": "not-run",
+      "execution": "blocked-by-validate"
+    }
+  },
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  },
+  "diagnostics": [
+    {
+      "code": "i18n/locale-fallback",
+      "severity": "warning",
+      "message": "meta.locale \"vi\" has no bundled catalog and no usable meta.translations; the Viewer chrome and <html lang> fall back to English.",
+      "subject": {
+        "diagramType": "architecture",
+        "path": "/meta/locale"
+      },
+      "evidence": {
+        "locale": "vi",
+        "bundledLocales": [
+          "en",
+          "zh-CN",
+          "zh-TW",
+          "es",
+          "ko",
+          "ar"
+        ]
+      },
+      "supportedFixes": [
+        "Supply meta.translations for this locale.",
+        "Use a bundled locale: en, zh-CN, zh-TW, es, ko, ar."
+      ]
+    },
+    {
+      "code": "repository-evidence/repository-required",
+      "severity": "error",
+      "message": "Repository evidence requires /meta/repository.",
+      "subject": {
+        "surface": "repository-evidence",
+        "path": "/meta/repository",
+        "diagramType": "architecture",
+        "collection": "components"
+      },
+      "evidence": {},
+      "supportedFixes": [
+        "add the pinned repository metadata or remove /components sources"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.finalize.json",
+    "summaryReceipt": "E:\\ESP32_projects\\InkFlash\\docs\\design\\display\\architecture.finalize-summary.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "validate",
+  "finishedAt": "2026-11-01T04:52:18.822Z",
+  "durationMs": 661,
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "cache-unavailable"
+  }
+}
