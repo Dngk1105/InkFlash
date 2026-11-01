@@ -1,5 +1,5 @@
 /* Thiết kế: docs/design/display/display.md */
-#include "ink_display.h"
+#include "ink_display_internal.h"
 
 #include "esp_check.h"
 #include "esp_heap_caps.h"
@@ -8,16 +8,12 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ink_display_policy.h"
-#include "ink_platform.h"
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 static const char *TAG = "ink_display";
 
 #define PARTIALS_BEFORE_FULL 10
 #define MAX_PARTIAL_PERCENT  100
-#define DEFAULT_EDGE_MARGIN  1 /* khi bật `display edge on` không kèm số */
 
 static ink_hal_display_device_t   s_device;
 static ink_display_policy_state_t s_policy; /* chỉ task màn đụng */
@@ -232,83 +228,44 @@ static void print_stats(void) {
     }
 }
 
-/* ---- Lệnh console (task REPL) ---- */
+/* ---- Yêu cầu từ task khác (lệnh console) ---- */
 
-static void print_profiles(void) {
-    const ink_hal_display_capabilities_t *capabilities = &s_device.capabilities;
+bool display_is_started(void) {
+    return s_task != nullptr;
+}
+
+const ink_hal_display_capabilities_t *display_capabilities(void) {
+    return &s_device.capabilities;
+}
+
+size_t display_slot_profile(ink_hal_display_slot_t slot) {
     taskENTER_CRITICAL(&s_lock);
-    const size_t full    = s_bands[0].profiles[INK_HAL_DISPLAY_SLOT_FULL];
-    const size_t partial = s_bands[0].profiles[INK_HAL_DISPLAY_SLOT_PARTIAL];
+    const size_t profile = s_bands[0].profiles[slot];
     taskEXIT_CRITICAL(&s_lock);
-    for (size_t i = 0; i < capabilities->profile_count; i++) {
-        printf("%-14s %5lu ms%s%s\n", capabilities->profiles[i].name, (unsigned long)capabilities->profiles[i].typical_ms,
-               i == full ? "  [full]" : "", i == partial ? "  [partial]" : "");
-    }
+    return profile;
 }
 
-static int find_profile(const char *name) {
-    const ink_hal_display_capabilities_t *capabilities = &s_device.capabilities;
-    for (size_t i = 0; i < capabilities->profile_count; i++) {
-        if (strcmp(capabilities->profiles[i].name, name) == 0) { return (int)i; }
-    }
-    return -1;
-}
-
-static int on_profile_command(int argc, char **argv) {
-    if (argc == 3 && strcmp(argv[2], "list") == 0) {
-        print_profiles();
-        return 0;
-    }
-    if (argc != 5 || strcmp(argv[2], "set") != 0) {
-        printf("display profile list | display profile set <full|partial> <tên>\n");
-        return 1;
-    }
-    const int profile = find_profile(argv[4]);
-    if (profile < 0) {
-        printf("không có profile %s\n", argv[4]);
-        return 1;
-    }
+void display_request_profile(ink_hal_display_slot_t slot, size_t profile) {
     taskENTER_CRITICAL(&s_lock);
-    s_request.slot    = strcmp(argv[3], "full") == 0 ? INK_HAL_DISPLAY_SLOT_FULL : INK_HAL_DISPLAY_SLOT_PARTIAL;
-    s_request.profile = (size_t)profile;
+    s_request.slot    = slot;
+    s_request.profile = profile;
     taskEXIT_CRITICAL(&s_lock);
     xTaskNotify(s_task, NOTIFY_PROFILE, eSetBits);
-    return 0;
 }
 
-static int on_edge_command(int argc, char **argv) {
-    uint8_t margin = 0;
-    if (argc >= 3 && strcmp(argv[2], "on") == 0) {
-        margin = argc >= 4 ? (uint8_t)atoi(argv[3]) : DEFAULT_EDGE_MARGIN;
-    } else if (argc != 3 || strcmp(argv[2], "off") != 0) {
-        printf("display edge on [số điểm 1-%d] | display edge off\n", INK_DISPLAY_POLICY_MAX_EDGE_MARGIN);
-        return 1;
-    }
+void display_request_edge_margin(uint8_t margin) {
     taskENTER_CRITICAL(&s_lock);
     s_request.edge_margin = margin;
     taskEXIT_CRITICAL(&s_lock);
     xTaskNotify(s_task, NOTIFY_EDGE, eSetBits);
-    return 0;
 }
 
-static int on_display_command(int argc, char **argv) {
-    if (argc >= 2 && strcmp(argv[1], "stats") == 0) {
-        xTaskNotify(s_task, NOTIFY_STATS, eSetBits);
-        return 0;
-    }
-    if (argc >= 2 && strcmp(argv[1], "temp") == 0) {
-        xTaskNotify(s_task, NOTIFY_TEMP, eSetBits);
-        return 0;
-    }
-    if (argc >= 3 && strcmp(argv[1], "profile") == 0) { return on_profile_command(argc, argv); }
-    if (argc >= 3 && strcmp(argv[1], "edge") == 0) { return on_edge_command(argc, argv); }
-    printf("display stats | profile list | profile set <full|partial> <tên> | edge on [n] | edge off | temp\n");
-    return 1;
+void display_request_temperature(void) {
+    xTaskNotify(s_task, NOTIFY_TEMP, eSetBits);
 }
 
-esp_err_t ink_display_add_console_command(void) {
-    if (s_task == nullptr) { return ESP_ERR_INVALID_STATE; }
-    return ink_platform_console_add("display", "Màn: display stats | profile | edge | temp", "stats|profile|edge|temp", on_display_command);
+void display_request_stats(void) {
+    xTaskNotify(s_task, NOTIFY_STATS, eSetBits);
 }
 
 /* ---- Task màn ---- */
