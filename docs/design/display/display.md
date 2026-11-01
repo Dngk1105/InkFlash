@@ -74,6 +74,9 @@ lần full mất khoảng 2 s còn partial vùng lớn vẫn nhanh hơn.
 Khi thức dậy, `display` coi màn nền là khung đang hiện, vì máy đã vẽ nó ngay trước khi ngủ sâu và màn e-ink giữ hình
 khi mất nguồn. Driver nhận màn nền làm ảnh cũ ở lần vẽ đó, nên màn không chớp.
 
+Khi khởi động nguội, `display` không biết màn đang hiện gì. Lần full đầu tiên dùng mặt phẳng cũ là khung mới đảo bit,
+nên mọi điểm đều được coi là đổi màu và panel kéo hết các điểm về đúng màu.
+
 ## Chia việc giữa display và driver
 
 | Việc | Ai lo |
@@ -120,7 +123,7 @@ Bảng khả năng của driver màn:
 | Cỡ gốc | Rộng và cao theo hướng gốc của panel |
 | Bước căn mép x | Mép trái và mép phải vùng partial phải là bội của số này |
 | Danh sách profile | Tên và thời gian quét điển hình của từng profile |
-| Profile đang gán | Profile của slot `full` và slot `partial` |
+| Profile mặc định | Profile gán cho slot `full` và slot `partial` lúc khởi tạo |
 
 ## Profile bảng sóng
 
@@ -159,9 +162,13 @@ Danh sách profile ban đầu lấy từ các bảng sóng đã đo trên BB0 (s
 | Đường | Lệnh console | Nằm ở |
 | --- | --- | --- |
 | Chọn trong danh sách, qua interface chung | `display profile list`, `display profile set <slot> <tên>` | `display`, không biết tên chip |
-| Chỉnh tay từng thông số của LUT | `epd tune ...` | `bsp`, gọi hàm riêng của driver UC8253 |
+| Chỉnh tay từng thông số của LUT | `epd tune <slot> <khung> <Hz> [giữ] [lần quét] [giữ nguồn]` | `bsp`, gọi hàm riêng của driver UC8253 |
 
 Tốc độ SPI nằm trong config của driver, mặc định 4 MHz.
+
+Driver dựng bảng LUT bằng khối C thuần `waveform` (có host test): điểm đổi màu kéo đủ số khung, điểm giữ màu đứng yên
+rồi kéo lại số khung của xung giữ. Profile có số khung 0 thì driver chép nguyên bảng TR8 đọc từ OTP. Điện áp, VCOM và
+tuỳ chọn LUT luôn lấy từ dải TR8 trong OTP, đọc một lần ở lần đầu nạp LUT.
 
 ### Kiểm tra cân bằng điện tích
 
@@ -186,10 +193,11 @@ lâu dài.
 | Bóng kéo đuôi khi hình chuyển động | `display` và app |
 
 **Bảng dải nhiệt độ.** `display` đọc nhiệt độ trước mỗi lần full và chọn profile cho từng slot theo bảng dải. Bảng
-có một dải 0–40 °C (dải nhiệt độ hoạt động của panel), mỗi slot một profile.
+có một dải 0–40 °C (dải nhiệt độ hoạt động của panel), mỗi slot một profile; `display profile set` đổi profile của
+dải đó. Lệnh `display temp` in nhiệt độ controller đo được.
 
 **Đẩy lại viền.** Policy nới vùng đổi thêm 1–2 điểm. Ở các điểm viền không đổi màu, `display` đảo bit cũ, nên controller
-coi đó là một lần đổi màu và đẩy điểm về đúng màu của nó. Bật tắt bằng lệnh console `display edge on|off`, mặc định tắt.
+coi đó là một lần đổi màu và đẩy điểm về đúng màu của nó. Bật tắt bằng lệnh console `display edge on [số điểm]` và `display edge off`, mặc định tắt.
 
 ## Đo
 

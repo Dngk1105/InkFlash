@@ -15,7 +15,7 @@ cmake/ink.cmake        hàm CMake chung: ink_core_component, cờ build
 main/                  app_main: chỉ lắp các khối với nhau, không có logic
 components/
   core/                C thuần, không include gì của ESP-IDF
-    ink_session/ ink_gesture/ ink_keymap/ ink_scene/ ink_study/ ink_fsrs/ ink_record/ ink_ui/ ink_display_policy/
+    ink_session/ ink_gesture/ ink_keymap/ ink_scene/ ink_study/ ink_fsrs/ ink_record/ ink_ui/ ink_display_policy/ ink_waveform/
   ink_system/ ink_display/ ink_storage/ ink_platform/
   ink_hal/             interface phần cứng
   ink_bsp/             bảng chân theo board
@@ -66,7 +66,7 @@ test). CMake của từng khối chỉ gọi hàm đó, không chép lại luậ
 |---|---|---|
 | Vỏ ↔ lõi C thuần | Sự kiện vào, hành động ra (struct) | `session` nhận "hết giờ chờ", trả "lưu snapshot", "ngủ" |
 | `study` ↔ storage, đồng hồ | Cổng: struct con trỏ hàm, cắm lúc khởi tạo | Trên PC cắm file thử, đồng hồ giả |
-| `display`, `system` ↔ driver | Bảng hàm (operations) + bảng khả năng (capabilities) | Driver màn điền `draw`, `load_old_image` |
+| `display`, `system` ↔ driver | Bảng hàm (operations) + bảng khả năng (capabilities) | Driver màn điền `draw`, `select_profile`, `read_temperature` |
 | Ngắt, task phụ → task main | Hàng đợi của task main | Ngắt nút đẩy "nút B nhả lúc t" |
 
 ### Chuẩn C

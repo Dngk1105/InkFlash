@@ -8,7 +8,7 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | Khối | Việc | Task | C thuần | Được gọi |
 |---|---|---|---|---|
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `keymap`, `scene`, `platform` |
+| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
 | `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, chọn partial/full, đếm bóng mờ | màn | Có | Chỉ thư viện C chuẩn |
@@ -22,8 +22,9 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
 | `platform/` | Log, config, giờ, hẹn giờ, console, RTC memory | nơi gọi | | ESP-IDF |
 | `hal/` | Interface phần cứng | nơi gọi | | |
-| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal` |
-| `bsp/` | Bảng chân, chọn driver theo board | lúc khởi động | | `hal`, `drivers` |
+| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal`; driver màn gọi `waveform` |
+| `waveform/` | Dựng bảng sóng (LUT) theo nhóm và pha, đếm khung, kiểm cân bằng điện tích | màn | Có | Chỉ thư viện C chuẩn |
+| `bsp/` | Bảng chân, chọn driver theo board, lệnh console riêng của chip (`epd`) | lúc khởi động | | `hal`, `drivers`, `platform` |
 
 Khối không có trong cột "Được gọi" của một khối thì khối đó không được gọi tới.
 
