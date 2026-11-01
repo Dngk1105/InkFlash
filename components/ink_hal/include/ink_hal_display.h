@@ -7,7 +7,6 @@
  * Chỉ Display task gọi các hàm trong operations
  */
 #include "esp_err.h"
-#include "ink_hal_display.h"
 #include <stddef.h>
 #include <stdint.h>
 
