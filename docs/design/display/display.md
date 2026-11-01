@@ -10,6 +10,18 @@ sóng phải nhìn bằng mắt, nên driver phải đổi được bảng sóng
 Controller có hai vùng RAM ảnh, ghi bằng lệnh `0x10` và `0x13`. Sau mỗi lần làm mới (DRF), hai vùng đổi vai "ảnh mới"
 và "ảnh cũ" cho nhau. Driver chỉ ghi một vùng trước DRF thì mọi lần DRF thứ chẵn kể từ reset không đổi hình.
 
+## Sơ đồ
+
+Sơ đồ cùng thư mục, vẽ từ file này, mở bằng trình duyệt:
+
+| File | Cho thấy |
+|---|---|
+| `architecture.html` | Các khối của đường vẽ màn và ai gọi ai |
+| `sequence.html` | Một lần lật thẻ: mượn và giao khung, chọn cách vẽ, driver ghi hai vùng RAM theo lượt, DRF, BUSY |
+| `dataflow.html` | Dữ liệu đổi dạng qua từng tầng: khung 1 bit → window và hai mặt phẳng → RAM → cặp bit chọn bảng sóng → điện áp |
+
+Đổi đường vẽ màn thì vẽ lại ba sơ đồ trong cùng commit.
+
 ## Một lần vẽ đi qua đâu
 
 | # | Đoạn                                                                          | Ai làm                 | Task         |
