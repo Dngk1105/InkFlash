@@ -5,48 +5,78 @@
   ink_gesture.c thì sửa phần này trong cùng commit. Tab "Host test" chạy lại test_ink_gesture.c trên bản JS:
   qua ở đây và qua ở ctest thì bản JS khớp bản C ở các ca đó.
 -->
-<html lang="vi">
+<html lang="vi" data-preset="editorial" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Gesture Simulator</title>
 <style>
-    /* ---- Theme: Rose Petal DocGraph HC ---- */
-    :root {
-        --background: #fffafc;
-        --surface: #fbf4f6;
-        --surface-strong: #ebdce2;
-        --surface-hover: #f5e6ec;
-        --highlight: #f3dce4;
-        --selection: #cca2ae;
-        --border: #8c3a52;
-        --border-soft: #d9b2bf;
-        --accent: #782239;
-        --accent-strong: #561324;
-        --text: #1f120f;
-        --text-muted: #63404b;
-        --code-background: #f4e6ec;
-        --error: #be123c;
-        --warning: #a16207;
-        --info: #1d4ed8;
-        --success: #096d48;
-        --link: #0f5499;
-        --button-a: #0f4a85;
-        --button-b: #a16207;
-        --deadline: #5e2cbc;
-        --gesture: #782239;
-        --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    /* ---- Theme: preset Editorial của Archify, sáng và tối (docs/writing-visualizations.md, mục "Giao diện") ---- */
+    :root, [data-preset="editorial"][data-theme="light"] {
+        --bg: #f2eee5;
+        --grid: #d8d0c2;
+        --panel: #fbf8f1;
+        --panel-strong: #ede6d8;
+        --panel-border: #c4b9a6;
+        --panel-border-soft: #dcd4c5;
+        --text: #242018;
+        --text-muted: #6f6658;
+        --text-dim: #948a79;
+        --accent: #9f403d;
+        --accent-strong: #7d2a27;
+        --accent-soft: #f4dcdb;
+        --on-accent: #ffffff;
+        --brand-teal: #287e84;
+        --brand-teal-soft: #e0f0f1;
+        --brand-bronze: #9a671f;
+        --brand-bronze-soft: #f5ead7;
+        --brand-green: #397b53;
+        --brand-purple: #765d86;
+        --error: #b42318;
+        --debounce-lock: #c4b9a680;
+        --font-serif: "Newsreader", "Charter", "Cambria", "Georgia", serif;
         --font-sans: "Segoe UI", system-ui, sans-serif;
+        --font-mono: "Cascadia Code", Consolas, monospace;
+    }
+
+    [data-preset="editorial"][data-theme="dark"] {
+        --bg: #181611;
+        --grid: #39342a;
+        --panel: #231f18;
+        --panel-strong: #2e2921;
+        --panel-border: #625a4a;
+        --panel-border-soft: #443e33;
+        --text: #f4eddf;
+        --text-muted: #b9ae9b;
+        --text-dim: #776e60;
+        --accent: #cf6662;
+        --accent-strong: #f4eddf;
+        --accent-soft: #382424;
+        --on-accent: #181611;
+        --brand-teal: #7fc6c7;
+        --brand-teal-soft: #193234;
+        --brand-bronze: #d8ad68;
+        --brand-bronze-soft: #33291a;
+        --brand-green: #8fc29e;
+        --brand-purple: #c0a4d0;
+        --error: #f0857d;
+        --debounce-lock: #625a4a99;
     }
 
     * { box-sizing: border-box; }
 
     body {
         margin: 0;
-        background: var(--background);
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+            linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem,
+                color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
+            repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px,
+                color-mix(in srgb, var(--grid) 38%, transparent) 32px);
+        background-attachment: fixed;
         color: var(--text);
-        font-family: var(--font-sans);
-        font-size: 14px;
+        font: 14px/1.45 var(--font-sans);
     }
 
     header {
@@ -54,44 +84,57 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 12px 20px;
-        padding: 10px 16px;
-        background: var(--surface-strong);
-        border-bottom: 2px solid var(--border);
+        padding: 12px 16px;
+        background: var(--panel);
+        border-bottom: 2px solid var(--panel-border);
     }
 
-    header h1 { margin: 0; font-size: 17px; color: var(--accent-strong); }
+    header h1 { margin: 0; font: 600 21px var(--font-serif); letter-spacing: -0.01em; color: var(--accent-strong); }
 
-    .tabs { display: flex; gap: 4px; }
+    .tabs {
+        display: flex;
+        gap: 4px;
+        padding: 3px;
+        background: var(--panel-strong);
+        border: 1px solid var(--panel-border);
+        border-radius: 4px;
+    }
 
     .tab {
-        padding: 6px 14px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        color: var(--accent-strong);
+        padding: 5px 14px;
+        border: none;
+        border-radius: 3px;
+        background: transparent;
+        color: var(--text-muted);
         cursor: pointer;
         font: inherit;
     }
 
-    .tab.active { background: var(--accent); color: #fff; }
+    .tab:hover { color: var(--text); }
+
+    .tab.active { background: var(--panel); color: var(--accent); font-weight: 600; }
 
     .clock { margin-left: auto; font-family: var(--font-mono); color: var(--accent-strong); }
 
-    .clock-controls { display: flex; gap: 6px; align-items: center; }
+    .clock-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
     button.small, select {
         padding: 4px 10px;
-        border: 1px solid var(--border);
-        background: #fff;
+        border: 1px solid var(--panel-border);
+        border-radius: 3px;
+        background: var(--panel);
         color: var(--text);
         font: inherit;
         cursor: pointer;
     }
 
-    button.small:hover { background: var(--surface-hover); }
+    button.small:hover { background: var(--panel-strong); border-color: var(--text-muted); }
 
-    button.primary { background: var(--accent); color: #fff; border-color: var(--accent-strong); }
+    button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent-strong); }
 
-    button.primary:hover { background: var(--accent-strong); }
+    button.primary:hover { background: var(--accent-strong); color: var(--on-accent); }
+
+    input[type="checkbox"] { accent-color: var(--accent); }
 
     main { padding: 14px 16px; }
 
@@ -108,18 +151,21 @@
     }
 
     .card {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        padding: 12px;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 3px;
+        padding: 12px 14px;
         min-width: 0;
     }
 
     .card h2 {
         margin: 0 0 10px;
-        font-size: 13px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--panel-border-soft);
+        font: 600 14.5px var(--font-serif);
         text-transform: uppercase;
-        letter-spacing: .04em;
-        color: var(--accent-strong);
+        letter-spacing: 0.05em;
+        color: var(--accent);
     }
 
     .column { display: grid; gap: 14px; align-content: start; min-width: 0; }
@@ -128,15 +174,16 @@
 
     code, .mono { font-family: var(--font-mono); }
 
-    code { background: var(--code-background); color: var(--accent-strong); padding: 0 4px; }
+    code { background: var(--panel-strong); color: var(--accent-strong); padding: 0 4px; }
 
     /* ---- Nút bấm ảo ---- */
     .hardware-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     .hardware-button {
         height: 86px;
-        border: 2px solid var(--border);
-        background: #fff;
+        border: 2px solid var(--panel-border);
+        border-radius: 3px;
+        background: var(--panel);
         font: 600 20px var(--font-sans);
         cursor: pointer;
         user-select: none;
@@ -145,11 +192,13 @@
 
     .hardware-button span { display: block; font-size: 11px; font-weight: 400; color: var(--text-muted); }
 
-    #buttonA { color: var(--button-a); }
+    #buttonA { color: var(--brand-teal); }
 
-    #buttonB { color: var(--button-b); }
+    #buttonB { color: var(--brand-bronze); }
 
-    .hardware-button.pressed { background: var(--highlight); box-shadow: inset 0 3px 0 var(--border); }
+    #buttonA.pressed { background: var(--brand-teal-soft); border-color: var(--brand-teal); }
+
+    #buttonB.pressed { background: var(--brand-bronze-soft); border-color: var(--brand-bronze); }
 
     .toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 
@@ -163,12 +212,15 @@
     input[type="number"] {
         width: 90px;
         padding: 3px 6px;
-        border: 1px solid var(--border);
-        background: #fff;
+        border: 1px solid var(--panel-border);
+        border-radius: 2px;
+        background: var(--panel);
         color: var(--text);
         font: 13px var(--font-mono);
         text-align: right;
     }
+
+    select:focus, input[type="number"]:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
 
     .button-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 
@@ -176,17 +228,17 @@
 
     .message.error { color: var(--error); }
 
-    .message.ok { color: var(--success); }
+    .message.ok { color: var(--brand-green); }
 
     /* ---- Timeline ---- */
-    canvas.timeline { width: 100%; height: 300px; display: block; background: #fff; border: 1px solid var(--border-soft); }
+    canvas.timeline { width: 100%; height: 300px; display: block; background: var(--bg); border: 1px solid var(--panel-border-soft); }
 
     .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--text-muted); }
 
     .legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 4px; }
 
     /* ---- Progress ---- */
-    .progress-track { height: 14px; background: #fff; border: 1px solid var(--border); position: relative; }
+    .progress-track { height: 14px; background: var(--bg); border: 1px solid var(--panel-border); position: relative; }
 
     .progress-fill { height: 100%; width: 0; background: var(--accent); }
 
@@ -197,47 +249,49 @@
 
     @media (max-width: 700px) { .machines { grid-template-columns: 1fr; } }
 
-    svg.machine { width: 100%; height: auto; background: #fff; border: 1px solid var(--border-soft); }
+    svg.machine { width: 100%; height: auto; background: var(--bg); border: 1px solid var(--panel-border-soft); }
 
-    svg.machine .node rect { fill: var(--surface); stroke: var(--border-soft); stroke-width: 1.5; }
+    svg.machine .node rect { fill: var(--panel); stroke: var(--panel-border); stroke-width: 1.5; }
 
     svg.machine .node text { font: 12px var(--font-mono); fill: var(--text-muted); text-anchor: middle; }
 
-    svg.machine .node.active-a rect { stroke: var(--button-a); stroke-width: 3; fill: #eef3fa; }
+    svg.machine .node.active-a rect { stroke: var(--brand-teal); stroke-width: 3; fill: var(--brand-teal-soft); }
 
-    svg.machine .node.active-b rect { stroke: var(--button-b); stroke-width: 3; fill: #fbf3e4; }
+    svg.machine .node.active-b rect { stroke: var(--brand-bronze); stroke-width: 3; fill: var(--brand-bronze-soft); }
 
-    svg.machine .node.active-a.active-b rect { stroke: var(--accent); fill: var(--highlight); }
+    svg.machine .node.active-a.active-b rect { stroke: var(--accent); fill: var(--accent-soft); }
 
-    svg.machine .node.active-mode rect { stroke: var(--accent); stroke-width: 3; fill: var(--highlight); }
+    svg.machine .node.active-mode rect { stroke: var(--accent); stroke-width: 3; fill: var(--accent-soft); }
 
     svg.machine .node[class*="active"] text { fill: var(--text); font-weight: 600; }
 
-    svg.machine .edge { fill: none; stroke: var(--selection); stroke-width: 1.4; marker-end: url(#arrowHead); }
+    svg.machine .edge { fill: none; stroke: var(--panel-border); stroke-width: 1.4; marker-end: url(#arrowHead); }
+
+    svg.machine .arrow-head { fill: var(--panel-border); }
 
     svg.machine .edge-label { font: 10px var(--font-sans); fill: var(--text-muted); }
 
     /* ---- Bảng trạng thái ---- */
     table.state { width: 100%; border-collapse: collapse; font: 12px var(--font-mono); }
 
-    table.state th, table.state td { border: 1px solid var(--border-soft); padding: 3px 6px; text-align: left; }
+    table.state th, table.state td { border: 1px solid var(--panel-border-soft); padding: 3px 6px; text-align: left; }
 
-    table.state th { background: var(--surface-strong); color: var(--accent-strong); font-weight: 600; }
+    table.state th { background: var(--panel-strong); color: var(--accent-strong); font-weight: 600; }
 
     /* ---- Log ---- */
-    .log { height: 560px; overflow-y: auto; background: #fff; border: 1px solid var(--border-soft); font: 12px var(--font-mono); }
+    .log { height: 560px; overflow-y: auto; background: var(--bg); border: 1px solid var(--panel-border-soft); font: 12px var(--font-mono); }
 
-    .log div { padding: 2px 6px; border-bottom: 1px solid var(--surface-strong); }
+    .log div { padding: 2px 6px; border-bottom: 1px solid var(--panel-border-soft); }
 
     .log .time { color: var(--text-muted); margin-right: 6px; }
 
-    .log .gesture { color: var(--gesture); font-weight: 600; background: var(--highlight); }
+    .log .gesture { color: var(--accent); font-weight: 600; background: var(--accent-soft); }
 
-    .log .edge-a { color: var(--button-a); }
+    .log .edge-a { color: var(--brand-teal); }
 
-    .log .edge-b { color: var(--button-b); }
+    .log .edge-b { color: var(--brand-bronze); }
 
-    .log .timer { color: var(--deadline); }
+    .log .timer { color: var(--brand-purple); }
 
     .log .progress { color: var(--text-muted); }
 
@@ -246,7 +300,7 @@
     /* ---- Host test ---- */
     .summary { font-weight: 600; margin-bottom: 8px; }
 
-    .summary.pass { color: var(--success); }
+    .summary.pass { color: var(--brand-green); }
 
     .summary.fail { color: var(--error); }
 
@@ -259,6 +313,7 @@
         width: 100%;
         padding: 5px 6px;
         border: 1px solid transparent;
+        border-radius: 2px;
         background: none;
         text-align: left;
         font: inherit;
@@ -266,13 +321,13 @@
         cursor: pointer;
     }
 
-    .test-item:hover { background: var(--surface-hover); }
+    .test-item:hover { background: var(--panel-strong); }
 
-    .test-item.selected { background: var(--highlight); border-color: var(--border); }
+    .test-item.selected { background: var(--accent-soft); border-color: var(--accent); }
 
     .badge { font: 600 11px var(--font-mono); padding: 1px 5px; border: 1px solid currentColor; }
 
-    .badge.pass { color: var(--success); }
+    .badge.pass { color: var(--brand-green); }
 
     .badge.fail { color: var(--error); }
 
@@ -280,15 +335,15 @@
 
     .checks { list-style: none; padding: 0; margin: 0; font: 12px var(--font-mono); }
 
-    .checks li { padding: 3px 0; border-bottom: 1px solid var(--surface-strong); }
+    .checks li { padding: 3px 0; border-bottom: 1px solid var(--panel-border-soft); }
 
-    .checks .pass::before { content: "✓ "; color: var(--success); }
+    .checks .pass::before { content: "✓ "; color: var(--brand-green); }
 
     .checks .fail { color: var(--error); }
 
     .checks .fail::before { content: "✗ "; }
 
-    .test-title { margin: 0 0 4px; font-size: 16px; color: var(--accent-strong); }
+    .test-title { margin: 0 0 4px; font: 600 17px var(--font-serif); color: var(--accent-strong); }
 </style>
 </head>
 <body>
@@ -311,6 +366,7 @@
         </label>
         <button class="small" id="pauseButton">Tạm dừng</button>
         <button class="small" id="resetButton">Reset</button>
+        <button class="small" id="themeButton" title="Đổi sáng/tối">Tối</button>
     </div>
 </header>
 
@@ -355,12 +411,12 @@
                 <h2>Timeline</h2>
                 <canvas class="timeline" id="liveCanvas"></canvas>
                 <div class="legend">
-                    <span><i style="background: var(--button-a)"></i>A sau debounce</span>
-                    <span><i style="background: var(--button-b)"></i>B sau debounce</span>
-                    <span><i style="background: var(--border-soft)"></i>edge thô</span>
-                    <span><i style="background: var(--selection); height: 10px"></i>debounce lock</span>
-                    <span><i style="background: var(--gesture)"></i>gesture</span>
-                    <span><i style="background: var(--deadline)"></i>deadline kế tiếp / timer</span>
+                    <span><i style="background: var(--brand-teal)"></i>A sau debounce</span>
+                    <span><i style="background: var(--brand-bronze)"></i>B sau debounce</span>
+                    <span><i style="background: var(--text-dim)"></i>edge thô</span>
+                    <span><i style="background: var(--debounce-lock); height: 10px"></i>debounce lock</span>
+                    <span><i style="background: var(--accent)"></i>gesture</span>
+                    <span><i style="background: var(--brand-purple)"></i>deadline kế tiếp / timer</span>
                 </div>
             </div>
 
@@ -379,7 +435,7 @@
                     <svg class="machine" id="phaseMachine" viewBox="0 0 420 250"></svg>
                     <svg class="machine" id="modeMachine" viewBox="0 0 420 250"></svg>
                 </div>
-                <p class="hint">Sơ đồ đầu: phase từng nút (viền xanh là A, viền vàng là B). Sơ đồ sau: mode chung của hai nút.</p>
+                <p class="hint">Sơ đồ đầu: phase từng nút (viền xanh ngọc là A, viền nâu đồng là B). Sơ đồ sau: mode chung của hai nút.</p>
             </div>
 
             <div class="card">
@@ -413,11 +469,11 @@
                 <p id="testDescription"></p>
                 <canvas class="timeline" id="testCanvas"></canvas>
                 <div class="legend">
-                    <span><i style="background: var(--button-a)"></i>A sau debounce</span>
-                    <span><i style="background: var(--button-b)"></i>B sau debounce</span>
-                    <span><i style="background: var(--border-soft)"></i>edge thô</span>
-                    <span><i style="background: var(--gesture)"></i>gesture</span>
-                    <span><i style="background: var(--success)"></i>kiểm tra qua</span>
+                    <span><i style="background: var(--brand-teal)"></i>A sau debounce</span>
+                    <span><i style="background: var(--brand-bronze)"></i>B sau debounce</span>
+                    <span><i style="background: var(--text-dim)"></i>edge thô</span>
+                    <span><i style="background: var(--accent)"></i>gesture</span>
+                    <span><i style="background: var(--brand-green)"></i>kiểm tra qua</span>
                     <span><i style="background: var(--error)"></i>kiểm tra trượt</span>
                 </div>
             </div>
@@ -923,14 +979,14 @@ function draw_timeline(canvas, recorder, view)
     const x_of       = (time) => left + ((time - view.start) / span) * (right - left);
     const label_band = 46;
     const rows       = [
-        {index: 0, name: "A", color: theme_color("--button-a"), top: label_band + 16},
-        {index: 1, name: "B", color: theme_color("--button-b"), top: label_band + 118},
+        {index: 0, name: "A", color: theme_color("--brand-teal"), top: label_band + 16},
+        {index: 1, name: "B", color: theme_color("--brand-bronze"), top: label_band + 118},
     ];
     const row_height = 70;
     const font_mono  = theme_color("--font-mono");
 
     if (view.now !== undefined && view.now < view.end) {
-        context.fillStyle = theme_color("--surface");
+        context.fillStyle = theme_color("--panel");
         context.fillRect(x_of(view.now), 0, right - x_of(view.now), height);
     }
 
@@ -938,7 +994,7 @@ function draw_timeline(canvas, recorder, view)
     context.font = `10px ${font_mono}`;
     for (let time = Math.ceil(view.start / step) * step; time <= view.end; time += step) {
         const x = x_of(time);
-        context.strokeStyle = theme_color("--surface-strong");
+        context.strokeStyle = theme_color("--panel-border-soft");
         context.lineWidth = 1;
         context.beginPath();
         context.moveTo(x, label_band);
@@ -949,7 +1005,7 @@ function draw_timeline(canvas, recorder, view)
     }
 
     for (const row of rows) {
-        context.fillStyle = theme_color("--surface");
+        context.fillStyle = theme_color("--panel");
         context.fillRect(left, row.top - 8, right - left, row_height + 16);
         context.fillStyle = theme_color("--text-muted");
         context.font = `10px ${font_mono}`;
@@ -960,7 +1016,7 @@ function draw_timeline(canvas, recorder, view)
     for (const lock of recorder.locks) {
         if (lock.end < view.start || lock.start > view.end) { continue; }
         const row = rows[lock.button_index];
-        context.fillStyle = theme_color("--selection") + "66";
+        context.fillStyle = theme_color("--debounce-lock");
         context.fillRect(x_of(lock.start), row.top - 4, Math.max(2, x_of(lock.end) - x_of(lock.start)), row_height + 8);
     }
 
@@ -989,7 +1045,7 @@ function draw_timeline(canvas, recorder, view)
         context.fillStyle = row.color;
         context.font = `600 12px ${font_mono}`;
         context.fillText(row.name, 12, row.top + row_height / 2 + 4);
-        draw_level(recorder.raw_edges[row.index], {top: row.top + 6}, theme_color("--border-soft"), 1.5, end_time);
+        draw_level(recorder.raw_edges[row.index], {top: row.top + 6}, theme_color("--text-dim"), 1.5, end_time);
         draw_level(recorder.stable_edges[row.index], row, row.color, 3, end_time);
     }
 
@@ -997,7 +1053,7 @@ function draw_timeline(canvas, recorder, view)
     for (const gesture of recorder.gestures) {
         if (gesture.time < view.start || gesture.time > view.end) { continue; }
         const x = x_of(gesture.time);
-        context.strokeStyle = theme_color("--gesture");
+        context.strokeStyle = theme_color("--accent");
         context.lineWidth = 2;
         context.beginPath();
         context.moveTo(x, label_band - 4);
@@ -1009,12 +1065,12 @@ function draw_timeline(canvas, recorder, view)
         const label_width = context.measureText(label).width + 8;
         const label_x     = Math.min(x + 3, right - label_width);
         const label_y     = 4 + (stagger % 2) * 20;
-        context.fillStyle = theme_color("--highlight");
+        context.fillStyle = theme_color("--accent-soft");
         context.fillRect(label_x, label_y, label_width, 17);
-        context.strokeStyle = theme_color("--gesture");
+        context.strokeStyle = theme_color("--accent");
         context.lineWidth = 1;
         context.strokeRect(label_x, label_y, label_width, 17);
-        context.fillStyle = theme_color("--gesture");
+        context.fillStyle = theme_color("--accent");
         context.fillText(label, label_x + 4, label_y + 12);
         stagger++;
     }
@@ -1022,7 +1078,7 @@ function draw_timeline(canvas, recorder, view)
     for (const marker of view.markers ?? []) {
         if (marker.time < view.start || marker.time > view.end) { continue; }
         const x = x_of(marker.time);
-        context.strokeStyle = theme_color("--deadline");
+        context.strokeStyle = theme_color("--brand-purple");
         context.lineWidth = 1.5;
         context.setLineDash([5, 4]);
         context.beginPath();
@@ -1030,7 +1086,7 @@ function draw_timeline(canvas, recorder, view)
         context.lineTo(x, height - 18);
         context.stroke();
         context.setLineDash([]);
-        context.fillStyle = theme_color("--deadline");
+        context.fillStyle = theme_color("--brand-purple");
         context.font = `11px ${font_mono}`;
         context.fillText(marker.label, Math.min(x + 3, right - context.measureText(marker.label).width), marker.row ?? label_band + 8);
     }
@@ -1038,7 +1094,7 @@ function draw_timeline(canvas, recorder, view)
     for (const check of recorder.checks) {
         if (check.time < view.start || check.time > view.end) { continue; }
         const x = x_of(check.time);
-        context.fillStyle = check.passed ? theme_color("--success") : theme_color("--error");
+        context.fillStyle = check.passed ? theme_color("--brand-green") : theme_color("--error");
         context.beginPath();
         context.moveTo(x, height - 26);
         context.lineTo(x - 5, height - 18);
@@ -1306,7 +1362,7 @@ function build_machine(svg_id, layout, edges, names, node_prefix)
 {
     const width = 104;
     const height = 30;
-    let html = `<defs><marker id="arrowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${theme_color("--selection")}"/></marker></defs>`;
+    let html = `<defs><marker id="arrowHead" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-head" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
     const position = (id) => layout.find((node) => node.id === id);
     for (const edge of edges) {
         const from = position(edge.from);
@@ -1982,6 +2038,32 @@ function render_test_timeline()
     draw_timeline(document.getElementById("testCanvas"), result.recorder, {start: -padding, end: end + padding});
 }
 
+/* ---- Theme sáng/tối ---- */
+
+const THEME_KEY = "inkflash-sim-theme";
+
+function apply_theme(theme)
+{
+    document.documentElement.dataset.theme = theme;
+    document.getElementById("themeButton").textContent = theme === "dark" ? "Sáng" : "Tối";
+    /* Canvas không tự đổi màu theo CSS: vẽ lại để draw_timeline đọc lại biến. Timeline trực tiếp tự vẽ lại mỗi frame. */
+    render_test_timeline();
+}
+
+/* Chỉ lưu khi người dùng bấm, để chưa chọn thì vẫn theo hệ điều hành. */
+function setup_theme()
+{
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* trình duyệt chặn đọc: theo hệ điều hành */ }
+    const prefers_dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    apply_theme(saved ?? (prefers_dark ? "dark" : "light"));
+    document.getElementById("themeButton").addEventListener("click", () => {
+        const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        try { localStorage.setItem(THEME_KEY, theme); } catch { /* trình duyệt chặn lưu: chỉ mất lựa chọn lần sau */ }
+        apply_theme(theme);
+    });
+}
+
 /* ---- Khởi động ---- */
 
 function show_page(page)
@@ -1995,6 +2077,7 @@ function show_page(page)
 
 function start()
 {
+    setup_theme();
     build_config_table();
     build_machine("phaseMachine", PHASE_LAYOUT, PHASE_EDGES, PHASE_NAMES, "phase");
     build_machine("modeMachine", MODE_LAYOUT, MODE_EDGES, MODE_NAMES, "mode");

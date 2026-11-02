@@ -100,11 +100,24 @@ async function guarded(action) {
         return await action();
     } catch (error) {
         log(`[web] ${error.message}`, 'error');
+        toast(error.message, true);
         return undefined;
     }
 }
 
-/* ---- Log, nút ---- */
+/* ---- Log, thông báo, nút ---- */
+
+const TOAST_MS = 4000;
+let toastTimer = null;
+
+function toast(text, isError = false) {
+    const box = $('toast');
+    box.textContent = text;
+    box.className = `toast ${isError ? 'error' : ''}`;
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.hidden = true; }, TOAST_MS);
+}
 
 function log(text, level = '') {
     const view = $('log');
@@ -155,7 +168,24 @@ async function toggleConnection() {
     }
     await guarded(async () => {
         await app.link.connect();
+        try {
+            await onConnected();
+        } catch (error) {
+            await app.link.disconnect();
+            throw new Error(`Máy không trả lời: cổng sai, chưa nạp firmware test, hoặc idf.py monitor đang giữ cổng (${error.message})`);
+        }
+        toast('Đã kết nối');
+    });
+}
+
+/* Mở lại cổng đã được cấp quyền ở lần trước, không cần chọn lại. */
+async function autoConnect() {
+    const ports = (await navigator.serial?.getPorts?.()) ?? [];
+    if (ports.length !== 1) { return; }
+    await guarded(async () => {
+        await app.link.openGranted(ports[0]);
         await onConnected();
+        toast('Đã tự kết nối lại cổng cũ');
     });
 }
 
@@ -390,9 +420,49 @@ function snapshotSettings() {
     };
 }
 
-function startRun(label, details = {}) {
-    app.run = {label, startedAt: new Date().toISOString(), drawn: [], settings: snapshotSettings(), ...details};
+/* expected: số khung sẽ vẽ, để hiện tiến độ N/M; 0 = không biết trước. */
+function startRun(label, details = {}, expected = 0) {
+    app.run = {label, startedAt: new Date().toISOString(), drawn: [], settings: snapshotSettings(), expected, ...details};
     renderRun();
+    renderProgress();
+}
+
+function renderProgress() {
+    const run = app.run;
+    const text = !run ? '' : run.expected ? `${run.label}: ${run.drawn.length}/${run.expected}` : `${run.label}: ${run.drawn.length} lần vẽ`;
+    $('run-progress').textContent = text;
+    if (run?.expected && run.drawn.length === run.expected) { toast(`${run.label} xong. Mở tab Chấm điểm để chấm.`); }
+}
+
+/* Gửi ảnh đang xem vào slot rồi vẽ ngay, theo kiểu vẽ và window đang chọn. */
+async function sendAndDraw() {
+    await storeImage();
+    $('draw-slot').value = $('target-slot').value;
+    await drawSlot();
+}
+
+/* Vẽ full cả màn trắng, dùng slot cuối của vùng ảnh người dùng. */
+const CLEAR_SLOT = USER_SLOT_COUNT - 1;
+
+async function clearScreen() {
+    await guarded(async () => {
+        await storeSlot(CLEAR_SLOT, createFrame(true), 'trắng');
+        app.pendingPreview.set(CLEAR_SLOT, app.slots[CLEAR_SLOT].frame);
+        if (app.info?.path === 'pipeline') {
+            await app.link.command(Command.SUBMIT, new Writer().u8(CLEAR_SLOT).result());
+            return;
+        }
+        const payload = new Writer().u8(CLEAR_SLOT).u8(Kind.FULL).u8(2).u8(0).u8(0).u8(0).u16(0).u16(0).u16(0).u16(0);
+        await app.link.command(Command.DRAW, payload.result());
+    });
+}
+
+async function rerun() {
+    if (!app.lastRun) {
+        toast('Chưa có bài hay chuỗi nào để chạy lại.', true);
+        return;
+    }
+    await app.lastRun();
 }
 
 async function drawSlot() {
@@ -430,6 +500,7 @@ function onDrawn(drawn) {
     if (app.run) {
         app.run.drawn.push(drawn);
         renderRun();
+        renderProgress();
     }
     highlightSequence(drawn.slot);
 }
@@ -482,7 +553,9 @@ async function playSequence() {
     const repeat = Number($('sequence-repeat').value);
     const kind = Number($('sequence-kind').value);
     await guarded(async () => {
-        startRun('Chuỗi tay', {testId: 'sequence', params: {slots: [...app.sequence], intervalMs, repeat}, kind: KIND_NAMES[kind]});
+        app.lastRun = playSequence;
+        startRun('Chuỗi tay', {testId: 'sequence', params: {slots: [...app.sequence], intervalMs, repeat}, kind: KIND_NAMES[kind]},
+                 repeat > 0 ? app.sequence.length * repeat : 0);
         await play(app.sequence.slice(0, 64), intervalMs, repeat, kind, app.settings.edgeMargin);
     });
 }
@@ -533,7 +606,8 @@ async function runSelectedTest() {
         const slots = plan.order.map((index) => TEST_FIRST_SLOT + index);
         /* Bài có tham số viền dùng giá trị của bài; bài khác dùng cài đặt ở tab Chế độ. */
         const edgeMargin = test.params.some((param) => param.key === 'edge') ? plan.edgeMargin : app.settings.edgeMargin;
-        startRun(test.name, {testId: test.id, params: values, kind: KIND_NAMES[plan.kind], edgeMargin});
+        app.lastRun = runSelectedTest;
+        startRun(test.name, {testId: test.id, params: values, kind: KIND_NAMES[plan.kind], edgeMargin}, plan.repeat === 1 ? slots.length : 0);
         app.run.settings.edgeMargin = edgeMargin;
         if (plan.note) { log(`[web] ${plan.note}`); }
         for (let start = 0; start < slots.length; start += 64) {
@@ -773,7 +847,17 @@ function setupTabs() {
 function setupControls() {
     $('connect-button').addEventListener('click', toggleConnection);
     $('apply-path').addEventListener('click', applyPath);
-    $('apply-profiles').addEventListener('click', applyProfiles);
+    $('full-profile').addEventListener('change', applyProfiles);
+    $('partial-profile').addEventListener('change', applyProfiles);
+    $('send-and-draw').addEventListener('click', sendAndDraw);
+    $('quick-stop').addEventListener('click', stopSequence);
+    $('quick-rerun').addEventListener('click', rerun);
+    $('quick-clear').addEventListener('click', clearScreen);
+    document.addEventListener('keydown', (event) => {
+        if (event.target.closest('input, textarea, select')) { return; }
+        if (event.key === 'Escape') { stopSequence(); }
+        if (event.key === 'r' || event.key === 'R') { rerun(); }
+    });
     $('apply-tune').addEventListener('click', applyTune);
     $('apply-options').addEventListener('click', applyOptions);
     $('read-temperature').addEventListener('click', readTemperature);
@@ -841,6 +925,7 @@ function main() {
     processImage();
     setupTheme();
     loadSampleImages();
+    autoConnect();
     if (!('serial' in navigator)) { log('[web] trình duyệt không có Web Serial: dùng Chrome hoặc Edge, mở qua http://localhost', 'error'); }
     if (FRAME_BYTES !== 12480) { log('[web] cỡ khung lệch firmware', 'error'); }
 }

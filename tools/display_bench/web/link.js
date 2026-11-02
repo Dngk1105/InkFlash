@@ -151,6 +151,13 @@ export class BenchLink extends EventTarget {
         await this.open(port);
     }
 
+    /* Cổng đã được cấp quyền ở lần trước (navigator.serial.getPorts). */
+    async openGranted(port) {
+        const portInfo = port.getInfo();
+        this.portFilter = {usbVendorId: portInfo.usbVendorId, usbProductId: portInfo.usbProductId};
+        await this.open(port);
+    }
+
     async open(port) {
         await port.open({baudRate: 115200, bufferSize: 65536});
         /* Hạ RTS trước rồi mới hạ DTR: RTS cao cùng DTR thấp là lệnh reset chip của USB-Serial-JTAG. */

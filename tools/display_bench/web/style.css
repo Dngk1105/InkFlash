@@ -322,3 +322,18 @@ td.text { text-align: left; font-family: var(--font-sans); white-space: normal; 
 .log .error { color: var(--error); }
 .log .warning { color: var(--brand-bronze); }
 .log .web { color: var(--brand-purple); }
+
+/* ---- Thông báo nổi ---- */
+
+.toast {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-left: 4px solid var(--brand-green);
+    border-radius: 3px;
+}
+.toast.error { border-left-color: var(--error); color: var(--error); }

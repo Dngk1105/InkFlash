@@ -51,34 +51,48 @@ không chỉ trong `requestAnimationFrame`, vì tab bị ẩn thì `requestAnima
 
 ### Giao diện
 
-Theme: Rose Petal DocGraph HC (sáng, độ tương phản cao). Khai báo màu một lần bằng biến CSS trong `:root`, mọi chỗ khác
-dùng biến, không viết mã màu rời.
+Mọi trang chạy trên trình duyệt trong repo (mô phỏng, sơ đồ, công cụ như `tools/display_bench/web/`) dùng preset
+Editorial của Archify, có cả sáng và tối. Ví dụ đang dùng: `tools/display_bench/web/style.css` và
+`components/core/ink_gesture/test/gesture_sim.html`.
 
-| Biến | Màu | Dùng cho |
-|---|---|---|
-| `--background` | `#fffafc` | Nền trang |
-| `--surface` | `#fbf4f6` | Nền thẻ |
-| `--surface-strong` | `#ebdce2` | Thanh tiêu đề, đầu bảng |
-| `--highlight` | `#f3dce4` | Mục đang chọn, nút đang bấm |
-| `--selection` | `#cca2ae` | Vùng khoá, cạnh sơ đồ |
-| `--border` | `#8c3a52` | Viền |
-| `--border-soft` | `#d9b2bf` | Viền phụ, tín hiệu thô |
-| `--accent` | `#782239` | Nút chính, tab đang mở |
-| `--accent-strong` | `#561324` | Tiêu đề |
-| `--text` | `#1f120f` | Chữ |
-| `--text-muted` | `#63404b` | Chữ phụ |
-| `--code-background` | `#f4e6ec` | Nền `code` |
-| `--success` | `#096d48` | Kiểm tra qua |
-| `--error` | `#be123c` | Kiểm tra trượt, config sai |
+Thẻ `<html>` mang `data-preset="editorial"` và `data-theme="light"` hoặc `"dark"`. Màu khai báo một lần bằng biến CSS
+cho từng theme, mọi chỗ khác dùng biến, không viết mã màu rời. Canvas không tự đổi theo CSS: đọc biến bằng
+`getComputedStyle(document.documentElement)` và vẽ lại khi đổi theme.
 
-Màu theo nghĩa giữ cố định giữa các mô phỏng: nút A `#0f4a85`, nút B `#a16207`, sự kiện phát ra (gesture) `#782239`,
-deadline và timer `#5e2cbc`.
+| Biến | Sáng | Tối | Dùng cho |
+|---|---|---|---|
+| `--bg` | `#f2eee5` | `#181611` | Nền trang |
+| `--grid` | `#d8d0c2` | `#39342a` | Dòng kẻ giấy của nền |
+| `--panel` | `#fbf8f1` | `#231f18` | Nền thẻ, nút |
+| `--panel-strong` | `#ede6d8` | `#2e2921` | Thanh tab, đầu bảng, nền log |
+| `--panel-border` | `#c4b9a6` | `#625a4a` | Viền |
+| `--panel-border-soft` | `#dcd4c5` | `#443e33` | Viền phụ, đường kẻ trong thẻ |
+| `--text` | `#242018` | `#f4eddf` | Chữ |
+| `--text-muted` | `#6f6658` | `#b9ae9b` | Chữ phụ, nhãn |
+| `--text-dim` | `#948a79` | `#776e60` | Chữ mờ, mục trống |
+| `--accent` | `#9f403d` | `#cf6662` | Nút chính, tab đang mở, tiêu đề thẻ |
+| `--accent-strong` | `#7d2a27` | `#f4eddf` | Tiêu đề trang |
+| `--accent-soft` | `#f4dcdb` | `#382424` | Mục đang chọn |
+| `--brand-teal` | `#287e84` | `#7fc6c7` | Nút A, window |
+| `--brand-bronze` | `#9a671f` | `#d8ad68` | Nút B, cảnh báo |
+| `--brand-green` | `#397b53` | `#8fc29e` | Kiểm tra qua, đã kết nối |
+| `--brand-purple` | `#765d86` | `#c0a4d0` | Deadline, timer, log của trang |
+| `--error` | `#b42318` | `#f0857d` | Kiểm tra trượt, lỗi |
+| `--pixel-white`, `--pixel-black` | `#ffffff`, `#1f1d1a` | `#e9e3d5`, `#0c0b09` | Điểm trắng, đen của màn e-ink |
+
+Màu theo nghĩa giữ cố định giữa các trang: nút A `--brand-teal`, nút B `--brand-bronze`, sự kiện phát ra (gesture)
+`--accent`, deadline và timer `--brand-purple`.
 
 Luật:
 
-- Không emoji, không gradient, không bóng mờ, không hiệu ứng chỉ để trang trí. Chuyển động chỉ dùng cho dữ liệu đang chạy.
+- Không emoji, không bóng đổ, không hiệu ứng chỉ để trang trí. Gradient chỉ dùng cho nền giấy kẻ dòng của preset.
+  Chuyển động chỉ dùng cho dữ liệu đang chạy.
+- Theme mặc định theo hệ điều hành (`prefers-color-scheme`); có nút đổi sáng/tối ghi chữ ("Sáng", "Tối"), nhớ lựa chọn
+  bằng `localStorage` bọc trong `try`.
 - Chữ giao diện tiếng Việt; thuật ngữ giữ tiếng Anh theo `docs/writing-comments.md` (edge, debounce, deadline...).
-- Font: `"Segoe UI", system-ui` cho chữ, `"Cascadia Code", Consolas, monospace` cho số và tên trong code.
+- Font: `--font-serif` (`"Newsreader", "Charter", "Cambria", "Georgia", serif`) cho tiêu đề trang và tiêu đề thẻ viết
+  hoa; `--font-sans` (`"Segoe UI", system-ui`) cho chữ; `--font-mono` (`"Cascadia Code", Consolas, monospace`) cho số
+  và tên trong code. Cambria đứng trước Georgia vì Georgia thiếu chữ Việt hoa có hai dấu.
 - Layout dùng CSS grid, xuống một cột khi màn hẹp hơn 1100px; không cuộn ngang ở bề rộng 650px.
 - Canvas vẽ theo `devicePixelRatio` để không mờ. Mỗi kênh tín hiệu một hàng có nền riêng, ghi rõ mức "bấm"/"nhả".
 - Sơ đồ state machine: xếp nút sao cho cạnh không cắt nhau; nhãn cạnh không đè lên nhau hay lên cạnh khác.
@@ -96,5 +110,5 @@ Luật:
 
 1. Mở file bằng trình duyệt: console không có lỗi.
 2. Tab host test báo N/N qua, và N bằng số ca trong file C có thể vẽ (bỏ các ca chỉ kiểm tra con trỏ NULL hoặc giá trị enum).
-3. Chụp màn ở bề rộng khoảng 650px và 1400px: không chữ đè, không nhãn đè, không cuộn ngang.
+3. Chụp màn ở bề rộng khoảng 650px và 1400px, cả sáng lẫn tối: không chữ đè, không nhãn đè, không cuộn ngang.
 4. Thử tay các ca chính trên tab chạy trực tiếp; log khớp log firmware cho cùng thao tác.

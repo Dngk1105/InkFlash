@@ -17,6 +17,10 @@
     <div class="connection">
         <span id="connection-state" class="badge">Chưa kết nối</span>
         <span id="device-summary" class="muted value"></span>
+        <span id="run-progress" class="value muted"></span>
+        <button id="quick-stop" title="Dừng chuỗi đang chạy (phím Esc)">Dừng</button>
+        <button id="quick-rerun" title="Chạy lại bài hoặc chuỗi vừa chạy (phím R)">Chạy lại</button>
+        <button id="quick-clear" title="Vẽ full cả màn trắng">Xoá trắng</button>
         <button id="connect-button" class="primary">Kết nối</button>
         <button id="theme-button" title="Đổi sáng/tối">Tối</button>
     </div>
@@ -25,8 +29,8 @@
 <main class="layout">
     <section class="workspace">
         <nav class="tabs" id="tabs">
-            <button data-tab="mode" class="active">Chế độ</button>
-            <button data-tab="image">Ảnh</button>
+            <button data-tab="image" class="active">Ảnh</button>
+            <button data-tab="mode">Chế độ</button>
             <button data-tab="sequence">Chuỗi</button>
             <button data-tab="tests">Bài test</button>
             <button data-tab="rating">Chấm điểm</button>
@@ -34,7 +38,7 @@
         </nav>
 
         <!-- ---- Chế độ ---- -->
-        <div class="tab-panel active" id="tab-mode">
+        <div class="tab-panel" id="tab-mode">
             <div class="card">
                 <h2>Đường vẽ</h2>
                 <p class="muted">raw: gọi thẳng driver, tự chọn kiểu vẽ và window. pipeline: đi qua ink_display như app thật. Đổi đường thì máy khởi động lại.</p>
@@ -50,7 +54,7 @@
                     <label for="full-profile">Slot full</label><select id="full-profile"></select>
                     <label for="partial-profile">Slot partial</label><select id="partial-profile"></select>
                 </div>
-                <div class="row"><button id="apply-profiles">Gán profile</button></div>
+                <p class="muted">Đổi lựa chọn là gán ngay.</p>
             </div>
             <div class="card">
                 <h2>Chỉnh tay LUT</h2>
@@ -81,7 +85,7 @@
         </div>
 
         <!-- ---- Ảnh ---- -->
-        <div class="tab-panel" id="tab-image">
+        <div class="tab-panel active" id="tab-image">
             <div class="card">
                 <h2>Nguồn ảnh</h2>
                 <div class="drop-zone" id="drop-zone">Kéo thả ảnh vào đây, hoặc <label class="link"><input id="image-file" type="file" accept="image/*" hidden>chọn file</label></div>
@@ -112,7 +116,8 @@
                 <div class="preview-box"><canvas id="image-preview"></canvas></div>
                 <div class="row">
                     <label for="target-slot">Slot</label><select id="target-slot"></select>
-                    <button id="store-image" class="primary">Lưu vào slot</button>
+                    <button id="send-and-draw" class="primary">Gửi và vẽ</button>
+                    <button id="store-image">Chỉ lưu vào slot</button>
                     <span id="selected-window" class="value"></span>
                 </div>
             </div>
@@ -209,6 +214,7 @@
     </aside>
 </main>
 
+<div id="toast" class="toast" hidden></div>
 <script type="module" src="app.js"></script>
 </body>
 </html>
