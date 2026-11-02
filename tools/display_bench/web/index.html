@@ -1,0 +1,210 @@
+<!-- Thiết kế: docs/design/display/bench.md -->
+<!-- Trang công cụ test màn: nói chuyện với firmware test qua Web Serial (link.js), xử lý ảnh (frames.js), bài test (tests.js). -->
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>InkFlash · Test màn</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top-bar">
+    <h1>InkFlash · Test màn</h1>
+    <div class="connection">
+        <span id="connection-state" class="badge">Chưa kết nối</span>
+        <span id="device-summary" class="muted"></span>
+        <button id="connect-button" class="primary">Kết nối</button>
+    </div>
+</header>
+
+<main class="layout">
+    <section class="workspace">
+        <nav class="tabs" id="tabs">
+            <button data-tab="mode" class="active">Chế độ</button>
+            <button data-tab="image">Ảnh</button>
+            <button data-tab="sequence">Chuỗi</button>
+            <button data-tab="tests">Bài test</button>
+            <button data-tab="rating">Chấm điểm</button>
+            <button data-tab="history">Lịch sử</button>
+        </nav>
+
+        <!-- ---- Chế độ ---- -->
+        <div class="tab-panel active" id="tab-mode">
+            <div class="card">
+                <h2>Đường vẽ</h2>
+                <p class="muted">raw: gọi thẳng driver, tự chọn kiểu vẽ và window. pipeline: đi qua ink_display như app thật. Đổi đường thì máy khởi động lại.</p>
+                <div class="row">
+                    <label><input type="radio" name="path" value="raw"> raw</label>
+                    <label><input type="radio" name="path" value="pipeline"> pipeline</label>
+                    <button id="apply-path">Đổi đường</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Profile bảng sóng</h2>
+                <div class="form-grid">
+                    <label for="full-profile">Slot full</label><select id="full-profile"></select>
+                    <label for="partial-profile">Slot partial</label><select id="partial-profile"></select>
+                </div>
+                <div class="row"><button id="apply-profiles">Gán profile</button></div>
+            </div>
+            <div class="card">
+                <h2>Chỉnh tay LUT</h2>
+                <p class="muted">Gán profile "tune" cho một slot. Bảng lệch điện tích bị máy từ chối.</p>
+                <div class="form-grid">
+                    <label for="tune-slot">Slot</label>
+                    <select id="tune-slot"><option value="1">partial</option><option value="0">full</option></select>
+                    <label for="tune-frames">Số khung (0 = bảng của panel)</label><input id="tune-frames" type="number" min="0" max="63" value="10">
+                    <label for="tune-hz">Tần số khung</label><select id="tune-hz"></select>
+                    <label for="tune-hold">Khung giữ</label><input id="tune-hold" type="number" min="0" max="63" value="0">
+                    <label for="tune-scans">Số lần quét</label><input id="tune-scans" type="number" min="1" max="8" value="1">
+                    <label for="tune-power">Giữ nguồn giữa hai lần vẽ</label><input id="tune-power" type="checkbox">
+                </div>
+                <div class="row"><button id="apply-tune">Gán bảng chỉnh tay</button></div>
+            </div>
+            <div class="card">
+                <h2>Cài đặt khác</h2>
+                <div class="form-grid">
+                    <label for="edge-margin">Đẩy lại viền (điểm, 0 = tắt)</label><input id="edge-margin" type="number" min="0" max="7" value="0">
+                    <label for="partials-before-full">Partial liên tiếp trước khi full (pipeline)</label><input id="partials-before-full" type="number" min="1" max="1000" value="10">
+                </div>
+                <div class="row">
+                    <button id="apply-options">Áp dụng (pipeline)</button>
+                    <button id="read-temperature">Đọc nhiệt độ (raw)</button>
+                    <span id="temperature" class="value"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ---- Ảnh ---- -->
+        <div class="tab-panel" id="tab-image">
+            <div class="card">
+                <h2>Nguồn ảnh</h2>
+                <div class="drop-zone" id="drop-zone">Kéo thả ảnh vào đây, hoặc <label class="link"><input id="image-file" type="file" accept="image/*" hidden>chọn file</label></div>
+                <div class="row"><label for="sample-images">Ảnh mẫu</label><select id="sample-images"><option value="">—</option></select></div>
+            </div>
+            <div class="card">
+                <h2>Xử lý</h2>
+                <div class="form-grid">
+                    <label for="orientation">Hướng nhìn</label>
+                    <select id="orientation">
+                        <option value="landscape90">Ngang (INK_UI_ROTATION_90)</option>
+                        <option value="landscape270">Ngang (INK_UI_ROTATION_270)</option>
+                        <option value="portrait">Dọc (hướng gốc panel)</option>
+                    </select>
+                    <label for="fit">Vừa khung</label>
+                    <select id="fit"><option value="contain">Giữ tỉ lệ, viền trắng</option><option value="cover">Giữ tỉ lệ, cắt</option><option value="stretch">Kéo dãn</option></select>
+                    <label for="dither">Dither</label><select id="dither"></select>
+                    <label for="threshold">Ngưỡng</label><input id="threshold" type="range" min="0.05" max="0.95" step="0.01" value="0.5">
+                    <label for="brightness">Độ sáng</label><input id="brightness" type="range" min="-0.5" max="0.5" step="0.01" value="0">
+                    <label for="contrast">Tương phản</label><input id="contrast" type="range" min="0.2" max="3" step="0.05" value="1">
+                    <label for="gamma">Gamma</label><input id="gamma" type="range" min="0.3" max="3" step="0.05" value="1">
+                    <label for="invert">Đảo màu</label><input id="invert" type="checkbox">
+                </div>
+            </div>
+            <div class="card">
+                <h2>Xem trước 1 bit</h2>
+                <p class="muted">Kéo chuột trên ảnh để chọn window cho partial; nhấp một lần để bỏ chọn (cả màn).</p>
+                <div class="preview-box"><canvas id="image-preview"></canvas></div>
+                <div class="row">
+                    <label for="target-slot">Slot</label><select id="target-slot"></select>
+                    <button id="store-image" class="primary">Lưu vào slot</button>
+                    <span id="selected-window" class="value"></span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Vẽ một slot</h2>
+                <div class="form-grid">
+                    <label for="draw-slot">Slot</label><select id="draw-slot"></select>
+                    <label for="draw-kind">Kiểu vẽ (raw)</label><select id="draw-kind"></select>
+                    <label for="old-source">Mặt phẳng cũ (raw)</label>
+                    <select id="old-source"><option value="0">Ảnh đang hiện</option><option value="1">Một slot khác</option><option value="2">Khung mới đảo bit</option></select>
+                    <label for="old-slot">Slot cũ</label><select id="old-slot"></select>
+                </div>
+                <div class="row"><button id="draw-button" class="primary">Vẽ</button></div>
+            </div>
+            <div class="card">
+                <h2>Các slot</h2>
+                <div class="slot-grid" id="slot-grid"></div>
+            </div>
+        </div>
+
+        <!-- ---- Chuỗi ---- -->
+        <div class="tab-panel" id="tab-sequence">
+            <div class="card">
+                <h2>Thứ tự khung</h2>
+                <p class="muted">Nhấp slot ở dưới để thêm vào cuối chuỗi. Khung sau được giao khi khung trước vẽ xong, cộng thêm số ms.</p>
+                <ol class="sequence-list" id="sequence-list"></ol>
+                <div class="row"><button id="clear-sequence">Xoá chuỗi</button></div>
+                <div class="slot-grid compact" id="sequence-slots"></div>
+            </div>
+            <div class="card">
+                <h2>Chạy</h2>
+                <div class="form-grid">
+                    <label for="sequence-interval">ms giữa hai khung</label>
+                    <div class="row tight"><input id="sequence-interval-range" type="range" min="0" max="5000" step="50" value="500"><input id="sequence-interval" type="number" min="0" max="65535" value="500"></div>
+                    <label for="sequence-repeat">Số vòng (0 = mãi)</label><input id="sequence-repeat" type="number" min="0" max="255" value="1">
+                    <label for="sequence-kind">Kiểu vẽ (raw)</label><select id="sequence-kind"></select>
+                </div>
+                <div class="row"><button id="play-sequence" class="primary">Chạy</button><button id="stop-sequence">Dừng</button></div>
+            </div>
+        </div>
+
+        <!-- ---- Bài test ---- -->
+        <div class="tab-panel" id="tab-tests">
+            <div class="test-layout">
+                <ul class="test-list" id="test-list"></ul>
+                <div class="card" id="test-detail"></div>
+            </div>
+        </div>
+
+        <!-- ---- Chấm điểm ---- -->
+        <div class="tab-panel" id="tab-rating">
+            <div class="card">
+                <h2>Lần chạy đang chấm</h2>
+                <div id="run-summary" class="muted">Chưa có lần chạy nào.</div>
+                <table class="stats" id="run-stats"></table>
+                <canvas id="run-chart" class="chart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Điểm (1 kém – 5 tốt)</h2>
+                <div id="score-form" class="score-form"></div>
+                <label for="rating-note">Ghi chú</label>
+                <textarea id="rating-note" rows="3"></textarea>
+                <div class="row"><button id="save-rating" class="primary">Lưu kết quả</button><span id="rating-status" class="muted"></span></div>
+            </div>
+        </div>
+
+        <!-- ---- Lịch sử ---- -->
+        <div class="tab-panel" id="tab-history">
+            <div class="card">
+                <div class="row">
+                    <label for="history-test">Bài</label><select id="history-test"><option value="">Tất cả</option></select>
+                    <label for="history-profile">Profile</label><select id="history-profile"><option value="">Tất cả</option></select>
+                    <button id="reload-history">Tải lại</button>
+                </div>
+                <div class="table-scroll"><table class="history" id="history-table"></table></div>
+            </div>
+        </div>
+    </section>
+
+    <aside class="side">
+        <div class="card">
+            <h2>Màn đang hiện</h2>
+            <div class="preview-box"><canvas id="shown-preview"></canvas></div>
+            <dl class="drawn" id="last-drawn"></dl>
+        </div>
+        <div class="card">
+            <h2>Nút</h2>
+            <ul class="gesture-list" id="gesture-list"></ul>
+        </div>
+        <div class="card log-card">
+            <div class="row"><h2>Log máy</h2><button id="clear-log">Xoá</button></div>
+            <pre id="log" class="log"></pre>
+        </div>
+    </aside>
+</main>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

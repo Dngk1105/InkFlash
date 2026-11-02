@@ -57,6 +57,7 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
 | Màn vẽ chậm, chớp, bóng mờ, viền xám, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
+| Thử màn khi chưa có app: gửi ảnh, chạy chuỗi ảnh, chấm điểm bảng sóng, đo tốc độ lật bằng firmware test | [design/display/bench.md](design/display/bench.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |

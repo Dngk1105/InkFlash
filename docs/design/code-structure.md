@@ -26,6 +26,7 @@ test/
   host/                project CMake build khối C thuần bằng gcc trên PC
   vectors/             test vector dùng chung mọi nền tảng
 tools/                 new.py, check.py, build_all.py
+  display_bench/       công cụ test màn: firmware test riêng và trang web (design/display/bench.md)
 ```
 
 Tên thư mục của component chính là tên component (luật của ESP-IDF), nên thư mục cũng mang tiền tố `ink_`.

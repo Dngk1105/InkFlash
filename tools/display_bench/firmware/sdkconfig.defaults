@@ -1,0 +1,5 @@
+# Thiết kế: docs/design/display/bench.md
+# Ghi đè sdkconfig.defaults của repo cho firmware test.
+
+# Dùng chung bảng phân vùng của firmware chính (nạp đè vào cùng phân vùng app).
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../../partitions.csv"

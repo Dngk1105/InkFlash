@@ -66,3 +66,14 @@ uint32_t ink_periph_examples_rtc_counter_next(void);
  * commit. */
 esp_err_t ink_periph_examples_nvs_get_u32(const char *namespace_name, const char *key, uint32_t default_value, uint32_t *out_value);
 esp_err_t ink_periph_examples_nvs_set_u32(const char *namespace_name, const char *key, uint32_t value);
+
+/* ---- USB-Serial-JTAG ---- */
+
+/* Cài driver USB-Serial-JTAG để đọc ghi nhị phân trên cổng USB của chip (cổng COM khi cắm vào PC). */
+esp_err_t ink_periph_examples_usb_serial_jtag_init(uint32_t rx_buffer_size, uint32_t tx_buffer_size);
+/* Đọc tối đa `length` byte, chờ tối đa timeout_ms; trả số byte đọc được. */
+size_t ink_periph_examples_usb_serial_jtag_read(uint8_t *buffer, size_t length, uint32_t timeout_ms);
+/* Ghi cả `length` byte; ESP_ERR_TIMEOUT nếu ring buffer TX không nhận hết trong timeout_ms. */
+esp_err_t ink_periph_examples_usb_serial_jtag_write(const uint8_t *data, size_t length, uint32_t timeout_ms);
+/* Chuyển log của ESP-IDF sang một hàm vprintf riêng (esp_log_set_vprintf), để log không lẫn vào dữ liệu nhị phân. */
+void ink_periph_examples_usb_serial_jtag_take_log(void);

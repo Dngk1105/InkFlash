@@ -1,0 +1,443 @@
+/* Thiết kế: docs/design/display/bench.md */
+
+/* Task bench: nhận gói từ PC, nút và timer của chuỗi; mọi việc vẽ làm ở đây (đường raw) hoặc giao cho ink_display. */
+#include "bench.h"
+
+#include "esp_app_desc.h"
+#include "esp_attr.h"
+#include "esp_check.h"
+#include "esp_log.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+#include "ink_bsp.h"
+#include "ink_platform.h"
+#include <string.h>
+
+static const char *TAG = "bench";
+
+#define PACKET_QUEUE_LENGTH 2
+#define EVENT_QUEUE_LENGTH  16
+#define TASK_STACK_BYTES    6144
+#define TASK_PRIORITY       5
+#define RESTART_DELAY_MS    100 /* để ACK kịp ra USB trước khi khởi động lại */
+
+static bench_path_t     s_path;
+static QueueHandle_t    s_packets;
+static QueueHandle_t    s_events;
+static QueueSetHandle_t s_queue_set;
+
+/* ---- Đọc ghi số little-endian ---- */
+
+static uint16_t read_u16(const uint8_t *bytes) {
+    return (uint16_t)(bytes[0] | (bytes[1] << 8));
+}
+
+typedef struct {
+    uint8_t bytes[512];
+    size_t  length;
+} writer_t;
+
+static void put_u8(writer_t *writer, uint8_t value) {
+    if (writer->length < sizeof(writer->bytes)) { writer->bytes[writer->length++] = value; }
+}
+
+static void put_u16(writer_t *writer, uint16_t value) {
+    put_u8(writer, (uint8_t)value);
+    put_u8(writer, (uint8_t)(value >> 8));
+}
+
+static void put_u32(writer_t *writer, uint32_t value) {
+    put_u16(writer, (uint16_t)value);
+    put_u16(writer, (uint16_t)(value >> 16));
+}
+
+static void put_text(writer_t *writer, const char *text) {
+    const size_t length = strnlen(text, 255);
+    put_u8(writer, (uint8_t)length);
+    for (size_t i = 0; i < length; i++) { put_u8(writer, (uint8_t)text[i]); }
+}
+
+/* ---- Gói gửi lên ---- */
+
+static void send_info(uint8_t seq) {
+    const ink_hal_display_capabilities_t *capabilities = bench_draw_capabilities();
+    writer_t                              writer       = {};
+    put_u8(&writer, s_path);
+    put_u16(&writer, capabilities->width);
+    put_u16(&writer, capabilities->height);
+    put_u8(&writer, capabilities->x_align);
+    put_u8(&writer, BENCH_SLOT_COUNT);
+    put_u8(&writer, (uint8_t)capabilities->profile_count);
+    put_u8(&writer, (uint8_t)capabilities->default_profiles[INK_HAL_DISPLAY_SLOT_FULL]);
+    put_u8(&writer, (uint8_t)capabilities->default_profiles[INK_HAL_DISPLAY_SLOT_PARTIAL]);
+    put_text(&writer, esp_app_get_description()->version);
+    for (size_t i = 0; i < capabilities->profile_count; i++) {
+        put_u16(&writer, (uint16_t)capabilities->profiles[i].typical_ms);
+        put_text(&writer, capabilities->profiles[i].name);
+    }
+    bench_link_send(BENCH_INFO, seq, writer.bytes, writer.length);
+}
+
+static void send_drawn(const bench_drawn_t *drawn) {
+    writer_t writer = {};
+    put_u8(&writer, drawn->slot);
+    put_u8(&writer, drawn->mode);
+    put_u8(&writer, drawn->profile);
+    put_u8(&writer, (uint8_t)drawn->temperature_celsius);
+    put_u8(&writer, drawn->temperature_valid);
+    put_u8(&writer, 0);
+    put_u32(&writer, (uint32_t)drawn->error);
+    put_u16(&writer, drawn->window.x);
+    put_u16(&writer, drawn->window.y);
+    put_u16(&writer, drawn->window.width);
+    put_u16(&writer, drawn->window.height);
+    put_u32(&writer, drawn->input_ms);
+    put_u32(&writer, drawn->queue_ms);
+    put_u32(&writer, drawn->diff_ms);
+    put_u32(&writer, drawn->driver.spi_us);
+    put_u32(&writer, drawn->driver.panel_us);
+    put_u32(&writer, drawn->driver.after_us);
+    bench_link_send(BENCH_DRAWN, 0, writer.bytes, writer.length);
+}
+
+static void send_gesture(const ink_gesture_t *gesture, uint32_t time_ms) {
+    writer_t writer = {};
+    put_u8(&writer, gesture->modifier);
+    put_u8(&writer, gesture->button);
+    put_u8(&writer, gesture->type);
+    put_u8(&writer, 0);
+    put_u32(&writer, time_ms);
+    bench_link_send(BENCH_GESTURE, 0, writer.bytes, writer.length);
+}
+
+/* ---- Vẽ một slot theo đường đang chạy ---- */
+
+/* Cách vẽ ở đường raw, lấy từ gói DRAW hoặc PLAY gần nhất. */
+static struct {
+    bench_kind_t kind;
+    uint8_t      edge_margin;
+} s_raw_settings = {.kind = BENCH_KIND_AUTO};
+
+/* Vẽ slot; đường raw gửi DRAWN ngay, đường pipeline gửi khi ink_display báo. Trả false nếu không vẽ được. */
+static bool draw_slot(uint8_t slot, uint32_t press_ms) {
+    if (s_path == BENCH_PATH_PIPELINE) {
+        const esp_err_t error = bench_draw_submit(slot, press_ms);
+        if (error != ESP_OK) { ESP_LOGE(TAG, "submit: %s", esp_err_to_name(error)); }
+        return error == ESP_OK;
+    }
+
+    const uint32_t  start_ms = ink_platform_now_ms();
+    bench_drawn_t   drawn;
+    const esp_err_t error =
+        bench_draw_raw(slot, s_raw_settings.kind, BENCH_OLD_SHOWN, 0, s_raw_settings.edge_margin, (ink_hal_display_rect_t){}, &drawn);
+    if (error != ESP_OK) { return false; }
+    if (press_ms != 0) { drawn.input_ms = start_ms - press_ms; }
+    send_drawn(&drawn);
+    return true;
+}
+
+/* ---- Chuỗi khung ---- */
+
+static struct {
+    uint8_t  slots[BENCH_MAX_SEQUENCE];
+    uint8_t  count;
+    uint8_t  index;        /* khung vừa vẽ */
+    uint16_t interval_ms;  /* từ lúc vẽ xong tới lúc giao khung sau */
+    uint8_t  repeats_left; /* 0 = lặp mãi */
+    bool     running;
+} s_sequence;
+
+static ink_platform_timer_t s_sequence_timer;
+
+static void on_sequence_timer(void *user_data) {
+    (void)user_data;
+    const bench_event_message_t event = {.type = BENCH_EVENT_SEQUENCE_NEXT};
+    xQueueSend(s_events, &event, 0);
+}
+
+static void stop_sequence(void) {
+    s_sequence.running = false;
+    ink_platform_timer_stop(s_sequence_timer);
+}
+
+/* Khung vừa vẽ xong: hẹn khung sau nếu chuỗi còn chạy. */
+static void schedule_next_step(void) {
+    if (s_sequence.running) { ink_platform_timer_start(s_sequence_timer, s_sequence.interval_ms); }
+}
+
+static void step_sequence(void) {
+    if (!s_sequence.running) { return; }
+    uint8_t next = (uint8_t)(s_sequence.index + 1);
+    if (next >= s_sequence.count) {
+        next = 0;
+        if (s_sequence.repeats_left == 1) {
+            stop_sequence();
+            ESP_LOGI(TAG, "chuỗi xong");
+            return;
+        }
+        if (s_sequence.repeats_left > 1) { s_sequence.repeats_left--; }
+    }
+    s_sequence.index = next;
+    if (!draw_slot(s_sequence.slots[next], 0)) {
+        stop_sequence();
+        return;
+    }
+    if (s_path == BENCH_PATH_RAW) { schedule_next_step(); }
+}
+
+static esp_err_t start_sequence(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 6, ESP_ERR_INVALID_ARG, TAG, "play");
+    const uint8_t count = payload[5];
+    ESP_RETURN_ON_FALSE(count > 0 && count <= BENCH_MAX_SEQUENCE && length >= 6u + count, ESP_ERR_INVALID_ARG, TAG, "play count");
+    stop_sequence();
+    s_sequence.interval_ms     = read_u16(&payload[0]);
+    s_sequence.repeats_left    = payload[2];
+    s_raw_settings.kind        = (bench_kind_t)payload[3];
+    s_raw_settings.edge_margin = payload[4];
+    s_sequence.count           = count;
+    memcpy(s_sequence.slots, &payload[6], count);
+    s_sequence.index   = (uint8_t)(count - 1); /* bước đầu nhảy về 0 */
+    s_sequence.running = true;
+    if (s_sequence.repeats_left > 0) { s_sequence.repeats_left++; } /* vòng đầu chưa tính */
+    step_sequence();
+    return ESP_OK;
+}
+
+/* Nút A: khung sau trong chuỗi, B: khung trước; dừng chuỗi đang tự chạy. */
+static void step_by_button(bool forward, uint32_t press_ms) {
+    if (s_sequence.count == 0) { return; }
+    stop_sequence();
+    const uint8_t count = s_sequence.count;
+    s_sequence.index    = forward ? (uint8_t)((s_sequence.index + 1) % count) : (uint8_t)((s_sequence.index + count - 1) % count);
+    draw_slot(s_sequence.slots[s_sequence.index], press_ms);
+}
+
+/* ---- Gói từ PC ---- */
+
+static esp_err_t handle_set_path(uint8_t seq, const uint8_t *payload, size_t length);
+
+static esp_err_t handle_draw(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 14, ESP_ERR_INVALID_ARG, TAG, "draw");
+    s_raw_settings.kind                 = (bench_kind_t)payload[1];
+    s_raw_settings.edge_margin          = payload[4];
+    const ink_hal_display_rect_t window = {read_u16(&payload[6]), read_u16(&payload[8]), read_u16(&payload[10]), read_u16(&payload[12])};
+    bench_drawn_t                drawn;
+    ESP_RETURN_ON_ERROR(
+        bench_draw_raw(payload[0], s_raw_settings.kind, (bench_old_source_t)payload[2], payload[3], payload[4], window, &drawn), TAG,
+        "raw");
+    send_drawn(&drawn);
+    return ESP_OK;
+}
+
+static esp_err_t handle_tune(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 7, ESP_ERR_INVALID_ARG, TAG, "tune");
+    const ink_bsp_display_tune_t tune = {
+        .frames        = payload[1],
+        .frame_rate_hz = read_u16(&payload[2]),
+        .hold_frames   = payload[4],
+        .scans         = payload[5],
+        .keep_power_on = payload[6] != 0,
+    };
+    return ink_bsp_display_tune((ink_hal_display_slot_t)payload[0], &tune);
+}
+
+static esp_err_t handle_set_options(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 5, ESP_ERR_INVALID_ARG, TAG, "options");
+    const ink_display_options_t options = {
+        .full_profile         = payload[0],
+        .partial_profile      = payload[1],
+        .partials_before_full = read_u16(&payload[2]),
+        .edge_margin          = payload[4],
+    };
+    return bench_draw_set_options(&options);
+}
+
+static void handle_read_temperature(uint8_t seq) {
+    int8_t          celsius = 0;
+    const esp_err_t error   = bench_draw_read_temperature(&celsius);
+    writer_t        writer  = {};
+    put_u8(&writer, (uint8_t)celsius);
+    put_u8(&writer, 0);
+    put_u16(&writer, 0);
+    put_u32(&writer, (uint32_t)error);
+    bench_link_send(BENCH_TEMP, seq, writer.bytes, writer.length);
+}
+
+/* ACK gửi trước khi vẽ để PC không chờ hết thời gian quét. */
+static void handle_packet(const bench_packet_t *packet) {
+    const uint8_t *payload = packet->payload;
+    const size_t   length  = packet->length;
+    esp_err_t      error   = ESP_OK;
+    switch (packet->type) {
+        case BENCH_HELLO:
+            send_info(packet->seq);
+            return;
+        case BENCH_SET_PATH:
+            error = handle_set_path(packet->seq, payload, length);
+            break;
+        case BENCH_UPLOAD:
+            error = length >= BENCH_UPLOAD_HEADER
+                ? bench_draw_upload(payload[0], read_u16(&payload[2]), &payload[BENCH_UPLOAD_HEADER], length - BENCH_UPLOAD_HEADER)
+                : ESP_ERR_INVALID_ARG;
+            break;
+        case BENCH_DRAW:
+            if (s_path != BENCH_PATH_RAW) {
+                error = ESP_ERR_INVALID_STATE;
+                break;
+            }
+            stop_sequence();
+            bench_link_ack(packet->seq, ESP_OK);
+            error = handle_draw(payload, length);
+            if (error != ESP_OK) { ESP_LOGE(TAG, "draw: %s", esp_err_to_name(error)); }
+            return;
+        case BENCH_SUBMIT:
+            stop_sequence();
+            error = length >= 1 && draw_slot(payload[0], 0) ? ESP_OK : ESP_FAIL;
+            break;
+        case BENCH_PLAY:
+            bench_link_ack(packet->seq, ESP_OK);
+            error = start_sequence(payload, length);
+            if (error != ESP_OK) { ESP_LOGE(TAG, "play: %s", esp_err_to_name(error)); }
+            return;
+        case BENCH_STOP:
+            stop_sequence();
+            break;
+        case BENCH_SELECT_PROFILE:
+            error = length >= 2 ? bench_draw_select_profile((ink_hal_display_slot_t)payload[0], payload[1]) : ESP_ERR_INVALID_ARG;
+            break;
+        case BENCH_TUNE:
+            error = handle_tune(payload, length);
+            break;
+        case BENCH_SET_OPTIONS:
+            error = handle_set_options(payload, length);
+            break;
+        case BENCH_READ_TEMP:
+            handle_read_temperature(packet->seq);
+            return;
+        default:
+            error = ESP_ERR_NOT_SUPPORTED;
+            break;
+    }
+    bench_link_ack(packet->seq, error);
+}
+
+/* ---- Đường vẽ giữ qua esp_restart() ---- */
+
+#define PATH_MAGIC 0xBE7C0DE5
+
+static RTC_NOINIT_ATTR uint32_t s_saved_magic;
+static RTC_NOINIT_ATTR uint32_t s_saved_path;
+
+bench_path_t bench_saved_path(void) {
+    return s_saved_magic == PATH_MAGIC && s_saved_path == BENCH_PATH_PIPELINE ? BENCH_PATH_PIPELINE : BENCH_PATH_RAW;
+}
+
+/* Đổi đường thì khởi động lại, vì ink_display giữ driver suốt đời. */
+static esp_err_t handle_set_path(uint8_t seq, const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 1 && payload[0] <= BENCH_PATH_PIPELINE, ESP_ERR_INVALID_ARG, TAG, "path");
+    if (payload[0] == s_path) { return ESP_OK; }
+    s_saved_magic = PATH_MAGIC;
+    s_saved_path  = payload[0];
+    bench_link_ack(seq, ESP_OK);
+    vTaskDelay(pdMS_TO_TICKS(RESTART_DELAY_MS));
+    esp_restart();
+}
+
+/* ---- Sự kiện ---- */
+
+static uint32_t s_last_edge_ms; /* thời điểm edge nút gần nhất, làm mốc đo khi nút chuyển khung */
+
+static void handle_input(const ink_input_message_t *message) {
+    if (message->type == INK_INPUT_MESSAGE_BUTTON_EDGE) { s_last_edge_ms = message->button_edge.time_ms; }
+    ink_gesture_output_t gestures;
+    ink_input_handle(message, &gestures);
+    for (uint8_t i = 0; i < gestures.count; i++) {
+        const ink_gesture_t *gesture = &gestures.items[i];
+        send_gesture(gesture, s_last_edge_ms);
+        const bool plain_press = gesture->type == INK_GESTURE_TYPE_PRESS && gesture->modifier == INK_GESTURE_MODIFIER_NONE;
+        if (plain_press && gesture->button == INK_GESTURE_BUTTON_A) { step_by_button(true, s_last_edge_ms); }
+        if (plain_press && gesture->button == INK_GESTURE_BUTTON_B) { step_by_button(false, s_last_edge_ms); }
+    }
+}
+
+static void handle_event(const bench_event_message_t *event) {
+    switch (event->type) {
+        case BENCH_EVENT_INPUT:
+            handle_input(&event->input);
+            break;
+        case BENCH_EVENT_SEQUENCE_NEXT:
+            step_sequence();
+            break;
+        case BENCH_EVENT_DRAWN: {
+            bench_drawn_t drawn;
+            bench_draw_from_report(&event->report, &drawn);
+            send_drawn(&drawn);
+            schedule_next_step();
+            break;
+        }
+    }
+    if (uxQueueMessagesWaiting(s_events) == 0) {
+        ink_gesture_output_t gestures;
+        ink_input_on_queue_empty(false, &gestures);
+    }
+}
+
+static void task_main(void *user_data) {
+    (void)user_data;
+    static bench_packet_t packet; /* lớn: không để trên stack */
+    bench_event_message_t event;
+    for (;;) {
+        const QueueSetMemberHandle_t ready = xQueueSelectFromSet(s_queue_set, portMAX_DELAY);
+        if (ready == s_packets && xQueueReceive(s_packets, &packet, 0) == pdTRUE) { handle_packet(&packet); }
+        if (ready == s_events && xQueueReceive(s_events, &event, 0) == pdTRUE) { handle_event(&event); }
+    }
+}
+
+/* ---- Nút ---- */
+
+static void post_input(const ink_input_message_t *message) {
+    const bench_event_message_t event = {.type = BENCH_EVENT_INPUT, .input = *message};
+    xQueueSend(s_events, &event, 0);
+}
+
+static void IRAM_ATTR post_input_from_isr(const ink_input_message_t *message) {
+    const bench_event_message_t event = {.type = BENCH_EVENT_INPUT, .input = *message};
+    BaseType_t                  woken = pdFALSE;
+    xQueueSendFromISR(s_events, &event, &woken);
+    portYIELD_FROM_ISR(woken);
+}
+
+/* ---- Khởi động ---- */
+
+static esp_err_t create_queues(void) {
+    s_packets   = xQueueCreate(PACKET_QUEUE_LENGTH, sizeof(bench_packet_t));
+    s_events    = xQueueCreate(EVENT_QUEUE_LENGTH, sizeof(bench_event_message_t));
+    s_queue_set = xQueueCreateSet(PACKET_QUEUE_LENGTH + EVENT_QUEUE_LENGTH);
+    ESP_RETURN_ON_FALSE(s_packets && s_events && s_queue_set, ESP_ERR_NO_MEM, TAG, "queues");
+    xQueueAddToSet(s_packets, s_queue_set);
+    xQueueAddToSet(s_events, s_queue_set);
+    return ESP_OK;
+}
+
+esp_err_t bench_task_start(bench_path_t path) {
+    s_path = path;
+    ESP_RETURN_ON_ERROR(create_queues(), TAG, "queues");
+    ESP_RETURN_ON_ERROR(bench_link_start(s_packets), TAG, "link");
+
+    const ink_hal_display_device_t *display = nullptr;
+    ESP_RETURN_ON_ERROR(ink_bsp_display(&display), TAG, "display");
+    ESP_RETURN_ON_ERROR(bench_draw_init(path, display, s_events), TAG, "draw");
+    ESP_RETURN_ON_ERROR(ink_platform_timer_create(on_sequence_timer, nullptr, "sequence", &s_sequence_timer), TAG, "timer");
+
+    const ink_hal_button_device_t *buttons      = nullptr;
+    size_t                         button_count = 0;
+    ESP_RETURN_ON_ERROR(ink_bsp_buttons(&buttons, &button_count), TAG, "buttons");
+    ESP_RETURN_ON_ERROR(ink_input_start(buttons, button_count, post_input, post_input_from_isr), TAG, "input");
+
+    const BaseType_t created = xTaskCreate(task_main, "bench", TASK_STACK_BYTES, nullptr, TASK_PRIORITY, nullptr);
+    ESP_RETURN_ON_FALSE(created == pdPASS, ESP_ERR_NO_MEM, TAG, "task");
+    ESP_LOGI(TAG, "đường %s", path == BENCH_PATH_RAW ? "raw" : "pipeline");
+    return ESP_OK;
+}
