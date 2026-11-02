@@ -24,5 +24,38 @@
   },
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
+  },
+  "editor.semanticTokenColorCustomizations": {
+    "[Solarized Light]": {
+      "enabled": true,
+      "rules": {
+        "macro": "#CB4B16",
+        "type": "#B58900",
+        "class": "#B58900",
+        "struct": "#B58900",
+        "enum": "#B58900",
+        "union": "#B58900",
+        "typedef": "#B58900",
+        "enumMember": "#2AA198",
+        "variable": "#268BD2",
+        "variable.readonly": "#2AA198",
+        "parameter": "#268BD2",
+        "function": "#268BD2",
+        "method": "#268BD2",
+        "property": "#268BD2",
+        "concept": "#B58900",
+        "typeParameter": "#B58900",
+        "label": "#859900",
+        "namespace": "#6C71C4",
+        "keyword": "#859900",
+        "operator": "#859900",
+        "number": "#D33682",
+        "string": "#2AA198",
+        "comment": {
+          "foreground": "#93A1A1",
+          "fontStyle": "italic"
+        }
+      }
+    }
   }
 }
