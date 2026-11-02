@@ -59,10 +59,6 @@ export function fillViewRect(frame, orientation, x, y, width, height, white) {
     }
 }
 
-export function invertFrame(frame) {
-    return frame.map((byte) => ~byte & 0xff);
-}
-
 /* Hình chữ nhật trong hướng nhìn → window theo toạ độ panel. */
 export function viewRectToPanel(orientation, rect) {
     const corners = [
