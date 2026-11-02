@@ -596,7 +596,7 @@ function renderChart(drawn) {
     context.scale(ratio, ratio);
     context.clearRect(0, 0, width, height);
     const style = getComputedStyle(document.documentElement);
-    const colors = [style.getPropertyValue('--button-a'), style.getPropertyValue('--accent'), style.getPropertyValue('--selection')];
+    const colors = [style.getPropertyValue('--brand-teal'), style.getPropertyValue('--accent'), style.getPropertyValue('--brand-bronze')];
     const parts = ['spiMs', 'panelMs', 'afterMs'];
     const items = drawn.filter((item) => item.mode !== 'không vẽ');
     const maximum = Math.max(1, ...items.map((item) => parts.reduce((sum, key) => sum + item[key], 0)));
@@ -731,6 +731,29 @@ function renderHistory() {
     );
 }
 
+/* ---- Theme sáng/tối ---- */
+
+const THEME_KEY = 'inkflash-bench-theme';
+
+function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    $('theme-button').textContent = theme === 'dark' ? 'Sáng' : 'Tối';
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* trình duyệt chặn lưu: chỉ mất lựa chọn lần sau */ }
+    /* Canvas không tự đổi màu theo CSS: vẽ lại. */
+    renderImagePreview();
+    renderSlots();
+    renderFrame($('shown-preview'), app.shown.frame, app.orientation, PREVIEW_SCALE, app.shown.window);
+    if (app.run) { renderRun(); }
+}
+
+function setupTheme() {
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* không đọc được thì theo hệ điều hành */ }
+    const prefersDark = globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    applyTheme(saved ?? (prefersDark ? 'dark' : 'light'));
+    $('theme-button').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+}
+
 /* ---- Tab ---- */
 
 function setupTabs() {
@@ -816,7 +839,7 @@ function main() {
     renderTests();
     renderPathControls();
     processImage();
-    renderFrame($('shown-preview'), null, app.orientation, PREVIEW_SCALE);
+    setupTheme();
     loadSampleImages();
     if (!('serial' in navigator)) { log('[web] trình duyệt không có Web Serial: dùng Chrome hoặc Edge, mở qua http://localhost', 'error'); }
     if (FRAME_BYTES !== 12480) { log('[web] cỡ khung lệch firmware', 'error'); }

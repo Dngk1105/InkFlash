@@ -223,6 +223,15 @@ export function frameFromCanvas(orientation, draw) {
 
 /* ---- Xem trước ---- */
 
+/* Màu của biến CSS trên <html> thành [r, g, b]; theme sáng/tối đổi biến nên canvas vẽ lại theo. */
+export function themeColor(name, fallback) {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    const match = /^#([0-9a-f]{6})$/i.exec(value);
+    if (!match) { return fallback; }
+    const number = parseInt(match[1], 16);
+    return [number >> 16, (number >> 8) & 0xff, number & 0xff];
+}
+
 /*
  * Vẽ khung lên canvas theo hướng nhìn, phóng `scale` lần, theo devicePixelRatio để không mờ.
  * panelWindow (toạ độ panel) có thì vẽ khung quanh vùng đó.
@@ -236,12 +245,13 @@ export function renderFrame(canvas, frame, orientation, scale, panelWindow = nul
     canvas.style.height = `${height * scale}px`;
 
     const image = new ImageData(width, height);
-    const ink = [31, 18, 15];
-    const paper = [255, 255, 255];
+    const ink = themeColor('--pixel-black', [31, 29, 26]);
+    const paper = themeColor('--pixel-white', [255, 255, 255]);
+    const empty = themeColor('--pixel-pad', [223, 217, 204]);
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const {column, row} = viewToPanel(orientation, x, y);
-            const color = frame && isWhite(frame, column, row) ? paper : frame ? ink : [235, 220, 226];
+            const color = !frame ? empty : isWhite(frame, column, row) ? paper : ink;
             const index = (y * width + x) * 4;
             image.data.set(color, index);
             image.data[index + 3] = 255;
@@ -258,7 +268,7 @@ export function renderFrame(canvas, frame, orientation, scale, panelWindow = nul
     if (panelWindow && panelWindow.width > 0 && panelWindow.height > 0) {
         const rect = panelRectToView(orientation, panelWindow);
         const pixel = scale * ratio;
-        context.strokeStyle = getComputedStyle(canvas).getPropertyValue('--accent').trim() || '#782239';
+        context.strokeStyle = `rgb(${themeColor('--brand-teal', [40, 126, 132]).join(',')})`;
         context.lineWidth = Math.max(2, ratio * 2);
         context.strokeRect(rect.x * pixel, rect.y * pixel, rect.width * pixel, rect.height * pixel);
     }

@@ -1,7 +1,7 @@
 <!-- Thiết kế: docs/design/display/bench.md -->
 <!-- Trang công cụ test màn: nói chuyện với firmware test qua Web Serial (link.js), xử lý ảnh (frames.js), bài test (tests.js). -->
 <!doctype html>
-<html lang="vi">
+<html lang="vi" data-preset="editorial" data-theme="light">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,11 +10,15 @@
 </head>
 <body>
 <header class="top-bar">
-    <h1>InkFlash · Test màn</h1>
+    <div class="brand-group">
+        <h1>InkFlash — Test màn</h1>
+        <span class="badge brand">Display bench</span>
+    </div>
     <div class="connection">
         <span id="connection-state" class="badge">Chưa kết nối</span>
-        <span id="device-summary" class="muted"></span>
+        <span id="device-summary" class="muted value"></span>
         <button id="connect-button" class="primary">Kết nối</button>
+        <button id="theme-button" title="Đổi sáng/tối">Tối</button>
     </div>
 </header>
 
