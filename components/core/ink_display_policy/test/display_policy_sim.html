@@ -1,0 +1,2151 @@
+<!DOCTYPE html>
+<!-- Thiết kế: docs/design/display/display.md -->
+<!--
+  Mô phỏng ink_display_policy trên trình duyệt với theme Editorial của Archify.
+  Phần "Lõi C23 chép sang JS" giữ nguyên 1:1 tên hàm, tên biến, thứ tự câu lệnh từ ink_display_policy.c.
+  Tab "Host test" chạy lại toàn bộ 15 ca test từ test_ink_display_policy.c.
+-->
+<html lang="vi" data-preset="editorial" data-theme="light">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>InkFlash — Display Policy & Coordinate Simulator</title>
+    <style>
+        /* ==========================================================================
+       ARCHIFY EDITORIAL PRESET THEME (LIGHT & DARK)
+       ========================================================================== */
+        :root,
+        [data-preset="editorial"][data-theme="light"] {
+            --bg: #f2eee5;
+            --grid: #d8d0c2;
+            --panel: #fbf8f1;
+            --panel-strong: #ede6d8;
+            --panel-border: #c4b9a6;
+            --panel-border-soft: #dcd4c5;
+            --lane-fill: rgba(229, 221, 207, 0.42);
+            --lane-stroke: #b8aa94;
+            --text: #242018;
+            --text-muted: #6f6658;
+            --text-dim: #948a79;
+            --text-faint: #b3a998;
+            --mask: #fbf8f1;
+
+            --accent: #9f403d;
+            /* Editorial Terracotta / Crimson */
+            --accent-strong: #7d2a27;
+            --accent-soft: #f4dcdb;
+
+            --brand-teal: #287e84;
+            /* Editorial Teal */
+            --brand-teal-soft: #e0f0f1;
+            --brand-green: #397b53;
+            /* Editorial Forest */
+            --brand-bronze: #9a671f;
+            /* Editorial Ochre/Amber */
+            --brand-purple: #765d86;
+            /* Editorial Muted Purple for Halo */
+            --brand-purple-soft: #ede6f2;
+
+            --window-color: #287e84;
+            --bounds-color: #9f403d;
+            --halo-color: #765d86;
+
+            --pixel-white: #ffffff;
+            --pixel-black: #1f1d1a;
+            --pixel-grid: #e2dbce;
+            --pixel-pad: #dfd9cc;
+
+            --font-serif: "Time News Roman", "Newsreader", "Charter", "Georgia", "Iowan Old Style", serif;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+        }
+
+        [data-preset="editorial"][data-theme="dark"] {
+            --bg: #181611;
+            --grid: #39342a;
+            --panel: #231f18;
+            --panel-strong: #2e2921;
+            --panel-border: #625a4a;
+            --panel-border-soft: #443e33;
+            --lane-fill: rgba(52, 46, 35, 0.46);
+            --lane-stroke: #726957;
+            --text: #f4eddf;
+            --text-muted: #b9ae9b;
+            --text-dim: #776e60;
+            --text-faint: #595246;
+            --mask: #231f18;
+
+            --accent: #cf6662;
+            --accent-strong: #f4eddf;
+            --accent-soft: #382424;
+
+            --brand-teal: #7fc6c7;
+            --brand-teal-soft: #193234;
+            --brand-green: #8fc29e;
+            --brand-bronze: #d8ad68;
+            --brand-purple: #c0a4d0;
+            --brand-purple-soft: #2e2436;
+
+            --window-color: #7fc6c7;
+            --bounds-color: #cf6662;
+            --halo-color: #c0a4d0;
+
+            --pixel-white: #e9e3d5;
+            --pixel-black: #0c0b09;
+            --pixel-grid: #2e2a22;
+            --pixel-pad: #26221b;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
+                repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px, color-mix(in srgb, var(--grid) 38%, transparent) 32px);
+            background-attachment: fixed;
+            color: var(--text);
+            font-family: var(--font-sans);
+            font-size: 13.5px;
+            line-height: 1.45;
+            min-height: 100vh;
+        }
+
+        /* ---- Header Archify Editorial ---- */
+        header.editorial-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px 20px;
+            padding: 12px 24px;
+            background: var(--panel);
+            border-bottom: 2px solid var(--panel-border);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+        }
+
+        h1.editorial-title {
+            margin: 0;
+            font-family: var(--font-serif);
+            font-size: 21px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--accent-strong);
+        }
+
+        .editorial-badge {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            padding: 2px 7px;
+            border-radius: 3px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ---- Tab navigation ---- */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--panel-strong);
+            padding: 3px;
+            border-radius: 4px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .tab-btn {
+            padding: 5px 14px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-sans);
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.15s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+        }
+
+        .tab-btn.active {
+            background: var(--panel);
+            color: var(--accent);
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        }
+
+        /* ---- Theme button ---- */
+        .btn-icon {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            color: var(--text);
+            padding: 5px 11px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .btn-icon:hover {
+            background: var(--panel-strong);
+        }
+
+        /* ---- Main Container ---- */
+        main.editorial-main {
+            max-width: 1480px;
+            margin: 0 auto;
+            padding: 16px 20px 32px;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* ---- Live layout: 3 columns ---- */
+        .live-layout {
+            display: grid;
+            grid-template-columns: 290px minmax(0, 1fr) 340px;
+            gap: 16px;
+            align-items: start;
+        }
+
+        @media (max-width: 1180px) {
+            .live-layout {
+                grid-template-columns: 290px minmax(0, 1fr);
+            }
+
+            .col-decision {
+                grid-column: 1 / -1;
+            }
+        }
+
+        @media (max-width: 860px) {
+            .live-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ---- Editorial Card & Box Style ---- */
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+
+        .card h2 {
+            margin: 0 0 10px 0;
+            font-family: var(--font-serif);
+            font-size: 14.5px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            border-bottom: 1px solid var(--panel-border-soft);
+            padding-bottom: 6px;
+        }
+
+        .card h3 {
+            margin: 10px 0 6px 0;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        /* ---- Form controls ---- */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px 10px;
+            align-items: center;
+            font-size: 12.5px;
+        }
+
+        .form-grid label {
+            color: var(--text-muted);
+        }
+
+        input[type="number"],
+        select {
+            padding: 3px 6px;
+            border: 1px solid var(--panel-border);
+            border-radius: 2px;
+            background: var(--panel);
+            color: var(--text);
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            text-align: right;
+            width: 82px;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: 1px solid var(--accent);
+            border-color: var(--accent);
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 7px 10px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            color: var(--text);
+            font-family: var(--font-sans);
+            font-size: 12.5px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .btn-action:hover {
+            background: var(--panel-strong);
+            border-color: var(--text-muted);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            border-color: var(--accent-strong);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-strong);
+            color: #ffffff;
+        }
+
+        .btn-teal {
+            background: var(--brand-teal);
+            border-color: var(--brand-teal);
+            color: #ffffff;
+        }
+
+        .btn-teal:hover {
+            background: color-mix(in srgb, var(--brand-teal) 85%, black);
+        }
+
+        .btn-group-row {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        /* ---- Status indicators ---- */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 7px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 2px;
+        }
+
+        .status-true {
+            background: var(--brand-teal-soft);
+            color: var(--brand-teal);
+            border: 1px solid var(--brand-teal);
+        }
+
+        .status-false {
+            background: var(--panel-strong);
+            color: var(--text-dim);
+            border: 1px solid var(--panel-border);
+        }
+
+        /* ---- Pixel Matrix View Area ---- */
+        .matrix-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: var(--panel-strong);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+        }
+
+        .mode-radios {
+            display: flex;
+            gap: 14px;
+            font-size: 12.5px;
+            font-weight: 500;
+        }
+
+        .mode-radios label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .matrix-viewport {
+            overflow-x: auto;
+            padding: 8px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            min-height: 280px;
+        }
+
+        /* ---- Coordinate & Pixel Grid Table ---- */
+        .grid-table {
+            border-collapse: collapse;
+            margin: 0 auto;
+            user-select: none;
+        }
+
+        .grid-table th {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: normal;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 2px;
+        }
+
+        .th-byte-header {
+            border-bottom: 1px solid var(--panel-border);
+            background: var(--panel-strong);
+            color: var(--text-muted) !important;
+            font-weight: 600 !important;
+            font-size: 10.5px !important;
+            padding: 4px !important;
+        }
+
+        .th-x-align {
+            color: var(--brand-teal) !important;
+            font-weight: bold !important;
+            border-left: 2px solid var(--brand-teal);
+        }
+
+        .th-row-y {
+            border-right: 1px solid var(--panel-border);
+            background: var(--panel-strong);
+            padding: 0 6px !important;
+            text-align: right;
+            color: var(--text-muted) !important;
+            font-weight: 600 !important;
+        }
+
+        .pixel-cell {
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            border: 1px solid var(--pixel-grid);
+            text-align: center;
+            vertical-align: middle;
+            cursor: pointer;
+            position: relative;
+            font-family: var(--font-mono);
+            font-size: 8.5px;
+            transition: transform 0.05s ease;
+        }
+
+        .pixel-cell:hover {
+            outline: 2px solid var(--accent);
+            z-index: 5;
+        }
+
+        /* Byte boundary */
+        .byte-start {
+            border-left: 2px solid var(--panel-border) !important;
+        }
+
+        /* x_align boundary */
+        .align-boundary {
+            border-left: 2px dashed var(--brand-teal) !important;
+        }
+
+        /* State colors for pixels */
+        .px-white {
+            background: var(--pixel-white);
+            color: #888;
+        }
+
+        .px-black {
+            background: var(--pixel-black);
+            color: #aaa;
+        }
+
+        /* Overlay effects */
+        .px-diff {
+            box-shadow: inset 0 0 0 3px var(--accent);
+        }
+
+        .px-diff::after {
+            content: "Δ";
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 9px;
+            font-weight: bold;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .px-halo {
+            background-color: var(--brand-purple-soft) !important;
+            box-shadow: inset 0 0 0 2px var(--brand-purple);
+        }
+
+        .px-halo::before {
+            content: "⚡";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            font-size: 9px;
+            line-height: 1;
+        }
+
+        .px-pad {
+            background: var(--pixel-pad) !important;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Bounding box and Aligned Window highlights */
+        .in-window {
+            background-color: rgba(40, 126, 132, 0.08);
+        }
+
+        .win-border-top {
+            border-top: 3px solid var(--window-color) !important;
+        }
+
+        .win-border-bottom {
+            border-bottom: 3px solid var(--window-color) !important;
+        }
+
+        .win-border-left {
+            border-left: 3px solid var(--window-color) !important;
+        }
+
+        .win-border-right {
+            border-right: 3px solid var(--window-color) !important;
+        }
+
+        .bounds-border-top {
+            outline-offset: -2px;
+            outline-top: 2px dashed var(--bounds-color);
+        }
+
+        /* ---- Inspector Box ---- */
+        .inspector-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            padding: 10px 14px;
+            margin-top: 14px;
+            font-family: var(--font-mono);
+            font-size: 11.5px;
+        }
+
+        .inspector-title {
+            font-family: var(--font-serif);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .inspector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 6px 12px;
+        }
+
+        .inspector-item span {
+            color: var(--text-dim);
+        }
+
+        /* ---- Decision Result Card ---- */
+        .decision-banner {
+            padding: 16px;
+            border-radius: 3px;
+            border: 2px solid var(--panel-border);
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .decision-banner.mode-full {
+            background: var(--accent-soft);
+            border-color: var(--accent);
+        }
+
+        .decision-banner.mode-full .decision-text {
+            color: var(--accent);
+        }
+
+        .decision-banner.mode-partial {
+            background: var(--brand-teal-soft);
+            border-color: var(--brand-teal);
+        }
+
+        .decision-banner.mode-partial .decision-text {
+            color: var(--brand-teal);
+        }
+
+        .decision-banner.mode-none {
+            background: var(--panel-strong);
+            border-color: var(--panel-border);
+        }
+
+        .decision-banner.mode-none .decision-text {
+            color: var(--text-muted);
+        }
+
+        .decision-text {
+            font-family: var(--font-serif);
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin: 0;
+        }
+
+        .decision-sub {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Policy Rules list */
+        .rules-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 12px;
+        }
+
+        .rule-item {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--panel-border-soft);
+            color: var(--text-dim);
+        }
+
+        .rule-item.active-rule {
+            background: var(--brand-teal-soft);
+            color: var(--brand-teal);
+            font-weight: 600;
+            border-radius: 3px;
+            border: 1px solid var(--brand-teal);
+        }
+
+        .rule-num {
+            font-family: var(--font-mono);
+            font-weight: bold;
+            min-width: 16px;
+        }
+
+        /* ---- Host Test Tab Styles ---- */
+        .test-summary-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            margin-bottom: 16px;
+        }
+
+        .test-count-badge {
+            font-family: var(--font-mono);
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--brand-teal);
+        }
+
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            font-size: 13px;
+        }
+
+        .test-table th {
+            background: var(--panel-strong);
+            border-bottom: 2px solid var(--panel-border);
+            padding: 8px 12px;
+            text-align: left;
+            font-family: var(--font-serif);
+        }
+
+        .test-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--panel-border-soft);
+        }
+
+        .test-pass {
+            color: var(--brand-teal);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .test-fail {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .btn-load-test {
+            padding: 3px 8px;
+            font-size: 11px;
+            font-family: var(--font-sans);
+            background: var(--panel-strong);
+            border: 1px solid var(--panel-border);
+            cursor: pointer;
+            border-radius: 2px;
+        }
+
+        .btn-load-test:hover {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        /* ---- Formula / Explanatory Tab ---- */
+        .doc-section {
+            max-width: 920px;
+            margin: 0 auto;
+        }
+
+        .math-box {
+            background: var(--panel);
+            border-left: 3px solid var(--accent);
+            padding: 10px 16px;
+            margin: 12px 0;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: var(--panel-strong);
+            padding: 1px 5px;
+            border-radius: 2px;
+            font-size: 12px;
+            color: var(--accent-strong);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="editorial-header">
+        <div class="brand-group">
+            <h1 class="editorial-title">InkFlash — ink_display_policy</h1>
+            <span class="editorial-badge">C23 Host Simulator</span>
+        </div>
+
+        <div class="header-controls">
+            <nav class="tabs">
+                <button class="tab-btn active" onclick="switchTab('live')">Ma trận X, Y</button>
+                <button class="tab-btn" onclick="switchTab('tests')">Host Test (15 Ca)</button>
+                <button class="tab-btn" onclick="switchTab('theory')">Nguyên lý X, Y & Halo</button>
+            </nav>
+            <button class="btn-icon" onclick="toggleTheme()" id="themeBtn" title="Đổi sáng/tối">🌓 Light</button>
+        </div>
+    </header>
+
+    <main class="editorial-main">
+
+        <!-- ====================================================================
+         TAB 1: LIVE COORDINATE & PIXEL SIMULATOR
+         ==================================================================== -->
+        <div id="pageLive" class="page active">
+            <div class="live-layout">
+
+                <!-- CỘT TRÁI: CẤU HÌNH & TRẠNG THÁI (290px) -->
+                <div class="col-config">
+
+                    <div class="card">
+                        <h2>Cấu hình (Config)</h2>
+
+                        <div style="margin-bottom: 10px;">
+                            <label
+                                style="font-size: 11.5px; color: var(--text-dim); display: block; margin-bottom: 4px;">Kích
+                                thước mẫu:</label>
+                            <select id="presetSize" onchange="applySizePreset()" style="width: 100%; text-align: left;">
+                                <option value="20x4" selected>20 × 4 điểm (Chuẩn Host Test)</option>
+                                <option value="40x16">40 × 16 điểm (Vẽ ký tự/biểu tượng)</option>
+                                <option value="24x8">24 × 8 điểm (3 byte tròn)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-grid">
+                            <label>Chiều rộng (width):</label>
+                            <input type="number" id="cfgWidth" value="20" min="8" max="120" step="1"
+                                onchange="updateConfig()">
+
+                            <label>Chiều cao (height):</label>
+                            <input type="number" id="cfgHeight" value="4" min="1" max="64" step="1"
+                                onchange="updateConfig()">
+
+                            <label>Căn mép X (x_align):</label>
+                            <input type="number" id="cfgAlign" value="8" min="1" max="16" step="1"
+                                onchange="updateConfig()">
+
+                            <label>Ngưỡng bóng mờ:</label>
+                            <input type="number" id="cfgPartials" value="3" min="1" max="100" onchange="updateConfig()">
+
+                            <label>Vùng đổi tối đa (%):</label>
+                            <input type="number" id="cfgMaxPercent" value="100" min="1" max="100"
+                                onchange="updateConfig()">
+
+                            <label>Nới viền (edge_margin):</label>
+                            <input type="number" id="cfgMargin" value="0" min="0" max="7" onchange="updateConfig()">
+                        </div>
+
+                        <button class="btn-action" onclick="resetToDefaultConfig()">Đặt lại cấu hình gốc</button>
+                    </div>
+
+                    <div class="card">
+                        <h2>Trạng thái nội bộ (priv)</h2>
+                        <div class="form-grid">
+                            <label>Số lần partial:</label>
+                            <span id="stPartialCount" style="font-family: var(--font-mono); font-weight: bold;">0</span>
+
+                            <label>Màn có hình chuẩn (shown_valid):</label>
+                            <span id="stShownValid" class="status-badge status-false">false</span>
+
+                            <label>Vừa thức dậy (after_wake):</label>
+                            <span id="stAfterWake" class="status-badge status-false">false</span>
+                        </div>
+
+                        <h3>Tác vụ mô phỏng</h3>
+                        <button class="btn-action btn-teal" onclick="actionCommit()">Vẽ thành công (Commit shown =
+                            next)</button>
+                        <button class="btn-action" onclick="actionAssumeShown()">assume_shown() (Thức dậy)</button>
+                        <button class="btn-action" onclick="actionInvalidate()">invalidate() (Báo lỗi màn)</button>
+                        <button class="btn-action" onclick="actionResetState()">init() lại từ đầu</button>
+                    </div>
+
+                    <div class="card">
+                        <h2>Mẫu nét vẽ X, Y</h2>
+                        <button class="btn-action" onclick="presetSinglePixel()">1 Điểm giữa byte (x=9, y=1)</button>
+                        <button class="btn-action" onclick="presetCrossByte()">1 Điểm biên byte (x=8, y=1)</button>
+                        <button class="btn-action" onclick="presetScreenEdge()">Điểm mép màn (x=19, y=3)</button>
+                        <button class="btn-action" onclick="presetPaddingBits()">Đổi bit đệm cuối hàng
+                            (Padding)</button>
+                        <button class="btn-action" onclick="presetLetterT()">Vẽ chữ T (Xem quầng viền Halo)</button>
+                        <button class="btn-action" onclick="presetLargeArea()">Vùng lớn 80% (Kích hoạt Full)</button>
+                        <button class="btn-action" onclick="presetInvertNext()">Đảo toàn bộ khung next</button>
+                        <button class="btn-action" onclick="presetClearAll()">Xóa trắng cả 2 khung</button>
+                    </div>
+
+                </div>
+
+                <!-- CỘT GIỮA: MA TRẬN TỌA ĐỘ VÀ PIXEL (FLEX 1) -->
+                <div class="col-matrix">
+
+                    <div class="matrix-toolbar">
+                        <div class="mode-radios">
+                            <label>
+                                <input type="radio" name="editMode" value="next" checked onchange="renderMatrix()">
+                                <span>Vẽ trên <strong>Khung mới (next)</strong></span>
+                            </label>
+                            <label>
+                                <input type="radio" name="editMode" value="shown" onchange="renderMatrix()">
+                                <span>Vẽ trên <strong>Khung hiện (shown)</strong></span>
+                            </label>
+                        </div>
+
+                        <div style="font-size: 12px; color: var(--text-dim); display: flex; gap: 12px;">
+                            <span><span style="color:var(--accent); font-weight:bold;">Δ</span> Khác nhau</span>
+                            <span><span style="color:var(--brand-purple); font-weight:bold;">⚡</span> Quầng Halo</span>
+                            <span><span style="color:var(--brand-teal); font-weight:bold;">■</span> Window</span>
+                        </div>
+                    </div>
+
+                    <div class="matrix-viewport">
+                        <div id="matrixContainer"></div>
+                    </div>
+
+                    <div class="inspector-card">
+                        <div class="inspector-title">Thanh tra Tọa độ (Pixel Inspector)</div>
+                        <div class="inspector-grid" id="inspectorContent">
+                            <div class="inspector-item">Tọa độ: <span id="inspCoord">(di chuột vào ô)</span></div>
+                            <div class="inspector-item">Byte Offset: <span id="inspByte">-</span></div>
+                            <div class="inspector-item">Vị trí Bit: <span id="inspBit">-</span></div>
+                            <div class="inspector-item">Giá trị shown: <span id="inspShown">-</span></div>
+                            <div class="inspector-item">Giá trị next: <span id="inspNext">-</span></div>
+                            <div class="inspector-item">Lệch (diff): <span id="inspDiff">-</span></div>
+                            <div class="inspector-item">Thuộc Halo: <span id="inspHalo">-</span></div>
+                            <div class="inspector-item">Mặt phẳng cũ (out_old): <span id="inspOutOld">-</span></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- CỘT PHẢI: QUYẾT ĐỊNH & PHÂN TÍCH (340px) -->
+                <div class="col-decision">
+
+                    <div id="decisionBanner" class="decision-banner mode-full">
+                        <div
+                            style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 2px;">
+                            Quyết định vẽ (Decide Result)
+                        </div>
+                        <h3 id="decisionModeText" class="decision-text">FULL</h3>
+                        <div id="decisionWindowText" class="decision-sub">window: [x=0, y=0, w=20, h=4]</div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Chi tiết Cửa sổ (Window & Area)</h2>
+                        <div class="form-grid" style="font-size: 12px;">
+                            <label>Bounding box thô (changed):</label>
+                            <span id="txtRawBounds" style="font-family: var(--font-mono); font-weight: bold;">-</span>
+
+                            <label>Window đã căn chỉnh:</label>
+                            <span id="txtAlignedWindow"
+                                style="font-family: var(--font-mono); font-weight: bold; color: var(--brand-teal);">-</span>
+
+                            <label>Diện tích vùng đổi:</label>
+                            <span id="txtWindowArea" style="font-family: var(--font-mono);">-</span>
+
+                            <label>Diện tích toàn màn:</label>
+                            <span id="txtScreenArea" style="font-family: var(--font-mono);">-</span>
+
+                            <label>Tỷ lệ % diện tích:</label>
+                            <span id="txtPercentArea" style="font-family: var(--font-mono); font-weight: bold;">-</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Thứ tự 6 Quy tắc Quyết định</h2>
+                        <ol class="rules-list">
+                            <li id="rule1" class="rule-item">
+                                <span class="rule-num">1.</span>
+                                <span>Màn chưa có khung chuẩn <code>!shown_valid</code> &rarr;
+                                    <strong>FULL</strong></span>
+                            </li>
+                            <li id="rule2" class="rule-item">
+                                <span class="rule-num">2.</span>
+                                <span>Hai khung giống hệt nhau <code>diff == 0</code> &rarr;
+                                    <strong>NONE</strong></span>
+                            </li>
+                            <li id="rule3" class="rule-item">
+                                <span class="rule-num">3.</span>
+                                <span>Vừa thức dậy <code>after_wake</code> &rarr; <strong>PARTIAL cả màn</strong></span>
+                            </li>
+                            <li id="rule4" class="rule-item">
+                                <span class="rule-num">4.</span>
+                                <span>Đã tới ngưỡng bóng mờ <code>count &ge; limit</code> &rarr;
+                                    <strong>FULL</strong></span>
+                            </li>
+                            <li id="rule5" class="rule-item">
+                                <span class="rule-num">5.</span>
+                                <span>Vùng đổi vượt % <code>area &gt; max_%</code> &rarr; <strong>FULL</strong></span>
+                            </li>
+                            <li id="rule6" class="rule-item">
+                                <span class="rule-num">6.</span>
+                                <span>Mặc định: Chỉ quét vùng đổi &rarr; <strong>PARTIAL</strong></span>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="card">
+                        <h2>Mặt phẳng cũ (out_old Hex)</h2>
+                        <div style="font-size: 11.5px; color: var(--text-dim); margin-bottom: 6px;">
+                            Các byte trong window được đảo bit ở vị trí quầng viền (Halo) để controller e-ink quét điện
+                            áp tẩy sạch bóng viền chữ:
+                        </div>
+                        <pre id="hexOutOld"
+                            style="background: var(--panel-strong); border: 1px solid var(--panel-border); padding: 8px; font-family: var(--font-mono); font-size: 11px; margin: 0; overflow-x: auto; max-height: 140px;"></pre>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ====================================================================
+         TAB 2: HOST TESTS (15 Ca kiểm thử C)
+         ==================================================================== -->
+        <div id="pageTests" class="page">
+            <div class="test-summary-bar">
+                <div>
+                    <h2 style="margin: 0 0 4px 0; font-family: var(--font-serif); font-size: 18px;">Toàn bộ Host Test
+                        của ink_display_policy</h2>
+                    <div style="color: var(--text-muted); font-size: 12.5px;">Bản JS chạy cùng logic, cùng biến và cùng
+                        ca test với <code>test_ink_display_policy.c</code></div>
+                </div>
+                <div style="text-align: right;">
+                    <div class="test-count-badge" id="testPassCount">15 / 15 PASS</div>
+                    <button class="btn-action btn-primary" onclick="runAllHostTests()"
+                        style="margin-top: 4px; padding: 4px 12px; font-size: 12px;">Chạy lại kiểm thử</button>
+                </div>
+            </div>
+
+            <table class="test-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th>Tên ca test (theo file C)</th>
+                        <th>Ý nghĩa & Quy ước kiểm tra</th>
+                        <th style="width: 100px;">Kết quả</th>
+                        <th style="width: 160px; text-align: right;">Tác vụ</th>
+                    </tr>
+                </thead>
+                <tbody id="testTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ====================================================================
+         TAB 3: THEORY & FORMULAS (Giải thích nguyên lý X, Y)
+         ==================================================================== -->
+        <div id="pageTheory" class="page">
+            <div class="doc-section card">
+                <h2 style="font-size: 18px; margin-top: 6px;">Toán học Tọa độ X, Y trong Bộ điều khiển E-ink</h2>
+
+                <p>Màn E-ink InkFlash (UC8253, 240 × 416) quản lý bộ nhớ ảnh theo dạng <strong>1 bit mỗi pixel</strong>,
+                    xếp liên tiếp theo hàng ngang từ trái sang phải, từ trên xuống dưới.</p>
+
+                <h3>1. Chuyển đổi giữa Tọa độ (x, y) và Bộ nhớ RAM</h3>
+                <p>Mỗi byte chứa 8 điểm ảnh liên tiếp trên cùng một hàng Y:</p>
+                <div class="math-box">
+                    row_bytes = (width + 7) / 8<br>
+                    offset = y * row_bytes + (x / 8)<br>
+                    pixel_in_byte = x % 8<br>
+                    mask = 0x80 >> pixel_in_byte &nbsp;&nbsp;/* Điểm x=0 nằm ở bit 7 (cao nhất), x=7 ở bit 0 */
+                </div>
+
+                <h3>2. Bỏ qua bit đệm cuối hàng (Padding bits)</h3>
+                <p>Nếu chiều rộng màn không chia hết cho 8 (ví dụ <code>width = 20</code>, cần
+                    <code>(20 + 7) / 8 = 3</code> byte mỗi hàng = 24 bit). Byte thứ 3 chỉ dùng 4 bit (bit 7..4 cho
+                    x=16..19), 4 bit còn lại (bit 3..0) là bit đệm.</p>
+                <p>Hàm <code>diff_byte</code> áp dụng mặt nạ lọc để loại bỏ hoàn toàn các thay đổi ở bit đệm:</p>
+                <div class="math-box">
+                    diff &= (0xFF << (8 - width % 8)); &nbsp;&nbsp;/* Xóa sạch 4 bit đệm cuối hàng */ </div>
+
+                        <h3>3. Căn chỉnh mép X (x_align)</h3>
+                        <p>Phần cứng điều khiển e-ink thường chỉ nhận địa chỉ nạp RAM theo cụm (ví dụ cụm 8 pixel = 1
+                            byte). Nếu vùng đổi có <code>left = 9</code>, <code>right = 11</code>, ta không thể gửi tọa
+                            độ 9 qua SPI mà phải nới ra ngoài:</p>
+                        <div class="math-box">
+                            aligned_left = (left / align) * align;
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Làm tròn xuống bội số của
+                            align (ví dụ 9 &rarr; 8) */<br>
+                            aligned_right = ((right + align - 1) / align) * align; /* Làm tròn lên bội số của align (ví
+                            dụ 11 &rarr; 16) */
+                        </div>
+
+                        <h3>4. Quầng làm sạch viền (Edge Halo Plane)</h3>
+                        <p>Khi vẽ partial, điện trường biên làm các hạt mực xung quanh nét vẽ bị dính cặn (tạo viền bóng
+                            xám). Thuật toán giải quyết bằng cách:</p>
+                        <ol style="padding-left: 20px; line-height: 1.6;">
+                            <li>Nới rộng các điểm đổi sang trái/phải và trên/dưới trong bán kính
+                                <code>edge_margin</code> điểm ảnh (&le; 7).</li>
+                            <li>Tìm các điểm nằm trong bán kính nới nhưng <strong>bản thân nó không hề bị đổi
+                                    màu</strong>:
+                                <div class="math-box">halo = near_change & ~diff_byte;</div>
+                            </li>
+                            <li>Lật ngược bit cũ của các điểm halo này trong bộ đệm <code>out_old</code>:
+                                <div class="math-box">out_old[offset] = shown[offset] ^ halo;</div>
+                            </li>
+                            <li>Khi controller e-ink so sánh <code>out_old</code> và <code>next</code>, nó thấy các điểm
+                                viền này khác nhau nên sẽ phát xung kéo hạt mực về lại đúng màu chuẩn, tẩy sạch bóng
+                                viền mà không cần quét toàn màn hình!</li>
+                        </ol>
+                </div>
+            </div>
+
+    </main>
+
+    <script>
+        /* ==========================================================================
+           LÕI C23 CHÉP SANG JS (1:1 VỚI ink_display_policy.c)
+           ========================================================================== */
+
+        const INK_DISPLAY_POLICY_MAX_EDGE_MARGIN = 7;
+        const INK_DISPLAY_POLICY_OK = 0;
+        const INK_DISPLAY_POLICY_ERROR_ARGUMENT = 1;
+
+        const INK_DISPLAY_POLICY_MODE_NONE = 0;
+        const INK_DISPLAY_POLICY_MODE_PARTIAL = 1;
+        const INK_DISPLAY_POLICY_MODE_FULL = 2;
+
+        function config_valid(config) {
+            return config.width !== 0
+                && config.height !== 0
+                && config.x_align !== 0
+                && config.partials_before_full !== 0
+                && config.max_partial_percent !== 0
+                && config.max_partial_percent <= 100
+                && config.edge_margin <= INK_DISPLAY_POLICY_MAX_EDGE_MARGIN;
+        }
+
+        function ink_display_policy_init(state, config) {
+            if (!state || !config || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+            state.priv = {
+                config: { ...config },
+                partial_count: 0,
+                shown_valid: false,
+                after_wake: false
+            };
+            return INK_DISPLAY_POLICY_OK;
+        }
+
+        function ink_display_policy_invalidate(state) {
+            if (!state || !state.priv) return;
+            state.priv.shown_valid = false;
+            state.priv.after_wake = false;
+        }
+
+        function ink_display_policy_assume_shown(state) {
+            if (!state || !state.priv) return;
+            state.priv.shown_valid = true;
+            state.priv.after_wake = true;
+        }
+
+        function ink_display_policy_set_edge_margin(state, margin) {
+            if (!state || !state.priv || margin > INK_DISPLAY_POLICY_MAX_EDGE_MARGIN) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+            state.priv.config.edge_margin = margin;
+            return INK_DISPLAY_POLICY_OK;
+        }
+
+        function row_bytes(config) {
+            return Math.floor((config.width + 7) / 8);
+        }
+
+        function diff_byte(config, shown, next, y, i) {
+            const rb = row_bytes(config);
+            const offset = y * rb + i;
+            let diff = (shown[offset] ^ next[offset]) & 0xFF;
+            if (i === rb - 1 && (config.width % 8) !== 0) {
+                diff = (diff & ((0xFF << (8 - (config.width % 8))) & 0xFF)) & 0xFF;
+            }
+            return diff;
+        }
+
+        function pixel_bit(pixel) {
+            return (0x80 >> pixel) & 0xFF;
+        }
+
+        function find_changed_bounds(config, shown, next) {
+            const bounds = { left: 0xFFFFFFFF, right: 0, top: 0xFFFFFFFF, bottom: 0 };
+            const rb = row_bytes(config);
+            for (let y = 0; y < config.height; y++) {
+                for (let i = 0; i < rb; i++) {
+                    const diff = diff_byte(config, shown, next, y, i);
+                    if (diff === 0) continue;
+                    for (let pixel = 0; pixel < 8; pixel++) {
+                        if ((diff & pixel_bit(pixel)) === 0) continue;
+                        const x = i * 8 + pixel;
+                        if (x < bounds.left) bounds.left = x;
+                        if (x > bounds.right) bounds.right = x;
+                    }
+                    if (y < bounds.top) bounds.top = y;
+                    bounds.bottom = y;
+                }
+            }
+            if (bounds.top === 0xFFFFFFFF) return null;
+            return bounds;
+        }
+
+        function make_window(config, bounds, margin) {
+            const left = bounds.left > margin ? bounds.left - margin : 0;
+            const top = bounds.top > margin ? bounds.top - margin : 0;
+            let right = bounds.right + margin + 1;
+            let bottom = bounds.bottom + margin + 1;
+            if (bottom > config.height) bottom = config.height;
+
+            const align = config.x_align;
+            const aligned_left = Math.floor(left / align) * align;
+            right = Math.floor((right + align - 1) / align) * align;
+            if (right > config.width) right = config.width;
+            return {
+                x: aligned_left,
+                y: top,
+                width: right - aligned_left,
+                height: bottom - top
+            };
+        }
+
+        function decide_full(state, out_decision) {
+            state.priv.partial_count = 0;
+            state.priv.shown_valid = true;
+            out_decision.mode = INK_DISPLAY_POLICY_MODE_FULL;
+            out_decision.window = { x: 0, y: 0, width: state.priv.config.width, height: state.priv.config.height };
+        }
+
+        function ink_display_policy_decide(state, shown, next, out_decision) {
+            if (!state || !state.priv || !next || !out_decision) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+            if (state.priv.shown_valid && !shown) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+            const config = state.priv.config;
+
+            if (!state.priv.shown_valid) {
+                decide_full(state, out_decision);
+                return INK_DISPLAY_POLICY_OK;
+            }
+            const changed = find_changed_bounds(config, shown, next);
+            if (!changed) {
+                out_decision.mode = INK_DISPLAY_POLICY_MODE_NONE;
+                out_decision.window = { x: 0, y: 0, width: 0, height: 0 };
+                return INK_DISPLAY_POLICY_OK;
+            }
+            if (state.priv.after_wake) {
+                state.priv.after_wake = false;
+                state.priv.partial_count++;
+                out_decision.mode = INK_DISPLAY_POLICY_MODE_PARTIAL;
+                out_decision.window = { x: 0, y: 0, width: config.width, height: config.height };
+                return INK_DISPLAY_POLICY_OK;
+            }
+            const window = make_window(config, changed, config.edge_margin);
+            const changed_area = BigInt(window.width) * BigInt(window.height);
+            const screen_area = BigInt(config.width) * BigInt(config.height);
+            if (state.priv.partial_count >= config.partials_before_full ||
+                changed_area * 100n > screen_area * BigInt(config.max_partial_percent)) {
+                decide_full(state, out_decision);
+                return INK_DISPLAY_POLICY_OK;
+            }
+            state.priv.partial_count++;
+            out_decision.mode = INK_DISPLAY_POLICY_MODE_PARTIAL;
+            out_decision.window = window;
+            return INK_DISPLAY_POLICY_OK;
+        }
+
+        function spread_horizontally(config, shown, next, y, i, margin) {
+            const rb = row_bytes(config);
+            const diff = diff_byte(config, shown, next, y, i);
+            const left = i > 0 ? diff_byte(config, shown, next, y, i - 1) : 0;
+            const right = i + 1 < rb ? diff_byte(config, shown, next, y, i + 1) : 0;
+            let spread = diff;
+            for (let shift = 1; shift <= margin; shift++) {
+                spread |= ((diff << shift) & 0xFF) | (right >> (8 - shift));
+                spread |= (diff >> shift) | ((left << (8 - shift)) & 0xFF);
+                spread &= 0xFF;
+            }
+            return spread;
+        }
+
+        function ink_display_policy_edge_plane(state, shown, next, window, out_old) {
+            if (!state || !state.priv || !shown || !next || !out_old) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+            const config = state.priv.config;
+            if (window.width === 0 || window.height === 0 ||
+                window.x + window.width > config.width ||
+                window.y + window.height > config.height) {
+                return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+            }
+            const margin = config.edge_margin;
+            const first_byte = Math.floor(window.x / 8);
+            const last_byte = Math.floor((window.x + window.width - 1) / 8);
+            const rb = row_bytes(config);
+
+            for (let y = window.y; y < window.y + window.height; y++) {
+                const top = y > margin ? y - margin : 0;
+                const bottom = y + margin < config.height ? y + margin : config.height - 1;
+                for (let i = first_byte; i <= last_byte; i++) {
+                    let near_change = 0;
+                    for (let row = top; row <= bottom; row++) {
+                        near_change = (near_change | spread_horizontally(config, shown, next, row, i, margin)) & 0xFF;
+                    }
+                    const halo = (near_change & (~diff_byte(config, shown, next, y, i) & 0xFF)) & 0xFF;
+                    out_old[y * rb + i] = (shown[y * rb + i] ^ halo) & 0xFF;
+                }
+            }
+            return INK_DISPLAY_POLICY_OK;
+        }
+
+        /* ==========================================================================
+           INTERACTIVE APPLICATION STATE & CONTROLLER
+           ========================================================================== */
+
+        let g_config = {
+            width: 20,
+            height: 4,
+            x_align: 8,
+            partials_before_full: 3,
+            max_partial_percent: 100,
+            edge_margin: 0
+        };
+
+        let g_state = {};
+        let g_shown = new Uint8Array(0);
+        let g_next = new Uint8Array(0);
+        let g_old = new Uint8Array(0);
+
+        let g_currentDecision = { mode: INK_DISPLAY_POLICY_MODE_FULL, window: { x: 0, y: 0, width: 0, height: 0 } };
+        let g_rawBounds = null;
+        let g_activeRule = 1;
+
+        function allocateBuffers() {
+            const size = row_bytes(g_config) * g_config.height;
+            g_shown = new Uint8Array(size);
+            g_next = new Uint8Array(size);
+            g_old = new Uint8Array(size);
+            g_shown.fill(0xFF);
+            g_next.fill(0xFF);
+            g_old.fill(0xAA);
+        }
+
+        function initSimulator() {
+            allocateBuffers();
+            ink_display_policy_init(g_state, g_config);
+            // Sau init, màn chưa có shown_valid, decide lần đầu để nạp shown
+            g_state.priv.shown_valid = true;
+            updateSimulation();
+        }
+
+        function getPixel(frame, x, y) {
+            const rb = row_bytes(g_config);
+            const offset = y * rb + Math.floor(x / 8);
+            const mask = 0x80 >> (x % 8);
+            return (frame[offset] & mask) !== 0 ? 1 : 0;
+        }
+
+        function togglePixel(frame, x, y) {
+            const rb = row_bytes(g_config);
+            const offset = y * rb + Math.floor(x / 8);
+            const mask = 0x80 >> (x % 8);
+            frame[offset] ^= mask;
+        }
+
+        function setPixelVal(frame, x, y, val) {
+            const rb = row_bytes(g_config);
+            const offset = y * rb + Math.floor(x / 8);
+            const mask = 0x80 >> (x % 8);
+            if (val === 1) {
+                frame[offset] |= mask;
+            } else {
+                frame[offset] &= (~mask) & 0xFF;
+            }
+        }
+
+        function updateSimulation() {
+            // 1. Phân tích luật quyết định
+            const config = g_state.priv.config;
+            g_rawBounds = find_changed_bounds(config, g_shown, g_next);
+
+            if (!g_state.priv.shown_valid) {
+                g_activeRule = 1;
+            } else if (!g_rawBounds) {
+                g_activeRule = 2;
+            } else if (g_state.priv.after_wake) {
+                g_activeRule = 3;
+            } else {
+                const win = make_window(config, g_rawBounds, config.edge_margin);
+                const changed_area = BigInt(win.width) * BigInt(win.height);
+                const screen_area = BigInt(config.width) * BigInt(config.height);
+                if (g_state.priv.partial_count >= config.partials_before_full) {
+                    g_activeRule = 4;
+                } else if (changed_area * 100n > screen_area * BigInt(config.max_partial_percent)) {
+                    g_activeRule = 5;
+                } else {
+                    g_activeRule = 6;
+                }
+            }
+
+            // 2. Chạy quyết định thực tế (clone state để không làm biến dạng count khi render)
+            const backupState = {
+                priv: {
+                    config: { ...g_state.priv.config },
+                    partial_count: g_state.priv.partial_count,
+                    shown_valid: g_state.priv.shown_valid,
+                    after_wake: g_state.priv.after_wake
+                }
+            };
+            const dec = {};
+            ink_display_policy_decide(backupState, g_shown, g_next, dec);
+            g_currentDecision = dec;
+
+            // 3. Tính toán out_old nếu mode = PARTIAL
+            g_old.fill(0xAA);
+            if (dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL && dec.window.width > 0) {
+                ink_display_policy_edge_plane(g_state, g_shown, g_next, dec.window, g_old);
+            }
+
+            renderUI();
+        }
+
+        function renderUI() {
+            // Cập nhật trạng thái
+            document.getElementById("stPartialCount").textContent = g_state.priv.partial_count + " / " + g_config.partials_before_full;
+
+            const elShown = document.getElementById("stShownValid");
+            elShown.textContent = g_state.priv.shown_valid ? "true" : "false";
+            elShown.className = "status-badge " + (g_state.priv.shown_valid ? "status-true" : "status-false");
+
+            const elWake = document.getElementById("stAfterWake");
+            elWake.textContent = g_state.priv.after_wake ? "true" : "false";
+            elWake.className = "status-badge " + (g_state.priv.after_wake ? "status-true" : "status-false");
+
+            // Banner Quyết định
+            const banner = document.getElementById("decisionBanner");
+            const modeText = document.getElementById("decisionModeText");
+            const winText = document.getElementById("decisionWindowText");
+
+            if (g_currentDecision.mode === INK_DISPLAY_POLICY_MODE_FULL) {
+                banner.className = "decision-banner mode-full";
+                modeText.textContent = "FULL REFRESH";
+            } else if (g_currentDecision.mode === INK_DISPLAY_POLICY_MODE_PARTIAL) {
+                banner.className = "decision-banner mode-partial";
+                modeText.textContent = "PARTIAL REFRESH";
+            } else {
+                banner.className = "decision-banner mode-none";
+                modeText.textContent = "NONE (KHÔNG VẼ)";
+            }
+            const win = g_currentDecision.window || { x: 0, y: 0, width: 0, height: 0 };
+            winText.textContent = `window: [x=${win.x}, y=${win.y}, w=${win.width}, h=${win.height}]`;
+
+            // Cửa sổ & diện tích
+            if (g_rawBounds) {
+                document.getElementById("txtRawBounds").textContent = `[L=${g_rawBounds.left}, R=${g_rawBounds.right}, T=${g_rawBounds.top}, B=${g_rawBounds.bottom}]`;
+            } else {
+                document.getElementById("txtRawBounds").textContent = "Không đổi";
+            }
+
+            document.getElementById("txtAlignedWindow").textContent = `[x=${win.x}, y=${win.y}, w=${win.width}, h=${win.height}]`;
+            const winArea = win.width * win.height;
+            const scrArea = g_config.width * g_config.height;
+            const pct = scrArea > 0 ? ((winArea / scrArea) * 100).toFixed(1) : "0";
+            document.getElementById("txtWindowArea").textContent = `${winArea} pixel`;
+            document.getElementById("txtScreenArea").textContent = `${scrArea} pixel`;
+            document.getElementById("txtPercentArea").textContent = `${pct} %`;
+
+            // Highlight quy tắc
+            for (let r = 1; r <= 6; r++) {
+                const elRule = document.getElementById("rule" + r);
+                if (elRule) {
+                    elRule.className = "rule-item" + (r === g_activeRule ? " active-rule" : "");
+                }
+            }
+
+            // Hex out_old
+            const rb = row_bytes(g_config);
+            let hexStr = "";
+            for (let y = 0; y < g_config.height; y++) {
+                hexStr += `Hàng ${y.toString().padStart(2, "0")}: `;
+                for (let i = 0; i < rb; i++) {
+                    const b = g_old[y * rb + i];
+                    hexStr += b.toString(16).padStart(2, "0").toUpperCase() + " ";
+                }
+                hexStr += "\n";
+            }
+            document.getElementById("hexOutOld").textContent = hexStr;
+
+            // Vẽ ma trận
+            renderMatrix();
+        }
+
+        function renderMatrix() {
+            const container = document.getElementById("matrixContainer");
+            const editMode = document.querySelector('input[name="editMode"]:checked').value;
+            const activeFrame = editMode === "shown" ? g_shown : g_next;
+            const rb = row_bytes(g_config);
+            const win = g_currentDecision.window || { x: 0, y: 0, width: 0, height: 0 };
+
+            let html = `<table class="grid-table">`;
+
+            // Hàng 1: Đánh dấu Byte (Byte 0, Byte 1...)
+            html += `<tr><th class="th-row-y" rowspan="2">Y \\ X</th>`;
+            for (let b = 0; b < rb; b++) {
+                const colsInByte = Math.min(8, g_config.width - b * 8);
+                const padCols = 8 - colsInByte;
+                html += `<th colspan="8" class="th-byte-header byte-start">BYTE ${b} (offset: +${b})</th>`;
+            }
+            html += `</tr>`;
+
+            // Hàng 2: Tọa độ X (0..width-1) + bit index (7..0)
+            html += `<tr>`;
+            for (let b = 0; b < rb; b++) {
+                for (let bit = 0; bit < 8; bit++) {
+                    const x = b * 8 + bit;
+                    const isPad = x >= g_config.width;
+                    const isAlign = !isPad && (x % g_config.x_align === 0);
+                    let cls = bit === 0 ? "byte-start" : "";
+                    if (isAlign) cls += " th-x-align";
+
+                    if (isPad) {
+                        html += `<th class="${cls}" style="opacity:0.35;">x${x}<br><span style="font-size:8px;">b${7 - bit}</span></th>`;
+                    } else {
+                        html += `<th class="${cls}">x${x}<br><span style="font-size:8px;">b${7 - bit}</span></th>`;
+                    }
+                }
+            }
+            html += `</tr>`;
+
+            // Các hàng dữ liệu (Hàng Y)
+            for (let y = 0; y < g_config.height; y++) {
+                html += `<tr>`;
+                html += `<th class="th-row-y">y=${y}</th>`;
+
+                for (let b = 0; b < rb; b++) {
+                    const diffByteVal = diff_byte(g_config, g_shown, g_next, y, b);
+
+                    for (let bit = 0; bit < 8; bit++) {
+                        const x = b * 8 + bit;
+                        const isPad = x >= g_config.width;
+                        const isByteStart = bit === 0;
+                        const isAlignBoundary = !isPad && (x % g_config.x_align === 0) && (x > 0);
+
+                        if (isPad) {
+                            html += `<td class="pixel-cell px-pad ${isByteStart ? 'byte-start' : ''}" title="Bit đệm cuối hàng (bị diff_byte bỏ qua)">-</td>`;
+                            continue;
+                        }
+
+                        const pxVal = getPixel(activeFrame, x, y);
+                        const isDiff = (diffByteVal & pixel_bit(bit)) !== 0;
+
+                        // Kiểm tra có nằm trong window không
+                        const inWin = (win.width > 0) &&
+                            (x >= win.x && x < win.x + win.width) &&
+                            (y >= win.y && y < win.y + win.height);
+
+                        // Đường biên của window
+                        let winBorder = "";
+                        if (inWin) {
+                            if (y === win.y) winBorder += " win-border-top";
+                            if (y === win.y + win.height - 1) winBorder += " win-border-bottom";
+                            if (x === win.x) winBorder += " win-border-left";
+                            if (x === win.x + win.width - 1) winBorder += " win-border-right";
+                        }
+
+                        // Kiểm tra có phải halo không
+                        let isHalo = false;
+                        if (inWin && !isDiff) {
+                            // Xem trong out_old bit có bị đảo so với shown không
+                            const shownBit = getPixel(g_shown, x, y);
+                            const oldBit = (g_old[y * rb + b] & pixel_bit(bit)) !== 0 ? 1 : 0;
+                            if (oldBit !== shownBit) {
+                                isHalo = true;
+                            }
+                        }
+
+                        let classes = "pixel-cell";
+                        classes += pxVal === 1 ? " px-white" : " px-black";
+                        if (isByteStart) classes += " byte-start";
+                        if (isAlignBoundary) classes += " align-boundary";
+                        if (isDiff) classes += " px-diff";
+                        if (isHalo) classes += " px-halo";
+                        if (inWin) classes += " in-window";
+                        classes += winBorder;
+
+                        html += `<td class="${classes}"
+                             onclick="onPixelClick(${x}, ${y})"
+                             onmouseenter="onPixelHover(${x}, ${y})"></td>`;
+                    }
+                }
+                html += `</tr>`;
+            }
+
+            html += `</table>`;
+            container.innerHTML = html;
+        }
+
+        function onPixelClick(x, y) {
+            const editMode = document.querySelector('input[name="editMode"]:checked').value;
+            const activeFrame = editMode === "shown" ? g_shown : g_next;
+            togglePixel(activeFrame, x, y);
+            updateSimulation();
+            onPixelHover(x, y);
+        }
+
+        function onPixelHover(x, y) {
+            const rb = row_bytes(g_config);
+            const byteIdx = Math.floor(x / 8);
+            const bitPos = 7 - (x % 8);
+            const offset = y * rb + byteIdx;
+
+            const shownVal = getPixel(g_shown, x, y);
+            const nextVal = getPixel(g_next, x, y);
+            const isDiff = shownVal !== nextVal;
+
+            const oldByte = g_old[offset];
+            const oldBit = (oldByte & pixel_bit(x % 8)) !== 0 ? 1 : 0;
+            const isHalo = isDiff ? false : (oldBit !== shownVal);
+
+            document.getElementById("inspCoord").textContent = `(${x}, ${y})`;
+            document.getElementById("inspByte").textContent = `byte ${byteIdx} (offset ${offset})`;
+            document.getElementById("inspBit").textContent = `bit ${bitPos} (mask 0x${pixel_bit(x % 8).toString(16).toUpperCase()})`;
+            document.getElementById("inspShown").textContent = shownVal === 1 ? "1 (Trắng)" : "0 (Đen)";
+            document.getElementById("inspNext").textContent = nextVal === 1 ? "1 (Trắng)" : "0 (Đen)";
+            document.getElementById("inspDiff").textContent = isDiff ? "1 (CÓ ĐỔI)" : "0";
+            document.getElementById("inspHalo").textContent = isHalo ? "⚡ CÓ (Lật bit viền)" : "Không";
+            document.getElementById("inspOutOld").textContent = `${oldBit} (Hex: 0x${oldByte.toString(16).toUpperCase()})`;
+        }
+
+        /* ==========================================================================
+           TÁC VỤ VÀ NÚT ĐIỀU KHIỂN
+           ========================================================================== */
+
+        function actionCommit() {
+            // Mô phỏng 1 chu kỳ vẽ màn thành công
+            const dec = {};
+            ink_display_policy_decide(g_state, g_shown, g_next, dec);
+            g_shown.set(g_next);
+            updateSimulation();
+        }
+
+        function actionAssumeShown() {
+            ink_display_policy_assume_shown(g_state);
+            updateSimulation();
+        }
+
+        function actionInvalidate() {
+            ink_display_policy_invalidate(g_state);
+            updateSimulation();
+        }
+
+        function actionResetState() {
+            ink_display_policy_init(g_state, g_config);
+            g_state.priv.shown_valid = true;
+            updateSimulation();
+        }
+
+        function updateConfig() {
+            const w = parseInt(document.getElementById("cfgWidth").value, 10);
+            const h = parseInt(document.getElementById("cfgHeight").value, 10);
+            const align = parseInt(document.getElementById("cfgAlign").value, 10);
+            const part = parseInt(document.getElementById("cfgPartials").value, 10);
+            const maxPct = parseInt(document.getElementById("cfgMaxPercent").value, 10);
+            const margin = parseInt(document.getElementById("cfgMargin").value, 10);
+
+            const newCfg = {
+                width: w,
+                height: h,
+                x_align: align,
+                partials_before_full: part,
+                max_partial_percent: maxPct,
+                edge_margin: margin
+            };
+
+            if (config_valid(newCfg)) {
+                g_config = newCfg;
+                initSimulator();
+            } else {
+                alert("Cấu hình không hợp lệ theo quy ước!");
+            }
+        }
+
+        function resetToDefaultConfig() {
+            g_config = {
+                width: 20,
+                height: 4,
+                x_align: 8,
+                partials_before_full: 3,
+                max_partial_percent: 100,
+                edge_margin: 0
+            };
+            syncConfigInputs();
+            initSimulator();
+        }
+
+        function syncConfigInputs() {
+            document.getElementById("cfgWidth").value = g_config.width;
+            document.getElementById("cfgHeight").value = g_config.height;
+            document.getElementById("cfgAlign").value = g_config.x_align;
+            document.getElementById("cfgPartials").value = g_config.partials_before_full;
+            document.getElementById("cfgMaxPercent").value = g_config.max_partial_percent;
+            document.getElementById("cfgMargin").value = g_config.edge_margin;
+        }
+
+        function applySizePreset() {
+            const val = document.getElementById("presetSize").value;
+            if (val === "20x4") {
+                g_config.width = 20; g_config.height = 4; g_config.x_align = 8;
+            } else if (val === "40x16") {
+                g_config.width = 40; g_config.height = 16; g_config.x_align = 8;
+            } else if (val === "24x8") {
+                g_config.width = 24; g_config.height = 8; g_config.x_align = 8;
+            }
+            syncConfigInputs();
+            initSimulator();
+        }
+
+        /* ==========================================================================
+           PRESET MẪU VẼ X, Y
+           ========================================================================== */
+
+        function presetClearAll() {
+            g_shown.fill(0xFF);
+            g_next.fill(0xFF);
+            updateSimulation();
+        }
+
+        function presetSinglePixel() {
+            presetClearAll();
+            setPixelVal(g_next, 9, 1, 0); // Đen tại (9, 1)
+            g_config.edge_margin = 0;
+            syncConfigInputs();
+            ink_display_policy_set_edge_margin(g_state, 0);
+            updateSimulation();
+        }
+
+        function presetCrossByte() {
+            presetClearAll();
+            setPixelVal(g_next, 8, 1, 0); // Đen tại (8, 1) - mép trái byte 1
+            g_config.edge_margin = 1;
+            syncConfigInputs();
+            ink_display_policy_set_edge_margin(g_state, 1);
+            updateSimulation();
+        }
+
+        function presetScreenEdge() {
+            presetClearAll();
+            setPixelVal(g_next, g_config.width - 1, g_config.height - 1, 0);
+            updateSimulation();
+        }
+
+        function presetPaddingBits() {
+            presetClearAll();
+            const rb = row_bytes(g_config);
+            // Đảo 4 bit đệm cuối hàng 0
+            g_next[rb - 1] = 0xF0;
+            updateSimulation();
+        }
+
+        function presetLetterT() {
+            presetClearAll();
+            // Vẽ chữ T tại (8..12, 1) và (10, 2..3)
+            for (let x = 7; x <= 11; x++) { setPixelVal(g_next, x, 1, 0); }
+            setPixelVal(g_next, 9, 2, 0);
+            if (g_config.height > 3) setPixelVal(g_next, 9, 3, 0);
+            g_config.edge_margin = 1;
+            syncConfigInputs();
+            ink_display_policy_set_edge_margin(g_state, 1);
+            updateSimulation();
+        }
+
+        function presetLargeArea() {
+            presetClearAll();
+            g_config.max_partial_percent = 50;
+            syncConfigInputs();
+            g_state.priv.config.max_partial_percent = 50;
+            // Đổi 80% màn hình
+            const limitX = Math.floor(g_config.width * 0.8);
+            for (let y = 0; y < g_config.height; y++) {
+                for (let x = 0; x < limitX; x++) {
+                    setPixelVal(g_next, x, y, 0);
+                }
+            }
+            updateSimulation();
+        }
+
+        function presetInvertNext() {
+            const size = row_bytes(g_config) * g_config.height;
+            for (let i = 0; i < size; i++) {
+                g_next[i] ^= 0xFF;
+            }
+            updateSimulation();
+        }
+
+        /* ==========================================================================
+           HOST TEST RUNNER (15 CA TỪ test_ink_display_policy.c)
+           ========================================================================== */
+
+        const HOST_TEST_CASES = [
+            {
+                name: "test_init_rejects_bad_config",
+                desc: "Từ chối nullptr, width/height=0, x_align=0, partials=0, max_percent>100, edge_margin>7",
+                fn: function () {
+                    const st = {};
+                    let cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    if (ink_display_policy_init(null, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    if (ink_display_policy_init(st, null) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    cfg.x_align = 0;
+                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 0, max_partial_percent: 100, edge_margin: 0 };
+                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    cfg.partials_before_full = 3; cfg.max_partial_percent = 101;
+                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    cfg.max_partial_percent = 100; cfg.edge_margin = INK_DISPLAY_POLICY_MAX_EDGE_MARGIN + 1;
+                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    return true;
+                }
+            },
+            {
+                name: "test_first_decide_is_full_screen",
+                desc: "Khởi động nguội (lần đầu decide) luôn luôn là FULL quét cả màn hình",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const next = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    if (ink_display_policy_decide(st, null, next, dec) !== INK_DISPLAY_POLICY_OK) return false;
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL &&
+                        dec.window.x === 0 && dec.window.y === 0 &&
+                        dec.window.width === 20 && dec.window.height === 4;
+                }
+            },
+            {
+                name: "test_decide_rejects_missing_shown",
+                desc: "Từ chối con trỏ nullptr khi màn hình đang có khung hiện chuẩn",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    ink_display_policy_decide(st, null, buf, dec); // lần 1: set shown_valid = true
+                    if (ink_display_policy_decide(st, null, buf, dec) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    if (ink_display_policy_decide(st, buf, null, dec) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
+                    return true;
+                }
+            },
+            {
+                name: "test_same_frame_is_none",
+                desc: "Hai khung giống hệt nhau trả về mode NONE (không vẽ)",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    ink_display_policy_decide(st, null, buf, dec);
+                    ink_display_policy_decide(st, buf, buf, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_NONE;
+                }
+            },
+            {
+                name: "test_padding_bits_are_ignored",
+                desc: "Bỏ qua các bit đệm cuối hàng ngoài phạm vi width",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[row_bytes(cfg) - 1] = 0xF0; // đổi 4 bit đệm sau điểm x=19
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_NONE;
+                }
+            },
+            {
+                name: "test_partial_window_is_aligned_outward",
+                desc: "Căn mép X ra ngoài theo bội số của x_align (x 9..10 &rarr; x=8, w=8)",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
+                    next[2 * 3 + 1] &= ~(0x80 >> 2); // x=10, y=2
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
+                        dec.window.x === 8 && dec.window.y === 1 &&
+                        dec.window.width === 8 && dec.window.height === 2;
+                }
+            },
+            {
+                name: "test_aligned_window_stops_at_screen_edge",
+                desc: "Cửa sổ căn chỉnh không vượt quá chiều rộng màn hình (x=19 &rarr; x=16, w=4)",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[3 * 3 + 2] &= ~(0x80 >> 3); // x=19, y=3
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
+                        dec.window.x === 16 && dec.window.width === 4;
+                }
+            },
+            {
+                name: "test_full_after_partial_threshold",
+                desc: "Kích hoạt FULL sau khi vượt ngưỡng partials_before_full liên tiếp",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    for (let i = 0; i < 3; i++) {
+                        next[0] ^= 0x80;
+                        ink_display_policy_decide(st, shown, next, dec);
+                        if (dec.mode !== INK_DISPLAY_POLICY_MODE_PARTIAL) return false;
+                        shown.set(next);
+                    }
+                    next[0] ^= 0x80;
+                    ink_display_policy_decide(st, shown, next, dec);
+                    if (dec.mode !== INK_DISPLAY_POLICY_MODE_FULL) return false;
+                    shown.set(next);
+                    next[0] ^= 0x80;
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL;
+                }
+            },
+            {
+                name: "test_full_when_window_too_large",
+                desc: "Kích hoạt FULL khi diện tích cửa sổ đổi vượt max_partial_percent",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 50, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[0] &= ~0x80; // x=0, y=0
+                    next[3 * 3 + 1] &= ~0x80; // x=8, y=3 -> vùng 16x4 = 80% màn
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL;
+                }
+            },
+            {
+                name: "test_invalidate_forces_full",
+                desc: "invalidate() buộc lần vẽ tiếp theo phải là FULL",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    ink_display_policy_decide(st, null, buf, dec);
+                    ink_display_policy_invalidate(st);
+                    ink_display_policy_decide(st, null, buf, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL;
+                }
+            },
+            {
+                name: "test_after_wake_partial_full_screen_once",
+                desc: "assume_shown() sau wake-up vẽ partial cả màn hình đúng 1 lần",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    ink_display_policy_assume_shown(st);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
+                    ink_display_policy_decide(st, shown, next, dec);
+                    if (dec.mode !== INK_DISPLAY_POLICY_MODE_PARTIAL || dec.window.width !== 20 || dec.window.height !== 4) return false;
+                    shown.set(next);
+                    next[3 * 3 + 0] &= ~0x80; // x=0, y=3
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL && dec.window.height === 1;
+                }
+            },
+            {
+                name: "test_edge_margin_widens_window",
+                desc: "edge_margin nới rộng cửa sổ window sang các chiều",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
+                    ink_display_policy_decide(st, shown, next, dec);
+                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
+                        dec.window.x === 8 && dec.window.y === 0 &&
+                        dec.window.width === 8 && dec.window.height === 3;
+                }
+            },
+            {
+                name: "test_edge_plane_flips_neighbours",
+                desc: "Lật bit các điểm lân cận trong bán kính margin để tạo quầng viền Halo",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    const old = new Uint8Array(shown.length).fill(0xAA);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
+                    ink_display_policy_decide(st, shown, next, dec);
+                    if (ink_display_policy_edge_plane(st, shown, next, dec.window, old) !== INK_DISPLAY_POLICY_OK) return false;
+                    return old[0 * 3 + 1] === 0x1F &&
+                        old[1 * 3 + 1] === 0x5F &&
+                        old[2 * 3 + 1] === 0x1F &&
+                        old[3 * 3 + 1] === 0xAA &&
+                        old[0] === 0xAA;
+                }
+            },
+            {
+                name: "test_edge_plane_crosses_byte",
+                desc: "Nới viền vượt qua biên giới byte (từ byte 1 lan sang byte 0)",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
+                    ink_display_policy_init(st, cfg);
+                    const dec = {};
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const next = new Uint8Array(shown);
+                    const old = new Uint8Array(shown.length).fill(0xAA);
+                    ink_display_policy_decide(st, null, shown, dec);
+                    next[1 * 3 + 1] &= ~0x80; // x=8, y=1 (điểm đầu byte 1)
+                    ink_display_policy_decide(st, shown, next, dec);
+                    if (dec.window.x !== 0) return false;
+                    if (ink_display_policy_edge_plane(st, shown, next, dec.window, old) !== INK_DISPLAY_POLICY_OK) return false;
+                    return old[1 * 3 + 0] === 0xFE; // bit 0 của byte 0 bị đảo thành 0
+                }
+            },
+            {
+                name: "test_edge_plane_rejects_window_outside",
+                desc: "Từ chối cửa sổ window vượt ra ngoài phạm vi màn hình",
+                fn: function () {
+                    const st = {};
+                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
+                    ink_display_policy_init(st, cfg);
+                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
+                    const old = new Uint8Array(shown.length).fill(0xAA);
+                    const win = { x: 16, y: 0, width: 8, height: 1 }; // 16 + 8 = 24 > width 20
+                    return ink_display_policy_edge_plane(st, shown, shown, win, old) === INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+                }
+            }
+        ];
+
+        function runAllHostTests() {
+            const tbody = document.getElementById("testTableBody");
+            tbody.innerHTML = "";
+            let passCount = 0;
+
+            HOST_TEST_CASES.forEach((tc, idx) => {
+                let ok = false;
+                try {
+                    ok = tc.fn();
+                } catch (e) {
+                    ok = false;
+                }
+                if (ok) passCount++;
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+            <td style="font-family: var(--font-mono); color: var(--text-dim);">${idx + 1}</td>
+            <td style="font-family: var(--font-mono); font-weight: 600;">${tc.name}</td>
+            <td style="color: var(--text-muted);">${tc.desc}</td>
+            <td class="${ok ? 'test-pass' : 'test-fail'}">${ok ? '✓ PASS' : '✗ FAIL'}</td>
+            <td style="text-align: right;">
+                <button class="btn-load-test" onclick="loadTestCaseIntoSim(${idx})">Nạp vào ma trận</button>
+            </td>
+        `;
+                tbody.appendChild(tr);
+            });
+
+            const badge = document.getElementById("testPassCount");
+            badge.textContent = `${passCount} / ${HOST_TEST_CASES.length} PASS`;
+            badge.style.color = passCount === HOST_TEST_CASES.length ? "var(--brand-teal)" : "var(--accent)";
+        }
+
+        function loadTestCaseIntoSim(idx) {
+            switchTab('live');
+            resetToDefaultConfig();
+
+            // Tùy theo index ca test, tái hiện trạng thái của ca test đó
+            if (idx === 5) { // test_partial_window_is_aligned_outward
+                setPixelVal(g_next, 9, 1, 0);
+                setPixelVal(g_next, 10, 2, 0);
+            } else if (idx === 6) { // test_aligned_window_stops_at_screen_edge
+                setPixelVal(g_next, 19, 3, 0);
+            } else if (idx === 8) { // test_full_when_window_too_large
+                presetLargeArea();
+                return;
+            } else if (idx === 10) { // test_after_wake_partial_full_screen_once
+                actionAssumeShown();
+                setPixelVal(g_next, 9, 1, 0);
+            } else if (idx === 11) { // test_edge_margin_widens_window
+                g_config.edge_margin = 1;
+                syncConfigInputs();
+                ink_display_policy_set_edge_margin(g_state, 1);
+                setPixelVal(g_next, 9, 1, 0);
+            } else if (idx === 12) { // test_edge_plane_flips_neighbours
+                g_config.edge_margin = 1;
+                syncConfigInputs();
+                ink_display_policy_set_edge_margin(g_state, 1);
+                setPixelVal(g_next, 9, 1, 0);
+            } else if (idx === 13) { // test_edge_plane_crosses_byte
+                g_config.edge_margin = 1;
+                syncConfigInputs();
+                ink_display_policy_set_edge_margin(g_state, 1);
+                setPixelVal(g_next, 8, 1, 0);
+            } else {
+                presetSinglePixel();
+                return;
+            }
+            updateSimulation();
+        }
+
+        /* ==========================================================================
+           GIAO DIỆN CHUNG & KHỞI CHẠY
+           ========================================================================== */
+
+        function switchTab(tabId) {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+
+            if (tabId === 'live') {
+                document.querySelectorAll(".tab-btn")[0].classList.add("active");
+                document.getElementById("pageLive").classList.add("active");
+            } else if (tabId === 'tests') {
+                document.querySelectorAll(".tab-btn")[1].classList.add("active");
+                document.getElementById("pageTests").classList.add("active");
+                runAllHostTests();
+            } else if (tabId === 'theory') {
+                document.querySelectorAll(".tab-btn")[2].classList.add("active");
+                document.getElementById("pageTheory").classList.add("active");
+            }
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute("data-theme") || "light";
+            const nextTheme = currentTheme === "light" ? "dark" : "light";
+            html.setAttribute("data-theme", nextTheme);
+            document.getElementById("themeBtn").textContent = nextTheme === "light" ? "🌓 Light" : "🌔 Dark";
+        }
+
+        // Khởi chạy khi nạp trang
+        window.addEventListener("DOMContentLoaded", () => {
+            initSimulator();
+            runAllHostTests();
+        });
+    </script>
+
+</body>
+
+</html>
