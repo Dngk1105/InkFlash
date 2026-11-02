@@ -7,23 +7,28 @@
 #include "ink_hal.h"
 #include <stddef.h>
 
-/* Khởi tạo driver theo bảng chân. Gọi một lần lúc khởi động, trước mọi hàm
- * ink_bsp khác. Trả lỗi của driver. */
+/**
+ * Khởi tạo driver theo bảng chân.
+ * Gọi từ: app_main, một lần, trước mọi hàm ink_bsp khác.
+ * @return lỗi của driver
+ */
 esp_err_t ink_bsp_init(void);
 
-/*
+/**
  * Nút của board; index 0 là A, 1 là B.
- * Trả ESP_ERR_INVALID_ARG nếu NULL, ESP_ERR_INVALID_STATE nếu chưa init.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr; ESP_ERR_INVALID_STATE nếu chưa init
  */
 esp_err_t ink_bsp_buttons(const ink_hal_button_device_t **out_devices, size_t *out_count);
 
-/* Màn của board. Trả ESP_ERR_INVALID_ARG nếu NULL, ESP_ERR_INVALID_STATE nếu
- * chưa init. */
+/**
+ * Màn của board.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr; ESP_ERR_INVALID_STATE nếu chưa init
+ */
 esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device);
 
-/*
- * Thêm lệnh console `epd tune` (chỉnh tay bảng sóng của driver màn). Gọi sau
- * ink_platform_console_init(). Trả ESP_ERR_INVALID_STATE nếu chưa init, hoặc
- * lỗi của ink_platform_console_add().
+/**
+ * Thêm lệnh console `epd tune` (chỉnh tay bảng sóng của driver màn).
+ * Gọi từ: system, sau ink_platform_console_init().
+ * @return ESP_ERR_INVALID_STATE nếu chưa init; lỗi của ink_platform_console_add()
  */
 esp_err_t ink_bsp_add_console_command(void);

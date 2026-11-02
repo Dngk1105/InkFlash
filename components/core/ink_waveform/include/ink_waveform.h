@@ -33,8 +33,8 @@ typedef enum : uint8_t {
 
 typedef enum : uint8_t {
     INK_WAVEFORM_LEVEL_ZERO = 0,
-    INK_WAVEFORM_LEVEL_VSH  = 1, /* kéo về đen */
-    INK_WAVEFORM_LEVEL_VSL  = 2, /* kéo về trắng */
+    INK_WAVEFORM_LEVEL_VSH  = 1, /**< kéo về đen */
+    INK_WAVEFORM_LEVEL_VSL  = 2, /**< kéo về trắng */
     INK_WAVEFORM_LEVEL_VDHR = 3,
 } ink_waveform_level_t;
 
@@ -43,34 +43,41 @@ typedef struct {
 } ink_waveform_t;
 
 typedef struct {
-    uint8_t frames;      /* số khung kéo của mỗi lần đổi màu, 1–63 */
-    uint8_t hold_frames; /* xung giữ: số khung cuối kéo lại cùng màu cho điểm không đổi, 0–frames */
+    uint8_t frames;      /**< số khung kéo của mỗi lần đổi màu, 1–63 */
+    uint8_t hold_frames; /**< xung giữ: số khung cuối kéo lại cùng màu cho điểm không đổi, 0–frames */
 } ink_waveform_parameters_t;
 
-/* Điện tích tính theo khung: VSH +1, VSL −1, mức khác 0. */
+/** Điện tích tính theo khung: VSH +1, VSL −1, mức khác 0. */
 typedef struct {
-    int32_t cycle;      /* trắng → đen rồi đen → trắng; khác 0 là lệch */
-    int32_t hold_white; /* trắng giữ trắng */
-    int32_t hold_black; /* đen giữ đen */
+    int32_t cycle;      /**< trắng → đen rồi đen → trắng; khác 0 là lệch */
+    int32_t hold_white; /**< trắng giữ trắng */
+    int32_t hold_black; /**< đen giữ đen */
 } ink_waveform_charge_t;
 
 /* ---- API ---- */
 
-/*
- * Dựng 5 bảng một nhóm: điểm đổi màu kéo `frames` khung, điểm giữ màu đứng yên
- * rồi kéo lại `hold_frames` khung cuối, VCOM đứng yên.
- * Trả INK_WAVEFORM_ERROR_ARGUMENT nếu có con trỏ nullptr, frames ngoài 1–63
- * hoặc hold_frames lớn hơn frames.
+/**
+ * Dựng 5 bảng một nhóm: điểm đổi màu kéo `frames` khung, điểm giữ màu đứng yên rồi kéo lại
+ * `hold_frames` khung cuối, VCOM đứng yên.
+ * Gọi từ: driver màn, khi nạp profile LUT.
+ * @return INK_WAVEFORM_ERROR_ARGUMENT nếu có con trỏ nullptr, frames ngoài 1–63 hoặc hold_frames lớn hơn frames
  */
 [[nodiscard]] ink_waveform_error_t ink_waveform_build(const ink_waveform_parameters_t *parameters, ink_waveform_t *out_waveform);
 
-/* Số khung của một bảng, đã tính lặp; 0 nếu nullptr. */
+/**
+ * Số khung của một bảng, đã tính lặp.
+ * @return 0 nếu nullptr
+ */
 uint32_t ink_waveform_table_frames(const uint8_t table[INK_WAVEFORM_TABLE_BYTES]);
 
-/* Số khung của cả bộ: bảng dài nhất (controller cấp 0 V cho phần còn lại của bảng
- * ngắn); 0 nếu nullptr. */
+/**
+ * Số khung của cả bộ: bảng dài nhất (controller cấp 0 V cho phần còn lại của bảng ngắn).
+ * @return 0 nếu nullptr
+ */
 uint32_t ink_waveform_frames(const ink_waveform_t *waveform);
 
-/* Tính điện tích của các bảng nguồn. Trả INK_WAVEFORM_ERROR_ARGUMENT nếu có con
- * trỏ nullptr. */
+/**
+ * Tính điện tích của các bảng nguồn.
+ * @return INK_WAVEFORM_ERROR_ARGUMENT nếu có con trỏ nullptr
+ */
 [[nodiscard]] ink_waveform_error_t ink_waveform_charge(const ink_waveform_t *waveform, ink_waveform_charge_t *out_charge);

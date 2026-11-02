@@ -10,8 +10,9 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
 | `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
-| `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `hal`, `platform` |
+| `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `frame_slots`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, chọn partial/full, đếm bóng mờ | màn | Có | Chỉ thư viện C chuẩn |
+| `frame_slots/` | Chủ của 3 khung đệm của `display`: mượn, giao, lấy ra vẽ, thành khung đang hiện, đếm khung bị bỏ | main, màn (bên gọi giữ lock) | Có | Chỉ thư viện C chuẩn |
 | `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
 | `input/` | Vỏ của input: ngắt nút, đóng dấu giờ, hẹn giờ theo deadline của `gesture`, đọc lại chân, lệnh `gesture` | main | | `gesture`, `hal`, `platform` |
 | `gesture/` | Nút, IMU → cử chỉ | main | Có | Chỉ thư viện C chuẩn |

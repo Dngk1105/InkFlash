@@ -57,6 +57,10 @@ Vùng đệm có 3 khung trong RAM nội. Lúc nào mỗi khung cũng có đúng
 - Giao khung khi hàng chờ đã có khung thì khung cũ trong hàng chờ bị bỏ và được đếm.
 - Mượn lần hai khi chưa giao khung đã mượn là lỗi của bên gọi.
 
+Việc đổi chủ nằm trong khối C thuần `frame_slots`, có host test. Khối này chỉ giữ chủ của từng khung, không giữ bộ
+nhớ ảnh. `display` gọi nó trong lock, rồi chép ảnh vào khung vừa mượn ở ngoài lock: khung giao gần nhất chỉ được trả
+về khi đã có khung mới hơn, nên đọc nó ngoài lock vẫn an toàn.
+
 ## Chọn cách vẽ
 
 Phần quyết định nằm trong khối C thuần `display_policy`, có host test. Nó so khung mới với khung đang hiện, lấy hình

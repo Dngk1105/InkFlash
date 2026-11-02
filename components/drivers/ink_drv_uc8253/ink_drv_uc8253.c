@@ -39,9 +39,16 @@ static const char *TAG = "ink_drv_uc8253";
 #define CMD_TSSET  0xE5
 
 /* PSR như GxEPD2: KW, quét lên, dịch phải; bit REG (D5) chọn LUT thanh ghi. */
-#define PSR_OTP      0x1F
-#define PSR_REGISTER 0x3F
-#define PSR_SECOND   0x0D
+#define PSR_OTP        0x1F
+#define PSR_REGISTER   0x3F
+#define PSR_SOFT_RESET 0x1E /* như PSR_OTP nhưng RST_N (D0) = 0: reset mềm, RAM ảnh thành rác (image-memory.md) */
+#define PSR_SECOND     0x0D
+
+#define PWR_SOURCE_INTERNAL 0x03 /* byte 1 của PWR: nguồn trong, giá trị mặc định (commands.md) */
+#define CCSET_SENSOR        0x00 /* đo nhiệt độ bằng cảm biến */
+#define CCSET_TSFIX         0x02 /* D1: dùng nhiệt độ đặt bằng TSSET */
+#define PTL_SCAN_ALL        0x01 /* byte 7 của PTL: quét gate cả trong và ngoài window */
+#define PTL_SCAN_WINDOW     0x00 /* chỉ quét trong window */
 
 #define BUSY_SHORT_TIMEOUT_MS   200
 #define BUSY_REFRESH_TIMEOUT_MS 5000
@@ -267,6 +274,22 @@ static esp_err_t read_tr8(ink_drv_uc8253_t *driver) {
 
 /* ---- Khởi tạo controller ---- */
 
+/* PSR (0x00): byte 1 chọn nguồn bảng sóng và reset mềm, byte 2 cố định. */
+static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
+    const uint8_t psr[2] = {setting, PSR_SECOND};
+    return send_command(driver, CMD_PSR, psr, sizeof(psr));
+}
+
+/* Trạng thái lượt sau reset mềm: RAM rác, nguồn tắt, bảng sóng OTP. */
+static void forget_controller_state(ink_drv_uc8253_t *driver) {
+    driver->ram_swapped    = false;
+    driver->ram_trusted    = false;
+    driver->power_on       = false;
+    driver->register_mode  = false;
+    driver->loaded_profile = NO_PROFILE;
+    driver->needs_reset    = false;
+}
+
 static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     ESP_RETURN_ON_ERROR(gpio_set_level(driver->config.reset, 0), TAG, "reset low");
     vTaskDelay(pdMS_TO_TICKS(10));
@@ -274,40 +297,39 @@ static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     vTaskDelay(pdMS_TO_TICKS(10)); /* > 1 ms, lệnh gửi sớm hơn bị bỏ qua */
     ESP_RETURN_ON_ERROR(wait_ready(driver, BUSY_SHORT_TIMEOUT_MS), TAG, "after reset");
 
-    /* 0x1E có RST_N = 0 nên là reset mềm: RAM ảnh thành rác (image-memory.md) */
-    ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PSR, (const uint8_t[]){0x1E, PSR_SECOND}, 2, BUSY_SHORT_TIMEOUT_MS), TAG,
-                        "soft reset");
-    driver->ram_swapped    = false;
-    driver->ram_trusted    = false;
-    driver->power_on       = false;
-    driver->register_mode  = false;
-    driver->loaded_profile = NO_PROFILE;
-    driver->needs_reset    = false;
-    return send_command(driver, CMD_PSR, (const uint8_t[]){PSR_OTP, PSR_SECOND}, 2);
+    const uint8_t soft_reset[2] = {PSR_SOFT_RESET, PSR_SECOND};
+    ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PSR, soft_reset, sizeof(soft_reset), BUSY_SHORT_TIMEOUT_MS), TAG, "soft reset");
+    forget_controller_state(driver);
+    return send_panel_setting(driver, PSR_OTP);
 }
 
 /* ---- Nạp bảng sóng ---- */
 
 static esp_err_t set_register_mode(ink_drv_uc8253_t *driver, bool enable) {
     if (driver->register_mode == enable) { return ESP_OK; }
-    const uint8_t psr[2] = {enable ? PSR_REGISTER : PSR_OTP, PSR_SECOND};
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_PSR, psr, sizeof(psr)), TAG, "psr");
+    ESP_RETURN_ON_ERROR(send_panel_setting(driver, enable ? PSR_REGISTER : PSR_OTP), TAG, "psr");
     driver->register_mode = enable;
     return ESP_OK;
 }
 
-/* Gửi điện áp, VCOM, PLL và LUTOPT của TR8, rồi 5 bảng (đã chạy trên BB0, nhánh exp/uc8253-lut). */
-static esp_err_t send_register_waveform(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const ink_waveform_t *waveform) {
-    const uint8_t *tr8       = driver->tr8;
-    const uint8_t  pwr[5]    = {0x03, tr8[TR_VG], tr8[TR_VSH], tr8[TR_VSL], tr8[TR_VDHR]};
-    const uint8_t  lutopt[5] = {tr8[TR_EOPT], tr8[TR_XON_LOW], tr8[TR_XON_HIGH], 0xFF, 0x00};
-    uint8_t        pll       = tr8[TR_FRAME_RATE];
+/* PWR, VDCS, PLL, LUTOPT lấy từ dải TR8; PLL theo profile nếu có Hz. Chờ BUSY sau LUTOPT. */
+static esp_err_t send_tr8_settings(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
+    const uint8_t *tr8   = driver->tr8;
+    const uint8_t  pwr[] = {PWR_SOURCE_INTERNAL, tr8[TR_VG], tr8[TR_VSH], tr8[TR_VSL], tr8[TR_VDHR]};
+    /* Byte 4–5 của LUTOPT lấy theo nhánh exp/uc8253-lut, đã chạy trên BB0. */
+    const uint8_t lutopt[] = {tr8[TR_EOPT], tr8[TR_XON_LOW], tr8[TR_XON_HIGH], 0xFF, 0x00};
+    uint8_t       pll      = tr8[TR_FRAME_RATE];
     if (profile->frame_rate_hz != 0) { pll_code(profile->frame_rate_hz, &pll); }
+
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PWR, pwr, sizeof(pwr)), TAG, "pwr");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_VDCS, &tr8[TR_VCOM], 1), TAG, "vdcs");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PLL, &pll, 1), TAG, "pll");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_LUTOPT, lutopt, sizeof(lutopt)), TAG, "lutopt");
-    ESP_RETURN_ON_ERROR(wait_ready(driver, BUSY_SHORT_TIMEOUT_MS), TAG, "lutopt");
+    return wait_ready(driver, BUSY_SHORT_TIMEOUT_MS);
+}
+
+/* 5 bảng 0x20–0x24: LUTWW nhận 42 byte, bảng khác 56 byte (2 nhóm cuối bằng 0). */
+static esp_err_t send_lut_tables(ink_drv_uc8253_t *driver, const ink_waveform_t *waveform) {
     for (size_t table = 0; table < INK_WAVEFORM_TABLE_COUNT; table++) {
         static uint8_t bytes[LUT_SEND_BYTES]; /* DMA đọc: không để trên stack */
         memset(bytes, 0, sizeof(bytes));
@@ -315,6 +337,13 @@ static esp_err_t send_register_waveform(ink_drv_uc8253_t *driver, const ink_drv_
         const size_t length = table == INK_WAVEFORM_TABLE_WHITE_TO_WHITE ? INK_WAVEFORM_TABLE_BYTES : LUT_SEND_BYTES;
         ESP_RETURN_ON_ERROR(send_command(driver, (uint8_t)(CMD_LUTC + table), bytes, length), TAG, "lut %u", (unsigned)table);
     }
+    return ESP_OK;
+}
+
+/* Đã chạy trên BB0, nhánh exp/uc8253-lut. */
+static esp_err_t send_register_waveform(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const ink_waveform_t *waveform) {
+    ESP_RETURN_ON_ERROR(send_tr8_settings(driver, profile), TAG, "tr8 settings");
+    ESP_RETURN_ON_ERROR(send_lut_tables(driver, waveform), TAG, "lut tables");
     return set_register_mode(driver, true);
 }
 
@@ -344,10 +373,18 @@ typedef struct {
     uint16_t x0, x1, y0, y1; /* gồm cả mép; x0, x1 + 1 là bội của X_ALIGN */
 } window_t;
 
-/* Vào chế độ partial với window đã căn mép. Bên gọi gửi PTOUT khi xong. */
+/* Vào chế độ partial với window đã căn mép (PTIN rồi PTL). Bên gọi gửi PTOUT khi xong. */
 static esp_err_t enter_window(ink_drv_uc8253_t *driver, const window_t *window, bool pt_scan) {
-    const uint8_t ptl[7] = {(uint8_t)window->x0, (uint8_t)window->x1, window->y0 >> 8,      window->y0 & 0xFF,
-                            window->y1 >> 8,     window->y1 & 0xFF,   pt_scan ? 0x01 : 0x00};
+    /* PTL 7 byte (image-memory.md): HRST, HRED, VRST cao/thấp, VRED cao/thấp, PT_SCAN */
+    const uint8_t ptl[7] = {
+        (uint8_t)window->x0,
+        (uint8_t)window->x1,
+        (uint8_t)(window->y0 >> 8),
+        (uint8_t)(window->y0 & 0xFF),
+        (uint8_t)(window->y1 >> 8),
+        (uint8_t)(window->y1 & 0xFF),
+        pt_scan ? PTL_SCAN_ALL : PTL_SCAN_WINDOW,
+    };
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PTIN, nullptr, 0), TAG, "ptin");
     return send_command(driver, CMD_PTL, ptl, sizeof(ptl));
 }
@@ -378,16 +415,36 @@ static esp_err_t power_off(ink_drv_uc8253_t *driver) {
     return ESP_OK;
 }
 
+/* CCSET + TSSET: bảng OTP chọn theo nhiệt độ đặt tay. */
+static esp_err_t force_otp_temperature(ink_drv_uc8253_t *driver, uint8_t celsius) {
+    const uint8_t ccset = CCSET_TSFIX;
+    ESP_RETURN_ON_ERROR(send_command(driver, CMD_CCSET, &ccset, 1), TAG, "ccset");
+    return send_command(driver, CMD_TSSET, &celsius, 1);
+}
+
+/* TSFIX còn từ lần vẽ trước: phải xoá để controller đo nhiệt độ thật. */
+static esp_err_t use_temperature_sensor(ink_drv_uc8253_t *driver) {
+    const uint8_t ccset = CCSET_SENSOR;
+    return send_command(driver, CMD_CCSET, &ccset, 1);
+}
+
+/* Bảng LUT thanh ghi không đọc nhiệt độ: không gửi gì. */
+static esp_err_t select_temperature(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
+    switch (profile->source) {
+        case INK_DRV_UC8253_SOURCE_OTP_FORCED:
+            return force_otp_temperature(driver, profile->temperature);
+        case INK_DRV_UC8253_SOURCE_OTP_SENSOR:
+            return use_temperature_sensor(driver);
+        case INK_DRV_UC8253_SOURCE_REGISTER:
+            return ESP_OK;
+    }
+    return ESP_ERR_INVALID_ARG;
+}
+
 /* Một lần DRF. Full: cả màn, không vào chế độ partial. */
 static esp_err_t refresh(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const window_t *window, bool full) {
     if (!full) { ESP_RETURN_ON_ERROR(enter_window(driver, window, profile->pt_scan), TAG, "window"); }
-    if (profile->source == INK_DRV_UC8253_SOURCE_OTP_FORCED) {
-        ESP_RETURN_ON_ERROR(send_command(driver, CMD_CCSET, (const uint8_t[]){0x02}, 1), TAG, "ccset");
-        ESP_RETURN_ON_ERROR(send_command(driver, CMD_TSSET, &profile->temperature, 1), TAG, "tsset");
-    } else if (profile->source == INK_DRV_UC8253_SOURCE_OTP_SENSOR) {
-        /* TSFIX còn từ lần vẽ trước: phải xoá để controller đo nhiệt độ thật */
-        ESP_RETURN_ON_ERROR(send_command(driver, CMD_CCSET, (const uint8_t[]){0x00}, 1), TAG, "ccset");
-    }
+    ESP_RETURN_ON_ERROR(select_temperature(driver, profile), TAG, "temperature");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_CDI, &profile->cdi, 1), TAG, "cdi");
     ESP_RETURN_ON_ERROR(power_on(driver), TAG, "pon");
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_DRF, nullptr, 0, BUSY_REFRESH_TIMEOUT_MS), TAG, "drf");
@@ -424,9 +481,9 @@ static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rec
         *out_window = (window_t){.x0 = 0, .x1 = INK_DRV_UC8253_WIDTH - 1, .y0 = 0, .y1 = INK_DRV_UC8253_HEIGHT - 1};
         return ESP_OK;
     }
-    ESP_RETURN_ON_FALSE(
-        rect.width > 0 && rect.height > 0 && rect.x + rect.width <= INK_DRV_UC8253_WIDTH && rect.y + rect.height <= INK_DRV_UC8253_HEIGHT,
-        ESP_ERR_INVALID_ARG, TAG, "window");
+    const bool not_empty = rect.width > 0 && rect.height > 0;
+    const bool inside    = rect.x + rect.width <= INK_DRV_UC8253_WIDTH && rect.y + rect.height <= INK_DRV_UC8253_HEIGHT;
+    ESP_RETURN_ON_FALSE(not_empty && inside, ESP_ERR_INVALID_ARG, TAG, "window");
     window_t window = {
         .x0 = rect.x & ~(X_ALIGN - 1),
         .x1 = (rect.x + rect.width - 1) | (X_ALIGN - 1),

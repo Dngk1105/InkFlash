@@ -13,8 +13,8 @@
 
 typedef struct {
     gpio_num_t pin;
-    bool       active_low; /* true: mức 0 là đang bấm (nút nối GND) */
-    bool       pull_up;    /* bật kéo lên trong */
+    bool       active_low; /**< true: mức 0 là đang bấm (nút nối GND) */
+    bool       pull_up;    /**< bật kéo lên trong */
 } ink_drv_gpio_button_config_t;
 
 typedef struct {
@@ -23,9 +23,10 @@ typedef struct {
     void                        *callback_user_data;
 } ink_drv_gpio_button_t;
 
-/*
- * Cấu hình chân (chưa bật ngắt) và điền `out_device`. Bên gọi cài gpio_install_isr_service() trước khi gọi set_callback.
- * Trả ESP_ERR_INVALID_ARG nếu có con trỏ NULL, hoặc lỗi của gpio_config().
+/**
+ * Cấu hình chân (chưa bật ngắt) và điền `out_device`.
+ * Gọi từ: bsp, lúc khởi động. Bên gọi cài gpio_install_isr_service() trước khi gọi set_callback.
+ * @return ESP_ERR_INVALID_ARG nếu có con trỏ nullptr; lỗi của gpio_config()
  */
 esp_err_t ink_drv_gpio_button_init(ink_drv_gpio_button_t *driver, const ink_drv_gpio_button_config_t *config,
                                    ink_hal_button_device_t *out_device);

@@ -24,9 +24,9 @@ typedef enum : uint8_t {
 } ink_hal_display_slot_t;
 
 typedef struct {
-    uint32_t spi_us;   /* Gửi ảnh và bảng sóng, trước khi quét*/
-    uint32_t panel_us; /* panel quét tới khi BUSY cao (rảnh)*/
-    uint32_t after_us; /* sau khi quét: tắt nguồn */
+    uint32_t spi_us;   /**< Gửi ảnh và bảng sóng, trước khi quét */
+    uint32_t panel_us; /**< panel quét tới khi BUSY cao (rảnh) */
+    uint32_t after_us; /**< sau khi quét: tắt nguồn */
 } ink_hal_display_timing_t;
 
 typedef struct {
@@ -35,26 +35,32 @@ typedef struct {
 } ink_hal_display_profile_info_t;
 
 typedef struct {
-    uint16_t                              width; /* Cỡ gốc panel*/
+    uint16_t                              width; /**< Cỡ gốc panel */
     uint16_t                              height;
-    uint8_t                               x_align; /* Mép trái/phải là bội của x_align*/
+    uint8_t                               x_align; /**< Mép trái/phải là bội của x_align */
     const ink_hal_display_profile_info_t *profiles;
     size_t                                profile_count;
-    size_t                                default_profiles[INK_HAL_DISPLAY_SLOT_COUNT]; /* profile gán lúc khởi tạo */
+    size_t                                default_profiles[INK_HAL_DISPLAY_SLOT_COUNT]; /**< profile gán lúc khởi tạo */
 } ink_hal_display_capabilities_t;
 
 typedef struct {
-    /*
-     * Vẽ window theo cặp bit (mới, cũ) của từng điểm, chờ panel quét xong. Hai
-     * mặt phẳng là con trỏ tới cả khung, nằm trong RAM nội. Driver làm tròn mép x
-     * ra ngoài theo x_align, và tự nới ra cả màn ở lần vẽ đầu sau reset.
+    /**
+     * Vẽ window theo cặp bit (mới, cũ) của từng điểm, chờ panel quét xong.
+     * Driver làm tròn mép x ra ngoài theo x_align, và tự nới ra cả màn ở lần vẽ đầu sau reset.
+     * Gọi từ: task màn.
+     * @param plane_new, plane_old con trỏ tới cả khung, nằm trong RAM nội
      */
     esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
                       ink_hal_display_slot_t slot, ink_hal_display_timing_t *out_timing);
-    /* Gán profile thứ `index` trong capabilities.profiles cho slot, có tác dụng từ
-     * lần vẽ sau. */
+    /**
+     * Gán profile thứ `index` trong capabilities.profiles cho slot, có tác dụng từ lần vẽ sau.
+     * Gọi từ: task màn.
+     */
     esp_err_t (*select_profile)(void *context, ink_hal_display_slot_t slot, size_t index);
-    /* Đọc cảm biến nhiệt độ của controller, đơn vị Celsius. */
+    /**
+     * Đọc cảm biến nhiệt độ của controller, đơn vị °C.
+     * Gọi từ: task màn.
+     */
     esp_err_t (*read_temperature)(void *context, int8_t *out_celsius);
 } ink_hal_display_operations_t;
 

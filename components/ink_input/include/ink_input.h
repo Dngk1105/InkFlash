@@ -27,41 +27,49 @@ typedef struct {
         ink_gesture_event_t button_edge;
 
         struct {
-            uint8_t  field_index; /* index trong bảng trường config của khối */
+            uint8_t  field_index; /**< index trong bảng trường config của khối */
             uint32_t value_ms;
         } set_config;
 
         struct {
             ink_gesture_button_t button;
-            uint8_t              wait_mask; /* bit INK_GESTURE_WAIT_* */
+            uint8_t              wait_mask; /**< bit INK_GESTURE_WAIT_* */
         } set_wait_mask;
     };
 } ink_input_message_t;
 
-/* Đẩy message vào hàng đợi task main, không chờ. Bản _from_isr nằm trong IRAM, không log. */
+/** Đẩy message vào hàng đợi task main, không chờ. Bản _from_isr nằm trong IRAM, không log. */
 typedef void (*ink_input_post_t)(const ink_input_message_t *message);
 typedef void (*ink_input_post_from_isr_t)(const ink_input_message_t *message);
 
-/*
- * Khởi tạo gesture, tạo timer, bật ngắt nút. Gọi một lần lúc khởi động, sau khi hàng đợi của system đã sẵn sàng.
- * `buttons`: index 0 là A, 1 là B; mảng phải sống suốt chương trình (khối đọc lại chân khi mất edge).
- * Trả ESP_ERR_INVALID_ARG nếu số nút khác 2 hoặc thiếu hàm post, ESP_ERR_NOT_SUPPORTED nếu nút không có ngắt,
- * ESP_ERR_INVALID_STATE nếu đã chạy, hoặc lỗi tạo timer, lỗi bật ngắt.
+/**
+ * Khởi tạo gesture, tạo timer, bật ngắt nút.
+ * Gọi từ: system, một lần lúc khởi động, sau khi hàng đợi của system đã sẵn sàng.
+ * @param buttons index 0 là A, 1 là B; mảng phải sống suốt chương trình (khối đọc lại chân khi mất edge)
+ * @return ESP_ERR_INVALID_ARG nếu số nút khác 2 hoặc thiếu hàm post; ESP_ERR_NOT_SUPPORTED nếu nút không có ngắt;
+ *         ESP_ERR_INVALID_STATE nếu đã chạy; lỗi tạo timer, lỗi bật ngắt
  */
 esp_err_t ink_input_start(const ink_hal_button_device_t *buttons, size_t count, ink_input_post_t post,
                           ink_input_post_from_isr_t post_from_isr);
 
-/* Xử lý một message của khối trên task main. Gesture vừa phát ghi vào `out_gestures` (đã log). */
+/**
+ * Xử lý một message của khối.
+ * Gọi từ: task main.
+ * @param out_gestures gesture vừa phát (đã log)
+ */
 void ink_input_handle(const ink_input_message_t *message, ink_gesture_output_t *out_gestures);
 
-/*
- * Task main gọi khi hàng đợi rỗng. `messages_dropped`: có message rơi vì hàng đợi đầy kể từ lần gọi trước.
- * Đọc lại chân nếu có thể đã mất edge; gesture phát ra từ edge bù ghi vào `out_gestures`.
+/**
+ * Đọc lại chân nếu có thể đã mất edge.
+ * Gọi từ: task main, khi hàng đợi rỗng.
+ * @param messages_dropped có message rơi vì hàng đợi đầy kể từ lần gọi trước
+ * @param out_gestures gesture phát ra từ edge bù
  */
 void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_gestures);
 
-/*
- * Thêm lệnh console `gesture show | set <field> <ms> | enable <a|b> <mask>`. Gọi sau ink_input_start() và
- * ink_platform_console_init(). Trả ESP_ERR_INVALID_STATE nếu chưa start, hoặc lỗi của ink_platform_console_add().
+/**
+ * Thêm lệnh console `gesture show | set <field> <ms> | enable <a|b> <mask>`.
+ * Gọi từ: system, sau ink_input_start() và ink_platform_console_init().
+ * @return ESP_ERR_INVALID_STATE nếu chưa start; lỗi của ink_platform_console_add()
  */
 esp_err_t ink_input_add_console_command(void);

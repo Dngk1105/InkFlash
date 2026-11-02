@@ -29,7 +29,7 @@ typedef struct {
     ink_keymap_intent_t intent;
 } ink_keymap_entry_t;
 
-/* Bảng của app hoặc của một scene (chỉ gồm các dòng khác bảng app). Bên gọi giữ
+/** Bảng của app hoặc của một scene (chỉ gồm các dòng khác bảng app). Bên gọi giữ
  * và sửa trực tiếp. */
 typedef struct {
     uint8_t            count;
@@ -41,36 +41,40 @@ typedef struct {
 typedef enum : uint8_t {
     INK_KEYMAP_OK = 0,
     INK_KEYMAP_ERROR_ARGUMENT,
-    INK_KEYMAP_ERROR_COUNT,     /* count vượt INK_KEYMAP_ENTRY_MAX */
-    INK_KEYMAP_ERROR_RESERVED,  /* gán gesture của hệ thống (giữ A+B ngắn, dài) */
-    INK_KEYMAP_ERROR_DUPLICATE, /* một gesture hai dòng trong cùng bảng */
-    INK_KEYMAP_ERROR_NO_BACK,   /* không gesture nào ra BACK */
+    INK_KEYMAP_ERROR_COUNT,     /**< count vượt INK_KEYMAP_ENTRY_MAX */
+    INK_KEYMAP_ERROR_RESERVED,  /**< gán gesture của hệ thống (giữ A+B ngắn, dài) */
+    INK_KEYMAP_ERROR_DUPLICATE, /**< một gesture hai dòng trong cùng bảng */
+    INK_KEYMAP_ERROR_NO_BACK,   /**< không gesture nào ra BACK */
 } ink_keymap_error_t;
 
 /* ---- API ---- */
 
-/*
- * Tra intent của gesture: bảng scene trước, không có thì bảng app. Trả false
- * nếu cả hai không gán (gesture bị bỏ). scene có thể là nullptr. system gọi cho
- * mọi gesture trừ giữ A+B ngắn và dài.
+/**
+ * Tra intent của gesture: bảng scene trước, không có thì bảng app.
+ * Gọi từ: system, cho mọi gesture trừ giữ A+B ngắn và dài.
+ * @param scene có thể là nullptr
+ * @return false nếu cả hai bảng không gán (gesture bị bỏ)
  */
 bool ink_keymap_lookup(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, const ink_gesture_t *gesture,
                        ink_keymap_intent_t *out_intent);
 
-/*
- * Kiểm tra bảng hiệu dụng (scene gộp với app). system gọi trước khi nhận bảng
- * người dùng sửa, và khi app khai bảng scene. Trả ERROR_ARGUMENT nếu app là
- * nullptr. scene có thể là nullptr.
+/**
+ * Kiểm tra bảng hiệu dụng (scene gộp với app).
+ * Gọi từ: system, trước khi nhận bảng người dùng sửa, và khi app khai bảng scene.
+ * @param scene có thể là nullptr
+ * @return ERROR_ARGUMENT nếu app là nullptr
  */
 [[nodiscard]] ink_keymap_error_t ink_keymap_validate(const ink_keymap_table_t *scene, const ink_keymap_table_t *app);
 
-/* Chép bảng mặc định vào bảng đang dùng. Trả ERROR_ARGUMENT nếu có con trỏ
- * nullptr. */
+/**
+ * Chép bảng mặc định vào bảng đang dùng.
+ * @return ERROR_ARGUMENT nếu có con trỏ nullptr
+ */
 [[nodiscard]] ink_keymap_error_t ink_keymap_reset(ink_keymap_table_t *table, const ink_keymap_table_t *defaults);
 
-/*
- * Mask kiểu phải chờ (bit INK_GESTURE_WAIT_*) của một nút theo bảng đang dùng,
- * để system đưa cho ink_gesture_set_enabled khi mở app hoặc đổi scene. button
- * không phải A, B thì trả INK_GESTURE_WAIT_NONE.
+/**
+ * Mask kiểu phải chờ (bit INK_GESTURE_WAIT_*) của một nút theo bảng đang dùng.
+ * Gọi từ: system, để đưa cho ink_gesture_set_enabled khi mở app hoặc đổi scene.
+ * @return INK_GESTURE_WAIT_NONE nếu button không phải A, B
  */
 uint8_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button);
