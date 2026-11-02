@@ -3,7 +3,6 @@
 
 #include "esp_attr.h"
 #include "esp_check.h"
-#include "esp_console.h"
 #include "esp_timer.h"
 
 static const char *TAG = "ink_platform";
@@ -43,31 +42,4 @@ esp_err_t ink_platform_timer_stop(ink_platform_timer_t timer) {
     const esp_err_t error = esp_timer_stop((esp_timer_handle_t)timer);
     /* ESP_ERR_INVALID_STATE: timer không chạy */
     return error == ESP_ERR_INVALID_STATE ? ESP_OK : error;
-}
-
-/* ---- Console ---- */
-
-static esp_console_repl_t *s_console_repl;
-
-esp_err_t ink_platform_console_init(const char *prompt) {
-    ESP_RETURN_ON_FALSE(s_console_repl == nullptr, ESP_ERR_INVALID_STATE, TAG, "console already init");
-    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
-    repl_config.prompt                    = prompt;
-    return esp_console_new_repl_stdio(&repl_config, &s_console_repl);
-}
-
-esp_err_t ink_platform_console_add(const char *name, const char *help, const char *hint, ink_platform_command_handler_t handler) {
-    ESP_RETURN_ON_FALSE(s_console_repl, ESP_ERR_INVALID_STATE, TAG, "console not init");
-    const esp_console_cmd_t command = {
-        .command = name,
-        .help    = help,
-        .hint    = hint,
-        .func    = handler,
-    };
-    return esp_console_cmd_register(&command);
-}
-
-esp_err_t ink_platform_console_start(void) {
-    ESP_RETURN_ON_FALSE(s_console_repl, ESP_ERR_INVALID_STATE, TAG, "console not init");
-    return esp_console_start_repl(s_console_repl);
 }

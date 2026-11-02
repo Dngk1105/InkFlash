@@ -79,8 +79,8 @@ Các ngưỡng thời gian (`debounce_ms`, `double_ms`, `hold_ms`, `combo_ms`, `
 struct cấu hình, đổi được lúc máy đang chạy, không cần build lại. `gesture` kiểm tra struct trước khi nhận, ví dụ
 `ab_short_ms` phải nhỏ hơn `ab_long_ms`. `ab_long_ms` khoảng 30 s.
 
-Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>` đổi một ngưỡng, `gesture enable <a|b>
-<mask>` đặt mask kiểu phải chờ của một nút (bit 1 nhấn kép, bit 2 modifier) để thử khi chưa có bảng gán.
+App Cài đặt đổi ngưỡng bằng `ink_input_set_gesture_config`; `system` đặt mask kiểu phải chờ của một nút (bit 1 nhấn
+kép, bit 2 modifier) bằng `ink_input_set_wait_mask` khi mở app hoặc đổi scene. Cả hai gọi trên task main.
 
 ### Chạy theo sự kiện, không quét
 
@@ -89,8 +89,7 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 - Hẹn giờ một lần của `platform` chỉ chạy khi đang có cử chỉ dở (ví dụ đang giữ nút, chờ xem có đủ `hold_ms` không).
   `gesture` cho biết thời điểm cần được gọi lại tiếp theo, hoặc không cần.
 - Thời gian được truyền vào làm tham số, `gesture` không tự đọc đồng hồ.
-- Callback hẹn giờ và lệnh console chạy trên task khác, nên chỉ đẩy message vào hàng đợi task main, không gọi
-  thẳng `gesture`.
+- Callback hẹn giờ chạy trên task khác, nên chỉ đẩy message vào hàng đợi task main, không gọi thẳng `gesture`.
 - Hàng đợi đầy thì message mới bị rơi. Rơi đúng cạnh cuối của một chùm rung thì `gesture` giữ mức sai, ví dụ tưởng
   nút vẫn đang giữ, cho tới lần bấm sau. Vì vậy mỗi khi hẹn giờ chạy hoặc vừa có message rơi, `system` báo khi hàng đợi
   rỗng, rồi `input` đọc lại mức thật của chân; khác mức của cạnh cuối đã xử lý thì đưa thêm một cạnh bù. Thời điểm bấm, nhả
@@ -102,8 +101,8 @@ Lệnh console: `gesture show` in các ngưỡng, `gesture set <trường> <ms>`
 | ------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `bsp`       | Bảng chân nút: chân nào, kéo lên trong, mức khi bấm. Cài dịch vụ ngắt GPIO một lần cho cả chip |
 | Driver nút | Ngắt GPIO, đọc mức, gọi callback qua interface nút của `hal`                                              |
-| `platform`  | Giờ, hẹn giờ một lần, console                                                                               |
-| `input`     | Đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, lệnh `gesture`. Không có task riêng: chạy trên task main khi `system` giao message |
+| `platform`  | Giờ, hẹn giờ một lần                                                                                        |
+| `input`     | Đóng dấu thời gian, gọi `gesture`, hẹn giờ theo thời điểm `gesture` báo, đọc lại chân khi có thể mất cạnh, nhận ngưỡng và mask mới. Không có task riêng: chạy trên task main khi `system` giao message |
 | `system`    | Hàng đợi và task main: nhận message, giao cho khối chủ (`input`), nhận cử chỉ ra |
 | `gesture`   | Lọc rung, máy trạng thái từng nút, ra cử chỉ                                                             |
 

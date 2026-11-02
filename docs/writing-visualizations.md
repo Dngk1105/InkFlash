@@ -39,7 +39,7 @@ Mỗi mô phỏng là một file HTML duy nhất, không thư viện ngoài, kh�
 
 | Phần | Làm gì |
 |---|---|
-| Điều khiển | Input giống phần cứng (chuột và phím cho nút), và các lệnh console tương ứng (`gesture set`, `gesture enable`) |
+| Điều khiển | Input giống phần cứng (chuột và phím cho nút), và các cài đặt tương ứng (ngưỡng gesture, mask kiểu phải chờ) |
 | Timeline | Tín hiệu theo thời gian: edge thô, mức sau xử lý, vùng khoá, sự kiện phát ra, deadline kế tiếp |
 | State machine | Sơ đồ trạng thái, tô trạng thái hiện tại |
 | Trạng thái | Bảng các trường trong `priv`, đúng tên trường C |

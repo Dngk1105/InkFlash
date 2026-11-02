@@ -2,8 +2,8 @@
 #pragma once
 
 /*
- * Vỏ của input: ngắt nút, đóng dấu giờ, timer theo deadline của ink_gesture, đọc lại chân, lệnh console `gesture`.
- * Không có task riêng: ISR, timer và console chỉ tạo message rồi đẩy qua hàm post của system; system gọi
+ * Vỏ của input: ngắt nút, đóng dấu giờ, timer theo deadline của ink_gesture, đọc lại chân.
+ * Không có task riêng: ISR và timer chỉ tạo message rồi đẩy qua hàm post của system; system gọi
  * ink_input_handle() trên task main. Chỉ task main đọc và sửa trạng thái của khối này.
  */
 #include "esp_err.h"
@@ -15,9 +15,6 @@
 typedef enum : uint8_t {
     INK_INPUT_MESSAGE_BUTTON_EDGE = 0,
     INK_INPUT_MESSAGE_TIMER_EXPIRED,
-    INK_INPUT_MESSAGE_SHOW_CONFIG,
-    INK_INPUT_MESSAGE_SET_CONFIG,
-    INK_INPUT_MESSAGE_SET_WAIT_MASK,
 } ink_input_message_type_t;
 
 typedef struct {
@@ -25,16 +22,6 @@ typedef struct {
 
     union {
         ink_gesture_event_t button_edge;
-
-        struct {
-            uint8_t  field_index; /**< index trong bảng trường config của khối */
-            uint32_t value_ms;
-        } set_config;
-
-        struct {
-            ink_gesture_button_t button;
-            uint8_t              wait_mask; /**< bit INK_GESTURE_WAIT_* */
-        } set_wait_mask;
     };
 } ink_input_message_t;
 
@@ -68,8 +55,16 @@ void ink_input_handle(const ink_input_message_t *message, ink_gesture_output_t *
 void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_gestures);
 
 /**
- * Thêm lệnh console `gesture show | set <field> <ms> | enable <a|b> <mask>`.
- * Gọi từ: system, sau ink_input_start() và ink_platform_console_init().
- * @return ESP_ERR_INVALID_STATE nếu chưa start; lỗi của ink_platform_console_add()
+ * Đổi ngưỡng gesture; gesture dở dùng ngưỡng mới ngay.
+ * Gọi từ: task main (app Cài đặt).
+ * @return ESP_ERR_INVALID_STATE nếu chưa start; ESP_ERR_INVALID_ARG nếu config nullptr hoặc sai (giữ config cũ)
  */
-esp_err_t ink_input_add_console_command(void);
+esp_err_t ink_input_set_gesture_config(const ink_gesture_config_t *config);
+
+/**
+ * Bật kiểu phải chờ cho một nút.
+ * Gọi từ: task main (system, khi mở app hoặc đổi scene).
+ * @param wait_mask bit INK_GESTURE_WAIT_*
+ * @return ESP_ERR_INVALID_STATE nếu chưa start; ESP_ERR_INVALID_ARG nếu button không phải A, B hoặc mask có bit lạ
+ */
+esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask);

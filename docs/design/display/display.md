@@ -172,10 +172,10 @@ Danh sách profile ban đầu lấy từ các bảng sóng đã đo trên BB0 (s
 Đổi profile theo hai đường:
 
 
-| Đường                                    | Lệnh console                                                    | Nằm ở                                    |
-| --------------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------- |
-| Chọn trong danh sách, qua interface chung | `display profile list`, `display profile set <slot> <tên>`      | `display`, không biết tên chip          |
-| Chỉnh tay từng thông số của LUT        | `epd tune <slot> <khung> <Hz> [giữ] [lần quét] [giữ nguồn]` | `bsp`, gọi hàm riêng của driver UC8253 |
+| Đường                                    | Hàm                                                     | Ai gọi                                         |
+| --------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| Chọn trong danh sách, qua interface chung | `ink_display_set_options` (profile của slot full và partial) | App Cài đặt ("nhanh / đẹp"); firmware test |
+| Chỉnh tay từng thông số của LUT        | `ink_bsp_display_tune`, gọi hàm riêng của driver UC8253   | Chỉ firmware test (`docs/design/display/bench.md`) |
 
 Tốc độ SPI nằm trong config của driver, mặc định 4 MHz.
 
@@ -189,7 +189,7 @@ Một điểm đi trắng → đen → trắng chạy qua bảng trắng → đe
 hai bảng khác 0 (VSH tính +1, VSL tính −1, 0 V tính 0), điện tích tích dần trong lớp mực, hạt mực bị kẹt và để lại bóng
 lâu dài.
 
-- Driver tính tổng này mỗi khi dựng LUT từ profile hoặc từ `epd tune`. Tổng khác 0 thì `epd tune` từ chối, còn profile
+- Driver tính tổng này mỗi khi dựng LUT từ profile hoặc từ bảng chỉnh tay. Tổng khác 0 thì bảng chỉnh tay bị từ chối, còn profile
   chỉ được nạp khi có cờ `allow_unbalanced`.
 - Bảng giữ màu có tổng khác 0 thì driver chỉ cảnh báo. Bảng TR8 cũng vậy: bảng đen giữ đen có 1 khung VSH.
 - Bảng sóng OTP do hãng viết nên không kiểm.
@@ -207,20 +207,28 @@ lâu dài.
 | Bóng kéo đuôi khi hình chuyển động                                               | `display` và app                                                                            |
 
 **Bảng dải nhiệt độ.** `display` đọc nhiệt độ trước mỗi lần full và chọn profile cho từng slot theo bảng dải. Bảng
-có một dải 0–40 °C (dải nhiệt độ hoạt động của panel), mỗi slot một profile; `display profile set` đổi profile của
-dải đó. Lệnh `display temp` in nhiệt độ controller đo được.
+có một dải 0–40 °C (dải nhiệt độ hoạt động của panel), mỗi slot một profile lấy từ cài đặt. Nhiệt độ đọc được ghi vào
+báo cáo của lần vẽ đó.
 
 **Đẩy lại viền.** Policy nới vùng đổi thêm 1–2 điểm. Ở các điểm viền không đổi màu, `display` đảo bit cũ, nên controller
-coi đó là một lần đổi màu và đẩy điểm về đúng màu của nó. Bật tắt bằng lệnh console `display edge on [số điểm]` và `display edge off`, mặc định tắt.
+coi đó là một lần đổi màu và đẩy điểm về đúng màu của nó. Độ rộng nằm trong cài đặt (`edge_margin`), mặc định 0 là tắt.
 
-## Đo
+## Cài đặt và báo cáo
 
-- Mỗi lần vẽ ghi thời điểm 6 mốc ở bảng "Một lần vẽ đi qua đâu". Thời điểm bấm do task main đưa vào lúc giao khung;
-  các mốc khác `display` tự ghi: mượn khung, giao khung, task màn lấy khung, so xong, và các số thời gian driver trả về.
-- Mỗi lần vẽ in một dòng log, ví dụ `flip 362ms partial: input 12 draw 8 queue 1 diff 2 spi 25 panel 327`. `input` là từ
-  lúc bấm tới lúc mượn khung, `queue` là từ lúc giao khung tới lúc task màn lấy khung.
-- Lệnh console `display stats`: trung bình, nhỏ nhất, lớn nhất từng đoạn trên 50 lần vẽ gần nhất, kèm số khung bị
-  bỏ. Lệnh chạy trên task REPL nên chỉ báo cho task màn; task màn giữ số liệu và tự in.
+Ví dụ: người dùng chọn "lật nhanh" trong app Cài đặt. App gọi `ink_display_set_options` trên task main; `display` ghi
+cài đặt trong lock và báo cho task màn, task màn áp dụng trước khung sau. Khi khởi động, `system` truyền cài đặt đã lưu
+vào `ink_display_start`; chưa có thì dùng `ink_display_default_options`.
+
+| Cài đặt | Nghĩa | Mặc định |
+|---|---|---|
+| `full_profile`, `partial_profile` | Profile của slot full và partial | Profile mặc định của driver |
+| `partials_before_full` | Ngưỡng bóng mờ | 10 |
+| `edge_margin` | Độ rộng đẩy lại viền; 0 = tắt | 0 |
+
+Sau mỗi khung, task màn gọi callback `on_drawn` (nếu có) với một báo cáo: cách vẽ (không vẽ, partial, full), window,
+profile, nhiệt độ nếu vừa đọc, lỗi, và 6 mốc thời gian ở bảng "Một lần vẽ đi qua đâu". Thời điểm bấm do task main đưa vào
+lúc giao khung; các mốc khác `display` tự ghi. Báo cáo này là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo
+của firmware test. Firmware chính không in log hay giữ thống kê thời gian.
 
 ## Khi nào xem lại
 

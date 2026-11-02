@@ -4,10 +4,7 @@
 #include "esp_check.h"
 #include "ink_drv_gpio_button.h"
 #include "ink_drv_uc8253.h"
-#include "ink_platform.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+
 static const char *TAG = "ink_bsp";
 
 static bool s_initialized;
@@ -81,34 +78,22 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
     return ESP_OK;
 }
 
-/* ---- Lệnh console epd ---- */
+#define TUNE_CDI 0xD7 /* viền nổi, như partial của GxEPD2 */
 
-/* epd tune <full|partial> <khung> <Hz> [giữ] [lần quét] [giữ nguồn 0|1]; khung 0 = chép nguyên bảng TR8. */
-static int on_epd_command(int argc, char **argv) {
-    if (argc < 5 || strcmp(argv[1], "tune") != 0) {
-        printf("epd tune <full|partial> <khung> <Hz> [giữ] [lần quét] [giữ nguồn 0|1]\n");
-        return 1;
-    }
-    const ink_hal_display_slot_t   slot    = strcmp(argv[2], "full") == 0 ? INK_HAL_DISPLAY_SLOT_FULL : INK_HAL_DISPLAY_SLOT_PARTIAL;
+esp_err_t ink_bsp_display_tune(ink_hal_display_slot_t slot, const ink_bsp_display_tune_t *tune) {
+    ESP_RETURN_ON_FALSE(tune != nullptr, ESP_ERR_INVALID_ARG, TAG, "null arg");
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
     const ink_drv_uc8253_profile_t profile = {
         .source        = INK_DRV_UC8253_SOURCE_REGISTER,
-        .frames        = (uint8_t)atoi(argv[3]),
-        .frame_rate_hz = (uint16_t)atoi(argv[4]),
-        .hold_frames   = argc > 5 ? (uint8_t)atoi(argv[5]) : 0,
-        .scans         = argc > 6 ? (uint8_t)atoi(argv[6]) : 1,
-        .keep_power_on = argc > 7 && atoi(argv[7]) != 0,
+        .frames        = tune->frames,
+        .frame_rate_hz = tune->frame_rate_hz,
+        .hold_frames   = tune->hold_frames,
+        .scans         = tune->scans,
+        .keep_power_on = tune->keep_power_on,
         .pt_scan       = true,
-        .cdi           = 0xD7, /* viền nổi, như partial của GxEPD2 */
+        .cdi           = TUNE_CDI,
     };
-    if (ink_drv_uc8253_tune(&s_display_driver, slot, &profile) != ESP_OK) { return 1; }
-    printf("tune: lần vẽ sau dùng profile tune cho slot %s\n", argv[2]);
-    return 0;
-}
-
-esp_err_t ink_bsp_add_console_command(void) {
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    return ink_platform_console_add("epd", "Chỉnh tay bảng sóng UC8253: epd tune ...",
-                                    "tune <full|partial> <khung> <Hz> [giữ] [quét] [nguồn]", on_epd_command);
+    return ink_drv_uc8253_tune(&s_display_driver, slot, &profile);
 }
 
 /* ---- Khởi tạo board ---- */

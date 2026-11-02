@@ -1,9 +1,9 @@
 /* Thiết kế: docs/design/input/input.md */
 #pragma once
 
-/* Giờ, timer một lần, console. Không có task riêng: callback timer chạy trên
- * task esp_timer, lệnh console chạy trên task REPL; cả hai là task phụ, chỉ
- * được đẩy message vào hàng đợi task main (docs/design/tasks.md). */
+/* Giờ, timer một lần. Không có task riêng: callback timer chạy trên task
+ * esp_timer, là task phụ, chỉ được đẩy message vào hàng đợi task main
+ * (docs/design/tasks.md). */
 #include "esp_err.h"
 #include <stdint.h>
 
@@ -40,28 +40,3 @@ esp_err_t ink_platform_timer_start(ink_platform_timer_t timer, uint32_t delay_ms
  * @return ESP_ERR_INVALID_ARG nếu timer nullptr
  */
 esp_err_t ink_platform_timer_stop(ink_platform_timer_t timer);
-
-/* ---- Console ---- */
-
-/** Hàm xử lý một lệnh, chạy trên task REPL. Trả 0 nếu thành công. */
-typedef int (*ink_platform_command_handler_t)(int argc, char **argv);
-
-/**
- * Khởi tạo console trên stdio, chưa đọc lệnh.
- * Gọi từ: system, một lần, trước ink_platform_console_add().
- * @return ESP_ERR_INVALID_STATE nếu đã gọi; lỗi của esp_console_new_repl_stdio()
- */
-esp_err_t ink_platform_console_init(const char *prompt);
-
-/**
- * Thêm lệnh. Các chuỗi phải sống suốt đời console.
- * @param hint có thể là nullptr
- * @return ESP_ERR_INVALID_STATE nếu chưa init; lỗi của esp_console_cmd_register()
- */
-esp_err_t ink_platform_console_add(const char *name, const char *help, const char *hint, ink_platform_command_handler_t handler);
-
-/**
- * Bắt đầu đọc lệnh trên task REPL.
- * @return ESP_ERR_INVALID_STATE nếu chưa init hoặc đã start
- */
-esp_err_t ink_platform_console_start(void);

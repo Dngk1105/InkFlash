@@ -40,6 +40,12 @@ ink_display_policy_error_t ink_display_policy_set_edge_margin(ink_display_policy
     return INK_DISPLAY_POLICY_OK;
 }
 
+ink_display_policy_error_t ink_display_policy_set_partials_before_full(ink_display_policy_state_t *state, uint16_t count) {
+    if (state == nullptr || count == 0) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    state->priv.config.partials_before_full = count;
+    return INK_DISPLAY_POLICY_OK;
+}
+
 /* ---- So khung ---- */
 
 static size_t row_bytes(const ink_display_policy_config_t *config) {

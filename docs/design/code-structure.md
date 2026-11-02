@@ -44,8 +44,7 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
 
 Component dài thì tách file theo nơi code chạy, không theo kích thước. Ví dụ `ink_input`: `ink_input.c` giữ trạng thái
-và chạy trên task main, `ink_input_console.c` chạy trên task REPL và chỉ đẩy message, `ink_input_log.c` là hàm thuần
-không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
+và chạy trên task main, `ink_input_log.c` là hàm thuần không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
 
 ### Viết code dễ đọc
 

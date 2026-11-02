@@ -16,7 +16,7 @@
 static const char *TAG = "ink_system";
 
 /* ---- Message vào task main ---- */
-/* ISR, timer và console của các khối chỉ tạo message; mọi việc làm trên task main (docs/design/tasks.md). */
+/* ISR và timer của các khối chỉ tạo message; mọi việc làm trên task main (docs/design/tasks.md). */
 
 typedef enum : uint8_t {
     MESSAGE_SOURCE_INPUT = 0,
@@ -37,7 +37,7 @@ typedef struct {
 static QueueHandle_t s_queue;
 static atomic_uint   s_dropped_count; /* message rơi vì hàng đợi đầy; ISR và task phụ cộng, task main đọc */
 
-/* Gọi từ task phụ (timer, console), không chờ. */
+/* Gọi từ task phụ (timer), không chờ. */
 static void post_message(const message_t *message) {
     if (xQueueSend(s_queue, message, 0) != pdTRUE) { atomic_fetch_add(&s_dropped_count, 1); }
 }
@@ -102,25 +102,18 @@ static esp_err_t create_queue_task(void) {
     return ESP_OK;
 }
 
-static esp_err_t start_console(ink_system_console_hook_t add_board_commands) {
-    esp_err_t error = ink_platform_console_init("ink> ");
-    if (error == ESP_OK) { error = ink_input_add_console_command(); }
-    if (error == ESP_OK) { error = ink_display_add_console_command(); }
-    if (error == ESP_OK && add_board_commands != nullptr) { error = add_board_commands(); }
-    if (error == ESP_OK) { error = ink_platform_console_start(); }
-    return error;
-}
-
 esp_err_t ink_system_start(const ink_system_config_t *config) {
     if (config == nullptr || config->display == nullptr) { return ESP_ERR_INVALID_ARG; }
     if (s_queue != nullptr) { return ESP_ERR_INVALID_STATE; }
     esp_err_t error = create_queue_task();
     if (error == ESP_OK) { error = ink_input_start(config->buttons, config->button_count, post_input, post_input_from_isr); }
     /* Chưa có snapshot: luôn khởi động như cấp điện lần đầu (không có màn nền). */
-    if (error == ESP_OK) { error = ink_display_start(config->display, nullptr); }
     if (error == ESP_OK) {
-        error = start_console(config->add_board_commands);
-        if (error != ESP_OK) { ESP_LOGE(TAG, "console: %s", esp_err_to_name(error)); }
+        const ink_display_config_t display_config = {
+            .device  = config->display,
+            .options = config->display_options,
+        };
+        error = ink_display_start(&display_config);
     }
     return error;
 }

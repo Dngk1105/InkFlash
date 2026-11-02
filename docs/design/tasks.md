@@ -17,7 +17,7 @@ stack trong RAM, và trước khi ngủ sâu phải chờ mọi task dừng. Má
 ### Luật
 
 - Sự kiện từ ngắt và từ task phụ đi vào hàng đợi của task main. Task phụ không sửa trạng thái của task main.
-- Task do ESP-IDF tạo (REPL của console, task chạy callback hẹn giờ của `esp_timer`) cũng là task phụ: lệnh console và callback hẹn giờ chỉ đẩy message vào hàng đợi của task main.
+- Task do ESP-IDF tạo (task chạy callback hẹn giờ của `esp_timer`) cũng là task phụ: callback hẹn giờ chỉ đẩy message vào hàng đợi của task main.
 - Task main không chờ quá khoảng 50 ms cho một việc. Việc nào lâu hơn thì đẩy sang task phụ.
 - Muốn tách một khối ra task riêng sau này thì khối đó phải giao tiếp bằng message, không gọi hàm chéo.
 

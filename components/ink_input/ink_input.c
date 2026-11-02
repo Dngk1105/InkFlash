@@ -1,6 +1,6 @@
 /* Thiết kế: docs/design/input/input.md */
 
-/* Trạng thái của khối và phần chạy trên task main: edge → gesture, timer theo deadline, đọc lại chân, config. */
+/* Trạng thái của khối và phần chạy trên task main: edge → gesture, timer theo deadline, đọc lại chân, cài đặt gesture. */
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "ink_input_internal.h"
@@ -16,10 +16,6 @@ static const char *TAG = "ink_input";
 
 static ink_input_post_t          s_post;
 static ink_input_post_from_isr_t s_post_from_isr;
-
-void input_post(const ink_input_message_t *message) {
-    s_post(message);
-}
 
 /* ---- Nguồn message: ISR nút, timer ---- */
 
@@ -59,10 +55,6 @@ static const ink_hal_button_device_t *s_buttons;                                
 static bool                           s_last_pressed[INK_GESTURE_BUTTON_COUNT]; /* level của edge cuối đã đưa vào gesture */
 static bool                           s_resync_pending;                         /* timer vừa chạy, chưa đọc lại chân */
 
-bool input_is_started(void) {
-    return s_buttons != nullptr;
-}
-
 /* ---- Timer theo deadline của gesture ---- */
 
 #define PROGRESS_LOG_INTERVAL_MS 1000
@@ -90,35 +82,6 @@ static void update_gesture_timer(bool log) {
     }
     if (has_progress && delay_ms > PROGRESS_LOG_INTERVAL_MS) { delay_ms = PROGRESS_LOG_INTERVAL_MS; }
     ESP_ERROR_CHECK(ink_platform_timer_start(s_gesture_timer, delay_ms));
-}
-
-/* ---- Config gesture từ lệnh console ---- */
-
-static void show_config(void) {
-    ink_gesture_config_t config;
-    if (ink_gesture_get_config(&s_gesture_state, &config) != INK_GESTURE_OK) { return; }
-    for (size_t i = 0; i < input_config_field_count(); i++) {
-        ESP_LOGI(TAG, "%s = %lu", input_config_field_name(i), (unsigned long)*input_config_field_value(&config, i));
-    }
-}
-
-static void set_config_field(size_t field_index, uint32_t value_ms) {
-    ink_gesture_config_t config;
-    if (ink_gesture_get_config(&s_gesture_state, &config) != INK_GESTURE_OK) { return; }
-    *input_config_field_value(&config, field_index) = value_ms;
-    if (ink_gesture_set_config(&s_gesture_state, &config) != INK_GESTURE_OK) {
-        ESP_LOGW(TAG, "config sai, giữ config cũ");
-        return;
-    }
-    ESP_LOGI(TAG, "%s = %lu", input_config_field_name(field_index), (unsigned long)value_ms);
-}
-
-static void set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask) {
-    if (ink_gesture_set_enabled(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) {
-        ESP_LOGW(TAG, "mask sai");
-        return;
-    }
-    ESP_LOGI(TAG, "mask %s = %u", input_button_name(button), wait_mask);
 }
 
 /* ---- Edge vào gesture ---- */
@@ -184,17 +147,22 @@ void ink_input_handle(const ink_input_message_t *message, ink_gesture_output_t *
             s_resync_pending = true;
             break;
         }
-        case INK_INPUT_MESSAGE_SHOW_CONFIG:
-            show_config();
-            break;
-        case INK_INPUT_MESSAGE_SET_CONFIG:
-            set_config_field(message->set_config.field_index, message->set_config.value_ms);
-            break;
-        case INK_INPUT_MESSAGE_SET_WAIT_MASK:
-            set_wait_mask(message->set_wait_mask.button, message->set_wait_mask.wait_mask);
-            break;
     }
     update_gesture_timer(message->type == INK_INPUT_MESSAGE_TIMER_EXPIRED);
+}
+
+esp_err_t ink_input_set_gesture_config(const ink_gesture_config_t *config) {
+    if (s_buttons == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (config == nullptr || ink_gesture_set_config(&s_gesture_state, config) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
+    update_gesture_timer(false);
+    return ESP_OK;
+}
+
+esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask) {
+    if (s_buttons == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (ink_gesture_set_enabled(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
+    update_gesture_timer(false);
+    return ESP_OK;
 }
 
 void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_gestures) {

@@ -98,6 +98,13 @@ void ink_display_policy_assume_shown(ink_display_policy_state_t *state);
 [[nodiscard]] ink_display_policy_error_t ink_display_policy_set_edge_margin(ink_display_policy_state_t *state, uint8_t margin);
 
 /**
+ * Đổi ngưỡng bóng mờ (số lần partial liên tiếp trước khi full) cho các lần decide sau; số lần đã đếm giữ nguyên.
+ * Gọi từ: task màn.
+ * @return INK_DISPLAY_POLICY_ERROR_ARGUMENT nếu state nullptr hoặc count bằng 0
+ */
+[[nodiscard]] ink_display_policy_error_t ink_display_policy_set_partials_before_full(ink_display_policy_state_t *state, uint16_t count);
+
+/**
  * Dựng mặt phẳng cũ để đẩy lại viền: chép `shown`, rồi đảo bit cũ của các điểm không đổi
  * nằm trong edge_margin điểm quanh một điểm đổi. Controller coi các điểm đó là đổi màu nên đẩy chúng về đúng
  * màu đang có. Chỉ ghi các byte phủ window.

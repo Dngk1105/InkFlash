@@ -22,10 +22,9 @@ void app_main(void) {
     const ink_hal_display_device_t *display = nullptr;
     ESP_ERROR_CHECK(ink_bsp_display(&display));
     const ink_system_config_t config = {
-        .buttons            = buttons,
-        .button_count       = button_count,
-        .display            = display,
-        .add_board_commands = ink_bsp_add_console_command,
+        .buttons      = buttons,
+        .button_count = button_count,
+        .display      = display,
     };
     ESP_ERROR_CHECK(ink_system_start(&config));
 }
