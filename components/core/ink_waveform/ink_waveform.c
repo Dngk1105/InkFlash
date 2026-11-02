@@ -99,10 +99,11 @@ static int32_t table_charge(const uint8_t *table) {
 ink_waveform_error_t ink_waveform_charge(const ink_waveform_t *waveform, ink_waveform_charge_t *out_charge) {
     if (waveform == nullptr || out_charge == nullptr) { return INK_WAVEFORM_ERROR_ARGUMENT; }
     const uint8_t (*tables)[INK_WAVEFORM_TABLE_BYTES] = waveform->tables;
-    *out_charge                                       = (ink_waveform_charge_t){
-                                              .cycle      = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK]) + table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE]),
-                                              .hold_white = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE]),
-                                              .hold_black = table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK]),
+
+    *out_charge = (ink_waveform_charge_t){
+        .cycle      = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK]) + table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE]),
+        .hold_white = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE]),
+        .hold_black = table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK]),
     };
     return INK_WAVEFORM_OK;
 }

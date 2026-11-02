@@ -47,6 +47,25 @@ Component dài thì tách file theo nơi code chạy, không theo kích thước
 và chạy trên task main, `ink_input_console.c` chạy trên task REPL và chỉ đẩy message, `ink_input_log.c` là hàm thuần
 không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
 
+### Viết code dễ đọc
+
+Ví dụ: `refresh` trong `ink_drv_uc8253.c` đọc như danh sách bước: vào window, chọn nhiệt độ, bật nguồn, quét,
+đổi vai hai vùng RAM. Mỗi bước là một lời gọi hàm có tên; muốn xem chi tiết thì mở hàm đó.
+
+| Luật | Áp dụng |
+|---|---|
+| Hàm cấp trên đọc như danh sách bước; mỗi hàm khoảng 30 dòng trở xuống, không cứng | Code mới và `ink_display`; code cũ sửa khi đụng tới |
+| Trạng thái và quyết định nằm trong khối lõi C thuần có host test; khối vỏ chỉ giữ lock, task, hàng đợi | Mọi khối |
+| Điều kiện dài thì đặt tên bằng biến `bool` (ví dụ `other_fresh`, `held` trong `ink_gesture.c`) | Mọi khối |
+| Driver không viết byte lệnh trần trong luồng chính: mỗi chuỗi lệnh gửi controller là một hàm hoặc hằng có tên theo datasheet, comment ghi mã lệnh | Driver |
+| `if (...) { return ...; }` một dòng dùng cho điều kiện thoát sớm ở đầu hàm; giữa hàm viết khối nhiều dòng | Hướng dẫn, không kiểm |
+
+`.clang-format` căn thẳng dấu `=` của các dòng liền nhau, nên có hai chỗ cần viết khác để khỏi bị thụt lề sâu:
+
+- Khối khởi tạo nhiều dòng (`x = {` hay `x = (type){`) đặt sau một dòng trống, để `=` của nó không căn theo dòng trên.
+- Struct lồng nhau: khởi tạo struct con thành biến riêng trước, rồi gán vào struct ngoài
+  (ví dụ `capabilities` trong `ink_drv_uc8253_init`).
+
 ### Luật phụ thuộc và cách ép
 
 | Luật | Cách ép |

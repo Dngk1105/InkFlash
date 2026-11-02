@@ -408,20 +408,19 @@ static void free_buffers(void) {
 
 esp_err_t ink_display_start(const ink_hal_display_device_t *device, const uint8_t *background) {
     if (s_task != nullptr) { return ESP_ERR_INVALID_STATE; }
-    ESP_RETURN_ON_FALSE(device
-                            && device->operations
-                            && device->operations->draw
-                            && device->operations->select_profile
-                            && device->operations->read_temperature,
-                        ESP_ERR_INVALID_ARG, TAG, "null arg");
+    ESP_RETURN_ON_FALSE(device != nullptr && device->operations != nullptr, ESP_ERR_INVALID_ARG, TAG, "null device");
+    const ink_hal_display_operations_t *operations = device->operations;
+    ESP_RETURN_ON_FALSE(operations->draw && operations->select_profile && operations->read_temperature, ESP_ERR_INVALID_ARG, TAG,
+                        "null operation");
     const ink_hal_display_capabilities_t *capabilities = &device->capabilities;
-    const ink_display_policy_config_t     config       = {
-                  .width                = capabilities->width,
-                  .height               = capabilities->height,
-                  .x_align              = capabilities->x_align,
-                  .partials_before_full = PARTIALS_BEFORE_FULL,
-                  .max_partial_percent  = MAX_PARTIAL_PERCENT,
-                  .edge_margin          = 0,
+
+    const ink_display_policy_config_t config = {
+        .width                = capabilities->width,
+        .height               = capabilities->height,
+        .x_align              = capabilities->x_align,
+        .partials_before_full = PARTIALS_BEFORE_FULL,
+        .max_partial_percent  = MAX_PARTIAL_PERCENT,
+        .edge_margin          = 0,
     };
     ESP_RETURN_ON_FALSE(ink_display_policy_init(&s_policy, &config) == INK_DISPLAY_POLICY_OK, ESP_ERR_INVALID_ARG, TAG, "capabilities");
     ESP_RETURN_ON_FALSE(capabilities->profile_count > 0, ESP_ERR_INVALID_ARG, TAG, "no profile");

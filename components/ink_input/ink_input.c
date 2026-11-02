@@ -26,10 +26,11 @@ void input_post(const ink_input_message_t *message) {
 /* user_data là mã nút (ink_gesture_button_t). Đóng dấu thời gian tại đây: chỉ một nguồn giờ. */
 static void IRAM_ATTR on_button_edge(void *user_data, bool pressed) {
     ink_input_message_t message = {.type = INK_INPUT_MESSAGE_BUTTON_EDGE};
-    message.button_edge         = (ink_gesture_event_t){
-                .button  = (ink_gesture_button_t)(uintptr_t)user_data,
-                .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
-                .time_ms = ink_platform_now_ms(),
+
+    message.button_edge = (ink_gesture_event_t){
+        .button  = (ink_gesture_button_t)(uintptr_t)user_data,
+        .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
+        .time_ms = ink_platform_now_ms(),
     };
     s_post_from_isr(&message);
 }

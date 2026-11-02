@@ -114,9 +114,10 @@ static ink_display_policy_rect_t make_window(const ink_display_policy_config_t *
 static void decide_full(ink_display_policy_state_t *state, ink_display_policy_decision_t *out_decision) {
     state->priv.partial_count = 0;
     state->priv.shown_valid   = true;
-    *out_decision             = (ink_display_policy_decision_t){
-                    .mode   = INK_DISPLAY_POLICY_MODE_FULL,
-                    .window = {.x = 0, .y = 0, .width = state->priv.config.width, .height = state->priv.config.height},
+
+    *out_decision = (ink_display_policy_decision_t){
+        .mode   = INK_DISPLAY_POLICY_MODE_FULL,
+        .window = {.x = 0, .y = 0, .width = state->priv.config.width, .height = state->priv.config.height},
     };
 }
 

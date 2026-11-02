@@ -574,18 +574,19 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
     ESP_RETURN_ON_ERROR(gpio_isr_handler_add(config->busy, on_busy_rise, driver), TAG, "gpio_isr_handler_add");
     ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset");
 
+    const ink_hal_display_capabilities_t capabilities = {
+        .width            = INK_DRV_UC8253_WIDTH,
+        .height           = INK_DRV_UC8253_HEIGHT,
+        .x_align          = X_ALIGN,
+        .profiles         = driver->profile_info,
+        .profile_count    = INK_DRV_UC8253_PROFILE_COUNT,
+        .default_profiles = {[INK_HAL_DISPLAY_SLOT_FULL] = DEFAULT_FULL, [INK_HAL_DISPLAY_SLOT_PARTIAL] = DEFAULT_PARTIAL},
+    };
+
     *out_device = (ink_hal_display_device_t){
-        .operations = &s_operations,
-        .context    = driver,
-        .capabilities =
-            {
-                           .width            = INK_DRV_UC8253_WIDTH,
-                           .height           = INK_DRV_UC8253_HEIGHT,
-                           .x_align          = X_ALIGN,
-                           .profiles         = driver->profile_info,
-                           .profile_count    = INK_DRV_UC8253_PROFILE_COUNT,
-                           .default_profiles = {[INK_HAL_DISPLAY_SLOT_FULL] = DEFAULT_FULL, [INK_HAL_DISPLAY_SLOT_PARTIAL] = DEFAULT_PARTIAL},
-                           },
+        .operations   = &s_operations,
+        .context      = driver,
+        .capabilities = capabilities,
     };
     return ESP_OK;
 }
