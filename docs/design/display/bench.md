@@ -33,7 +33,7 @@ Cài đặt cũng gọi) và callback `on_drawn` (luồng đi ngủ cũng chờ)
 
 | Đường | Vẽ thế nào | Dùng khi |
 |---|---|---|
-| raw | Task bench gọi thẳng `draw` của driver: profile, cấu hình vẽ, window (tuỳ ý, cả màn, hoặc vùng đổi so với ảnh đang hiện) và mặt phẳng cũ (ảnh đang hiện, một slot khác, khung mới đảo bit, hoặc bằng khung mới) đều chọn tay. Nguồn analog tự tắt sau 2 s không vẽ, chỉnh được bằng gói POWER_OFF | So bảng sóng, thử window, thử mặt phẳng cũ, đo nhiệt độ và dòng |
+| raw | Task bench gọi thẳng `draw` của driver: profile, cấu hình vẽ, window (tuỳ ý, cả màn, hoặc vùng khung mới khác mặt phẳng cũ) và mặt phẳng cũ (ảnh đang hiện, một slot khác, khung mới đảo bit, hoặc bằng khung mới) đều chọn tay. Nguồn analog tự tắt sau 2 s không vẽ, chỉnh được bằng gói POWER_OFF | So bảng sóng, thử window, thử mặt phẳng cũ, đo nhiệt độ và dòng |
 | pipeline | Chép slot vào khung mượn của `ink_display` rồi giao kèm ý định và cờ, như app thật: policy chọn preset, giữ nợ và cờ viền, chạy thang dọn khi nghỉ, tắt nguồn | Kiểm hành vi thật, đo từ lúc bấm nút, kiểm thang dọn |
 
 `ink_display` giữ driver suốt đời, nên hai đường không chạy cùng lúc. Đổi đường thì máy ghi lựa chọn vào RTC memory rồi
@@ -55,7 +55,7 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `01` | HELLO | trống; trả INFO thay cho ACK |
 | `02` | SET_PATH | đường (0 raw, 1 pipeline); khác đường đang chạy thì máy khởi động lại sau ACK |
 | `03` | UPLOAD | slot, 0, offset (2), dữ liệu ảnh (tối đa 4096) |
-| `04` | DRAW | slot, index profile, nguồn mặt phẳng cũ (0 đang hiện, 1 slot, 2 đảo bit, 3 bằng khung mới), slot cũ, vào chế độ partial, `PT_SCAN`, kéo viền màn, kiểu window (0 theo x/y/rộng/cao, 1 cả màn, 2 vùng đổi), x, y, rộng, cao (2 byte mỗi số). Chỉ đường raw |
+| `04` | DRAW | slot, index profile, nguồn mặt phẳng cũ (0 đang hiện, 1 slot, 2 đảo bit, 3 bằng khung mới), slot cũ, vào chế độ partial, `PT_SCAN`, kéo viền màn, kiểu window (0 theo x/y/rộng/cao, 1 cả màn, 2 vùng khung mới khác mặt phẳng cũ; mặt phẳng cũ bằng khung mới thì cả màn; vùng trống thì không vẽ), x, y, rộng, cao (2 byte mỗi số). Chỉ đường raw |
 | `05` | SUBMIT | slot, ý định (0 `AUTO`, 1 `TEXT`, 2 `UI`, 3 `PAGE`), cờ (bit 0 hoãn dọn, bit 1 trước khi ngủ). Đường raw bỏ ý định và cờ, vẽ theo gói DRAW gần nhất |
 | `06` | PLAY | ms giữa hai khung (2), số vòng (0 = mãi), ý định, cờ, số slot, các slot |
 | `07` | STOP | trống |

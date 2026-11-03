@@ -218,7 +218,7 @@ function renderProfiles() {
 
 function renderPathControls() {
     const raw = app.info?.path !== 'pipeline';
-    for (const id of ['raw-profile', 'raw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border', 'raw-power-off-ms', 'apply-raw-power',
+    for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border', 'raw-power-off-ms', 'apply-raw-power',
         'power-off', 'old-source', 'old-slot', 'read-temperature', 'dump-otp']) { $(id).disabled = !raw; }
     for (const id of ['apply-options', 'reset-options', 'submit-intent', 'submit-defer', 'submit-sleep']) { $(id).disabled = raw; }
 }
@@ -235,10 +235,14 @@ async function applyPath() {
 
 /* ---- Cách vẽ raw ---- */
 
-function readRawForm() {
+function readRawForm(source) {
+    /* Hai ô chọn window (tab Chế độ, thẻ Vẽ một slot) cùng một cài đặt: ô vừa đổi thắng. */
+    const windowKind = source?.target?.id === 'draw-window-kind' ? $('draw-window-kind').value : $('raw-window-kind').value;
+    $('raw-window-kind').value = windowKind;
+    $('draw-window-kind').value = windowKind;
     app.settings.raw = {
         profile: Number($('raw-profile').value),
-        windowKind: Number($('raw-window-kind').value),
+        windowKind: Number(windowKind),
         partialMode: $('raw-partial-mode').checked,
         ptScan: $('raw-pt-scan').checked,
         driveBorder: $('raw-drive-border').checked,
@@ -249,6 +253,7 @@ function renderRawForm() {
     const raw = app.settings.raw;
     $('raw-profile').value = String(raw.profile);
     $('raw-window-kind').value = String(raw.windowKind);
+    $('draw-window-kind').value = String(raw.windowKind);
     $('raw-partial-mode').checked = raw.partialMode;
     $('raw-pt-scan').checked = raw.ptScan;
     $('raw-drive-border').checked = raw.driveBorder;
@@ -637,6 +642,8 @@ async function drawSlot() {
         const oldSource = Number($('old-source').value);
         const oldSlot = Number($('old-slot').value);
         if (oldSource === OldSource.SLOT) { await ensureUploaded(oldSlot); }
+        app.manualDrawPending = true;
+        $('draw-summary').textContent = `${profileName(app.settings.raw.profile)} · ${$('draw-window-kind').selectedOptions[0].text} · ${$('old-source').selectedOptions[0].text}`;
         await app.link.command(Command.DRAW, drawPayload(slot, app.settings.raw, oldSource, oldSlot, app.selectedWindow));
     });
 }
@@ -649,6 +656,12 @@ function onDrawn(drawn) {
     if (drawn.temperatureValid) { app.settings.temperatureCelsius = drawn.temperatureCelsius; }
     renderFrame($('shown-preview'), app.shown.frame, app.orientation, PREVIEW_SCALE, drawn.action === Action.POWER_OFF ? app.shown.window : drawn.window);
     renderLastDrawn(drawn);
+    if (app.manualDrawPending && drawn.frame) {
+        app.manualDrawPending = false;
+        if (drawn.action === Action.NONE) {
+            toast('Máy không vẽ: khung mới giống hệt mặt phẳng cũ trong window "Vùng đổi". Chọn window "Cả màn" hoặc mặt phẳng cũ "Khung mới đảo bit".', true);
+        }
+    }
     if (app.run) {
         app.run.drawn.push(drawn);
         renderRun();
@@ -1148,7 +1161,7 @@ function setupControls() {
     $('power-off').addEventListener('click', powerOffNow);
     $('load-profile').addEventListener('click', loadTemporaryProfile);
     $('dump-otp').addEventListener('click', dumpOtp);
-    for (const id of ['raw-profile', 'raw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
+    for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
     for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 
     fillSelect($('dither'), Object.values(DitherMethod).map((method) => ({value: method, label: DITHER_NAMES[method]})), DitherMethod.FLOYD_STEINBERG);

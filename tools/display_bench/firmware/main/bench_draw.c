@@ -58,13 +58,17 @@ static void invert(const uint8_t *source, uint8_t *destination) {
     for (size_t i = 0; i < s_frame_bytes; i++) { destination[i] = (uint8_t)~source[i]; }
 }
 
-/* Window theo kiểu của gói; false nếu kiểu vùng đổi mà hai khung giống hệt. */
-static bool choose_window(const bench_raw_settings_t *settings, ink_hal_display_rect_t *out_window) {
+/*
+ * Window theo kiểu của gói. "Vùng đổi" là vùng mà mặt phẳng cũ khác khung mới, tức đúng các điểm bảng sóng sẽ kéo:
+ * mặt phẳng cũ là ảnh đang hiện thì so với ảnh đang hiện, là slot khác thì so với slot đó. Mặt phẳng cũ bằng khung
+ * mới thì không điểm nào bị kéo, chỉ chạy bảng giữ màu: vẽ cả màn. Trả false nếu vùng đổi trống.
+ */
+static bool choose_window(const bench_raw_settings_t *settings, const uint8_t *plane_old, ink_hal_display_rect_t *out_window) {
     if (settings->window_kind == BENCH_WINDOW_GIVEN && settings->window.width > 0 && settings->window.height > 0) {
         *out_window = settings->window;
         return true;
     }
-    if (settings->window_kind != BENCH_WINDOW_CHANGED || !s_shown_valid) {
+    if (settings->window_kind != BENCH_WINDOW_CHANGED || plane_old == s_new) {
         *out_window = full_window();
         return true;
     }
@@ -72,7 +76,7 @@ static bool choose_window(const bench_raw_settings_t *settings, ink_hal_display_
     const ink_display_policy_config_t     config       = {
                   .width = capabilities->width, .height = capabilities->height, .x_align = capabilities->x_align};
     ink_display_policy_rect_t changed;
-    if (!ink_display_policy_changed_window(&config, s_shown, s_new, &changed)) { return false; }
+    if (!ink_display_policy_changed_window(&config, plane_old, s_new, &changed)) { return false; }
     *out_window = (ink_hal_display_rect_t){changed.x, changed.y, changed.width, changed.height};
     return true;
 }
@@ -108,13 +112,13 @@ esp_err_t bench_draw_raw(uint8_t slot, const bench_raw_settings_t *settings, ben
     *out                   = (bench_drawn_t){.slot = slot, .action = INK_DISPLAY_ACTION_NONE, .frame = true, .purpose = RAW_PURPOSE};
     memcpy(s_new, s_slots[slot], s_frame_bytes);
 
+    const uint8_t         *plane_old = prepare_old_plane(settings);
     ink_hal_display_rect_t window;
-    if (!choose_window(settings, &window)) { return ESP_OK; }
-    const uint8_t *plane_old = prepare_old_plane(settings);
-    out->action              = INK_DISPLAY_ACTION_DRAW;
-    out->window              = window;
-    out->profile_id          = s_device.capabilities.profiles[settings->profile].id;
-    out->diff_ms             = elapsed_ms(start_us, esp_timer_get_time());
+    if (!choose_window(settings, plane_old, &window)) { return ESP_OK; }
+    out->action     = INK_DISPLAY_ACTION_DRAW;
+    out->window     = window;
+    out->profile_id = s_device.capabilities.profiles[settings->profile].id;
+    out->diff_ms    = elapsed_ms(start_us, esp_timer_get_time());
 
     out->error = s_device.operations->draw(s_device.context, s_new, plane_old, window, settings->profile, &settings->config, &out->driver);
     memcpy(s_shown, s_new, s_frame_bytes);

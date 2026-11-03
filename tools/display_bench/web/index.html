@@ -54,7 +54,7 @@
                 <div class="form-grid">
                     <label for="raw-profile">Profile</label><select id="raw-profile"></select>
                     <label for="raw-window-kind">Window</label>
-                    <select id="raw-window-kind"><option value="2">Vùng đổi so với ảnh đang hiện</option><option value="1">Cả màn</option><option value="0">Window chọn trên ảnh</option></select>
+                    <select id="raw-window-kind"><option value="2">Vùng đổi (khung mới khác mặt phẳng cũ)</option><option value="1">Cả màn</option><option value="0">Window chọn trên ảnh</option></select>
                     <label for="raw-partial-mode">Vào chế độ partial (PTL)</label><input id="raw-partial-mode" type="checkbox" checked>
                     <label for="raw-pt-scan"><code>PT_SCAN</code> = 1 (quét cả ngoài window)</label><input id="raw-pt-scan" type="checkbox" checked>
                     <label for="raw-drive-border">Kéo viền màn</label><input id="raw-drive-border" type="checkbox">
@@ -148,11 +148,14 @@
                 <h2>Vẽ một slot</h2>
                 <div class="form-grid">
                     <label for="draw-slot">Slot</label><select id="draw-slot"></select>
+                    <label for="draw-window-kind">Window (raw)</label>
+                    <select id="draw-window-kind"><option value="2">Vùng đổi (khung mới khác mặt phẳng cũ)</option><option value="1">Cả màn</option><option value="0">Window chọn trên ảnh</option></select>
                     <label for="old-source">Mặt phẳng cũ (raw)</label>
                     <select id="old-source"><option value="0">Ảnh đang hiện</option><option value="1">Một slot khác</option><option value="2">Khung mới đảo bit</option><option value="3">Bằng khung mới (giữ màu)</option></select>
                     <label for="old-slot">Slot cũ</label><select id="old-slot"></select>
                 </div>
-                <div class="row"><button id="draw-button" class="primary">Vẽ</button></div>
+                <p class="muted">Profile, chế độ partial, PT_SCAN, viền lấy ở tab Chế độ. Window "Vùng đổi" mà khung mới giống hệt mặt phẳng cũ (ví dụ vẽ lại ảnh đang hiện) thì máy không vẽ: chọn "Cả màn" hoặc mặt phẳng cũ "Khung mới đảo bit".</p>
+                <div class="row"><button id="draw-button" class="primary">Vẽ</button><span id="draw-summary" class="muted value"></span></div>
             </div>
             <div class="card">
                 <h2>Các slot</h2>
