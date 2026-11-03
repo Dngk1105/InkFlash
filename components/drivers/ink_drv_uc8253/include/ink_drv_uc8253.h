@@ -23,6 +23,7 @@
 #define INK_DRV_UC8253_MAX_PROFILES       32                /* chỗ trong bảng khả năng, gồm profile tạm */
 #define INK_DRV_UC8253_OTP_BYTES          (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
 #define INK_DRV_UC8253_PSR_SECOND_DEFAULT 0x0D              /* như GxEPD2: NORG = 0, VC_LUTZ = 1; mã mẫu hãng dùng 0x0E */
+#define INK_DRV_UC8253_VCOM_FROM_PROFILE  0xFF              /* không thay VCOM_DC của profile */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */
@@ -59,6 +60,7 @@ typedef struct {
     bool                            ram_swapped;       /**< số DRF từ lúc reset là lẻ: 0x10 đang là vùng NEW */
     bool                            needs_reset;       /**< lần vẽ trước lỗi giữa chừng: không còn biết lượt */
     uint8_t                         psr_second;        /**< byte 2 của PSR đã gửi controller */
+    uint8_t vcom_override; /**< byte lệnh 0x82 thay cho của profile; INK_DRV_UC8253_VCOM_FROM_PROFILE = không thay */
 
     /** Yêu cầu từ task khác, giữ request_lock: draw (và power_off với PSR) lấy ra. */
     portMUX_TYPE             request_lock;
@@ -69,6 +71,8 @@ typedef struct {
     char                     temporary_name[INK_DRV_UC8253_NAME_BYTES];
     bool                     psr_second_pending;
     uint8_t                  psr_second_request;
+    bool                     vcom_override_pending;
+    uint8_t                  vcom_override_request;
 
     ink_hal_display_profile_info_t profile_info[INK_DRV_UC8253_MAX_PROFILES];
 
@@ -113,3 +117,17 @@ esp_err_t ink_drv_uc8253_set_psr_second(ink_drv_uc8253_t *driver, uint8_t value)
  * Gọi từ: task bất kỳ.
  */
 uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver);
+
+/**
+ * Thay VCOM_DC (byte lệnh 0x82) của mọi profile bằng `value`, có tác dụng từ lần vẽ sau; INK_DRV_UC8253_VCOM_FROM_PROFILE
+ * trả về VCOM_DC của từng profile. Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc `value` lớn hơn 0x7E mà không phải INK_DRV_UC8253_VCOM_FROM_PROFILE
+ */
+esp_err_t ink_drv_uc8253_set_vcom_override(ink_drv_uc8253_t *driver, uint8_t value);
+
+/**
+ * VCOM_DC thay thế đã đặt gần nhất, kể cả khi chưa gửi controller.
+ * Gọi từ: task bất kỳ.
+ */
+uint8_t ink_drv_uc8253_vcom_override(ink_drv_uc8253_t *driver);

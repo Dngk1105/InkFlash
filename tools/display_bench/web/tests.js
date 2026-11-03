@@ -117,7 +117,8 @@ function frameWithBoxes(orientation, boxes) {
  * params: {key, label, value, min, max, step?} cho số; {type: 'profile', value: tên profile mặc định}; {type: 'bool'};
  * {type: 'select', options: [{value, label}], value}.
  * build(values, orientation) trả {frames, order (index trong frames), intervalMs, repeat, note?, raw?, oldSource?,
- * intent?, flags?, optionsPatch?, psrSecond?, special?}. psrSecond: byte 2 của PSR, trang gửi trước khi chạy. `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
+ * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, special?}. psrSecond, vcomOverride: gói SET_PANEL trang gửi trước
+ * khi chạy (255 = VCOM_DC theo profile). `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
  */
 const flips = (count) => Array.from({length: count}, (_, index) => (index + 1) % 2);
 
@@ -248,6 +249,39 @@ export const TESTS = [
                 psrSecond: values.psr,
                 optionsPatch: {edgeMs: values.edge, lightMs: values.light, strongMs: 3_600_000, powerOffMs: values.power},
                 note: 'Chụp ảnh: sau gói "dọn nhẹ", ngay sau gói "tắt nguồn", và 30 s sau đó. Dọn mạnh dời tới 1 giờ; bấm "Về mặc định" ở tab Chế độ khi xong.',
+            };
+        },
+    },
+    {
+        id: 'vcom_still',
+        name: 'VCOM và vùng đứng yên',
+        path: 'raw',
+        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy hai lần cùng profile: VCOM_DC theo profile (tr8 và profile vẽ tay là 09) rồi 13 (như TR0–TR7). So vùng đứng yên: nửa trắng có tối dần, nửa đen có nhạt dần không.',
+        params: [
+            {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
+            {key: 'vcom', label: 'VCOM_DC', type: 'select', value: 255,
+                options: [{value: 255, label: 'Theo profile'}, {value: 0x13, label: '13: −2,0 V (TR0–TR7)'}, {value: 0x09, label: '09: −1,0 V (TR8)'}]},
+            {key: 'count', label: 'Số lần lật', value: 60, min: 1, max: 200},
+            {key: 'interval', label: 'ms giữa hai lần', value: 200, min: 0, max: 10000, step: 50},
+        ],
+        build(values, orientation) {
+            const {width, height} = viewSize(orientation);
+            const still = createFrame(true);
+            fillViewRect(still, orientation, Math.floor(width / 2), 0, width - Math.floor(width / 2), height, false);
+            const box = centeredBox(orientation, 60, 60);
+            const flipped = still.slice();
+            for (let row = box.y; row < box.y + box.height; row++) {
+                fillViewRect(flipped, orientation, box.x, row, box.width / 2, 1, false);
+                fillViewRect(flipped, orientation, box.x + box.width / 2, row, box.width / 2, 1, true);
+            }
+            return {
+                frames: [still, flipped],
+                order: [0, ...flips(values.count), 0],
+                intervalMs: values.interval,
+                repeat: 1,
+                vcomOverride: values.vcom,
+                raw: {profile: values.profile, windowKind: WindowKind.WHOLE, partialMode: true},
+                note: 'Chụp ảnh vùng đứng yên trước khi chạy và sau lần cuối, cùng góc, cùng đèn. Ô giữa: nửa trái đổi trắng → đen, nửa phải đen → trắng.',
             };
         },
     },

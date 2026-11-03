@@ -62,7 +62,8 @@ const app = {
         defaultOptions: null, /* cài đặt lúc máy khởi động */
         temporaryProfile: null,
         temperatureCelsius: null,
-        psrSecond: null, /* byte 2 của PSR trên máy, từ INFO */
+        psrSecond: null,    /* byte 2 của PSR trên máy, từ INFO */
+        vcomOverride: null, /* VCOM_DC thay thế; 255 = theo profile */
     },
     run: null, /* {label, testId, params, startedAt, drawn: [], settings} */
     pendingPreview: new Map(), /* slot → frame vừa giao, để cập nhật màn đang hiện khi có DRAWN */
@@ -152,7 +153,8 @@ async function onConnected() {
     app.settings.defaultOptions = structuredClone(info.options);
     app.settings.temporaryProfile = null;
     app.settings.psrSecond = info.psrSecond;
-    renderPsrSecond();
+    app.settings.vcomOverride = info.vcomOverride;
+    renderPanel();
     app.settings.raw.profile = profileIndexForPurpose(0) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
     document.querySelectorAll('input[name="path"]').forEach((radio) => { radio.checked = radio.value === info.path; });
@@ -287,21 +289,31 @@ async function powerOffNow() {
 
 function hexByte(value) { return value.toString(16).toUpperCase().padStart(2, '0'); }
 
-function renderPsrSecond() {
-    const value = app.settings.psrSecond;
-    $('psr-second-value').textContent = value === null ? '' : `máy đang dùng ${hexByte(value)}`;
-    if (value !== null && [...$('psr-second').options].some((option) => Number(option.value) === value)) { $('psr-second').value = String(value); }
+const VCOM_FROM_PROFILE = 255;
+
+function vcomName(value) { return value === VCOM_FROM_PROFILE ? 'theo profile' : hexByte(value); }
+
+function renderPanel() {
+    const {psrSecond, vcomOverride} = app.settings;
+    $('psr-second-value').textContent = psrSecond === null ? '' : `máy đang dùng PSR ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}`;
+    const select = (id, value) => {
+        if (value !== null && [...$(id).options].some((option) => Number(option.value) === value)) { $(id).value = String(value); }
+    };
+    select('psr-second', psrSecond);
+    select('vcom-override', vcomOverride);
 }
 
-async function setPsrSecond(value) {
-    await app.link.command(Command.SET_PANEL, new Writer().u8(value).result());
-    app.settings.psrSecond = value;
-    renderPsrSecond();
-    log(`[web] PSR byte 2 = ${hexByte(value)}; có tác dụng từ lần vẽ hoặc tắt nguồn sau`);
+/* Gói SET_PANEL: PSR byte 2, VCOM_DC thay thế. Giá trị bỏ trống thì giữ giá trị máy đang dùng. */
+async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0d, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE}) {
+    await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).result());
+    app.settings.psrSecond = psrSecond;
+    app.settings.vcomOverride = vcomOverride;
+    renderPanel();
+    log(`[web] PSR byte 2 = ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}; có tác dụng từ lần vẽ sau`);
 }
 
-async function applyPsrSecond() {
-    await guarded(() => setPsrSecond(Number($('psr-second').value)));
+async function applyPanel() {
+    await guarded(() => setPanel({psrSecond: Number($('psr-second').value), vcomOverride: Number($('vcom-override').value)}));
 }
 
 async function readTemperature() {
@@ -595,6 +607,7 @@ function snapshotSettings() {
         optionsSummary: app.info?.path === 'pipeline' ? optionsSummary(app.settings.options) : null,
         temporaryProfile: app.settings.temporaryProfile,
         psrSecond: app.settings.psrSecond === null ? null : hexByte(app.settings.psrSecond),
+        vcom: app.settings.vcomOverride === null ? null : vcomName(app.settings.vcomOverride),
     };
 }
 
@@ -910,7 +923,9 @@ async function runSelectedTest() {
         renderSlots();
         const slots = plan.order.map((index) => TEST_FIRST_SLOT + index);
         app.lastRun = runSelectedTest;
-        if (plan.psrSecond !== undefined) { await setPsrSecond(plan.psrSecond); }
+        if (plan.psrSecond !== undefined || plan.vcomOverride !== undefined) {
+            await setPanel({psrSecond: plan.psrSecond, vcomOverride: plan.vcomOverride});
+        }
         startRun(test.name, {testId: test.id, params: values}, plan.repeat === 1 && !plan.special ? slots.length : 0);
         if (plan.note) { log(`[web] ${plan.note}`); }
         const raw = app.info?.path !== 'pipeline';
@@ -1202,7 +1217,7 @@ function setupControls() {
     $('power-off').addEventListener('click', powerOffNow);
     $('load-profile').addEventListener('click', loadTemporaryProfile);
     $('dump-otp').addEventListener('click', dumpOtp);
-    $('apply-psr-second').addEventListener('click', applyPsrSecond);
+    $('apply-psr-second').addEventListener('click', applyPanel);
     for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
     for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 

@@ -213,7 +213,8 @@ static esp_err_t send_voltages(ink_drv_uc8253_t *driver, const ink_drv_uc8253_pr
     /* Byte 4–5 của LUTOPT lấy theo nhánh exp/uc8253-lut, đã chạy trên BB0. */
     const uint8_t lutopt[] = {profile->eopt, profile->xon[0], profile->xon[1], 0xFF, 0x00};
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PWR, pwr, sizeof(pwr)), TAG, "pwr");
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_VDCS, &profile->vcom, 1), TAG, "vdcs");
+    const uint8_t vcom = driver->vcom_override == INK_DRV_UC8253_VCOM_FROM_PROFILE ? profile->vcom : driver->vcom_override;
+    ESP_RETURN_ON_ERROR(send_command(driver, CMD_VDCS, &vcom, 1), TAG, "vdcs");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PLL, &profile->pll, 1), TAG, "pll");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_LUTOPT, lutopt, sizeof(lutopt)), TAG, "lutopt");
     return wait_ready(driver, BUSY_SHORT_TIMEOUT_MS);
@@ -343,6 +344,18 @@ static esp_err_t apply_psr_second(ink_drv_uc8253_t *driver) {
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
+/* VCOM_DC thay thế do task khác đặt: đổi thì nạp lại profile ở lần vẽ này. */
+static void apply_vcom_override(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool    pending         = driver->vcom_override_pending;
+    const uint8_t value           = driver->vcom_override_request;
+    driver->vcom_override_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->vcom_override) { return; }
+    driver->vcom_override  = value;
+    driver->loaded_profile = NO_PROFILE;
+}
+
 /* Window đã căn mép, hoặc cả màn khi ngoài chế độ partial hay khi RAM không còn đáng tin. */
 static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rect_t rect, bool partial_mode, window_t *out_window) {
     if (!partial_mode || !driver->ram_trusted) {
@@ -375,6 +388,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
     apply_temporary(driver);
     ESP_RETURN_ON_ERROR(apply_psr_second(driver), TAG, "psr");
+    apply_vcom_override(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
     ESP_RETURN_ON_FALSE(profile != nullptr, index == TEMPORARY_PROFILE ? ESP_ERR_INVALID_STATE : ESP_ERR_INVALID_ARG, TAG, "profile %u",
                         (unsigned)index);
@@ -518,6 +532,22 @@ uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver) {
     return value;
 }
 
+esp_err_t ink_drv_uc8253_set_vcom_override(ink_drv_uc8253_t *driver, uint8_t value) {
+    ESP_RETURN_ON_FALSE(driver && (value <= 0x7E || value == INK_DRV_UC8253_VCOM_FROM_PROFILE), ESP_ERR_INVALID_ARG, TAG, "vcom");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->vcom_override_request = value;
+    driver->vcom_override_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+uint8_t ink_drv_uc8253_vcom_override(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const uint8_t value = driver->vcom_override_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
+}
+
 /* ---- Khởi tạo ---- */
 
 static esp_err_t configure_pins(const ink_drv_uc8253_config_t *config) {
@@ -550,11 +580,13 @@ static void fill_profile_info(ink_drv_uc8253_t *driver) {
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");
     *driver = (ink_drv_uc8253_t){
-        .config             = *config,
-        .loaded_profile     = NO_PROFILE,
-        .request_lock       = portMUX_INITIALIZER_UNLOCKED,
-        .psr_second         = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
-        .psr_second_request = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .config                = *config,
+        .loaded_profile        = NO_PROFILE,
+        .request_lock          = portMUX_INITIALIZER_UNLOCKED,
+        .psr_second            = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .psr_second_request    = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .vcom_override         = INK_DRV_UC8253_VCOM_FROM_PROFILE,
+        .vcom_override_request = INK_DRV_UC8253_VCOM_FROM_PROFILE,
     };
     fill_profile_info(driver);
 

@@ -36,12 +36,16 @@
      "tables": {"KW": [["VSL", 5]], "WK": [["VSH", 5]]}},
     {"id": 26, "name": "edge_patent50", "base": "TR8", "frame_rate_hz": 50, "allow_unbalanced": true,
      "tables": {"KW": [["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 3]],
-                "WK": [["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 3]]}}
+                "WK": [["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 3]]}},
+    {"id": 27, "name": "text_pre10f100", "base": "TR8", "frame_rate_hz": 100,
+     "tables": {"KW": [["VSH", 10], ["VSL", 25]], "WK": [["VSL", 10], ["VSH", 25]]}},
+    {"id": 28, "name": "text_pre5f65", "base": "TR8", "frame_rate_hz": 65,
+     "tables": {"KW": [["VSH", 5], ["VSL", 18]], "WK": [["VSL", 5], ["VSH", 18]]}}
   ],
   "purposes": {
     "text": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},
     "ui": {"bands": [[127, 13]], "partial_mode": true, "pt_scan": true, "drive_border": false},
-    "page": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "page": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": true},
     "clean_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
                      "partial_mode": false, "pt_scan": true, "drive_border": true},
     "clean_fast": {"bands": [[127, 9]], "partial_mode": false, "pt_scan": true, "drive_border": true},

@@ -143,6 +143,7 @@ static void send_info(uint8_t seq) {
     }
     put_options(&writer, bench_draw_options());
     put_u8(&writer, ink_bsp_display_psr_second());
+    put_u8(&writer, ink_bsp_display_vcom_override());
     bench_link_send(BENCH_INFO, seq, writer.bytes, writer.length);
 }
 
@@ -393,6 +394,13 @@ static esp_err_t handle_otp_dump(uint8_t seq) {
     return ESP_OK;
 }
 
+/* PSR byte 2, rồi VCOM_DC thay thế nếu gói có byte thứ hai. */
+static esp_err_t handle_set_panel(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 1, ESP_ERR_INVALID_ARG, TAG, "panel");
+    ESP_RETURN_ON_ERROR(ink_bsp_display_set_psr_second(payload[0]), TAG, "psr");
+    return length >= 2 ? ink_bsp_display_set_vcom_override(payload[1]) : ESP_OK;
+}
+
 static void handle_read_temperature(uint8_t seq) {
     int8_t          celsius = 0;
     const esp_err_t error   = bench_draw_read_temperature(&celsius);
@@ -459,7 +467,7 @@ static void handle_packet(const bench_packet_t *packet) {
             error = handle_otp_dump(packet->seq);
             break;
         case BENCH_SET_PANEL:
-            error = length >= 1 ? ink_bsp_display_set_psr_second(payload[0]) : ESP_ERR_INVALID_ARG;
+            error = handle_set_panel(payload, length);
             break;
         default:
             error = ESP_ERR_NOT_SUPPORTED;

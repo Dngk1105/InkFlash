@@ -56,3 +56,17 @@ esp_err_t ink_bsp_display_set_psr_second(uint8_t value);
  * Gọi từ: task bất kỳ, sau ink_bsp_init.
  */
 uint8_t ink_bsp_display_psr_second(void);
+
+/**
+ * Thay VCOM_DC của mọi profile màn bằng `value` (byte lệnh 0x82), có tác dụng từ lần vẽ sau; 0xFF = theo từng profile.
+ * Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu `value` lớn hơn 0x7E mà không phải 0xFF; ESP_ERR_INVALID_STATE nếu chưa init
+ */
+esp_err_t ink_bsp_display_set_vcom_override(uint8_t value);
+
+/**
+ * VCOM_DC thay thế đã đặt gần nhất; 0xFF = theo từng profile.
+ * Gọi từ: task bất kỳ, sau ink_bsp_init.
+ */
+uint8_t ink_bsp_display_vcom_override(void);

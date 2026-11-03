@@ -105,6 +105,9 @@ nằm trong profile, nên cùng một bảng sóng dùng được cho nhiều m�
 | Dọn quanh viền | Bậc 1 của thang dọn, ngay sau dọn tâm | Khung đang hiện, đảo bit ở điểm kề cạnh điểm có cờ | Bao các điểm đó |
 | Dọn nhẹ | Bậc 2 của thang dọn | Khung đang hiện, đảo bit ở điểm có nợ xám | Bao các điểm đó |
 
+Kéo viền màn bật ở dọn mạnh, dọn nhanh và `PAGE`: đo trên BB0, không kéo thì viền màn xám dần, kể cả trong chế độ
+partial. `TEXT`, `UI` và các lượt dọn khi nghỉ để viền nổi.
+
 Mặt phẳng cũ của mọi lần dọn cả màn là khung mới đảo bit, không bao giờ là khung đang hiện: mọi điểm được coi là đổi
 màu, nên panel kéo hết các điểm về đúng màu. Dùng khung đang hiện thì bảng sóng chỉ kéo những điểm đổi màu, và ảnh vẫn
 mờ sau lần dọn (đã gặp trên BB0 với bảng TR6).
@@ -288,6 +291,8 @@ Danh sách profile:
 | 24 | `clean_full100` | Như `clean_full`, 15 + 15 khung, 100 Hz | 320 ms | Dọn tâm viền |
 | 25 | `push5f50` | Điểm được chọn: 5 khung về màu của nó, 50 Hz; lệch điện tích (`allow_unbalanced`) | 140 ms | Chỉ để so trên bench, không gán cho preset nào |
 | 26 | `edge_patent50` | Dạng sóng xoá viền của US 11,568,827 (5 khung ± xen kẽ, 3 khung về màu của nó), 50 Hz; lệch điện tích | 200 ms | Chỉ để so trên bench, không gán cho preset nào |
+| 27 | `text_pre10f100` | Điểm đổi màu: 10 khung về màu hiện tại rồi 25 khung về màu mới, 100 Hz; giữ màu 0 V | 370 ms | Ứng viên cho `TEXT`, chỉ để so trên bench |
+| 28 | `text_pre5f65` | Như trên, 5 khung rồi 18 khung, 65 Hz | 385 ms | Ứng viên cho `TEXT`, chỉ để so trên bench |
 
 Thời gian một lần vẽ là số script tính; số đo trên BB0 ở `docs/hardware/parts/weact-epaper-3.7/refresh.md` khớp trong
 khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và các bảng `lut*` có điểm chuyển màu
