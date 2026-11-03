@@ -726,7 +726,7 @@ static const ink_hal_display_band_t s_clean_fast_bands[] = {
     {.max_celsius = 127, .profile_id = 9}
 };
 static const ink_hal_display_band_t s_clean_edge_center_bands[] = {
-    {.max_celsius = 127, .profile_id = 20}
+    {.max_celsius = 127, .profile_id = 24}
 };
 static const ink_hal_display_band_t s_clean_edge_neighbor_bands[] = {
     {.max_celsius = 127, .profile_id = 21}

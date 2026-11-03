@@ -51,7 +51,7 @@
 <body>
 <header>
     <h1>Một lần lật thẻ, rồi nghỉ</h1>
-    <p>App giao khung kèm ý định UI; task màn vẽ vùng đổi bằng preset UI, đánh dấu cờ viền; nghỉ thì dọn tâm và quanh viền bằng DRF dưới 100 ms, rồi tắt nguồn.</p>
+    <p>App giao khung kèm ý định UI; task màn vẽ vùng đổi bằng preset UI, đánh dấu cờ viền; nghỉ thì dọn tâm viền (DRF 320 ms) và dọn quanh viền (DRF dưới 100 ms), rồi tắt nguồn.</p>
     <button id="themeButton">Tối</button>
 </header>
 <main><div class="card"><svg id="diagram" role="img" aria-label="Sơ đồ tuần tự một lần lật thẻ và thang dọn"></svg></div></main>
@@ -84,7 +84,7 @@ const STEPS = [
     {phase: "Nghỉ edge_ms (khung mới tới thì dừng thang, vẽ khung đó)"},
     [1, 2, "idle(now) → CLEAN_EDGE_CENTER", "call"],
     [1, 2, "cleanup_plane: mới = khung đang hiện, cũ đảo bit ở điểm có cờ", "call"],
-    [1, 3, "draw(…, clean_full, window bao các cờ) — DRF dưới 100 ms", "call"],
+    [1, 3, "draw(…, clean_full100, window bao các cờ) — DRF 320 ms", "call"],
     [3, 1, "xong", "reply"],
     [1, 2, "cleanup_done; idle → CLEAN_EDGE_NEIGHBOR; cleanup_plane (điểm kề cạnh tâm)", "call"],
     [1, 3, "draw(…, clean_edge) — DRF dưới 100 ms; rồi cleanup_done: xoá cờ", "call"],

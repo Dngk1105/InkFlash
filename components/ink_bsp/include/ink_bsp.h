@@ -42,3 +42,17 @@ esp_err_t ink_bsp_display_load_profile(const uint8_t *blob, size_t length);
  * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc `capacity` nhỏ hơn bank; ESP_ERR_INVALID_STATE nếu chưa init; lỗi SPI
  */
 esp_err_t ink_bsp_display_read_otp(uint8_t *out, size_t capacity, size_t *out_length);
+
+/**
+ * Đổi byte 2 của lệnh PSR màn (VCOM, VGL sau khi vẽ và tắt nguồn), có tác dụng từ lần vẽ hoặc tắt nguồn sau.
+ * Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu `value` có bit D7–D5; ESP_ERR_INVALID_STATE nếu chưa init
+ */
+esp_err_t ink_bsp_display_set_psr_second(uint8_t value);
+
+/**
+ * Byte 2 của PSR màn đã đặt gần nhất.
+ * Gọi từ: task bất kỳ, sau ink_bsp_init.
+ */
+uint8_t ink_bsp_display_psr_second(void);

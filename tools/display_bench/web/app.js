@@ -62,6 +62,7 @@ const app = {
         defaultOptions: null, /* cài đặt lúc máy khởi động */
         temporaryProfile: null,
         temperatureCelsius: null,
+        psrSecond: null, /* byte 2 của PSR trên máy, từ INFO */
     },
     run: null, /* {label, testId, params, startedAt, drawn: [], settings} */
     pendingPreview: new Map(), /* slot → frame vừa giao, để cập nhật màn đang hiện khi có DRAWN */
@@ -150,6 +151,8 @@ async function onConnected() {
     app.settings.options = structuredClone(info.options);
     app.settings.defaultOptions = structuredClone(info.options);
     app.settings.temporaryProfile = null;
+    app.settings.psrSecond = info.psrSecond;
+    renderPsrSecond();
     app.settings.raw.profile = profileIndexForPurpose(0) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
     document.querySelectorAll('input[name="path"]').forEach((radio) => { radio.checked = radio.value === info.path; });
@@ -278,6 +281,27 @@ async function applyRawPower() {
 
 async function powerOffNow() {
     await guarded(() => app.link.command(Command.POWER_OFF));
+}
+
+/* ---- Controller ---- */
+
+function hexByte(value) { return value.toString(16).toUpperCase().padStart(2, '0'); }
+
+function renderPsrSecond() {
+    const value = app.settings.psrSecond;
+    $('psr-second-value').textContent = value === null ? '' : `máy đang dùng ${hexByte(value)}`;
+    if (value !== null && [...$('psr-second').options].some((option) => Number(option.value) === value)) { $('psr-second').value = String(value); }
+}
+
+async function setPsrSecond(value) {
+    await app.link.command(Command.SET_PANEL, new Writer().u8(value).result());
+    app.settings.psrSecond = value;
+    renderPsrSecond();
+    log(`[web] PSR byte 2 = ${hexByte(value)}; có tác dụng từ lần vẽ hoặc tắt nguồn sau`);
+}
+
+async function applyPsrSecond() {
+    await guarded(() => setPsrSecond(Number($('psr-second').value)));
 }
 
 async function readTemperature() {
@@ -570,6 +594,7 @@ function snapshotSettings() {
         options: app.info?.path === 'pipeline' ? structuredClone(app.settings.options) : null,
         optionsSummary: app.info?.path === 'pipeline' ? optionsSummary(app.settings.options) : null,
         temporaryProfile: app.settings.temporaryProfile,
+        psrSecond: app.settings.psrSecond === null ? null : hexByte(app.settings.psrSecond),
     };
 }
 
@@ -762,6 +787,11 @@ function renderTests() {
             input.checked = param.value;
             return input;
         }
+        if (param.type === 'select') {
+            const select = element('select', {id: `param-${param.key}`});
+            fillSelect(select, param.options, param.value);
+            return select;
+        }
         return element('input', {
             type: 'number', id: `param-${param.key}`, min: String(param.min), max: String(param.max), step: String(param.step ?? 1), value: String(param.value),
         });
@@ -781,6 +811,7 @@ function readTestValues(test) {
         const input = $(`param-${param.key}`);
         if (param.type === 'profile') { return [param.key, Number(input.value)]; }
         if (param.type === 'bool') { return [param.key, input.checked]; }
+        if (param.type === 'select') { return [param.key, Number(input.value)]; }
         const value = Number(input.value);
         return [param.key, Math.max(param.min, Math.min(param.max, Number.isFinite(value) ? value : param.value))];
     }));
@@ -879,6 +910,7 @@ async function runSelectedTest() {
         renderSlots();
         const slots = plan.order.map((index) => TEST_FIRST_SLOT + index);
         app.lastRun = runSelectedTest;
+        if (plan.psrSecond !== undefined) { await setPsrSecond(plan.psrSecond); }
         startRun(test.name, {testId: test.id, params: values}, plan.repeat === 1 && !plan.special ? slots.length : 0);
         if (plan.note) { log(`[web] ${plan.note}`); }
         const raw = app.info?.path !== 'pipeline';
@@ -1170,6 +1202,7 @@ function setupControls() {
     $('power-off').addEventListener('click', powerOffNow);
     $('load-profile').addEventListener('click', loadTemporaryProfile);
     $('dump-otp').addEventListener('click', dumpOtp);
+    $('apply-psr-second').addEventListener('click', applyPsrSecond);
     for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
     for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 

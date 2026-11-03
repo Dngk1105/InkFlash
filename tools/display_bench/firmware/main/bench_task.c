@@ -142,6 +142,7 @@ static void send_info(uint8_t seq) {
         put_text(&writer, profile->name);
     }
     put_options(&writer, bench_draw_options());
+    put_u8(&writer, ink_bsp_display_psr_second());
     bench_link_send(BENCH_INFO, seq, writer.bytes, writer.length);
 }
 
@@ -456,6 +457,9 @@ static void handle_packet(const bench_packet_t *packet) {
             return;
         case BENCH_OTP_DUMP:
             error = handle_otp_dump(packet->seq);
+            break;
+        case BENCH_SET_PANEL:
+            error = length >= 1 ? ink_bsp_display_set_psr_second(payload[0]) : ESP_ERR_INVALID_ARG;
             break;
         default:
             error = ESP_ERR_NOT_SUPPORTED;

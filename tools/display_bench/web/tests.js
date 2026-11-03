@@ -74,12 +74,50 @@ function bigNumberPage(orientation, number) {
     });
 }
 
+/* Ô ngẫu nhiên có seed: cùng seed thì cùng vị trí, để so hai lần chạy. Các ô cách nhau ít nhất `gap` điểm. */
+function scatteredBoxes(orientation, count, seed, gap = 6) {
+    const SIZES = [[8, 8], [16, 48], [24, 24], [40, 16], [60, 30], [80, 40], [100, 60], [30, 90], [120, 24], [48, 48], [12, 100], [150, 80],
+        [20, 12], [64, 64], [36, 20]];
+    const {width, height} = viewSize(orientation);
+    let state = seed >>> 0;
+    const random = () => { /* mulberry32 */
+        state = (state + 0x6d2b79f5) >>> 0;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const overlaps = (a, b) => a.x < b.x + b.width + gap && b.x < a.x + a.width + gap && a.y < b.y + b.height + gap && b.y < a.y + a.height + gap;
+    const boxes = [];
+    /* Ô lớn đặt trước cho dễ còn chỗ */
+    const sizes = SIZES.slice(0, count).sort((a, b) => b[0] * b[1] - a[0] * a[1]);
+    for (const [boxWidth, boxHeight] of sizes) {
+        const w = Math.min(boxWidth, width - 2 * gap);
+        const h = Math.min(boxHeight, height - 2 * gap);
+        for (let attempt = 0; attempt < 200; attempt++) {
+            const box = {x: gap + Math.floor(random() * (width - w - 2 * gap)), y: gap + Math.floor(random() * (height - h - 2 * gap)), width: w, height: h};
+            if (!boxes.some((other) => overlaps(box, other))) {
+                boxes.push(box);
+                break;
+            }
+        }
+    }
+    return boxes;
+}
+
+function frameWithBoxes(orientation, boxes) {
+    const frame = createFrame(true);
+    for (const box of boxes) { fillViewRect(frame, orientation, box.x, box.y, box.width, box.height, false); }
+    return frame;
+}
+
 /* ---- Danh sách bài ---- */
 
 /*
- * params: {key, label, value, min, max, step?} cho số; {type: 'profile', value: tên profile mặc định}; {type: 'bool'}.
+ * params: {key, label, value, min, max, step?} cho số; {type: 'profile', value: tên profile mặc định}; {type: 'bool'};
+ * {type: 'select', options: [{value, label}], value}.
  * build(values, orientation) trả {frames, order (index trong frames), intervalMs, repeat, note?, raw?, oldSource?,
- * intent?, flags?, optionsPatch?, special?}. `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
+ * intent?, flags?, optionsPatch?, psrSecond?, special?}. psrSecond: byte 2 của PSR, trang gửi trước khi chạy. `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
  */
 const flips = (count) => Array.from({length: count}, (_, index) => (index + 1) % 2);
 
@@ -150,6 +188,66 @@ export const TESTS = [
                 flags: 0,
                 optionsPatch: {edgeMs: values.edge},
                 note: 'Chụp ảnh ngay sau lần lật cuối (trước lượt dọn) và sau gói "dọn quanh viền".',
+            };
+        },
+    },
+    {
+        id: 'edge_cleanup_multi',
+        name: 'Dọn viền nhiều ô',
+        path: 'pipeline',
+        description: 'Như "Dọn viền theo cờ" nhưng nhiều ô khác cỡ, khác chỗ (vị trí theo seed). Lật lần lượt: mỗi khung thêm hoặc bớt một ô, nên window và tuổi viền mỗi ô khác nhau. Lật cùng lúc: mọi ô đổi trong một khung. Chụp trước và sau lượt dọn; so viền ô nhỏ với ô lớn, ô gần nhau với ô đứng riêng.',
+        params: [
+            {key: 'boxes', label: 'Số ô', value: 8, min: 2, max: 15},
+            {key: 'seed', label: 'Seed vị trí', value: 1, min: 1, max: 9999},
+            {key: 'together', label: 'Lật cùng lúc', type: 'bool', value: false},
+            {key: 'cycles', label: 'Số vòng lật', value: 3, min: 1, max: 30},
+            {key: 'interval', label: 'ms giữa hai lần', value: 300, min: 0, max: 10000, step: 50},
+            {key: 'edge', label: 'edge_ms', value: 3000, min: 0, max: 60000, step: 500},
+        ],
+        build(values, orientation) {
+            const boxes = scatteredBoxes(orientation, values.boxes, values.seed);
+            const note = `${boxes.length} ô: ${boxes.map((box) => `${box.width}×${box.height}@${box.x},${box.y}`).join(' ')}. `
+                + 'Chụp ảnh ngay sau lần lật cuối (trước lượt dọn) và sau gói "dọn quanh viền".';
+            if (values.together) {
+                return {frames: [createFrame(true), frameWithBoxes(orientation, boxes)], order: flips(values.cycles * 2), intervalMs: values.interval,
+                    repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {edgeMs: values.edge}, note};
+            }
+            /* Khung i có i ô đầu đen: 0, 1, ..., n, n-1, ..., 1 lặp lại, mỗi bước đổi đúng một ô. */
+            const frames = Array.from({length: boxes.length + 1}, (_, index) => frameWithBoxes(orientation, boxes.slice(0, index)));
+            const cycle = [...frames.keys(), ...[...frames.keys()].slice(1, -1).reverse()];
+            const order = [...Array.from({length: values.cycles}, () => cycle).flat(), 0];
+            return {frames, order, intervalMs: values.interval, repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {edgeMs: values.edge}, note};
+        },
+    },
+    {
+        id: 'psr_power_off',
+        name: 'PSR byte 2 và tắt nguồn',
+        path: 'pipeline',
+        description: 'Trang chữ, một ô lật N lần với ý định UI cho có nợ, rồi máy nghỉ qua dọn viền, dọn nhẹ và tắt nguồn (dọn mạnh dời xa để không xoá dấu vết). Chạy hai lần, 0D rồi 0E, cùng thông số. Xem có hạt nào tự xám sau gói "tắt nguồn" không, và hạt xám là đen nhạt đi hay trắng tối đi, trong vùng ô hay cả ở vùng chữ không bị đụng. Đặt power_off_ms = 0 để xem hạt có xám khi nguồn vẫn bật.',
+        params: [
+            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d,
+                options: [{value: 0x0d, label: '0D: VCOM nổi sau khi vẽ (GxEPD2)'}, {value: 0x0e, label: '0E: VCOM nối đất ngoài lúc vẽ (hãng)'}]},
+            {key: 'count', label: 'Số lần lật', value: 20, min: 1, max: 60},
+            {key: 'interval', label: 'ms giữa hai lần', value: 300, min: 0, max: 10000, step: 50},
+            {key: 'edge', label: 'edge_ms', value: 2000, min: 0, max: 60000, step: 500},
+            {key: 'light', label: 'light_ms', value: 6000, min: 0, max: 120000, step: 500},
+            {key: 'power', label: 'power_off_ms (0 = không tắt)', value: 2000, min: 0, max: 600000, step: 500},
+        ],
+        build(values, orientation) {
+            const page = textPage(orientation, 0, 18);
+            const box = centeredBox(orientation, 120, 60);
+            const withBox = page.slice();
+            fillViewRect(withBox, orientation, box.x, box.y, box.width, box.height, false);
+            return {
+                frames: [page, withBox],
+                order: [...flips(values.count), 0],
+                intervalMs: values.interval,
+                repeat: 1,
+                intent: Intent.UI,
+                flags: 0,
+                psrSecond: values.psr,
+                optionsPatch: {edgeMs: values.edge, lightMs: values.light, strongMs: 3_600_000, powerOffMs: values.power},
+                note: 'Chụp ảnh: sau gói "dọn nhẹ", ngay sau gói "tắt nguồn", và 30 s sau đó. Dọn mạnh dời tới 1 giờ; bấm "Về mặc định" ở tab Chế độ khi xong.',
             };
         },
     },

@@ -14,14 +14,15 @@
 #include "ink_hal_display.h"
 #include <stdint.h>
 
-#define INK_DRV_UC8253_WIDTH        240
-#define INK_DRV_UC8253_HEIGHT       416
-#define INK_DRV_UC8253_FRAME_BYTES  (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
-#define INK_DRV_UC8253_TABLE_COUNT  5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
-#define INK_DRV_UC8253_TABLE_BYTES  42 /* 6 nhóm × 7 byte, chế độ KW */
-#define INK_DRV_UC8253_NAME_BYTES   16
-#define INK_DRV_UC8253_MAX_PROFILES 32                /* chỗ trong bảng khả năng, gồm profile tạm */
-#define INK_DRV_UC8253_OTP_BYTES    (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
+#define INK_DRV_UC8253_WIDTH              240
+#define INK_DRV_UC8253_HEIGHT             416
+#define INK_DRV_UC8253_FRAME_BYTES        (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
+#define INK_DRV_UC8253_TABLE_COUNT        5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
+#define INK_DRV_UC8253_TABLE_BYTES        42 /* 6 nhóm × 7 byte, chế độ KW */
+#define INK_DRV_UC8253_NAME_BYTES         16
+#define INK_DRV_UC8253_MAX_PROFILES       32                /* chỗ trong bảng khả năng, gồm profile tạm */
+#define INK_DRV_UC8253_OTP_BYTES          (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
+#define INK_DRV_UC8253_PSR_SECOND_DEFAULT 0x0D              /* như GxEPD2: NORG = 0, VC_LUTZ = 1; mã mẫu hãng dùng 0x0E */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */
@@ -57,14 +58,17 @@ typedef struct {
     bool                            ram_trusted;       /**< RAM ảnh khớp mặt phẳng của lần vẽ trước; false sau reset */
     bool                            ram_swapped;       /**< số DRF từ lúc reset là lẻ: 0x10 đang là vùng NEW */
     bool                            needs_reset;       /**< lần vẽ trước lỗi giữa chừng: không còn biết lượt */
+    uint8_t                         psr_second;        /**< byte 2 của PSR đã gửi controller */
 
-    /** ink_drv_uc8253_load_temporary ghi từ task khác, draw lấy ra. */
-    portMUX_TYPE             temporary_lock;
+    /** Yêu cầu từ task khác, giữ request_lock: draw (và power_off với PSR) lấy ra. */
+    portMUX_TYPE             request_lock;
     bool                     temporary_pending;
     ink_drv_uc8253_profile_t temporary_request;
     char                     temporary_request_name[INK_DRV_UC8253_NAME_BYTES];
     ink_drv_uc8253_profile_t temporary;
     char                     temporary_name[INK_DRV_UC8253_NAME_BYTES];
+    bool                     psr_second_pending;
+    uint8_t                  psr_second_request;
 
     ink_hal_display_profile_info_t profile_info[INK_DRV_UC8253_MAX_PROFILES];
 
@@ -95,3 +99,17 @@ esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t 
  * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc length nhỏ hơn INK_DRV_UC8253_OTP_BYTES; lỗi SPI
  */
 esp_err_t ink_drv_uc8253_read_otp(ink_drv_uc8253_t *driver, uint8_t *out, size_t length);
+
+/**
+ * Đổi byte 2 của PSR (VCMZ, TS_AUTO, TIEG, NORG, VC_LUTZ; commands.md), gửi controller trước lần vẽ hoặc tắt nguồn sau.
+ * Mặc định INK_DRV_UC8253_PSR_SECOND_DEFAULT. Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc `value` có bit D7–D5
+ */
+esp_err_t ink_drv_uc8253_set_psr_second(ink_drv_uc8253_t *driver, uint8_t value);
+
+/**
+ * Byte 2 của PSR đã đặt gần nhất, kể cả khi chưa gửi controller.
+ * Gọi từ: task bất kỳ.
+ */
+uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver);

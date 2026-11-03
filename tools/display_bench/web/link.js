@@ -17,6 +17,7 @@ export const Command = Object.freeze({
     SET_OPTIONS: 0x0a,
     READ_TEMP: 0x0b,
     OTP_DUMP: 0x0c,
+    SET_PANEL: 0x0d,
 });
 
 const Event = Object.freeze({ACK: 0x80, INFO: 0x81, DRAWN: 0x82, GESTURE: 0x83, TEMP: 0x84, LOG: 0x85, OTP: 0x86});
@@ -124,6 +125,7 @@ function parseInfo(payload) {
         info.profiles.push({index: i, id: reader.u16(), drawMs: reader.u16(), source: reader.u8(), name: reader.text()});
     }
     info.options = readOptions(reader);
+    info.psrSecond = reader.u8();
     return info;
 }
 

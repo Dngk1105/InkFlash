@@ -34,6 +34,7 @@ typedef enum : uint8_t {
     BENCH_SET_OPTIONS  = 0x0A,
     BENCH_READ_TEMP    = 0x0B,
     BENCH_OTP_DUMP     = 0x0C,
+    BENCH_SET_PANEL    = 0x0D,
 } bench_command_t;
 
 /** Gói máy gửi lên. */

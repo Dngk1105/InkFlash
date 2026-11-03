@@ -166,13 +166,15 @@ Nghỉ càng lâu thì dọn càng mạnh, vì người dùng càng có khả n�
 
 | Bậc | Khi | Làm gì | Profile |
 |---|---|---|---|
-| 1 | Nghỉ `edge_ms`, còn cờ viền | Dọn tâm viền, rồi dọn quanh viền; xoá cờ | DRF dưới 100 ms |
+| 1 | Nghỉ `edge_ms`, còn cờ viền | Dọn tâm viền, rồi dọn quanh viền; xoá cờ | Tâm: DRF 320 ms; quanh: DRF dưới 100 ms |
 | 2 | Nghỉ `light_ms`, nợ lớn nhất ≥ `debt_soft` | Dọn nhẹ các điểm có nợ ≥ `debt_soft`; nợ của chúng về 0 | DRF dưới 100 ms |
 | 3 | Nghỉ `strong_ms`, còn nợ hoặc còn cờ | Dọn mạnh một lần; mọi nợ và cờ về 0 | Theo dải nhiệt độ |
 
 - Mỗi bậc chạy tối đa một lần trong một lần nghỉ. Bậc có thời gian 0 thì bỏ.
 - DRF không ngắt được. Khung mới tới giữa hai lượt dọn thì dừng thang và vẽ khung đó; lần lật trùng lúc đang dọn chậm
-  thêm tối đa một DRF dọn, nên profile của bậc 1 và 2 phải có DRF dưới 100 ms.
+  thêm tối đa một DRF dọn, nên profile dọn quanh viền và dọn nhẹ phải có DRF dưới 100 ms. Dọn tâm viền là ngoại lệ:
+  khảo sát trên BB0 cho thấy dọn tâm dài (`clean_full100`, 320 ms) làm viền khó thấy hơn hẳn, đổi lại lần lật trùng
+  lượt này chậm thêm tối đa 320 ms. Lượt này chỉ chạm các điểm có cờ, thưa, nên ít khi trùng.
 - Dọn tâm xong mà chưa kịp dọn quanh thì cờ giữ nguyên, lần nghỉ sau dọn lại cả hai.
 - Cờ hoãn dọn của khung gần nhất chặn cả ba bậc.
 
@@ -279,18 +281,19 @@ Danh sách profile:
 | 15 | `lut4f200` | Kéo 4 khung, 200 Hz | 30 ms | |
 | 16 | `3x5f50` | 3 lần quét, mỗi lần kéo 5 khung, 50 Hz | 420 ms | |
 | 17 | `tr8_kk0` | TR8, bảng đen giữ đen 0 V | 340 ms | So với `tr8`: điểm đứng yên không bị kéo |
-| 20 | `clean_full` | Điểm được chọn: 8 khung về màu ngược rồi 8 khung về màu của nó, 200 Hz; giữ màu 0 V | 90 ms | Dọn tâm viền |
+| 20 | `clean_full` | Điểm được chọn: 8 khung về màu ngược rồi 8 khung về màu của nó, 200 Hz; giữ màu 0 V | 90 ms | Chỉ để so trên bench |
 | 21 | `clean_edge` | Điểm được chọn: lắc 2–1–1–1–1–2 khung, kết thúc về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn quanh viền |
 | 22 | `clean_light` | Điểm được chọn: 4 khung về màu ngược rồi 4 khung về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn nhẹ |
 | 23 | `clean_full50` | Như `clean_full`, 15 + 15 khung, 50 Hz | 640 ms | Chỉ để so trên bench |
-| 24 | `clean_full100` | Như `clean_full`, 15 + 15 khung, 100 Hz | 320 ms | Chỉ để so trên bench |
+| 24 | `clean_full100` | Như `clean_full`, 15 + 15 khung, 100 Hz | 320 ms | Dọn tâm viền |
 | 25 | `push5f50` | Điểm được chọn: 5 khung về màu của nó, 50 Hz; lệch điện tích (`allow_unbalanced`) | 140 ms | Chỉ để so trên bench, không gán cho preset nào |
 | 26 | `edge_patent50` | Dạng sóng xoá viền của US 11,568,827 (5 khung ± xen kẽ, 3 khung về màu của nó), 50 Hz; lệch điện tích | 200 ms | Chỉ để so trên bench, không gán cho preset nào |
 
 Thời gian một lần vẽ là số script tính; số đo trên BB0 ở `docs/hardware/parts/weact-epaper-3.7/refresh.md` khớp trong
 khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và các bảng `lut*` có điểm chuyển màu
 kéo một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Đo trên BB0 (2026-11-04): ba bảng dọn 200 Hz làm vùng
-trắng được dọn đục dần; 23–26 có để so trên bench.
+trắng được dọn đục dần; 23–26 có để so trên bench. Khảo sát sau đó: dọn tâm viền bằng `clean_full100` cho viền khó thấy
+nhất; dọn quanh viền và dọn nhẹ giữ `clean_edge`, `clean_light`.
 
 ### Danh sách profile nằm ở đâu
 

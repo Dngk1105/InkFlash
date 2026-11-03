@@ -39,7 +39,6 @@ static const char *TAG = "ink_drv_uc8253";
 /* PSR như GxEPD2: KW, quét lên, dịch phải; bit REG (D5) = 1 chọn LUT thanh ghi ở mọi lần vẽ. */
 #define PSR_REGISTER   0x3F
 #define PSR_SOFT_RESET 0x1E /* RST_N (D0) = 0: reset mềm, RAM ảnh thành rác (image-memory.md) */
-#define PSR_SECOND     0x0D
 
 #define PWR_SOURCE_INTERNAL 0x03 /* byte 1 của PWR: nguồn trong, giá trị mặc định (commands.md) */
 #define PTL_SCAN_ALL        0x01 /* byte 7 của PTL: quét gate cả trong và ngoài window */
@@ -178,9 +177,9 @@ static esp_err_t read_after_command(ink_drv_uc8253_t *driver, uint8_t command, b
 
 /* ---- Khởi tạo controller ---- */
 
-/* PSR (0x00): byte 1 chọn nguồn bảng sóng và reset mềm, byte 2 cố định. */
+/* PSR (0x00): byte 1 chọn nguồn bảng sóng và reset mềm, byte 2 theo driver->psr_second. */
 static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
-    const uint8_t psr[2] = {setting, PSR_SECOND};
+    const uint8_t psr[2] = {setting, driver->psr_second};
     return send_command(driver, CMD_PSR, psr, sizeof(psr));
 }
 
@@ -200,7 +199,7 @@ static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     vTaskDelay(pdMS_TO_TICKS(10)); /* > 1 ms, lệnh gửi sớm hơn bị bỏ qua */
     ESP_RETURN_ON_ERROR(wait_ready(driver, BUSY_SHORT_TIMEOUT_MS), TAG, "after reset");
 
-    const uint8_t soft_reset[2] = {PSR_SOFT_RESET, PSR_SECOND};
+    const uint8_t soft_reset[2] = {PSR_SOFT_RESET, driver->psr_second};
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PSR, soft_reset, sizeof(soft_reset), BUSY_SHORT_TIMEOUT_MS), TAG, "soft reset");
     forget_controller_state(driver);
     return send_panel_setting(driver, PSR_REGISTER);
@@ -317,19 +316,31 @@ static uint32_t elapsed_us(int64_t *since_us) {
 
 /* Profile tạm do task khác nạp: lấy ra trước lần vẽ; quên profile đang nạp nếu nó là profile tạm. */
 static void apply_temporary(ink_drv_uc8253_t *driver) {
-    taskENTER_CRITICAL(&driver->temporary_lock);
+    taskENTER_CRITICAL(&driver->request_lock);
     const bool pending = driver->temporary_pending;
     if (pending) {
         driver->temporary = driver->temporary_request;
         memcpy(driver->temporary_name, driver->temporary_request_name, sizeof(driver->temporary_name));
         driver->temporary_pending = false;
     }
-    taskEXIT_CRITICAL(&driver->temporary_lock);
+    taskEXIT_CRITICAL(&driver->request_lock);
     if (!pending) { return; }
     driver->temporary.name                  = driver->temporary_name;
     driver->temporary_profile               = &driver->temporary;
     driver->profile_info[TEMPORARY_PROFILE] = profile_info(&driver->temporary);
     if (driver->loaded_profile == TEMPORARY_PROFILE) { driver->loaded_profile = NO_PROFILE; }
+}
+
+/* Byte 2 của PSR do task khác đặt: gửi trước lần vẽ hoặc POF. */
+static esp_err_t apply_psr_second(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool    pending      = driver->psr_second_pending;
+    const uint8_t value        = driver->psr_second_request;
+    driver->psr_second_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->psr_second) { return ESP_OK; }
+    driver->psr_second = value;
+    return send_panel_setting(driver, PSR_REGISTER);
 }
 
 /* Window đã căn mép, hoặc cả màn khi ngoài chế độ partial hay khi RAM không còn đáng tin. */
@@ -363,6 +374,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
                              size_t index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
     apply_temporary(driver);
+    ESP_RETURN_ON_ERROR(apply_psr_second(driver), TAG, "psr");
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
     ESP_RETURN_ON_FALSE(profile != nullptr, index == TEMPORARY_PROFILE ? ESP_ERR_INVALID_STATE : ESP_ERR_INVALID_ARG, TAG, "profile %u",
                         (unsigned)index);
@@ -403,6 +415,7 @@ static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *pl
 
 static esp_err_t power_off(void *context) {
     ESP_RETURN_ON_FALSE(context, ESP_ERR_INVALID_ARG, TAG, "arg");
+    ESP_RETURN_ON_ERROR(apply_psr_second(context), TAG, "psr");
     return send_power_off(context);
 }
 
@@ -471,11 +484,11 @@ esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t 
     char                     name[INK_DRV_UC8253_NAME_BYTES];
     parse_blob(&blob[BLOB_HEADER_BYTES], &profile, name);
     ESP_RETURN_ON_FALSE(profile.scans >= 1 && profile.scans <= 4 && profile.drf_ms > 0, ESP_ERR_INVALID_ARG, TAG, "blob scans");
-    taskENTER_CRITICAL(&driver->temporary_lock);
+    taskENTER_CRITICAL(&driver->request_lock);
     driver->temporary_request = profile;
     memcpy(driver->temporary_request_name, name, sizeof(name));
     driver->temporary_pending = true;
-    taskEXIT_CRITICAL(&driver->temporary_lock);
+    taskEXIT_CRITICAL(&driver->request_lock);
     /* Bảng khả năng thấy id và thời gian ngay (bench đọc lại INFO); tên đổi ở lần vẽ sau. */
     driver->profile_info[TEMPORARY_PROFILE].id      = profile.id;
     driver->profile_info[TEMPORARY_PROFILE].draw_ms = (uint32_t)profile.drf_ms * profile.scans;
@@ -487,6 +500,22 @@ esp_err_t ink_drv_uc8253_read_otp(ink_drv_uc8253_t *driver, uint8_t *out, size_t
     ESP_RETURN_ON_ERROR(read_after_command(driver, CMD_ROTP, false, INK_DRV_UC8253_OTP_BYTES + 1), TAG, "rotp");
     memcpy(out, &driver->window_buffer[1], INK_DRV_UC8253_OTP_BYTES); /* byte đầu của ROTP là byte giả */
     return ESP_OK;
+}
+
+esp_err_t ink_drv_uc8253_set_psr_second(ink_drv_uc8253_t *driver, uint8_t value) {
+    ESP_RETURN_ON_FALSE(driver && value <= 0x1F, ESP_ERR_INVALID_ARG, TAG, "psr second");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->psr_second_request = value;
+    driver->psr_second_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const uint8_t value = driver->psr_second_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
 }
 
 /* ---- Khởi tạo ---- */
@@ -521,9 +550,11 @@ static void fill_profile_info(ink_drv_uc8253_t *driver) {
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");
     *driver = (ink_drv_uc8253_t){
-        .config         = *config,
-        .loaded_profile = NO_PROFILE,
-        .temporary_lock = portMUX_INITIALIZER_UNLOCKED,
+        .config             = *config,
+        .loaded_profile     = NO_PROFILE,
+        .request_lock       = portMUX_INITIALIZER_UNLOCKED,
+        .psr_second         = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .psr_second_request = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
     };
     fill_profile_info(driver);
 

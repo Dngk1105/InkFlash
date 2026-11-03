@@ -92,6 +92,15 @@ esp_err_t ink_bsp_display_read_otp(uint8_t *out, size_t capacity, size_t *out_le
     return ESP_OK;
 }
 
+esp_err_t ink_bsp_display_set_psr_second(uint8_t value) {
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
+    return ink_drv_uc8253_set_psr_second(&s_display_driver, value);
+}
+
+uint8_t ink_bsp_display_psr_second(void) {
+    return ink_drv_uc8253_psr_second(&s_display_driver);
+}
+
 /* ---- Khởi tạo board ---- */
 
 esp_err_t ink_bsp_init(void) {

@@ -64,6 +64,7 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `0A` | SET_OPTIONS | cài đặt của `ink_display`, cùng bố cục với khối cài đặt trong INFO. Chỉ đường pipeline |
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần dọn mạnh) |
 | `0C` | OTP_DUMP | trống; trả các gói OTP rồi ACK. Chỉ đường raw |
+| `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0. Gửi controller trước lần vẽ hoặc tắt nguồn sau. Máy khởi động lại thì về `0D`. Cả hai đường |
 
 Khối cài đặt (trong SET_OPTIONS và INFO): với mỗi mục đích theo thứ tự `TEXT`, `UI`, `PAGE`, dọn mạnh, dọn nhanh, dọn
 tâm viền, dọn quanh viền, dọn nhẹ: số dải, 9 dải (°C có dấu 1 byte, id profile 2 byte), vào chế độ partial, `PT_SCAN`,
@@ -75,7 +76,7 @@ Gói máy gửi lên:
 | Loại | Tên | Payload |
 |---|---|---|
 | `80` | ACK | mã lỗi (4) |
-| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối cài đặt đang dùng |
+| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối cài đặt đang dùng; rồi byte 2 của PSR đang đặt |
 | `82` | DRAWN | slot, việc đã làm, mục đích (255 ở đường raw), nhiệt độ, nhiệt độ hợp lệ, nợ lớn nhất, trần nợ, khung (1 = lần vẽ một khung đã giao, 0 = lượt dọn hoặc tắt nguồn), id profile (2), 0 (2), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có cờ viền, input ms, queue ms, diff ms, spi µs, panel µs, after µs, bật nguồn µs (4 mỗi số) |
 | `83` | GESTURE | modifier, nút, loại cử chỉ, 0, thời điểm edge ms (4) |
 | `84` | TEMP | °C, 0, 0, 0, lỗi (4) |
@@ -97,6 +98,8 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | Loại bóng mờ | raw | Ô lật 10 lần cùng chỗ bằng một profile: bóng là viền, xám trong vùng, hay cả màn xám dần |
 | Giữ màu 0 V | raw | Ô cờ đảo 100 lần bằng `tr8` rồi bằng `tr8_kk0`: điểm đứng yên có xám dần không |
 | Dọn viền theo cờ | pipeline | Lật ô với ý định `UI`, nghỉ: lượt dọn tâm và quanh viền có xoá viền không; số điểm có cờ so với viền thấy trên ảnh chụp; DRF dọn dưới 100 ms không |
+| Dọn viền nhiều ô | pipeline | Như bài trên với nhiều ô khác cỡ, khác chỗ, lật lần lượt hoặc cùng lúc: cờ thưa có bỏ sót viền ở ô nhỏ, ô gần nhau không |
+| PSR byte 2 và tắt nguồn | pipeline | Trang chữ có nợ, nghỉ qua dọn viền, dọn nhẹ, tắt nguồn, với PSR byte 2 là `0D` rồi `0E`: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
 | Chữ cho `TEXT` | raw | Trang chữ cuộn bằng profile chọn: profile nào cho chữ rõ nhất trong 0,3–0,4 s |
 | Thang dọn | pipeline | Lật nhiều lần rồi nghỉ qua cả ba bậc: đúng thứ tự, đúng thời điểm, đúng nợ sau mỗi bậc |
 | Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn diff (policy, trạng thái từng điểm trong PSRAM, mặt phẳng cũ) mất bao lâu |

@@ -68,6 +68,18 @@
                 </div>
             </div>
             <div class="card">
+                <h2>Controller</h2>
+                <p class="muted">Byte 2 của lệnh PSR (<code>0x00</code>): VCOM và VGL sau khi vẽ và khi tắt nguồn. Có tác dụng từ lần vẽ hoặc tắt nguồn sau; máy khởi động lại thì về <code>0D</code>. Đường nào cũng đặt được.</p>
+                <div class="form-grid">
+                    <label for="psr-second">PSR byte 2</label>
+                    <select id="psr-second"><option value="13">0D: VCOM nổi sau khi vẽ (GxEPD2, mặc định)</option><option value="14">0E: VCOM nối đất ngoài lúc vẽ (mã mẫu hãng)</option></select>
+                </div>
+                <div class="row">
+                    <button id="apply-psr-second">Đặt</button>
+                    <span id="psr-second-value" class="value"></span>
+                </div>
+            </div>
+            <div class="card">
                 <h2>Ý định khi giao (pipeline)</h2>
                 <div class="form-grid">
                     <label for="submit-intent">Ý định</label>

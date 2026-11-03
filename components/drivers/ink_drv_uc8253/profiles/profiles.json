@@ -45,7 +45,7 @@
     "clean_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
                      "partial_mode": false, "pt_scan": true, "drive_border": true},
     "clean_fast": {"bands": [[127, 9]], "partial_mode": false, "pt_scan": true, "drive_border": true},
-    "clean_edge_center": {"bands": [[127, 20]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "clean_edge_center": {"bands": [[127, 24]], "partial_mode": true, "pt_scan": true, "drive_border": false},
     "clean_edge_neighbor": {"bands": [[127, 21]], "partial_mode": true, "pt_scan": true, "drive_border": false},
     "clean_light": {"bands": [[127, 22]], "partial_mode": true, "pt_scan": true, "drive_border": false}
   }
