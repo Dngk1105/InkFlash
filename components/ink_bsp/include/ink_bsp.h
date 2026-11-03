@@ -70,3 +70,17 @@ esp_err_t ink_bsp_display_set_vcom_override(uint8_t value);
  * Gọi từ: task bất kỳ, sau ink_bsp_init.
  */
 uint8_t ink_bsp_display_vcom_override(void);
+
+/**
+ * Đặt số khung từ lúc tắt source tới lúc tắt gate khi tắt nguồn màn (1–4), có tác dụng từ lần vẽ hoặc tắt nguồn sau.
+ * Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu `frames` ngoài 1–4; ESP_ERR_INVALID_STATE nếu chưa init
+ */
+esp_err_t ink_bsp_display_set_power_off_frames(uint8_t frames);
+
+/**
+ * Số khung tắt nguồn đã đặt gần nhất.
+ * Gọi từ: task bất kỳ, sau ink_bsp_init.
+ */
+uint8_t ink_bsp_display_power_off_frames(void);

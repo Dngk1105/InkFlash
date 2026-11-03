@@ -110,6 +110,15 @@ uint8_t ink_bsp_display_vcom_override(void) {
     return ink_drv_uc8253_vcom_override(&s_display_driver);
 }
 
+esp_err_t ink_bsp_display_set_power_off_frames(uint8_t frames) {
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
+    return ink_drv_uc8253_set_power_off_frames(&s_display_driver, frames);
+}
+
+uint8_t ink_bsp_display_power_off_frames(void) {
+    return ink_drv_uc8253_power_off_frames(&s_display_driver);
+}
+
 /* ---- Khởi tạo board ---- */
 
 esp_err_t ink_bsp_init(void) {

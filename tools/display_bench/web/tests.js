@@ -35,6 +35,8 @@ export const PSR_SECOND_OPTIONS = Object.freeze([
     {value: 0x0d, label: '0D: TIEG 1, VCOM nổi sau khi vẽ (mặc định UC8253, GxEPD2)'},
 ]);
 
+export const PFS_OPTIONS = Object.freeze([1, 2, 3, 4].map((frames) => ({value: frames, label: `${frames} khung${frames === 1 ? ' (mặc định)' : ''}`})));
+
 /* ---- Hình dùng chung ---- */
 
 function centeredBox(orientation, boxWidth, boxHeight) {
@@ -135,8 +137,8 @@ function frameWithBoxes(orientation, boxes) {
  * params: {key, label, value, min, max, step?} cho số; {type: 'profile', value: tên profile mặc định}; {type: 'bool'};
  * {type: 'select', options: [{value, label}], value}.
  * build(values, orientation) trả {frames, order (index trong frames), intervalMs, repeat, note?, raw?, oldSource?,
- * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, special?}. psrSecond, vcomOverride: gói SET_PANEL trang gửi trước
- * khi chạy (255 = VCOM_DC theo profile). `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
+ * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, powerOffFrames?, special?}. psrSecond, vcomOverride, powerOffFrames:
+ * gói SET_PANEL trang gửi trước khi chạy (255 = VCOM_DC theo profile). `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
  */
 const flips = (count) => Array.from({length: count}, (_, index) => (index + 1) % 2);
 
@@ -273,12 +275,13 @@ export const TESTS = [
         id: 'vcom_still',
         name: 'VCOM và vùng đứng yên',
         path: 'raw',
-        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy cùng profile với nhiều VCOM_DC (09 = −1,0 V như TR8; mã nhỏ hơn là ít âm hơn). So vùng đứng yên trong lúc chạy, ngay sau gói tắt nguồn và vài phút sau: nửa trắng có tối dần, nửa đen có nhạt dần không. PSR byte 2 có TIEG 0 để xem VGL nối đất lúc POF có phải nguyên nhân.',
+        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy cùng profile với nhiều VCOM_DC (09 = −1,0 V như TR8; mã nhỏ hơn là ít âm hơn). So vùng đứng yên trong lúc chạy, ngay sau gói tắt nguồn và vài phút sau: nửa trắng có tối dần, nửa đen có nhạt dần không. PSR byte 2 và PFS (khoảng từ lúc tắt source tới lúc tắt gate) đổi cách controller tắt nguồn.',
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
             {key: 'vcom', label: 'VCOM_DC', type: 'select', value: 255,
                 options: VCOM_OPTIONS},
             {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0a, options: PSR_SECOND_OPTIONS},
+            {key: 'pfs', label: 'PFS: tắt gate sau source', type: 'select', value: 1, options: PFS_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 60, min: 1, max: 200},
             {key: 'interval', label: 'ms giữa hai lần', value: 200, min: 0, max: 10000, step: 50},
         ],
@@ -299,6 +302,7 @@ export const TESTS = [
                 repeat: 1,
                 vcomOverride: values.vcom,
                 psrSecond: values.psr,
+                powerOffFrames: values.pfs,
                 raw: {profile: values.profile, windowKind: WindowKind.WHOLE, partialMode: true},
                 note: 'Chụp ảnh vùng đứng yên trước khi chạy, sau lần cuối, và 2–3 phút sau, cùng góc, cùng đèn. Ô giữa: nửa trái đổi trắng → đen, nửa phải đen → trắng.',
             };

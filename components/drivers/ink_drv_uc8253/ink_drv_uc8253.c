@@ -21,6 +21,7 @@ static const char *TAG = "ink_drv_uc8253";
 #define CMD_PSR    0x00
 #define CMD_PWR    0x01
 #define CMD_POF    0x02
+#define CMD_PFS    0x03
 #define CMD_PON    0x04
 #define CMD_DTM1   0x10
 #define CMD_DRF    0x12
@@ -183,6 +184,12 @@ static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
     return send_command(driver, CMD_PSR, psr, sizeof(psr));
 }
 
+/* PFS (0x03): D5–D4 T_VDS_OFF = số khung trừ 1 (UC8253 tr.18). */
+static esp_err_t send_power_off_sequence(ink_drv_uc8253_t *driver) {
+    const uint8_t pfs = (uint8_t)((driver->power_off_frames - 1) << 4);
+    return send_command(driver, CMD_PFS, &pfs, 1);
+}
+
 /* Trạng thái sau reset mềm: RAM rác, nguồn tắt, chưa có bảng sóng. */
 static void forget_controller_state(ink_drv_uc8253_t *driver) {
     driver->ram_swapped    = false;
@@ -202,6 +209,7 @@ static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     const uint8_t soft_reset[2] = {PSR_SOFT_RESET, driver->psr_second};
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PSR, soft_reset, sizeof(soft_reset), BUSY_SHORT_TIMEOUT_MS), TAG, "soft reset");
     forget_controller_state(driver);
+    ESP_RETURN_ON_ERROR(send_power_off_sequence(driver), TAG, "pfs");
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
@@ -344,6 +352,18 @@ static esp_err_t apply_psr_second(ink_drv_uc8253_t *driver) {
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
+/* PFS do task khác đặt: gửi trước lần vẽ hoặc POF. */
+static esp_err_t apply_power_off_frames(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool    pending            = driver->power_off_frames_pending;
+    const uint8_t value              = driver->power_off_frames_request;
+    driver->power_off_frames_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->power_off_frames) { return ESP_OK; }
+    driver->power_off_frames = value;
+    return send_power_off_sequence(driver);
+}
+
 /* VCOM_DC thay thế do task khác đặt: đổi thì nạp lại profile ở lần vẽ này. */
 static void apply_vcom_override(ink_drv_uc8253_t *driver) {
     taskENTER_CRITICAL(&driver->request_lock);
@@ -388,6 +408,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
     apply_temporary(driver);
     ESP_RETURN_ON_ERROR(apply_psr_second(driver), TAG, "psr");
+    ESP_RETURN_ON_ERROR(apply_power_off_frames(driver), TAG, "pfs");
     apply_vcom_override(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
     ESP_RETURN_ON_FALSE(profile != nullptr, index == TEMPORARY_PROFILE ? ESP_ERR_INVALID_STATE : ESP_ERR_INVALID_ARG, TAG, "profile %u",
@@ -430,6 +451,7 @@ static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *pl
 static esp_err_t power_off(void *context) {
     ESP_RETURN_ON_FALSE(context, ESP_ERR_INVALID_ARG, TAG, "arg");
     ESP_RETURN_ON_ERROR(apply_psr_second(context), TAG, "psr");
+    ESP_RETURN_ON_ERROR(apply_power_off_frames(context), TAG, "pfs");
     return send_power_off(context);
 }
 
@@ -532,6 +554,22 @@ uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver) {
     return value;
 }
 
+esp_err_t ink_drv_uc8253_set_power_off_frames(ink_drv_uc8253_t *driver, uint8_t frames) {
+    ESP_RETURN_ON_FALSE(driver && frames >= 1 && frames <= 4, ESP_ERR_INVALID_ARG, TAG, "pfs");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->power_off_frames_request = frames;
+    driver->power_off_frames_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+uint8_t ink_drv_uc8253_power_off_frames(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const uint8_t value = driver->power_off_frames_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
+}
+
 esp_err_t ink_drv_uc8253_set_vcom_override(ink_drv_uc8253_t *driver, uint8_t value) {
     ESP_RETURN_ON_FALSE(driver && (value <= 0x7E || value == INK_DRV_UC8253_VCOM_FROM_PROFILE), ESP_ERR_INVALID_ARG, TAG, "vcom");
     taskENTER_CRITICAL(&driver->request_lock);
@@ -580,13 +618,15 @@ static void fill_profile_info(ink_drv_uc8253_t *driver) {
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");
     *driver = (ink_drv_uc8253_t){
-        .config                = *config,
-        .loaded_profile        = NO_PROFILE,
-        .request_lock          = portMUX_INITIALIZER_UNLOCKED,
-        .psr_second            = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
-        .psr_second_request    = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
-        .vcom_override         = INK_DRV_UC8253_VCOM_FROM_PROFILE,
-        .vcom_override_request = INK_DRV_UC8253_VCOM_FROM_PROFILE,
+        .config                   = *config,
+        .loaded_profile           = NO_PROFILE,
+        .request_lock             = portMUX_INITIALIZER_UNLOCKED,
+        .psr_second               = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .psr_second_request       = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .power_off_frames         = INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT,
+        .power_off_frames_request = INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT,
+        .vcom_override            = INK_DRV_UC8253_VCOM_FROM_PROFILE,
+        .vcom_override_request    = INK_DRV_UC8253_VCOM_FROM_PROFILE,
     };
     fill_profile_info(driver);
 

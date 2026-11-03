@@ -14,16 +14,17 @@
 #include "ink_hal_display.h"
 #include <stdint.h>
 
-#define INK_DRV_UC8253_WIDTH              240
-#define INK_DRV_UC8253_HEIGHT             416
-#define INK_DRV_UC8253_FRAME_BYTES        (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
-#define INK_DRV_UC8253_TABLE_COUNT        5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
-#define INK_DRV_UC8253_TABLE_BYTES        42 /* 6 nhóm × 7 byte, chế độ KW */
-#define INK_DRV_UC8253_NAME_BYTES         16
-#define INK_DRV_UC8253_MAX_PROFILES       32                /* chỗ trong bảng khả năng, gồm profile tạm */
-#define INK_DRV_UC8253_OTP_BYTES          (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
-#define INK_DRV_UC8253_PSR_SECOND_DEFAULT 0x0A /* TIEG = 0, NORG = 1, VC_LUTZ = 0: ít tối vùng trắng nhất khi POF (refresh.md) */
-#define INK_DRV_UC8253_VCOM_FROM_PROFILE  0xFF /* không thay VCOM_DC của profile */
+#define INK_DRV_UC8253_WIDTH                    240
+#define INK_DRV_UC8253_HEIGHT                   416
+#define INK_DRV_UC8253_FRAME_BYTES              (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
+#define INK_DRV_UC8253_TABLE_COUNT              5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
+#define INK_DRV_UC8253_TABLE_BYTES              42 /* 6 nhóm × 7 byte, chế độ KW */
+#define INK_DRV_UC8253_NAME_BYTES               16
+#define INK_DRV_UC8253_MAX_PROFILES             32                /* chỗ trong bảng khả năng, gồm profile tạm */
+#define INK_DRV_UC8253_OTP_BYTES                (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
+#define INK_DRV_UC8253_PSR_SECOND_DEFAULT       0x0A /* TIEG = 0, NORG = 1, VC_LUTZ = 0: ít tối vùng trắng nhất khi POF (refresh.md) */
+#define INK_DRV_UC8253_VCOM_FROM_PROFILE        0xFF /* không thay VCOM_DC của profile */
+#define INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT 1    /* PFS mặc định của UC8253: tắt gate 1 khung sau source */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */
@@ -60,7 +61,8 @@ typedef struct {
     bool                            ram_swapped;       /**< số DRF từ lúc reset là lẻ: 0x10 đang là vùng NEW */
     bool                            needs_reset;       /**< lần vẽ trước lỗi giữa chừng: không còn biết lượt */
     uint8_t                         psr_second;        /**< byte 2 của PSR đã gửi controller */
-    uint8_t vcom_override; /**< byte lệnh 0x82 thay cho của profile; INK_DRV_UC8253_VCOM_FROM_PROFILE = không thay */
+    uint8_t                         power_off_frames;  /**< PFS đã gửi: số khung từ lúc tắt source tới lúc tắt gate */
+    uint8_t                         vcom_override;     /**< byte lệnh 0x82 thay cho của profile; 0xFF = không thay */
 
     /** Yêu cầu từ task khác, giữ request_lock: draw (và power_off với PSR) lấy ra. */
     portMUX_TYPE             request_lock;
@@ -71,6 +73,8 @@ typedef struct {
     char                     temporary_name[INK_DRV_UC8253_NAME_BYTES];
     bool                     psr_second_pending;
     uint8_t                  psr_second_request;
+    bool                     power_off_frames_pending;
+    uint8_t                  power_off_frames_request;
     bool                     vcom_override_pending;
     uint8_t                  vcom_override_request;
 
@@ -131,3 +135,17 @@ esp_err_t ink_drv_uc8253_set_vcom_override(ink_drv_uc8253_t *driver, uint8_t val
  * Gọi từ: task bất kỳ.
  */
 uint8_t ink_drv_uc8253_vcom_override(ink_drv_uc8253_t *driver);
+
+/**
+ * Đặt số khung từ lúc tắt source tới lúc tắt gate khi POF (lệnh PFS `0x03`), gửi controller trước lần vẽ hoặc tắt nguồn sau.
+ * Mặc định INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT. Chỉ firmware test dùng.
+ * Gọi từ: task bất kỳ.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc `frames` ngoài 1–4
+ */
+esp_err_t ink_drv_uc8253_set_power_off_frames(ink_drv_uc8253_t *driver, uint8_t frames);
+
+/**
+ * Số khung PFS đã đặt gần nhất, kể cả khi chưa gửi controller.
+ * Gọi từ: task bất kỳ.
+ */
+uint8_t ink_drv_uc8253_power_off_frames(ink_drv_uc8253_t *driver);

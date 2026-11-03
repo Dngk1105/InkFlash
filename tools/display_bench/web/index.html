@@ -69,12 +69,14 @@
             </div>
             <div class="card">
                 <h2>Controller</h2>
-                <p class="muted">Byte 2 của lệnh PSR (<code>0x00</code>): VCOM và VGL sau khi vẽ và khi tắt nguồn; có tác dụng từ lần vẽ hoặc tắt nguồn sau. VCOM_DC thay cho của mọi profile, có tác dụng từ lần vẽ sau. Máy khởi động lại thì về <code>0A</code>, theo profile. Đường nào cũng đặt được.</p>
+                <p class="muted">Byte 2 của lệnh PSR (<code>0x00</code>): VCOM và VGL sau khi vẽ và khi tắt nguồn; có tác dụng từ lần vẽ hoặc tắt nguồn sau. VCOM_DC thay cho của mọi profile, có tác dụng từ lần vẽ sau. PFS: số khung từ lúc tắt source tới lúc tắt gate khi tắt nguồn. Máy khởi động lại thì về <code>0A</code>, theo profile, 1 khung. Đường nào cũng đặt được.</p>
                 <div class="form-grid">
                     <label for="psr-second">PSR byte 2</label>
                     <select id="psr-second"></select>
                     <label for="vcom-override">VCOM_DC (lệnh <code>0x82</code>)</label>
                     <select id="vcom-override"></select>
+                    <label for="power-off-frames">PFS (lệnh <code>0x03</code>): tắt gate sau source</label>
+                    <select id="power-off-frames"><option value="1">1 khung (mặc định)</option><option value="2">2 khung</option><option value="3">3 khung</option><option value="4">4 khung</option></select>
                 </div>
                 <div class="row">
                     <button id="apply-psr-second">Đặt</button>

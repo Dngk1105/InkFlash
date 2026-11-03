@@ -128,6 +128,7 @@ function parseInfo(payload) {
     info.options = readOptions(reader);
     info.psrSecond = reader.u8();
     info.vcomOverride = reader.u8();
+    info.powerOffFrames = reader.u8();
     return info;
 }
 

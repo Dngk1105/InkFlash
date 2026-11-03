@@ -64,6 +64,7 @@ const app = {
         temperatureCelsius: null,
         psrSecond: null,    /* byte 2 của PSR trên máy, từ INFO */
         vcomOverride: null, /* VCOM_DC thay thế; 255 = theo profile */
+        powerOffFrames: null, /* PFS: khung từ lúc tắt source tới lúc tắt gate */
     },
     run: null, /* {label, testId, params, startedAt, drawn: [], settings} */
     pendingPreview: new Map(), /* slot → frame vừa giao, để cập nhật màn đang hiện khi có DRAWN */
@@ -154,6 +155,7 @@ async function onConnected() {
     app.settings.temporaryProfile = null;
     app.settings.psrSecond = info.psrSecond;
     app.settings.vcomOverride = info.vcomOverride;
+    app.settings.powerOffFrames = info.powerOffFrames;
     renderPanel();
     app.settings.raw.profile = profileIndexForPurpose(0) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
@@ -294,26 +296,29 @@ const VCOM_FROM_PROFILE = 255;
 function vcomName(value) { return value === VCOM_FROM_PROFILE ? 'theo profile' : hexByte(value); }
 
 function renderPanel() {
-    const {psrSecond, vcomOverride} = app.settings;
-    $('psr-second-value').textContent = psrSecond === null ? '' : `máy đang dùng PSR ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}`;
+    const {psrSecond, vcomOverride, powerOffFrames} = app.settings;
+    $('psr-second-value').textContent = psrSecond === null ? ''
+        : `máy đang dùng PSR ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung`;
     const select = (id, value) => {
         if (value !== null && [...$(id).options].some((option) => Number(option.value) === value)) { $(id).value = String(value); }
     };
     select('psr-second', psrSecond);
     select('vcom-override', vcomOverride);
+    select('power-off-frames', powerOffFrames);
 }
 
-/* Gói SET_PANEL: PSR byte 2, VCOM_DC thay thế. Giá trị bỏ trống thì giữ giá trị máy đang dùng. */
-async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0a, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE}) {
-    await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).result());
-    app.settings.psrSecond = psrSecond;
-    app.settings.vcomOverride = vcomOverride;
+/* Gói SET_PANEL: PSR byte 2, VCOM_DC thay thế, số khung PFS. Giá trị bỏ trống thì giữ giá trị máy đang dùng. */
+async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0a, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE,
+    powerOffFrames = app.settings.powerOffFrames ?? 1}) {
+    await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).u8(powerOffFrames).result());
+    Object.assign(app.settings, {psrSecond, vcomOverride, powerOffFrames});
     renderPanel();
-    log(`[web] PSR byte 2 = ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}; có tác dụng từ lần vẽ sau`);
+    log(`[web] PSR byte 2 = ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung; có tác dụng từ lần vẽ sau`);
 }
 
 async function applyPanel() {
-    await guarded(() => setPanel({psrSecond: Number($('psr-second').value), vcomOverride: Number($('vcom-override').value)}));
+    await guarded(() => setPanel({psrSecond: Number($('psr-second').value), vcomOverride: Number($('vcom-override').value),
+        powerOffFrames: Number($('power-off-frames').value)}));
 }
 
 async function readTemperature() {
@@ -611,6 +616,7 @@ function snapshotSettings() {
         temporaryProfile: app.settings.temporaryProfile,
         psrSecond: app.settings.psrSecond === null ? null : hexByte(app.settings.psrSecond),
         vcom: app.settings.vcomOverride === null ? null : vcomName(app.settings.vcomOverride),
+        powerOffFrames: app.settings.powerOffFrames,
     };
 }
 
@@ -926,8 +932,8 @@ async function runSelectedTest() {
         renderSlots();
         const slots = plan.order.map((index) => TEST_FIRST_SLOT + index);
         app.lastRun = runSelectedTest;
-        if (plan.psrSecond !== undefined || plan.vcomOverride !== undefined) {
-            await setPanel({psrSecond: plan.psrSecond, vcomOverride: plan.vcomOverride});
+        if (plan.psrSecond !== undefined || plan.vcomOverride !== undefined || plan.powerOffFrames !== undefined) {
+            await setPanel({psrSecond: plan.psrSecond, vcomOverride: plan.vcomOverride, powerOffFrames: plan.powerOffFrames});
         }
         startRun(test.name, {testId: test.id, params: values}, plan.repeat === 1 && !plan.special ? slots.length : 0);
         if (plan.note) { log(`[web] ${plan.note}`); }
