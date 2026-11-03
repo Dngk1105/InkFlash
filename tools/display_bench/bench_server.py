@@ -123,7 +123,15 @@ def main():
     parser = argparse.ArgumentParser(description="Công cụ test màn InkFlash")
     parser.add_argument("--port", type=int, default=8253)
     port = parser.parse_args().port
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    try:
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    except OSError as error:
+        # WinError 10013 / 10048: cổng đang bị bản khác của script giữ, hoặc nằm trong dải Windows giữ riêng
+        print(f"Không mở được cổng {port}: {error}")
+        print(f"- Bản cũ của script còn chạy? Xem: netstat -ano | findstr :{port}")
+        print("- Cổng nằm trong dải Windows giữ riêng? Xem: netsh interface ipv4 show excludedportrange protocol=tcp")
+        print("- Hoặc dùng cổng khác: python tools/display_bench/bench_server.py --port 8080")
+        return 1
     print(f"Mở http://localhost:{port} trên Chrome hoặc Edge. Ctrl+C để dừng.")
     try:
         server.serve_forever()
@@ -132,4 +140,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
