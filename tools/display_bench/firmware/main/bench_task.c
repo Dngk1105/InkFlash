@@ -213,7 +213,7 @@ static void init_raw_settings(void) {
 /* ---- Tự tắt nguồn ở đường raw ---- */
 /* Driver không tự tắt nguồn analog sau DRF; ở đường pipeline ink_display lo, ở đường raw task bench lo. */
 
-#define RAW_POWER_OFF_MS 2000
+#define RAW_POWER_OFF_MS 4000
 
 static uint32_t             s_raw_power_off_ms = RAW_POWER_OFF_MS; /* 0 = chỉ tắt khi PC gửi POWER_OFF */
 static ink_platform_timer_t s_power_timer;

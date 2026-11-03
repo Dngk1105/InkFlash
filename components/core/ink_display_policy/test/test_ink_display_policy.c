@@ -267,6 +267,27 @@ static void test_exceeding_ceiling_draws_clean_strong_and_clears_debt(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
 
+static void test_exceeding_ceiling_while_active_draws_clean_fast(void) {
+    ink_display_policy_config_t config = default_config();
+    config.debt_ceiling_max            = config.debt_ceiling; /* trần không nâng */
+    start(&config);
+    for (int i = 0; i < 4; i++) {
+        s_now_ms += 100;
+        if (i % 2 == 0) {
+            set_black(s_next, 4, 4);
+        } else {
+            set_white(s_next, 4, 4);
+        }
+        TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_DRAW, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
+    }
+    s_now_ms += 100;
+    set_black(s_next, 4, 4);
+    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+    TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
+}
+
 static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
@@ -287,7 +308,7 @@ static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
     TEST_ASSERT_EQUAL_UINT8(8, ink_display_policy_ceiling(&s_state));
 }
 
-static void test_page_with_high_debt_draws_clean_fast(void) {
+static void test_page_with_high_debt_draws_clean_strong(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     for (int i = 0; i < 3; i++) {
@@ -302,7 +323,7 @@ static void test_page_with_high_debt_draws_clean_fast(void) {
     TEST_ASSERT_EQUAL_UINT8(6, ink_display_policy_max_debt(&s_state));
     set_black(s_next, 15, 6);
     const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
@@ -587,8 +608,9 @@ int main(void) {
     RUN_TEST(test_invalidate_forces_clean_strong);
     RUN_TEST(test_debt_adds_weight_on_changed_pixels_only);
     RUN_TEST(test_exceeding_ceiling_draws_clean_strong_and_clears_debt);
+    RUN_TEST(test_exceeding_ceiling_while_active_draws_clean_fast);
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
-    RUN_TEST(test_page_with_high_debt_draws_clean_fast);
+    RUN_TEST(test_page_with_high_debt_draws_clean_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
     RUN_TEST(test_marks_dark_edge_around_box_that_turns_white);
     RUN_TEST(test_intent_without_edge_flags_marks_nothing_but_adds_debt);

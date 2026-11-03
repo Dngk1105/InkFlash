@@ -361,8 +361,8 @@ static bool request_valid(ink_display_policy_request_t request) {
     return request.intent < INK_DISPLAY_POLICY_INTENT_COUNT;
 }
 
-/* Khung mới: bắt đầu lại thang dọn; khung tới khi đang thao tác thì nâng trần. */
-static void start_idle_period(ink_display_policy_state_t *state, ink_display_policy_request_t request, uint32_t now_ms) {
+/* Khung mới: bắt đầu lại thang dọn; khung tới khi đang thao tác thì nâng trần. Trả true nếu đang thao tác. */
+static bool start_idle_period(ink_display_policy_state_t *state, ink_display_policy_request_t request, uint32_t now_ms) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const bool active = state->priv.has_frame && config->edge_ms > 0 && elapsed_ms(state->priv.last_frame_ms, now_ms) < config->edge_ms;
     if (!active) {
@@ -375,6 +375,7 @@ static void start_idle_period(ink_display_policy_state_t *state, ink_display_pol
     state->priv.stages_done      = 0;
     state->priv.edge_center_done = false;
     state->priv.defer            = (request.flags & INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP) != 0;
+    return active;
 }
 
 static ink_display_policy_intent_t resolve_intent(const ink_display_policy_config_t *config, ink_display_policy_intent_t intent,
@@ -415,7 +416,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
 
     const bool before_sleep = (request.flags & INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP) != 0;
     if (!state->priv.shown_valid || (before_sleep && has_dirt(state))) {
-        start_idle_period(state, request, now_ms);
+        (void)start_idle_period(state, request, now_ms);
         decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
@@ -425,7 +426,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
         *out_decision     = (ink_display_policy_decision_t){.action = INK_DISPLAY_POLICY_ACTION_NONE};
         return INK_DISPLAY_POLICY_OK;
     }
-    start_idle_period(state, request, now_ms);
+    const bool active = start_idle_period(state, request, now_ms);
 
     const bool                        after_wake = state->priv.after_wake;
     const ink_display_policy_rect_t   window     = after_wake ? whole_screen(config) : make_window(config, changed);
@@ -434,11 +435,11 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     state->priv.after_wake                       = false;
 
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state->priv.ceiling)) {
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        decide_clean(state, active ? INK_DISPLAY_POLICY_ACTION_CLEAN_FAST : INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent == INK_DISPLAY_POLICY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, out_decision);
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);

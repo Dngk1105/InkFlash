@@ -99,11 +99,15 @@ nằm trong profile, nên cùng một bảng sóng dùng được cho nhiều m�
 | Mục đích | Dùng cho | Mặt phẳng cũ | Window |
 |---|---|---|---|
 | `TEXT`, `UI`, `PAGE` | Vẽ khung theo ý định | Khung đang hiện | Vùng đổi |
-| Dọn mạnh | Khởi động nguội, sau lỗi, vượt trần nợ, cuối thang dọn, trước khi ngủ | Khung mới đảo bit | Cả màn |
-| Dọn nhanh | `PAGE` khi nợ đã quá ngưỡng. Mặc định dùng cùng dải nhiệt độ với dọn mạnh: đo trên BB0, `tr8` cả màn làm vùng không đổi đậm dần | Khung mới đảo bit | Cả màn |
+| Dọn mạnh | Khởi động nguội, sau lỗi, vượt trần nợ sau khi đã nghỉ, `PAGE` khi nợ đã quá ngưỡng, cuối thang dọn, trước khi ngủ | Khung mới đảo bit | Cả màn |
+| Dọn nhanh | Vượt trần nợ khi đang thao tác liên tục | Khung mới đảo bit | Cả màn |
 | Dọn tâm viền | Bậc 1 của thang dọn | Khung đang hiện, đảo bit ở điểm có cờ viền | Bao các điểm có cờ |
 | Dọn quanh viền | Bậc 1 của thang dọn, ngay sau dọn tâm | Khung đang hiện, đảo bit ở điểm kề cạnh điểm có cờ | Bao các điểm đó |
 | Dọn nhẹ | Bậc 2 của thang dọn | Khung đang hiện, đảo bit ở điểm có nợ xám | Bao các điểm đó |
+
+Dọn nhanh dùng `clean_full100` (320 ms): mọi điểm lắc về màu ngược rồi về màu của nó, cân bằng điện tích ngay trong
+lần đó. Màn chớp một lần nhưng nhanh hơn dọn mạnh gần 8 lần ở 30 °C. Đo trên BB0, `tr8` cả màn (kéo một chiều) làm vùng
+không đổi đậm dần sau mỗi lần dọn, nên không dùng làm dọn nhanh.
 
 Kéo viền màn bật ở dọn mạnh, dọn nhanh và `PAGE`: đo trên BB0, không kéo thì viền màn xám dần, kể cả trong chế độ
 partial. `TEXT`, `UI` và các lượt dọn khi nghỉ để viền nổi.
@@ -123,8 +127,8 @@ chữ nhật bao vùng đổi (mép x căn theo bước căn của driver), rồ
 | 2 | Cờ trước khi ngủ, và còn nợ hoặc còn cờ viền | Dọn mạnh |
 | 3 | Khung giống hệt khung đang hiện | Không vẽ |
 | 4 | Lần vẽ đầu sau khi thức dậy, khung đang hiện là màn nền đã vẽ trước khi ngủ | Preset của ý định, window cả màn |
-| 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Dọn mạnh, vẽ luôn khung này (không dọn trước rồi mới vẽ) |
-| 6 | Ý định `PAGE` và nợ lớn nhất đã tới `debt_page` | Dọn nhanh |
+| 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Khung tới trong vòng `edge_ms` sau khung trước (đang thao tác liên tục): dọn nhanh; còn lại: dọn mạnh. Cả hai vẽ luôn khung này (không dọn trước rồi mới vẽ) |
+| 6 | Ý định `PAGE` và nợ lớn nhất đã tới `debt_page` | Dọn mạnh |
 | 7 | Còn lại | Preset của ý định, chỉ vùng đổi |
 
 Khi thức dậy, `display` coi màn nền là khung đang hiện, vì máy đã vẽ nó ngay trước khi ngủ sâu và màn e-ink giữ hình
@@ -156,10 +160,13 @@ kề cạnh của tâm được dọn ở lượt dọn quanh viền.
 
 **Nợ và trần co giãn.** Nợ không tự giảm theo thời gian, chỉ dọn mới hết. Trần nợ bắt đầu ở `debt_ceiling`. Khung tới
 trong vòng `edge_ms` sau khung trước (người dùng đang thao tác liên tục) thì trần tăng 1, tối đa `debt_ceiling_max`, để
-không bị dọn mạnh ngắt giữa chừng; nghỉ quá `edge_ms` thì trần về `debt_ceiling`.
+ít bị ngắt giữa chừng, và vượt trần lúc đó thì dọn nhanh thay dọn mạnh; nghỉ quá `edge_ms` thì trần về `debt_ceiling`.
 
 Ngủ sâu làm mất PSRAM, và RTC memory (16 KB) không chứa nổi 100 KB. Vì vậy trước khi ngủ màn phải sạch (cờ trước khi
 ngủ), và khi thức mọi điểm bắt đầu với nợ bằng 0, đúng với màn thật.
+
+Đo trên BB0 (CPU 240 MHz, `-O2`, PSRAM 80 MHz): đổi cả một trang chữ, phần so khung, cập nhật trạng thái từng điểm và
+dựng mặt phẳng cũ mất 11 ms.
 
 Lúc task khác ghi flash, cache tắt nên PSRAM không đọc được: task màn dừng tới khi ghi xong. Lần vẽ trùng lúc đó chậm
 thêm đúng thời gian ghi.
@@ -228,7 +235,7 @@ về thời gian.
 | Profile | Index trong danh sách profile của driver. Driver luôn nạp đúng profile đó qua thanh ghi (REG = 1), không để controller chọn bảng theo nhiệt độ. |
 | Cấu hình vẽ | Đi kèm mỗi lần vẽ: vào chế độ partial (PTL) hay vẽ cả màn ngoài chế độ partial; `PT_SCAN`; kéo viền màn hay để viền nổi. Ngoài chế độ partial thì driver vẽ cả màn, bỏ qua window. |
 | Mép vùng | Driver làm tròn ra ngoài theo bước căn mép x mà nó khai báo trong bảng khả năng. |
-| Nguồn analog | Driver bật nguồn trước DRF nếu đang tắt và để nguồn bật sau DRF. Tắt bằng thao tác tắt nguồn. |
+| Nguồn analog | Driver bật nguồn trước DRF nếu đang tắt và để nguồn bật sau DRF. Tắt bằng thao tác tắt nguồn. Byte 2 của lệnh `0x00` là `0x0A` (TIEG 0, NORG 1, VC_LUTZ 0): đo trên BB0, mặc định `0x0D` của UC8253 (TIEG 1, VGL nối đất sau POF) làm vùng trắng tối dần ngay lúc tắt nguồn. Lệnh `0x03` (PFS) giữ mặc định 1 khung; 1–4 khung không khác nhau. |
 | Thời gian chờ BUSY | Thời gian DRF của profile × 1,5 + 100 ms cho mỗi lần quét. |
 | Thời gian trả về | Bốn số: SPI trước khi quét (đoạn 5), bật nguồn analog nếu đang tắt, panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét. |
 | Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không ngủ sâu. |
@@ -277,30 +284,17 @@ Danh sách profile:
 
 | Id | Profile | Bảng sóng | Một lần vẽ | Dùng cho |
 |---|---|---|---|---|
-| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh, dọn nhanh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE` |
-| 10 | `lut15f65` | TR8, 65 Hz | 262 ms | |
-| 11 | `lut15f100` | TR8, 100 Hz | 170 ms | |
-| 12 | `lut12f50` | Kéo 12 khung, 50 Hz | 280 ms | |
-| 13 | `lut10f50` | Kéo 10 khung, 50 Hz | 240 ms | `UI` |
-| 14 | `lut6f50` | Kéo 6 khung, 50 Hz | 160 ms | |
-| 15 | `lut4f200` | Kéo 4 khung, 200 Hz | 30 ms | |
-| 16 | `3x5f50` | 3 lần quét, mỗi lần kéo 5 khung, 50 Hz | 420 ms | |
-| 17 | `tr8_kk0` | TR8, bảng đen giữ đen 0 V | 340 ms | So với `tr8`: điểm đứng yên không bị kéo |
-| 20 | `clean_full` | Điểm được chọn: 8 khung về màu ngược rồi 8 khung về màu của nó, 200 Hz; giữ màu 0 V | 90 ms | Chỉ để so trên bench |
+| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE` |
+| 13 | `lut10f50` | Điểm đổi màu kéo 10 khung, 50 Hz; giữ màu 0 V | 240 ms | `UI` |
 | 21 | `clean_edge` | Điểm được chọn: lắc 2–1–1–1–1–2 khung, kết thúc về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn quanh viền |
 | 22 | `clean_light` | Điểm được chọn: 4 khung về màu ngược rồi 4 khung về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn nhẹ |
-| 23 | `clean_full50` | Như `clean_full`, 15 + 15 khung, 50 Hz | 640 ms | Chỉ để so trên bench |
-| 24 | `clean_full100` | Như `clean_full`, 15 + 15 khung, 100 Hz | 320 ms | Dọn tâm viền |
-| 25 | `push5f50` | Điểm được chọn: 5 khung về màu của nó, 50 Hz; lệch điện tích (`allow_unbalanced`) | 140 ms | Chỉ để so trên bench, không gán cho preset nào |
-| 26 | `edge_patent50` | Dạng sóng xoá viền của US 11,568,827 (5 khung ± xen kẽ, 3 khung về màu của nó), 50 Hz; lệch điện tích | 200 ms | Chỉ để so trên bench, không gán cho preset nào |
-| 27 | `text_pre10f100` | Điểm đổi màu: 10 khung về màu hiện tại rồi 25 khung về màu mới, 100 Hz; giữ màu 0 V | 370 ms | Ứng viên cho `TEXT`, chỉ để so trên bench |
-| 28 | `text_pre5f65` | Như trên, 5 khung rồi 18 khung, 65 Hz | 385 ms | Ứng viên cho `TEXT`, chỉ để so trên bench |
+| 24 | `clean_full100` | Điểm được chọn: 15 khung về màu ngược rồi 15 khung về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Dọn tâm viền, dọn nhanh |
 
-Thời gian một lần vẽ là số script tính; số đo trên BB0 ở `docs/hardware/parts/weact-epaper-3.7/refresh.md` khớp trong
-khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và các bảng `lut*` có điểm chuyển màu
-kéo một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Đo trên BB0 (2026-11-04): ba bảng dọn 200 Hz làm vùng
-trắng được dọn đục dần; 23–26 có để so trên bench. Khảo sát sau đó: dọn tâm viền bằng `clean_full100` cho viền khó thấy
-nhất; dọn quanh viền và dọn nhẹ giữ `clean_edge`, `clean_light`.
+Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử trên bench rồi bỏ; kết quả đo ở
+`docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong
+khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và `lut10f50` có điểm chuyển màu kéo
+một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Chọn theo khảo sát trên BB0: dọn tâm viền dài
+(`clean_full100`) cho viền khó thấy nhất; `tr8` đủ rõ cho chữ.
 
 ### Danh sách profile nằm ở đâu
 
@@ -343,7 +337,8 @@ profile tạm cũ.
 | Điện trường của điểm đang đẩy lan sang điểm bên cạnh, để lại viền xám | `display_policy` đánh dấu cờ viền; thang dọn dọn tâm và quanh viền |
 | Mất cân bằng điện tích làm hạt mực bị kẹt | Script kiểm profile trước khi sinh file; mọi profile vẽ tay cân bằng |
 | Hạt chưa tới đích, màu xám | Profile (số khung, tần số khung); nợ xám theo điểm, dọn nhẹ và dọn mạnh |
-| Điểm đứng yên bị bảng giữ màu kéo thêm | Profile có bảng giữ màu 0 V (`tr8_kk0`, profile dọn) |
+| Điểm đứng yên bị bảng giữ màu kéo thêm | Profile vẽ tay có bảng giữ màu 0 V |
+| Lúc tắt nguồn, điện áp dư đẩy vùng trắng tối đi | Driver đặt TIEG = 0 (byte 2 của lệnh `0x00`) |
 | Dòng rò transistor TFT làm sụt điện áp trong một khung | Phần cứng; phần mềm chỉ chỉnh tần số khung. Tần số càng cao thì mỗi khung càng yếu |
 | Nhiệt độ đổi độ nhớt của mực | Driver đọc cảm biến; `display` chọn profile theo bảng dải nhiệt độ của từng preset |
 | Điện áp dư sau xung rã trong vài phút | Thang dọn để dọn mạnh ở bậc cuối, khi đã nghỉ lâu |
@@ -358,10 +353,10 @@ khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`
 |---|---|---|
 | Preset của từng mục đích | Bảng dải nhiệt độ → id profile; cấu hình vẽ; trọng số nợ và đánh dấu cờ viền (chỉ preset của ý định). Id không còn trong danh sách thì dùng mặc định của driver cho mục đích đó | Mặc định theo mục đích của driver; trọng số `TEXT` 1, `UI` 2, `PAGE` 1; cờ viền chỉ `UI` |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
-| `debt_soft`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn nhanh khi `PAGE` | 2, 6 |
+| `debt_soft`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn mạnh khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Trần nợ lúc nghỉ và trần lớn nhất khi đang thao tác | 8, 15 |
 | `edge_ms`, `light_ms`, `strong_ms` | Thời gian nghỉ của ba bậc thang dọn; 0 = bỏ bậc đó | 2 s, 10 s, 60 s |
-| `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 2 s |
+| `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 4 s |
 
 Các mặc định về nợ và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
 
@@ -377,3 +372,9 @@ chính không in log hay giữ thống kê thời gian.
 - Nếu có app cần vẽ chuyển động liên tục (cuộn mượt, animation) thì bàn chế độ ngân sách xung theo từng điểm: profile
   là một xung ngắn, mỗi điểm đếm số xung còn phải kéo, task màn quét lặp và đổi đích giữa chừng.
 - Nếu app cần ý định khác nhau cho từng vùng trong cùng một khung thì bàn gắn ý định theo vùng.
+- Nếu điểm vừa đổi về trắng đậm dần khi để yên (đo trên BB0 với `tr8`, nhẹ sau khi đặt TIEG = 0) gây khó chịu trước
+  khi thang dọn kịp chạy, thì so `tr8` với bảng cân bằng trong từng lần đổi màu (như `clean_full100`) bằng bài "VCOM và
+  vùng đứng yên" của bench.
+- Nếu `UI` cần profile nhanh hơn mà xám nhiều, hoặc trộn `UI` (10 khung) với `TEXT` (15 khung) làm lệch điện tích thấy
+  được, thì bàn đẩy bù: sau khi vẽ nhanh, đẩy thêm một chiều về màu của điểm, kèm bộ đếm điện tích từng điểm. Thử tay trên
+  BB0 (`lut10f50` rồi 5 khung đẩy): sạch, không chớp, nhưng ô được đẩy đậm hơn xung quanh.

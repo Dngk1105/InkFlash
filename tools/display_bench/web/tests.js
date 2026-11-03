@@ -50,16 +50,6 @@ function frameWithBox(orientation, box, black = true) {
     return frame;
 }
 
-function checkerboard(orientation, cell, phase) {
-    return frameFromCanvas(orientation, (context, width, height) => {
-        for (let y = 0; y < height; y += cell) {
-            for (let x = 0; x < width; x += cell) {
-                if (((x / cell + y / cell + phase) & 1) === 0) { context.fillRect(x, y, cell, cell); }
-            }
-        }
-    });
-}
-
 const SAMPLE_TEXT = [
     'Flashcard: ôn tập ngắt quãng giúp nhớ lâu hơn.',
     'Mỗi lần lật thẻ, màn chỉ vẽ lại vùng đổi.',
@@ -162,29 +152,6 @@ export const TESTS = [
                 repeat: 1,
                 raw: {profile: values.profile, windowKind: WindowKind.CHANGED, partialMode: true},
                 note: 'Chụp ảnh ô và vùng quanh ô sau lần lật cuối; chấm điểm bóng mờ và viền.',
-            };
-        },
-    },
-    {
-        id: 'hold_zero',
-        name: 'Giữ màu 0 V',
-        path: 'raw',
-        description: 'Ô cờ đảo pha N lần bằng một profile, cả màn trong chế độ partial, rồi về trắng. Chạy hai lần: tr8 rồi tr8_kk0 (bảng đen giữ đen 0 V). So nền trắng và ô đen đứng yên: có xám dần không.',
-        params: [
-            {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
-            {key: 'cycles', label: 'Số lần đảo', value: 100, min: 1, max: 200},
-            {key: 'cell', label: 'Cỡ ô (điểm)', value: 16, min: 2, max: 64},
-            {key: 'interval', label: 'ms giữa hai lần', value: 100, min: 0, max: 10000, step: 50},
-        ],
-        build(values, orientation) {
-            const order = Array.from({length: values.cycles}, (_, index) => index % 2);
-            order.push(2);
-            return {
-                frames: [checkerboard(orientation, values.cell, 0), checkerboard(orientation, values.cell, 1), createFrame(true)],
-                order,
-                intervalMs: values.interval,
-                repeat: 1,
-                raw: {profile: values.profile, windowKind: WindowKind.WHOLE, partialMode: true},
             };
         },
     },
@@ -312,7 +279,7 @@ export const TESTS = [
         id: 'text_profile',
         name: 'Chữ cho TEXT',
         path: 'raw',
-        description: 'Trang chữ cuộn một dòng mỗi lần, như đọc thẻ, bằng profile chọn, window vùng đổi. Chạy với từng profile ứng viên (tr8, lut15f65, lut12f50...) rồi chấm độ nét chữ và bóng của dòng cũ.',
+        description: 'Trang chữ cuộn một dòng mỗi lần, như đọc thẻ, bằng profile chọn, window vùng đổi. Chạy với từng profile ứng viên rồi chấm độ nét chữ và bóng của dòng cũ.',
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
             {key: 'pages', label: 'Số trang', value: 8, min: 2, max: TEST_SLOT_COUNT},

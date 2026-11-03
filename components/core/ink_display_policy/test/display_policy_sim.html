@@ -641,6 +641,7 @@ function start_idle_period(state, request, now_ms)
     state.priv.stages_done = 0;
     state.priv.edge_center_done = false;
     state.priv.defer = (request.flags & INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP) !== 0;
+    return active;
 }
 
 function resolve_intent(config, intent, window)
@@ -683,7 +684,7 @@ function ink_display_policy_decide(state, shown, next, request, now_ms, out_deci
         Object.assign(out_decision, {action: INK_DISPLAY_POLICY_ACTION_NONE, intent: 0, window: {x: 0, y: 0, width: 0, height: 0}, old_plane: 0});
         return INK_DISPLAY_POLICY_OK;
     }
-    start_idle_period(state, request, now_ms);
+    const active = start_idle_period(state, request, now_ms);
 
     const after_wake = state.priv.after_wake;
     const window = after_wake ? whole_screen(config) : make_window(config, changed);
@@ -692,11 +693,11 @@ function ink_display_policy_decide(state, shown, next, request, now_ms, out_deci
     state.priv.after_wake = false;
 
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state.priv.ceiling)) {
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        decide_clean(state, active ? INK_DISPLAY_POLICY_ACTION_CLEAN_FAST : INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent === INK_DISPLAY_POLICY_INTENT_PAGE && state.priv.max_debt >= config.debt_page) {
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, out_decision);
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);
@@ -846,7 +847,7 @@ const live = {
         debt_soft: 2, debt_page: 6, debt_ceiling: 8, debt_ceiling_max: 15,
         edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
     },
-    power_off_ms: 2000,              /* DEFAULT_POWER_OFF_MS */
+    power_off_ms: 4000,              /* DEFAULT_POWER_OFF_MS */
     state: new_state(),
     pixels: null,
     shown: null,                     /* null = chưa biết màn hiện gì */
@@ -1418,6 +1419,22 @@ const TESTS = {
         expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
         expect_equal(0, ink_display_policy_max_debt(t.state));
     },
+    test_exceeding_ceiling_while_active_draws_clean_fast() {
+        const config = default_config();
+        config.debt_ceiling_max = config.debt_ceiling;
+        start(config);
+        for (let i = 0; i < 4; i++) {
+            t.now_ms += 100;
+            if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
+            expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
+        }
+        t.now_ms += 100;
+        set_black(t.next, 4, 4);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+    },
     test_ceiling_grows_while_active_and_resets_after_rest() {
         start(default_config());
         for (let i = 0; i < 7; i++) {
@@ -1432,7 +1449,7 @@ const TESTS = {
         expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
         expect_equal(8, ink_display_policy_ceiling(t.state));
     },
-    test_page_with_high_debt_draws_clean_fast() {
+    test_page_with_high_debt_draws_clean_strong() {
         start(default_config());
         for (let i = 0; i < 3; i++) {
             t.now_ms += 100;
@@ -1442,7 +1459,7 @@ const TESTS = {
         expect_equal(6, ink_display_policy_max_debt(t.state));
         set_black(t.next, 15, 6);
         const decision = draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0);
-        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
         expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
         expect_equal(0, ink_display_policy_max_debt(t.state));
     },

@@ -24,7 +24,7 @@ static const char *TAG = "ink_display";
 #define DEFAULT_EDGE_MS          2000
 #define DEFAULT_LIGHT_MS         10000
 #define DEFAULT_STRONG_MS        60000
-#define DEFAULT_POWER_OFF_MS     2000
+#define DEFAULT_POWER_OFF_MS     4000
 
 #define DEFAULT_CELSIUS     25    /* chưa đọc được cảm biến lần nào */
 #define MIN_TRUSTED_CELSIUS (-10) /* ngoài khoảng này coi như cảm biến đọc sai */

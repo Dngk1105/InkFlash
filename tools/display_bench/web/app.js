@@ -898,7 +898,7 @@ async function runTemperaturePlan(plan, slots) {
     renderRun();
 }
 
-/* Bài giữ nguồn: vẽ, giữ nguồn analog bật trong holdMs (đo dòng), rồi tắt; trả lại tự tắt 2 s. */
+/* Bài giữ nguồn: vẽ, giữ nguồn analog bật trong holdMs (đo dòng), rồi tắt; trả lại tự tắt theo ô "Tự tắt nguồn sau". */
 async function runHoldPowerPlan(plan, slots) {
     await app.link.command(Command.POWER_OFF, new Writer().u32(0).result());
     await runRawPlan({...plan, intervalMs: 0}, slots.slice(0, 1));
@@ -910,7 +910,7 @@ async function runHoldPowerPlan(plan, slots) {
     log('[web] nguồn đã TẮT: đo dòng lần nữa để so');
     toast('Nguồn đã tắt: đo dòng lần nữa');
     await delay(plan.holdMs);
-    await app.link.command(Command.POWER_OFF, new Writer().u32(Number($('raw-power-off-ms').value) || 2000).result());
+    await app.link.command(Command.POWER_OFF, new Writer().u32(Number($('raw-power-off-ms').value) || 4000).result());
 }
 
 async function runSelectedTest() {
