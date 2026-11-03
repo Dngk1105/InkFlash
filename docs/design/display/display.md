@@ -270,7 +270,7 @@ Một profile gồm:
 | Mục | Nghĩa |
 |---|---|
 | Id | Số cố định, không đổi khi đổi tên hay đổi thứ tự. Cài đặt lưu id, không lưu index |
-| Tên, nguồn | Tên để log và bench; nguồn là dải TR0–TR8 của OTP hoặc vẽ tay |
+| Tên, nguồn | Tên để log và firmware test; nguồn là dải TR0–TR8 của OTP hoặc vẽ tay |
 | 5 bảng LUT | LUTC, LUTWW, LUTKW, LUTWK, LUTKK, mỗi bảng 42 byte |
 | Điện áp | VG, VSH, VSL, VDHR, VCOM_DC, tần số khung (PLL), EOPT và XON của riêng profile |
 | Số lần quét | 1–4 lần DRF cho một lần vẽ, mỗi lần đẩy lại cùng cặp bit |
@@ -290,7 +290,7 @@ Danh sách profile:
 | 22 | `clean_light` | Điểm được chọn: 4 khung về màu ngược rồi 4 khung về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn nhẹ |
 | 24 | `clean_full100` | Điểm được chọn: 15 khung về màu ngược rồi 15 khung về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Dọn tâm viền, dọn nhanh |
 
-Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử trên bench rồi bỏ; kết quả đo ở
+Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử bằng firmware test rồi bỏ; kết quả đo ở
 `docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong
 khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và `lut10f50` có điểm chuyển màu kéo
 một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Chọn theo khảo sát trên BB0: dọn tâm viền dài
@@ -302,20 +302,20 @@ một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0.
 |---|---|---|
 | `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép dải nào, profile vẽ tay viết bằng các pha (mức điện áp, số khung), mặc định theo mục đích. `waveform_view.html` cùng thư mục vẽ các dải của bản dump | Dev |
 | `ink_drv_uc8253_profiles.c`, mảng C const trong flash | Sinh bằng `tools/profile_gen.py` từ nguồn trên; không sửa tay | Script, lúc dev chạy |
-| Một ô profile tạm trong RAM của driver | Profile gửi từ PC để thử mà không phải nạp lại firmware (gói `.inkw` do script sinh); mất khi reset. Index bằng số profile cố định | Dev, qua bench |
 
 Vẽ sóng chỉ phục vụ phát triển: thử bảng mới, đổi bảng khi đổi panel, hoặc thêm kiểu hiển thị riêng cho app. Người
 dùng chỉ chọn trong danh sách, nên firmware không đọc profile từ LittleFS.
 
-Driver không đọc OTP lúc chạy. Panel khác thì dùng lệnh đọc OTP của firmware test, lưu bản dump mới rồi sinh lại file.
+Driver không đọc OTP lúc chạy. Panel khác thì dùng lệnh đọc OTP của firmware test (nhánh `bench`), lưu bản dump mới rồi
+sinh lại file.
 Chưa có tấm panel thứ hai để biết VCOM trong OTP có khác giữa các tấm không.
 
 Driver nhớ profile đang nạp trong controller và chỉ gửi lại bảng khi index khác lần trước (khoảng 270 byte SPI, dưới
-1 ms ở 4 MHz). Reset controller hoặc nạp profile tạm thì quên profile đang nạp.
+1 ms ở 4 MHz). Reset controller thì quên profile đang nạp.
 
 ### Kiểm tra profile
 
-Mọi profile đi qua script trước khi vào firmware, kể cả profile tạm của bench, nên firmware không kiểm nội dung. Script
+Mọi profile đi qua script trước khi vào firmware, nên firmware không kiểm nội dung. Script
 từ chối profile vi phạm:
 
 | Luật | Lý do |
@@ -326,9 +326,6 @@ từ chối profile vi phạm:
 | Tần số khung có trong bảng PLL của UC8253 | Lệnh `0x30` chỉ nhận các mức trong bảng |
 | Điện áp trong dải thanh ghi của UC8253, VG khoá ±20 V, không dùng mức VDHR trong 4 bảng nguồn | Spec panel không ghi giới hạn riêng |
 | Id không trùng, không dùng lại id đã bỏ | Cài đặt cũ trỏ sai profile |
-
-Firmware test chỉ kiểm khung gói profile tạm (mã nhận dạng, phiên bản, độ dài, CRC). Gói sai thì từ chối và giữ
-profile tạm cũ.
 
 ## Hiện tượng vật lý của mực và tầng xử lý
 
@@ -358,7 +355,7 @@ khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`
 | `edge_ms`, `light_ms`, `strong_ms` | Thời gian nghỉ của ba bậc thang dọn; 0 = bỏ bậc đó | 2 s, 10 s, 60 s |
 | `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 4 s |
 
-Các mặc định về nợ và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
+Các mặc định về nợ và thời gian là điểm xuất phát, chưa đo; chỉnh bằng firmware test.
 
 Sau mỗi lần task màn làm việc với màn (vẽ khung, một lượt dọn, tắt nguồn), nó gọi callback `on_drawn` (nếu có) với một
 báo cáo: việc đã làm, mục đích, id profile, window, nhiệt độ nếu vừa đọc, lỗi, nợ lớn nhất, số điểm có cờ viền, trần
@@ -374,7 +371,7 @@ chính không in log hay giữ thống kê thời gian.
 - Nếu app cần ý định khác nhau cho từng vùng trong cùng một khung thì bàn gắn ý định theo vùng.
 - Nếu điểm vừa đổi về trắng đậm dần khi để yên (đo trên BB0 với `tr8`, nhẹ sau khi đặt TIEG = 0) gây khó chịu trước
   khi thang dọn kịp chạy, thì so `tr8` với bảng cân bằng trong từng lần đổi màu (như `clean_full100`) bằng bài "VCOM và
-  vùng đứng yên" của bench.
+  vùng đứng yên" của firmware test.
 - Nếu `UI` cần profile nhanh hơn mà xám nhiều, hoặc trộn `UI` (10 khung) với `TEXT` (15 khung) làm lệch điện tích thấy
   được, thì bàn đẩy bù: sau khi vẽ nhanh, đẩy thêm một chiều về màu của điểm, kèm bộ đếm điện tích từng điểm. Thử tay trên
   BB0 (`lut10f50` rồi 5 khung đẩy): sạch, không chớp, nhưng ô được đẩy đậm hơn xung quanh.

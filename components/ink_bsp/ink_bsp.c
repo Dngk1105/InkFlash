@@ -78,47 +78,6 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
     return ESP_OK;
 }
 
-esp_err_t ink_bsp_display_load_profile(const uint8_t *blob, size_t length) {
-    ESP_RETURN_ON_FALSE(blob != nullptr, ESP_ERR_INVALID_ARG, TAG, "null arg");
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    return ink_drv_uc8253_load_temporary(&s_display_driver, blob, length);
-}
-
-esp_err_t ink_bsp_display_read_otp(uint8_t *out, size_t capacity, size_t *out_length) {
-    ESP_RETURN_ON_FALSE(out && out_length, ESP_ERR_INVALID_ARG, TAG, "null arg");
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    ESP_RETURN_ON_ERROR(ink_drv_uc8253_read_otp(&s_display_driver, out, capacity), TAG, "otp");
-    *out_length = INK_DRV_UC8253_OTP_BYTES;
-    return ESP_OK;
-}
-
-esp_err_t ink_bsp_display_set_psr_second(uint8_t value) {
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    return ink_drv_uc8253_set_psr_second(&s_display_driver, value);
-}
-
-uint8_t ink_bsp_display_psr_second(void) {
-    return ink_drv_uc8253_psr_second(&s_display_driver);
-}
-
-esp_err_t ink_bsp_display_set_vcom_override(uint8_t value) {
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    return ink_drv_uc8253_set_vcom_override(&s_display_driver, value);
-}
-
-uint8_t ink_bsp_display_vcom_override(void) {
-    return ink_drv_uc8253_vcom_override(&s_display_driver);
-}
-
-esp_err_t ink_bsp_display_set_power_off_frames(uint8_t frames) {
-    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    return ink_drv_uc8253_set_power_off_frames(&s_display_driver, frames);
-}
-
-uint8_t ink_bsp_display_power_off_frames(void) {
-    return ink_drv_uc8253_power_off_frames(&s_display_driver);
-}
-
 /* ---- Khởi tạo board ---- */
 
 esp_err_t ink_bsp_init(void) {

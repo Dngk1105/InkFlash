@@ -12,7 +12,7 @@
 
 static const char *TAG = "ink_display";
 
-/* Mặc định của cài đặt (display.md, "Cài đặt và báo cáo"); chưa đo, chỉnh bằng bench. */
+/* Mặc định của cài đặt (display.md, "Cài đặt và báo cáo"); chưa đo, chỉnh bằng firmware test. */
 #define DEFAULT_WEIGHT_TEXT      1
 #define DEFAULT_WEIGHT_UI        2
 #define DEFAULT_WEIGHT_PAGE      1
