@@ -33,7 +33,7 @@ Cài đặt cũng gọi) và callback `on_drawn` (luồng đi ngủ cũng chờ)
 
 | Đường | Vẽ thế nào | Dùng khi |
 |---|---|---|
-| raw | Task bench gọi thẳng `draw` của driver: profile, cấu hình vẽ, window (tuỳ ý, cả màn, hoặc vùng đổi so với ảnh đang hiện) và mặt phẳng cũ (ảnh đang hiện, một slot khác, khung mới đảo bit, hoặc bằng khung mới) đều chọn tay. Nguồn analog chỉ tắt khi PC gửi lệnh tắt | So bảng sóng, thử window, thử mặt phẳng cũ, đo nhiệt độ và dòng |
+| raw | Task bench gọi thẳng `draw` của driver: profile, cấu hình vẽ, window (tuỳ ý, cả màn, hoặc vùng đổi so với ảnh đang hiện) và mặt phẳng cũ (ảnh đang hiện, một slot khác, khung mới đảo bit, hoặc bằng khung mới) đều chọn tay. Nguồn analog tự tắt sau 2 s không vẽ, chỉnh được bằng gói POWER_OFF | So bảng sóng, thử window, thử mặt phẳng cũ, đo nhiệt độ và dòng |
 | pipeline | Chép slot vào khung mượn của `ink_display` rồi giao kèm ý định và cờ, như app thật: policy chọn preset, giữ nợ và cờ viền, chạy thang dọn khi nghỉ, tắt nguồn | Kiểm hành vi thật, đo từ lúc bấm nút, kiểm thang dọn |
 
 `ink_display` giữ driver suốt đời, nên hai đường không chạy cùng lúc. Đổi đường thì máy ghi lựa chọn vào RTC memory rồi
@@ -59,7 +59,7 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `05` | SUBMIT | slot, ý định (0 `AUTO`, 1 `TEXT`, 2 `UI`, 3 `PAGE`), cờ (bit 0 hoãn dọn, bit 1 trước khi ngủ). Đường raw bỏ ý định và cờ, vẽ theo gói DRAW gần nhất |
 | `06` | PLAY | ms giữa hai khung (2), số vòng (0 = mãi), ý định, cờ, số slot, các slot |
 | `07` | STOP | trống |
-| `08` | POWER_OFF | trống; tắt nguồn analog. Chỉ đường raw |
+| `08` | POWER_OFF | trống: tắt nguồn analog ngay; 4 byte: số ms không vẽ thì tự tắt (mặc định 2000, 0 = chỉ tắt bằng gói này). Chỉ đường raw |
 | `09` | PROFILE_LOAD | gói profile `.inkw` do `tools/profile_gen.py` sinh. Sai mã nhận dạng, phiên bản, độ dài hoặc CRC thì trả lỗi, giữ profile tạm cũ. Profile tạm là index cuối trong INFO |
 | `0A` | SET_OPTIONS | cài đặt của `ink_display`, cùng bố cục với khối cài đặt trong INFO. Chỉ đường pipeline |
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần dọn mạnh) |

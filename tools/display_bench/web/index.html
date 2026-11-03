@@ -20,7 +20,7 @@
         <span id="run-progress" class="value muted"></span>
         <button id="quick-stop" title="Dừng chuỗi đang chạy (phím Esc)">Dừng</button>
         <button id="quick-rerun" title="Chạy lại bài hoặc chuỗi vừa chạy (phím R)">Chạy lại</button>
-        <button id="quick-clear" title="Vẽ full cả màn trắng">Xoá trắng</button>
+        <button id="quick-clear" title="Vẽ cả màn trắng bằng dọn mạnh (raw) hoặc PAGE (pipeline)">Xoá trắng</button>
         <button id="connect-button" class="primary">Kết nối</button>
         <button id="theme-button" title="Đổi sáng/tối">Tối</button>
     </div>
@@ -41,7 +41,7 @@
         <div class="tab-panel" id="tab-mode">
             <div class="card">
                 <h2>Đường vẽ</h2>
-                <p class="muted">raw: gọi thẳng driver, tự chọn kiểu vẽ và window. pipeline: đi qua ink_display như app thật. Đổi đường thì máy khởi động lại.</p>
+                <p class="muted">raw: gọi thẳng driver, tự chọn profile, cấu hình vẽ, window và mặt phẳng cũ. pipeline: đi qua ink_display như app thật (ý định, nợ, thang dọn, tắt nguồn). Đổi đường thì máy khởi động lại.</p>
                 <div class="row">
                     <label><input type="radio" name="path" value="raw"> raw</label>
                     <label><input type="radio" name="path" value="pipeline"> pipeline</label>
@@ -49,37 +49,60 @@
                 </div>
             </div>
             <div class="card">
-                <h2>Profile bảng sóng</h2>
+                <h2>Vẽ raw</h2>
+                <p class="muted">Gói DRAW mang cách vẽ này; chuỗi và bài test ở đường raw dùng lại cách vẽ của gói DRAW gần nhất.</p>
                 <div class="form-grid">
-                    <label for="full-profile">Slot full</label><select id="full-profile"></select>
-                    <label for="partial-profile">Slot partial</label><select id="partial-profile"></select>
-                </div>
-                <p class="muted">Đổi lựa chọn là gán ngay.</p>
-            </div>
-            <div class="card">
-                <h2>Chỉnh tay LUT</h2>
-                <p class="muted">Gán profile "tune" cho một slot. Bảng lệch điện tích bị máy từ chối.</p>
-                <div class="form-grid">
-                    <label for="tune-slot">Slot</label>
-                    <select id="tune-slot"><option value="1">partial</option><option value="0">full</option></select>
-                    <label for="tune-frames">Số khung (0 = bảng của panel)</label><input id="tune-frames" type="number" min="0" max="63" value="10">
-                    <label for="tune-hz">Tần số khung</label><select id="tune-hz"></select>
-                    <label for="tune-hold">Khung giữ</label><input id="tune-hold" type="number" min="0" max="63" value="0">
-                    <label for="tune-scans">Số lần quét</label><input id="tune-scans" type="number" min="1" max="8" value="1">
-                    <label for="tune-power">Giữ nguồn giữa hai lần vẽ</label><input id="tune-power" type="checkbox">
-                </div>
-                <div class="row"><button id="apply-tune">Gán bảng chỉnh tay</button></div>
-            </div>
-            <div class="card">
-                <h2>Cài đặt khác</h2>
-                <div class="form-grid">
-                    <label for="edge-margin">Đẩy lại viền (điểm, 0 = tắt)</label><input id="edge-margin" type="number" min="0" max="7" value="0">
-                    <label for="partials-before-full">Partial liên tiếp trước khi full (pipeline)</label><input id="partials-before-full" type="number" min="1" max="1000" value="10">
+                    <label for="raw-profile">Profile</label><select id="raw-profile"></select>
+                    <label for="raw-window-kind">Window</label>
+                    <select id="raw-window-kind"><option value="2">Vùng đổi so với ảnh đang hiện</option><option value="1">Cả màn</option><option value="0">Window chọn trên ảnh</option></select>
+                    <label for="raw-partial-mode">Vào chế độ partial (PTL)</label><input id="raw-partial-mode" type="checkbox" checked>
+                    <label for="raw-pt-scan"><code>PT_SCAN</code> = 1 (quét cả ngoài window)</label><input id="raw-pt-scan" type="checkbox" checked>
+                    <label for="raw-drive-border">Kéo viền màn</label><input id="raw-drive-border" type="checkbox">
+                    <label for="raw-power-off-ms">Tự tắt nguồn sau (ms, 0 = không)</label><input id="raw-power-off-ms" type="number" min="0" max="600000" step="500" value="2000">
                 </div>
                 <div class="row">
-                    <button id="apply-options">Áp dụng (pipeline)</button>
-                    <button id="read-temperature">Đọc nhiệt độ (raw)</button>
+                    <button id="apply-raw-power">Đặt tự tắt nguồn</button>
+                    <button id="power-off">Tắt nguồn ngay</button>
+                    <button id="read-temperature">Đọc nhiệt độ</button>
                     <span id="temperature" class="value"></span>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Ý định khi giao (pipeline)</h2>
+                <div class="form-grid">
+                    <label for="submit-intent">Ý định</label>
+                    <select id="submit-intent"><option value="0">AUTO</option><option value="1">TEXT</option><option value="2">UI</option><option value="3">PAGE</option></select>
+                    <label for="submit-defer">Hoãn dọn</label><input id="submit-defer" type="checkbox">
+                    <label for="submit-sleep">Trước khi ngủ</label><input id="submit-sleep" type="checkbox">
+                </div>
+            </div>
+            <div class="card">
+                <h2>Cài đặt ink_display (pipeline)</h2>
+                <p class="muted">Mỗi mục đích một preset. "Theo dải nhiệt" giữ bảng dải đang có (mặc định của driver); chọn một profile thì preset chỉ còn một dải.</p>
+                <div class="table-scroll"><table class="stats" id="preset-table"></table></div>
+                <div class="form-grid">
+                    <label for="option-auto-ui">AUTO thành UI khi window &lt; (% màn)</label><input id="option-auto-ui" type="number" min="0" max="100">
+                    <label for="option-debt-soft">Nợ dọn nhẹ từ</label><input id="option-debt-soft" type="number" min="1" max="15">
+                    <label for="option-debt-page">PAGE dọn nhanh khi nợ ≥</label><input id="option-debt-page" type="number" min="0" max="15">
+                    <label for="option-debt-ceiling">Trần nợ lúc nghỉ</label><input id="option-debt-ceiling" type="number" min="1" max="15">
+                    <label for="option-debt-ceiling-max">Trần nợ lớn nhất</label><input id="option-debt-ceiling-max" type="number" min="1" max="15">
+                    <label for="option-edge-ms">Bậc 1 dọn viền sau (ms)</label><input id="option-edge-ms" type="number" min="0" step="500">
+                    <label for="option-light-ms">Bậc 2 dọn nhẹ sau (ms)</label><input id="option-light-ms" type="number" min="0" step="500">
+                    <label for="option-strong-ms">Bậc 3 dọn mạnh sau (ms)</label><input id="option-strong-ms" type="number" min="0" step="1000">
+                    <label for="option-power-off-ms">Tắt nguồn sau (ms, 0 = chỉ trước khi ngủ)</label><input id="option-power-off-ms" type="number" min="0" step="500">
+                </div>
+                <div class="row">
+                    <button id="apply-options" class="primary">Áp dụng</button>
+                    <button id="reset-options">Về mặc định</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Profile tạm, OTP</h2>
+                <p class="muted">Gói <code>.inkw</code>: <code>python tools/profile_gen.py --blob &lt;tên&gt; -o tên.inkw</code>. Profile tạm là mục cuối của danh sách profile.</p>
+                <div class="row">
+                    <input id="profile-file" type="file" accept=".inkw">
+                    <button id="load-profile">Nạp profile tạm</button>
+                    <button id="dump-otp">Đọc OTP (raw)</button>
                 </div>
             </div>
         </div>
@@ -125,9 +148,8 @@
                 <h2>Vẽ một slot</h2>
                 <div class="form-grid">
                     <label for="draw-slot">Slot</label><select id="draw-slot"></select>
-                    <label for="draw-kind">Kiểu vẽ (raw)</label><select id="draw-kind"></select>
                     <label for="old-source">Mặt phẳng cũ (raw)</label>
-                    <select id="old-source"><option value="0">Ảnh đang hiện</option><option value="1">Một slot khác</option><option value="2">Khung mới đảo bit</option></select>
+                    <select id="old-source"><option value="0">Ảnh đang hiện</option><option value="1">Một slot khác</option><option value="2">Khung mới đảo bit</option><option value="3">Bằng khung mới (giữ màu)</option></select>
                     <label for="old-slot">Slot cũ</label><select id="old-slot"></select>
                 </div>
                 <div class="row"><button id="draw-button" class="primary">Vẽ</button></div>
@@ -153,7 +175,6 @@
                     <label for="sequence-interval">ms giữa hai khung</label>
                     <div class="row tight"><input id="sequence-interval-range" type="range" min="0" max="5000" step="50" value="500"><input id="sequence-interval" type="number" min="0" max="65535" value="500"></div>
                     <label for="sequence-repeat">Số vòng (0 = mãi)</label><input id="sequence-repeat" type="number" min="0" max="255" value="1">
-                    <label for="sequence-kind">Kiểu vẽ (raw)</label><select id="sequence-kind"></select>
                 </div>
                 <div class="row"><button id="play-sequence" class="primary">Chạy</button><button id="stop-sequence">Dừng</button></div>
             </div>

@@ -1,18 +1,21 @@
 /* Thiết kế: docs/design/display/bench.md */
 
 /* Điều khiển trang: kết nối, chế độ, ảnh, chuỗi, bài test, chấm điểm, lịch sử. Trạng thái gom trong `app`. */
-import {BenchLink, Command, Writer, delay, espErrorName} from './link.js';
+import {
+    ACTION_NAMES, Action, BenchLink, Command, INTENT_NAMES, PURPOSES, SOURCE_HAND, SubmitFlag, Writer, delay, espErrorName, writeOptions,
+} from './link.js';
 import {
     DITHER_NAMES, DitherMethod, FRAME_BYTES, createFrame, grayToFrame, imageToGray, renderFrame, viewRectToPanel, viewSize,
 } from './frames.js';
-import {KIND_NAMES, Kind, TESTS, TEST_FIRST_SLOT, TEST_SLOT_COUNT, defaultOrientation} from './tests.js';
+import {OldSource, TESTS, TEST_FIRST_SLOT, TEST_SLOT_COUNT, WindowKind, defaultOrientation} from './tests.js';
 
 /* ---- Hằng số ---- */
 
 const SLOT_COUNT = 64;
 const USER_SLOT_COUNT = TEST_FIRST_SLOT;
 const PATH_CODES = {raw: 0, pipeline: 1};
-const DISPLAY_SLOT = {FULL: 0, PARTIAL: 1};
+const CLEAN_STRONG = 3; /* index của mục đích dọn mạnh trong PURPOSES */
+const DEFAULT_CELSIUS = 25;
 const LOG_LINE_LIMIT = 600;
 const GESTURE_LIMIT = 30;
 const PREVIEW_SCALE = 1;
@@ -37,15 +40,6 @@ const SCORES = [
     {key: 'overall', label: 'Tổng thể', short: 'Tổng'},
 ];
 
-/* Tần số khung có trong bảng PLL của UC8253 (pll_hz trong ink_drv_uc8253.c); 0 = tần số của panel. */
-function pllFrequencies() {
-    const frequencies = [];
-    for (let code = 0; code < 32; code++) {
-        if (code < 16) { frequencies.push(5 + 5 * code); } else if (code < 24) { frequencies.push(85 + 5 * (code - 16)); } else { frequencies.push(130 + 10 * (code - 24)); }
-    }
-    return frequencies;
-}
-
 /* ---- Trạng thái ---- */
 
 const app = {
@@ -60,14 +54,15 @@ const app = {
     sequence: [],
     selectedTestId: TESTS[0].id,
     settings: {
-        fullProfile: 0,
-        partialProfile: 0,
-        tune: {[DISPLAY_SLOT.FULL]: null, [DISPLAY_SLOT.PARTIAL]: null},
-        edgeMargin: 0,
-        partialsBeforeFull: 10,
+        raw: {profile: 0, windowKind: WindowKind.CHANGED, partialMode: true, ptScan: true, driveBorder: false},
+        intent: 0,
+        flags: 0,
+        options: null,        /* cài đặt đang dùng của ink_display (từ INFO, sửa ở tab Chế độ) */
+        defaultOptions: null, /* cài đặt lúc máy khởi động */
+        temporaryProfile: null,
         temperatureCelsius: null,
     },
-    run: null, /* {label, testId, params, kind, startedAt, drawn: [], settings} */
+    run: null, /* {label, testId, params, startedAt, drawn: [], settings} */
     pendingPreview: new Map(), /* slot → frame vừa giao, để cập nhật màn đang hiện khi có DRAWN */
     history: [],
 };
@@ -149,14 +144,16 @@ function setConnectionState(state) {
 async function onConnected() {
     const info = await app.link.hello();
     app.info = info;
-    /* Máy vừa khởi động: slot trong PSRAM đã trắng, profile về mặc định. */
+    /* Máy vừa khởi động: slot trong PSRAM đã trắng, cài đặt về mặc định. */
     for (const slot of app.slots) { slot.uploaded = false; }
-    app.settings.fullProfile = info.defaultFull;
-    app.settings.partialProfile = info.defaultPartial;
-    app.settings.tune = {[DISPLAY_SLOT.FULL]: null, [DISPLAY_SLOT.PARTIAL]: null};
+    app.settings.options = structuredClone(info.options);
+    app.settings.defaultOptions = structuredClone(info.options);
+    app.settings.temporaryProfile = null;
+    app.settings.raw.profile = profileIndexForPurpose(0) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
     document.querySelectorAll('input[name="path"]').forEach((radio) => { radio.checked = radio.value === info.path; });
     renderProfiles();
+    renderOptionsForm();
     renderPathControls();
     log(`[web] máy ${info.firmware}, đường ${info.path}, ${info.profileCount} profile`);
 }
@@ -189,21 +186,41 @@ async function autoConnect() {
     });
 }
 
-/* ---- Chế độ ---- */
+/* ---- Profile ---- */
 
-function profileName(index) { return app.info?.profiles[index]?.name ?? `#${index}`; }
+function profileByIndex(index) { return app.info?.profiles[index] ?? null; }
+function profileById(id) { return app.info?.profiles.find((profile) => profile.id === id) ?? null; }
+function profileByName(name) { return app.info?.profiles.find((profile) => profile.name === name) ?? null; }
+function profileName(index) { return profileByIndex(index)?.name ?? `#${index}`; }
+function profileNameById(id) { return profileById(id)?.name ?? `id ${id}`; }
+
+function profileLabel(profile) {
+    const source = profile.source === SOURCE_HAND ? 'vẽ tay' : `TR${profile.source}`;
+    return `${profile.name} · id ${profile.id} · ${source} · ${profile.drawMs} ms`;
+}
+
+/* Profile của dải chứa `celsius` trong preset, như profile_for() của ink_display. */
+function bandProfileId(preset, celsius = DEFAULT_CELSIUS) {
+    if (!preset?.bands.length) { return null; }
+    return (preset.bands.find((band) => celsius <= band.maxCelsius) ?? preset.bands[preset.bands.length - 1]).profileId;
+}
+
+function profileIndexForPurpose(purpose) {
+    const id = bandProfileId(app.settings.options?.presets[purpose], app.settings.temperatureCelsius ?? DEFAULT_CELSIUS);
+    return profileById(id)?.index ?? null;
+}
 
 function renderProfiles() {
     if (!app.info) { return; }
-    const options = app.info.profiles.map((profile, index) => ({value: index, label: `${profile.name} (${profile.typicalMs} ms)`}));
-    fillSelect($('full-profile'), options, app.settings.fullProfile);
-    fillSelect($('partial-profile'), options, app.settings.partialProfile);
+    const options = app.info.profiles.map((profile) => ({value: profile.index, label: profileLabel(profile)}));
+    fillSelect($('raw-profile'), options, app.settings.raw.profile);
 }
 
 function renderPathControls() {
     const raw = app.info?.path !== 'pipeline';
-    for (const id of ['draw-kind', 'old-source', 'old-slot', 'sequence-kind', 'read-temperature']) { $(id).disabled = !raw; }
-    $('apply-options').disabled = raw;
+    for (const id of ['raw-profile', 'raw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border', 'raw-power-off-ms', 'apply-raw-power',
+        'power-off', 'old-source', 'old-slot', 'read-temperature', 'dump-otp']) { $(id).disabled = !raw; }
+    for (const id of ['apply-options', 'reset-options', 'submit-intent', 'submit-defer', 'submit-sleep']) { $(id).disabled = raw; }
 }
 
 async function applyPath() {
@@ -216,54 +233,183 @@ async function applyPath() {
     });
 }
 
-async function applyProfiles() {
-    await guarded(async () => {
-        const full = Number($('full-profile').value);
-        const partial = Number($('partial-profile').value);
-        await app.link.command(Command.SELECT_PROFILE, new Writer().u8(DISPLAY_SLOT.FULL).u8(full).result());
-        await app.link.command(Command.SELECT_PROFILE, new Writer().u8(DISPLAY_SLOT.PARTIAL).u8(partial).result());
-        app.settings.fullProfile = full;
-        app.settings.partialProfile = partial;
-        app.settings.tune = {[DISPLAY_SLOT.FULL]: null, [DISPLAY_SLOT.PARTIAL]: null};
-        log(`[web] profile full ${profileName(full)}, partial ${profileName(partial)}`);
-    });
-}
+/* ---- Cách vẽ raw ---- */
 
-async function applyTune() {
-    const slot = Number($('tune-slot').value);
-    const tune = {
-        frames: Number($('tune-frames').value),
-        frameRateHz: Number($('tune-hz').value),
-        holdFrames: Number($('tune-hold').value),
-        scans: Number($('tune-scans').value),
-        keepPowerOn: $('tune-power').checked,
+function readRawForm() {
+    app.settings.raw = {
+        profile: Number($('raw-profile').value),
+        windowKind: Number($('raw-window-kind').value),
+        partialMode: $('raw-partial-mode').checked,
+        ptScan: $('raw-pt-scan').checked,
+        driveBorder: $('raw-drive-border').checked,
     };
+}
+
+function renderRawForm() {
+    const raw = app.settings.raw;
+    $('raw-profile').value = String(raw.profile);
+    $('raw-window-kind').value = String(raw.windowKind);
+    $('raw-partial-mode').checked = raw.partialMode;
+    $('raw-pt-scan').checked = raw.ptScan;
+    $('raw-drive-border').checked = raw.driveBorder;
+}
+
+/* Gói DRAW: slot, profile, nguồn mặt phẳng cũ, slot cũ, chế độ partial, PT_SCAN, kéo viền, kiểu window, x, y, rộng, cao. */
+function drawPayload(slot, raw, oldSource, oldSlot, window) {
+    const rect = window ?? {x: 0, y: 0, width: 0, height: 0};
+    return new Writer().u8(slot).u8(raw.profile).u8(oldSource).u8(oldSlot)
+        .u8(raw.partialMode ? 1 : 0).u8(raw.ptScan ? 1 : 0).u8(raw.driveBorder ? 1 : 0).u8(raw.windowKind)
+        .u16(rect.x).u16(rect.y).u16(rect.width).u16(rect.height).result();
+}
+
+async function applyRawPower() {
+    const ms = Math.max(0, Number($('raw-power-off-ms').value) || 0);
     await guarded(async () => {
-        const payload = new Writer().u8(slot).u8(tune.frames).u16(tune.frameRateHz).u8(tune.holdFrames).u8(tune.scans).u8(tune.keepPowerOn ? 1 : 0);
-        await app.link.command(Command.TUNE, payload.result());
-        app.settings.tune[slot] = tune;
-        log(`[web] tune ${slot === DISPLAY_SLOT.FULL ? 'full' : 'partial'}: ${JSON.stringify(tune)}`);
+        await app.link.command(Command.POWER_OFF, new Writer().u32(ms).result());
+        log(`[web] raw: tự tắt nguồn sau ${ms} ms${ms === 0 ? ' (không tự tắt)' : ''}`);
     });
 }
 
-async function applyOptions() {
-    const edgeMargin = Number($('edge-margin').value);
-    const partialsBeforeFull = Number($('partials-before-full').value);
-    await guarded(async () => {
-        const payload = new Writer().u8(app.settings.fullProfile).u8(app.settings.partialProfile).u16(partialsBeforeFull).u8(edgeMargin);
-        await app.link.command(Command.SET_OPTIONS, payload.result());
-        app.settings.edgeMargin = edgeMargin;
-        app.settings.partialsBeforeFull = partialsBeforeFull;
-        log(`[web] cài đặt: viền ${edgeMargin}, ngưỡng partial ${partialsBeforeFull}`);
-    });
+async function powerOffNow() {
+    await guarded(() => app.link.command(Command.POWER_OFF));
 }
 
 async function readTemperature() {
-    await guarded(async () => {
+    return guarded(async () => {
         const reply = await app.link.send(Command.READ_TEMP);
         if (reply.error !== 0) { throw new Error(`Đọc nhiệt độ lỗi ${espErrorName(reply.error)}`); }
         app.settings.temperatureCelsius = reply.celsius;
         $('temperature').textContent = `${reply.celsius} °C`;
+        return reply.celsius;
+    });
+}
+
+/* ---- Ý định, cài đặt pipeline ---- */
+
+function readSubmitForm() {
+    app.settings.intent = Number($('submit-intent').value);
+    app.settings.flags = ($('submit-defer').checked ? SubmitFlag.DEFER_CLEANUP : 0) | ($('submit-sleep').checked ? SubmitFlag.BEFORE_SLEEP : 0);
+}
+
+const OPTION_FIELDS = [
+    ['option-auto-ui', 'autoUiPercent'], ['option-debt-soft', 'debtSoft'], ['option-debt-page', 'debtPage'], ['option-debt-ceiling', 'debtCeiling'],
+    ['option-debt-ceiling-max', 'debtCeilingMax'], ['option-edge-ms', 'edgeMs'], ['option-light-ms', 'lightMs'], ['option-strong-ms', 'strongMs'],
+    ['option-power-off-ms', 'powerOffMs'],
+];
+
+/* Bảng preset: mỗi mục đích một hàng (profile hoặc theo dải, chế độ partial, PT_SCAN, kéo viền, trọng số). */
+function renderOptionsForm() {
+    const options = app.settings.options;
+    if (!options || !app.info) { return; }
+    const profileOptions = app.info.profiles.map((profile) => ({value: String(profile.id), label: `${profile.name} (${profile.drawMs} ms)`}));
+    const header = element('tr', {}, ['Mục đích', 'Profile', 'Partial', 'PT_SCAN', 'Viền', 'Trọng số'].map((title) => element('th', {text: title})));
+    const rows = PURPOSES.map((purpose, index) => {
+        const preset = options.presets[index];
+        const select = element('select', {id: `preset-profile-${index}`});
+        const bandsLabel = preset.bands.length > 1 ? `theo dải nhiệt (${preset.bands.length} dải)` : null;
+        fillSelect(select, [...(bandsLabel ? [{value: 'bands', label: bandsLabel}] : []), ...profileOptions],
+                   bandsLabel ? 'bands' : String(preset.bands[0]?.profileId ?? ''));
+        const check = (key, value) => {
+            const input = element('input', {type: 'checkbox', id: `preset-${key}-${index}`});
+            input.checked = value;
+            return input;
+        };
+        const weight = element('input', {type: 'number', id: `preset-weight-${index}`, min: '0', max: '15', value: String(preset.debtWeight)});
+        if (index > 2) { weight.disabled = true; }
+        return element('tr', {}, [
+            element('td', {class: 'text', text: purpose.name}),
+            element('td', {}, [select]),
+            element('td', {}, [check('partial', preset.partialMode)]),
+            element('td', {}, [check('pt', preset.ptScan)]),
+            element('td', {}, [check('border', preset.driveBorder)]),
+            element('td', {}, [weight]),
+        ]);
+    });
+    $('preset-table').replaceChildren(header, ...rows);
+    for (const [id, key] of OPTION_FIELDS) { $(id).value = String(options[key]); }
+}
+
+function readOptionsForm() {
+    const options = structuredClone(app.settings.options);
+    options.presets.forEach((preset, index) => {
+        const choice = $(`preset-profile-${index}`).value;
+        if (choice !== 'bands') { preset.bands = [{maxCelsius: 127, profileId: Number(choice)}]; }
+        preset.partialMode = $(`preset-partial-${index}`).checked;
+        preset.ptScan = $(`preset-pt-${index}`).checked;
+        preset.driveBorder = $(`preset-border-${index}`).checked;
+        preset.debtWeight = Number($(`preset-weight-${index}`).value);
+    });
+    for (const [id, key] of OPTION_FIELDS) { options[key] = Math.max(0, Number($(id).value) || 0); }
+    return options;
+}
+
+async function sendOptions(options) {
+    await app.link.command(Command.SET_OPTIONS, writeOptions(new Writer(), options).result());
+    app.settings.options = options;
+    renderOptionsForm();
+}
+
+async function applyOptions() {
+    await guarded(async () => {
+        await sendOptions(readOptionsForm());
+        log(`[web] cài đặt: ${optionsSummary(app.settings.options)}`);
+    });
+}
+
+async function resetOptions() {
+    if (!app.settings.defaultOptions) { return; }
+    await guarded(() => sendOptions(structuredClone(app.settings.defaultOptions)));
+}
+
+function optionsSummary(options) {
+    if (!options) { return ''; }
+    const names = PURPOSES.slice(0, 3).map((purpose, index) => {
+        const preset = options.presets[index];
+        return `${purpose.name} ${preset.bands.length > 1 ? 'theo dải' : profileNameById(preset.bands[0]?.profileId)}`;
+    });
+    return `${names.join(', ')} · nợ ${options.debtSoft}/${options.debtPage}/${options.debtCeiling}–${options.debtCeilingMax}`
+        + ` · dọn ${options.edgeMs}/${options.lightMs}/${options.strongMs} ms · tắt nguồn ${options.powerOffMs} ms`;
+}
+
+/* ---- Profile tạm, OTP ---- */
+
+async function loadTemporaryProfile() {
+    const file = $('profile-file').files[0];
+    if (!file) {
+        toast('Chọn file .inkw trước.', true);
+        return;
+    }
+    await guarded(async () => {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        await app.link.command(Command.PROFILE_LOAD, bytes);
+        app.settings.temporaryProfile = file.name;
+        log(`[web] nạp profile tạm ${file.name}; có tác dụng từ lần vẽ sau`);
+        app.info = await app.link.hello();
+        renderProfiles();
+        renderOptionsForm();
+    });
+}
+
+async function dumpOtp() {
+    await guarded(async () => {
+        const chunks = [];
+        const onOtp = (event) => chunks.push(event.detail);
+        app.link.addEventListener('otp', onOtp);
+        try {
+            await app.link.command(Command.OTP_DUMP, new Uint8Array(0), 10000);
+        } finally {
+            app.link.removeEventListener('otp', onOtp);
+        }
+        const length = Math.max(0, ...chunks.map((chunk) => chunk.offset + chunk.bytes.length));
+        const otp = new Uint8Array(length);
+        for (const chunk of chunks) { otp.set(chunk.bytes, chunk.offset); }
+        const lines = ['# OTP đọc bằng lệnh 0xA2 qua bench, ' + new Date().toISOString()];
+        for (let offset = 0; offset < otp.length; offset += 16) {
+            lines.push([...otp.subarray(offset, offset + 16)].map((byte) => byte.toString(16).toUpperCase().padStart(2, '0')).join(' '));
+        }
+        const link = element('a', {href: URL.createObjectURL(new Blob([lines.join('\n') + '\n'], {type: 'text/plain'})), download: 'otp_dump.hex'});
+        link.click();
+        log(`[web] đọc OTP ${otp.length} byte, đã tải otp_dump.hex`);
     });
 }
 
@@ -406,17 +552,18 @@ async function storeImage() {
 /* ---- Vẽ ---- */
 
 function snapshotSettings() {
-    const settings = app.settings;
+    const raw = app.settings.raw;
     return {
         path: app.info?.path ?? null,
         firmware: app.info?.firmware ?? null,
         orientation: app.orientation,
-        fullProfile: settings.tune[DISPLAY_SLOT.FULL] ? 'tune' : profileName(settings.fullProfile),
-        partialProfile: settings.tune[DISPLAY_SLOT.PARTIAL] ? 'tune' : profileName(settings.partialProfile),
-        tuneFull: settings.tune[DISPLAY_SLOT.FULL],
-        tunePartial: settings.tune[DISPLAY_SLOT.PARTIAL],
-        edgeMargin: settings.edgeMargin,
-        partialsBeforeFull: settings.partialsBeforeFull,
+        rawProfile: profileName(raw.profile),
+        raw: {...raw},
+        intent: INTENT_NAMES[app.settings.intent],
+        flags: app.settings.flags,
+        options: app.info?.path === 'pipeline' ? structuredClone(app.settings.options) : null,
+        optionsSummary: app.info?.path === 'pipeline' ? optionsSummary(app.settings.options) : null,
+        temporaryProfile: app.settings.temporaryProfile,
     };
 }
 
@@ -427,11 +574,18 @@ function startRun(label, details = {}, expected = 0) {
     renderProgress();
 }
 
+function framesDrawn(run) { return run.drawn.filter((item) => item.frame).length; }
+
 function renderProgress() {
     const run = app.run;
-    const text = !run ? '' : run.expected ? `${run.label}: ${run.drawn.length}/${run.expected}` : `${run.label}: ${run.drawn.length} lần vẽ`;
+    const frames = run ? framesDrawn(run) : 0;
+    const extra = run ? run.drawn.length - frames : 0;
+    const text = !run ? '' : (run.expected ? `${run.label}: ${frames}/${run.expected}` : `${run.label}: ${frames} khung`) + (extra ? ` + ${extra} lượt dọn/tắt nguồn` : '');
     $('run-progress').textContent = text;
-    if (run?.expected && run.drawn.length === run.expected) { toast(`${run.label} xong. Mở tab Chấm điểm để chấm.`); }
+    if (run?.expected && frames === run.expected && !run.announced) {
+        run.announced = true;
+        toast(`${run.label} xong. Mở tab Chấm điểm để chấm.`);
+    }
 }
 
 /* Gửi ảnh đang xem vào slot rồi vẽ ngay, theo kiểu vẽ và window đang chọn. */
@@ -449,11 +603,13 @@ async function clearScreen() {
         await storeSlot(CLEAR_SLOT, createFrame(true), 'trắng');
         app.pendingPreview.set(CLEAR_SLOT, app.slots[CLEAR_SLOT].frame);
         if (app.info?.path === 'pipeline') {
-            await app.link.command(Command.SUBMIT, new Writer().u8(CLEAR_SLOT).result());
+            await app.link.command(Command.SUBMIT, new Writer().u8(CLEAR_SLOT).u8(3).u8(0).result());
             return;
         }
-        const payload = new Writer().u8(CLEAR_SLOT).u8(Kind.FULL).u8(2).u8(0).u8(0).u8(0).u16(0).u16(0).u16(0).u16(0);
-        await app.link.command(Command.DRAW, payload.result());
+        /* dọn mạnh: profile của preset dọn mạnh, cả màn ngoài chế độ partial, mặt phẳng cũ đảo bit */
+        const raw = {profile: profileIndexForPurpose(CLEAN_STRONG) ?? app.settings.raw.profile, windowKind: WindowKind.WHOLE, partialMode: false,
+            ptScan: true, driveBorder: true};
+        await app.link.command(Command.DRAW, drawPayload(CLEAR_SLOT, raw, OldSource.INVERTED, 0, null));
     });
 }
 
@@ -473,19 +629,15 @@ async function drawSlot() {
         if (!app.run || app.run.testId !== 'manual') { startRun('Vẽ tay', {testId: 'manual'}); }
         app.pendingPreview.set(slot, app.slots[slot].frame);
         if (!raw) {
-            await app.link.command(Command.SUBMIT, new Writer().u8(slot).result());
+            readSubmitForm();
+            await app.link.command(Command.SUBMIT, new Writer().u8(slot).u8(app.settings.intent).u8(app.settings.flags).result());
             return;
         }
-        const panelWindow = app.selectedWindow ?? {x: 0, y: 0, width: 0, height: 0};
-        const kind = Number($('draw-kind').value);
+        readRawForm();
         const oldSource = Number($('old-source').value);
         const oldSlot = Number($('old-slot').value);
-        if (oldSource === 1) { await ensureUploaded(oldSlot); }
-        app.settings.edgeMargin = Number($('edge-margin').value);
-        const payload = new Writer().u8(slot).u8(kind).u8(oldSource).u8(oldSlot).u8(app.settings.edgeMargin).u8(0)
-            .u16(panelWindow.x).u16(panelWindow.y).u16(panelWindow.width).u16(panelWindow.height);
-        app.run.kind = KIND_NAMES[kind];
-        await app.link.command(Command.DRAW, payload.result());
+        if (oldSource === OldSource.SLOT) { await ensureUploaded(oldSlot); }
+        await app.link.command(Command.DRAW, drawPayload(slot, app.settings.raw, oldSource, oldSlot, app.selectedWindow));
     });
 }
 
@@ -493,25 +645,28 @@ async function drawSlot() {
 
 function onDrawn(drawn) {
     const frame = app.pendingPreview.get(drawn.slot) ?? app.slots[drawn.slot]?.frame;
-    if (drawn.mode !== 'không vẽ' && drawn.error === 0 && frame) { app.shown = {frame, window: drawn.window}; }
+    if (drawn.frame && drawn.action !== Action.NONE && drawn.error === 0 && frame) { app.shown = {frame, window: drawn.window}; }
     if (drawn.temperatureValid) { app.settings.temperatureCelsius = drawn.temperatureCelsius; }
-    renderFrame($('shown-preview'), app.shown.frame, app.orientation, PREVIEW_SCALE, app.shown.window);
+    renderFrame($('shown-preview'), app.shown.frame, app.orientation, PREVIEW_SCALE, drawn.action === Action.POWER_OFF ? app.shown.window : drawn.window);
     renderLastDrawn(drawn);
     if (app.run) {
         app.run.drawn.push(drawn);
         renderRun();
         renderProgress();
     }
-    highlightSequence(drawn.slot);
+    if (drawn.frame) { highlightSequence(drawn.slot); }
+    if (!drawn.frame) { log(`[web] ${drawn.actionName}${drawn.action === Action.POWER_OFF ? '' : ` ${profileNameById(drawn.profileId)}, panel ${format(drawn.panelMs, 1)} ms`}`); }
 }
 
 function renderLastDrawn(drawn) {
     const items = [
-        ['slot', drawn.slot],
-        ['cách vẽ', drawn.mode],
-        ['profile', profileName(drawn.profile)],
+        ['việc', drawn.frame ? `${drawn.actionName} (khung slot ${drawn.slot})` : drawn.actionName],
+        ['mục đích', drawn.purposeName],
+        ['profile', drawn.action === Action.POWER_OFF ? '–' : profileNameById(drawn.profileId)],
         ['window', `${drawn.window.x},${drawn.window.y} ${drawn.window.width}×${drawn.window.height}`],
         ['nhiệt độ', drawn.temperatureValid ? `${drawn.temperatureCelsius} °C` : '–'],
+        ['nợ lớn nhất', `${drawn.maxDebt} / trần ${drawn.ceiling}`],
+        ['điểm có cờ viền', String(drawn.flaggedCount)],
         ['lỗi', drawn.error === 0 ? 'không' : espErrorName(drawn.error)],
         ...SEGMENTS.map(({key, label}) => [label, `${format(drawn[key], 1)} ms`]),
     ];
@@ -534,13 +689,13 @@ function highlightSequence(slot) {
     document.querySelectorAll('#sequence-list li').forEach((item) => item.classList.toggle('playing', Number(item.dataset.slot) === slot));
 }
 
-/* Gửi khung còn thiếu rồi gói PLAY. */
-async function play(slots, intervalMs, repeat, kind, edgeMargin) {
+/* Gửi khung còn thiếu rồi gói PLAY: ms giữa hai khung, số vòng, ý định, cờ, số slot, các slot. */
+async function play(slots, intervalMs, repeat, intent, flags) {
     for (const slot of new Set(slots)) {
         await ensureUploaded(slot);
         app.pendingPreview.set(slot, app.slots[slot].frame);
     }
-    const payload = new Writer().u16(Math.min(65535, intervalMs)).u8(repeat).u8(kind).u8(edgeMargin).u8(slots.length).array(slots);
+    const payload = new Writer().u16(Math.min(65535, intervalMs)).u8(repeat).u8(intent).u8(flags).u8(slots.length).array(slots);
     await app.link.command(Command.PLAY, payload.result());
 }
 
@@ -551,12 +706,11 @@ async function playSequence() {
     }
     const intervalMs = Number($('sequence-interval').value);
     const repeat = Number($('sequence-repeat').value);
-    const kind = Number($('sequence-kind').value);
+    readSubmitForm();
     await guarded(async () => {
         app.lastRun = playSequence;
-        startRun('Chuỗi tay', {testId: 'sequence', params: {slots: [...app.sequence], intervalMs, repeat}, kind: KIND_NAMES[kind]},
-                 repeat > 0 ? app.sequence.length * repeat : 0);
-        await play(app.sequence.slice(0, 64), intervalMs, repeat, kind, app.settings.edgeMargin);
+        startRun('Chuỗi tay', {testId: 'sequence', params: {slots: [...app.sequence], intervalMs, repeat}}, repeat > 0 ? app.sequence.length * repeat : 0);
+        await play(app.sequence.slice(0, 64), intervalMs, repeat, app.settings.intent, app.settings.flags);
     });
 }
 
@@ -571,28 +725,127 @@ function selectedTest() { return TESTS.find((test) => test.id === app.selectedTe
 function renderTests() {
     $('test-list').replaceChildren(...TESTS.map((test) => element('li', {
         class: test.id === app.selectedTestId ? 'selected' : '',
-        text: test.name,
+        text: test.path ? `${test.name} (${test.path})` : test.name,
         onclick: () => { app.selectedTestId = test.id; renderTests(); },
     })));
     const test = selectedTest();
-    const inputs = test.params.map((param) => element('input', {
-        type: 'number', id: `param-${param.key}`, min: String(param.min), max: String(param.max), step: String(param.step ?? 1), value: String(param.value),
-    }));
+    const inputs = test.params.map((param) => {
+        if (param.type === 'profile') {
+            const select = element('select', {id: `param-${param.key}`});
+            const profiles = app.info?.profiles ?? [];
+            fillSelect(select, profiles.map((profile) => ({value: profile.index, label: profileLabel(profile)})), profileByName(param.value)?.index ?? 0);
+            return select;
+        }
+        if (param.type === 'bool') {
+            const input = element('input', {type: 'checkbox', id: `param-${param.key}`});
+            input.checked = param.value;
+            return input;
+        }
+        return element('input', {
+            type: 'number', id: `param-${param.key}`, min: String(param.min), max: String(param.max), step: String(param.step ?? 1), value: String(param.value),
+        });
+    });
     $('test-detail').replaceChildren(
         element('h2', {text: test.name}),
         element('p', {text: test.description}),
         element('div', {class: 'form-grid'}, test.params.flatMap((param, index) => [element('label', {for: `param-${param.key}`, text: param.label}), inputs[index]])),
         element('div', {class: 'row'}, [element('button', {class: 'primary', text: 'Chạy bài này', onclick: runSelectedTest})]),
-        element('p', {class: 'muted', text: `Khung gửi vào slot ${TEST_FIRST_SLOT}–${TEST_FIRST_SLOT + TEST_SLOT_COUNT - 1}. Hướng nhìn theo tab Ảnh. Đường vẽ hiện tại: ${app.info?.path ?? 'chưa kết nối'}.`}),
+        element('p', {class: 'muted', text: `Khung gửi vào slot ${TEST_FIRST_SLOT}–${TEST_FIRST_SLOT + TEST_SLOT_COUNT - 1}. Hướng nhìn theo tab Ảnh. `
+            + `Bài cần đường ${test.path ?? 'nào cũng được'}; đường hiện tại: ${app.info?.path ?? 'chưa kết nối'}.`}),
     );
+}
+
+function readTestValues(test) {
+    return Object.fromEntries(test.params.map((param) => {
+        const input = $(`param-${param.key}`);
+        if (param.type === 'profile') { return [param.key, Number(input.value)]; }
+        if (param.type === 'bool') { return [param.key, input.checked]; }
+        const value = Number(input.value);
+        return [param.key, Math.max(param.min, Math.min(param.max, Number.isFinite(value) ? value : param.value))];
+    }));
+}
+
+/* Cách vẽ raw của bài: cài đặt ở tab Chế độ, ghi đè bằng phần raw của kế hoạch. */
+function rawSettingsFor(plan) {
+    readRawForm();
+    return {...app.settings.raw, ...(plan.raw ?? {})};
+}
+
+/* Đường raw: gói DRAW cho khung đầu (đặt cách vẽ), chờ vẽ xong, rồi PLAY phần còn lại. */
+async function runRawPlan(plan, slots) {
+    const raw = rawSettingsFor(plan);
+    app.run.settings.raw = raw;
+    app.run.settings.rawProfile = profileName(raw.profile);
+    await ensureUploaded(slots[0]);
+    app.pendingPreview.set(slots[0], app.slots[slots[0]].frame);
+    await app.link.command(Command.DRAW, drawPayload(slots[0], raw, plan.oldSource ?? OldSource.SHOWN, 0, plan.window ?? null));
+    if (slots.length === 1) { return; }
+    await waitForDraws(app.run, 1);
+    await delay(plan.intervalMs);
+    await playChunks(slots.slice(1), plan, 0, 0);
+}
+
+async function playChunks(slots, plan, intent, flags) {
+    for (let start = 0; start < slots.length; start += 64) {
+        if (start > 0) {
+            log('[web] chuỗi dài hơn 64 khung: chạy phần sau khi phần trước xong', 'warning');
+            await waitForDraws(app.run, framesDrawn(app.run) + 64);
+        }
+        await play(slots.slice(start, start + 64), plan.intervalMs, plan.repeat, intent, flags);
+    }
+}
+
+async function runPipelinePlan(plan, slots) {
+    if (plan.optionsPatch) {
+        await sendOptions({...structuredClone(app.settings.options), ...plan.optionsPatch});
+        app.run.settings.options = structuredClone(app.settings.options);
+        app.run.settings.optionsSummary = optionsSummary(app.settings.options);
+        log(`[web] bài đổi cài đặt: ${optionsSummary(app.settings.options)}`);
+    }
+    readSubmitForm();
+    const intent = plan.intent ?? app.settings.intent;
+    const flags = plan.flags ?? app.settings.flags;
+    app.run.settings.intent = INTENT_NAMES[intent];
+    await playChunks(slots, plan, intent, flags);
+}
+
+/* Bài đọc nhiệt độ: vẽ khung đầu bằng cách vẽ raw (REG = 1), rồi đọc cảm biến nhiều lần. */
+async function runTemperaturePlan(plan, slots) {
+    await runRawPlan({...plan, intervalMs: 0}, slots.slice(0, 1));
+    await waitForDraws(app.run, 1);
+    const readings = [];
+    for (let i = 0; i < plan.readings; i++) {
+        await delay(plan.intervalMs);
+        const celsius = await readTemperature();
+        if (celsius !== undefined) { readings.push(celsius); }
+    }
+    app.run.temperatures = readings;
+    log(`[web] nhiệt độ đọc được: ${readings.join(', ')} °C`);
+    renderRun();
+}
+
+/* Bài giữ nguồn: vẽ, giữ nguồn analog bật trong holdMs (đo dòng), rồi tắt; trả lại tự tắt 2 s. */
+async function runHoldPowerPlan(plan, slots) {
+    await app.link.command(Command.POWER_OFF, new Writer().u32(0).result());
+    await runRawPlan({...plan, intervalMs: 0}, slots.slice(0, 1));
+    await waitForDraws(app.run, 1);
+    log(`[web] nguồn đang BẬT trong ${plan.holdMs / 1000} s: đo dòng bây giờ`);
+    toast(`Nguồn bật: đo dòng trong ${plan.holdMs / 1000} s`);
+    await delay(plan.holdMs);
+    await app.link.command(Command.POWER_OFF);
+    log('[web] nguồn đã TẮT: đo dòng lần nữa để so');
+    toast('Nguồn đã tắt: đo dòng lần nữa');
+    await delay(plan.holdMs);
+    await app.link.command(Command.POWER_OFF, new Writer().u32(Number($('raw-power-off-ms').value) || 2000).result());
 }
 
 async function runSelectedTest() {
     const test = selectedTest();
-    const values = Object.fromEntries(test.params.map((param) => {
-        const value = Number($(`param-${param.key}`).value);
-        return [param.key, Math.max(param.min, Math.min(param.max, Number.isFinite(value) ? value : param.value))];
-    }));
+    if (test.path && app.info?.path && test.path !== app.info.path) {
+        toast(`Bài "${test.name}" chạy ở đường ${test.path}: đổi đường ở tab Chế độ trước.`, true);
+        return;
+    }
+    const values = readTestValues(test);
     const plan = test.build(values, app.orientation);
     if (plan.frames.length > TEST_SLOT_COUNT) {
         log(`[web] bài ${test.name} cần ${plan.frames.length} khung, tối đa ${TEST_SLOT_COUNT}`, 'error');
@@ -604,38 +857,55 @@ async function runSelectedTest() {
         });
         renderSlots();
         const slots = plan.order.map((index) => TEST_FIRST_SLOT + index);
-        /* Bài có tham số viền dùng giá trị của bài; bài khác dùng cài đặt ở tab Chế độ. */
-        const edgeMargin = test.params.some((param) => param.key === 'edge') ? plan.edgeMargin : app.settings.edgeMargin;
         app.lastRun = runSelectedTest;
-        startRun(test.name, {testId: test.id, params: values, kind: KIND_NAMES[plan.kind], edgeMargin}, plan.repeat === 1 ? slots.length : 0);
-        app.run.settings.edgeMargin = edgeMargin;
+        startRun(test.name, {testId: test.id, params: values}, plan.repeat === 1 && !plan.special ? slots.length : 0);
         if (plan.note) { log(`[web] ${plan.note}`); }
-        for (let start = 0; start < slots.length; start += 64) {
-            if (start > 0) { log('[web] chuỗi dài hơn 64 khung: chạy phần sau khi phần trước xong', 'warning'); await waitForDraws(app.run, start); }
-            await play(slots.slice(start, start + 64), plan.intervalMs, plan.repeat, plan.kind, edgeMargin);
+        const raw = app.info?.path !== 'pipeline';
+        if (plan.special === 'temperature') {
+            await runTemperaturePlan(plan, slots);
+        } else if (plan.special === 'hold_power') {
+            await runHoldPowerPlan(plan, slots);
+        } else if (raw) {
+            await runRawPlan(plan, slots);
+        } else {
+            await runPipelinePlan(plan, slots);
         }
     });
 }
 
 /* Chờ tới khi lần chạy có đủ `count` gói DRAWN (chuỗi dài hơn 64 khung chia nhiều gói PLAY). */
 async function waitForDraws(run, count) {
-    while (app.run === run && run.drawn.length < count) { await delay(200); }
+    while (app.run === run && framesDrawn(run) < count) { await delay(100); }
 }
 
 /* ---- Thống kê, chấm điểm ---- */
 
+/* Thời gian theo đoạn, tách theo việc đã làm (vẽ khung, từng lượt dọn). */
 function statistics(drawn) {
-    const drawnFrames = drawn.filter((item) => item.mode !== 'không vẽ' && item.error === 0);
-    const result = {count: drawnFrames.length, full: drawnFrames.filter((item) => item.mode === 'full').length};
-    for (const {key} of SEGMENTS) {
-        const values = drawnFrames.map((item) => item[key]);
-        result[key] = values.length
-            ? {average: values.reduce((sum, value) => sum + value, 0) / values.length, minimum: Math.min(...values), maximum: Math.max(...values)}
-            : null;
+    const done = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.POWER_OFF && item.error === 0);
+    const summarize = (items) => {
+        const result = {count: items.length};
+        for (const {key} of SEGMENTS) {
+            const values = items.map((item) => item[key]);
+            result[key] = values.length
+                ? {average: values.reduce((sum, value) => sum + value, 0) / values.length, minimum: Math.min(...values), maximum: Math.max(...values)}
+                : null;
+        }
+        return result;
+    };
+    const byAction = {};
+    for (const action of new Set(done.map((item) => item.action))) {
+        byAction[ACTION_NAMES[action]] = summarize(done.filter((item) => item.action === action));
     }
-    const partial = drawnFrames.filter((item) => item.mode === 'partial').map((item) => item.totalMs);
-    result.partialAverageMs = partial.length ? partial.reduce((sum, value) => sum + value, 0) / partial.length : null;
-    return result;
+    const frames = done.filter((item) => item.frame);
+    return {
+        ...summarize(frames),
+        byAction,
+        cleanups: done.filter((item) => !item.frame).length,
+        maxFlagged: Math.max(0, ...drawn.map((item) => item.flaggedCount ?? 0)),
+        maxDebt: Math.max(0, ...drawn.map((item) => item.maxDebt ?? 0)),
+        frameAverageMs: frames.length ? frames.reduce((sum, item) => sum + item.totalMs, 0) / frames.length : null,
+    };
 }
 
 function renderRun() {
@@ -643,17 +913,22 @@ function renderRun() {
     if (!run) { return; }
     const stats = statistics(run.drawn);
     const settings = run.settings;
-    $('run-summary').textContent = `${run.label} · ${settings.path ?? '?'} · full ${settings.fullProfile}, partial ${settings.partialProfile}`
-        + ` · viền ${settings.edgeMargin} · ${stats.count} lần vẽ (${stats.full} full)`
-        + (app.settings.temperatureCelsius !== null ? ` · ${app.settings.temperatureCelsius} °C` : '');
+    const how = settings.path === 'pipeline' ? `ý định ${settings.intent} · ${settings.optionsSummary}` : `raw ${settings.rawProfile}`;
+    $('run-summary').textContent = `${run.label} · ${settings.path ?? '?'} · ${how} · ${stats.count} khung, ${stats.cleanups} lượt dọn`
+        + ` · nợ lớn nhất ${stats.maxDebt} · cờ viền nhiều nhất ${stats.maxFlagged}`
+        + (run.temperatures ? ` · nhiệt độ ${run.temperatures.join(', ')} °C` : app.settings.temperatureCelsius !== null ? ` · ${app.settings.temperatureCelsius} °C` : '');
+    const rows = [['khung', stats], ...Object.entries(stats.byAction).filter(([name]) => name !== 'vẽ').map(([name, value]) => [name, value])];
     $('run-stats').replaceChildren(
-        element('tr', {}, [element('th', {text: 'đoạn (ms)'}), element('th', {text: 'trung bình'}), element('th', {text: 'nhỏ nhất'}), element('th', {text: 'lớn nhất'})]),
-        ...SEGMENTS.map(({key, label}) => element('tr', {}, [
+        element('tr', {}, [element('th', {text: 'việc'}), element('th', {text: 'lần'}), element('th', {text: 'đoạn (ms)'}), element('th', {text: 'trung bình'}),
+            element('th', {text: 'nhỏ nhất'}), element('th', {text: 'lớn nhất'})]),
+        ...rows.flatMap(([name, value]) => SEGMENTS.filter(({key}) => name === 'khung' || !['inputMs', 'queueMs'].includes(key)).map(({key, label}, index) => element('tr', {}, [
+            element('td', {class: 'text', text: index === 0 ? name : ''}),
+            element('td', {text: index === 0 ? String(value.count) : ''}),
             element('td', {text: label}),
-            element('td', {text: format(stats[key]?.average, 1)}),
-            element('td', {text: format(stats[key]?.minimum, 1)}),
-            element('td', {text: format(stats[key]?.maximum, 1)}),
-        ])),
+            element('td', {text: format(value[key]?.average, 1)}),
+            element('td', {text: format(value[key]?.minimum, 1)}),
+            element('td', {text: format(value[key]?.maximum, 1)}),
+        ]))),
     );
     renderChart(run.drawn);
 }
@@ -672,7 +947,7 @@ function renderChart(drawn) {
     const style = getComputedStyle(document.documentElement);
     const colors = [style.getPropertyValue('--brand-teal'), style.getPropertyValue('--accent'), style.getPropertyValue('--brand-bronze')];
     const parts = ['spiMs', 'panelMs', 'afterMs'];
-    const items = drawn.filter((item) => item.mode !== 'không vẽ');
+    const items = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.POWER_OFF);
     const maximum = Math.max(1, ...items.map((item) => parts.reduce((sum, key) => sum + item[key], 0)));
     const left = 44;
     const bottom = height - 20;
@@ -741,14 +1016,17 @@ async function saveRating() {
         test: run.testId,
         label: run.label,
         params: run.params ?? null,
-        kind: run.kind ?? null,
         startedAt: run.startedAt,
         ...run.settings,
         temperatureCelsius: app.settings.temperatureCelsius,
+        temperatures: run.temperatures ?? null,
         drawCount: stats.count,
-        fullCount: stats.full,
+        cleanupCount: stats.cleanups,
+        maxDebt: stats.maxDebt,
+        maxFlagged: stats.maxFlagged,
         timing: Object.fromEntries(SEGMENTS.map(({key}) => [key, stats[key]])),
-        partialAverageMs: stats.partialAverageMs,
+        timingByAction: stats.byAction,
+        frameAverageMs: stats.frameAverageMs,
         scores,
         note: $('rating-note').value.trim(),
     };
@@ -766,10 +1044,17 @@ async function saveRating() {
 
 /* ---- Lịch sử ---- */
 
+/* Profile của một dòng lịch sử: raw thì profile raw, pipeline thì profile TEXT/UI; dòng cũ thì full/partial. */
+function historyProfiles(item) {
+    if (item.rawProfile && item.path !== 'pipeline') { return [item.rawProfile]; }
+    if (item.options) { return item.options.presets.slice(0, 2).map((preset) => profileNameById(preset.bands[0]?.profileId)); }
+    return [item.fullProfile, item.partialProfile].filter(Boolean);
+}
+
 async function loadHistory() {
     app.history = await fetch('/api/results').then((response) => response.json()).catch(() => []);
     const tests = [...new Set(app.history.map((item) => item.label ?? item.test))];
-    const profiles = [...new Set(app.history.flatMap((item) => [item.fullProfile, item.partialProfile]).filter(Boolean))];
+    const profiles = [...new Set(app.history.flatMap(historyProfiles))];
     const keepTest = $('history-test').value;
     const keepProfile = $('history-profile').value;
     fillSelect($('history-test'), [{value: '', label: 'Tất cả'}, ...tests.map((name) => ({value: name, label: name}))], keepTest);
@@ -782,22 +1067,22 @@ function renderHistory() {
     const profileFilter = $('history-profile').value;
     const rows = app.history
         .filter((item) => !testFilter || (item.label ?? item.test) === testFilter)
-        .filter((item) => !profileFilter || item.fullProfile === profileFilter || item.partialProfile === profileFilter)
+        .filter((item) => !profileFilter || historyProfiles(item).includes(profileFilter))
         .slice()
         .reverse();
-    const header = ['Lúc', 'Bài', 'Đường', 'Full', 'Partial', 'Viền', '°C', 'Lần', 'Partial TB', 'Panel TB', ...SCORES.map((score) => score.short), 'Ghi chú'];
+    const header = ['Lúc', 'Bài', 'Đường', 'Profile', 'Ý định', '°C', 'Khung', 'Dọn', 'Khung TB', 'Panel TB', ...SCORES.map((score) => score.short), 'Ghi chú'];
     $('history-table').replaceChildren(
         element('tr', {}, header.map((title) => element('th', {text: title}))),
         ...rows.map((item) => element('tr', {}, [
             element('td', {text: (item.saved_at ?? '').replace('T', ' ')}),
             element('td', {class: 'text', text: item.label ?? item.test}),
             element('td', {text: item.path ?? '–'}),
-            element('td', {text: item.fullProfile ?? '–'}),
-            element('td', {text: item.partialProfile ?? '–'}),
-            element('td', {text: String(item.edgeMargin ?? '–')}),
+            element('td', {class: 'text', text: historyProfiles(item).join(', ') || '–'}),
+            element('td', {text: item.path === 'pipeline' ? item.intent ?? '–' : '–'}),
             element('td', {text: item.temperatureCelsius ?? '–'}),
             element('td', {text: String(item.drawCount ?? '–')}),
-            element('td', {text: format(item.partialAverageMs, 0)}),
+            element('td', {text: String(item.cleanupCount ?? '–')}),
+            element('td', {text: format(item.frameAverageMs ?? item.partialAverageMs, 0)}),
             element('td', {text: format(item.timing?.panelMs?.average, 0)}),
             ...SCORES.map(({key}) => element('td', {text: item.scores?.[key] ?? '–'})),
             element('td', {class: 'text', text: item.note ?? ''}),
@@ -847,8 +1132,6 @@ function setupTabs() {
 function setupControls() {
     $('connect-button').addEventListener('click', toggleConnection);
     $('apply-path').addEventListener('click', applyPath);
-    $('full-profile').addEventListener('change', applyProfiles);
-    $('partial-profile').addEventListener('change', applyProfiles);
     $('send-and-draw').addEventListener('click', sendAndDraw);
     $('quick-stop').addEventListener('click', stopSequence);
     $('quick-rerun').addEventListener('click', rerun);
@@ -858,16 +1141,18 @@ function setupControls() {
         if (event.key === 'Escape') { stopSequence(); }
         if (event.key === 'r' || event.key === 'R') { rerun(); }
     });
-    $('apply-tune').addEventListener('click', applyTune);
     $('apply-options').addEventListener('click', applyOptions);
+    $('reset-options').addEventListener('click', resetOptions);
     $('read-temperature').addEventListener('click', readTemperature);
-    $('edge-margin').addEventListener('change', () => { app.settings.edgeMargin = Number($('edge-margin').value); });
+    $('apply-raw-power').addEventListener('click', applyRawPower);
+    $('power-off').addEventListener('click', powerOffNow);
+    $('load-profile').addEventListener('click', loadTemporaryProfile);
+    $('dump-otp').addEventListener('click', dumpOtp);
+    for (const id of ['raw-profile', 'raw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
+    for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 
-    fillSelect($('tune-hz'), [{value: 0, label: 'của panel'}, ...pllFrequencies().map((hz) => ({value: hz, label: `${hz} Hz`}))], 50);
     fillSelect($('dither'), Object.values(DitherMethod).map((method) => ({value: method, label: DITHER_NAMES[method]})), DitherMethod.FLOYD_STEINBERG);
-    const kinds = Object.values(Kind).map((kind) => ({value: kind, label: KIND_NAMES[kind]}));
-    fillSelect($('draw-kind'), kinds, Kind.AUTO);
-    fillSelect($('sequence-kind'), kinds, Kind.AUTO);
+    renderRawForm();
     $('orientation').value = app.orientation;
 
     for (const id of ['fit', 'dither', 'threshold', 'brightness', 'contrast', 'gamma', 'invert']) { $(id).addEventListener('input', processImage); }

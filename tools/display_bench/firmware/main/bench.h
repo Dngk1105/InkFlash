@@ -93,6 +93,7 @@ typedef enum : uint8_t {
     BENCH_EVENT_INPUT,         /**< message của ink_input */
     BENCH_EVENT_SEQUENCE_NEXT, /**< timer giữa hai khung của chuỗi */
     BENCH_EVENT_DRAWN,         /**< ink_display báo vẽ xong (đường pipeline) */
+    BENCH_EVENT_POWER_TIMER,   /**< đường raw: hết thời gian chờ thì tắt nguồn màn */
 } bench_event_type_t;
 
 typedef struct {

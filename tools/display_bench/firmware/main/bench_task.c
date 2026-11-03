@@ -204,6 +204,44 @@ static void init_raw_settings(void) {
     }
 }
 
+/* ---- Tự tắt nguồn ở đường raw ---- */
+/* Driver không tự tắt nguồn analog sau DRF; ở đường pipeline ink_display lo, ở đường raw task bench lo. */
+
+#define RAW_POWER_OFF_MS 2000
+
+static uint32_t             s_raw_power_off_ms = RAW_POWER_OFF_MS; /* 0 = chỉ tắt khi PC gửi POWER_OFF */
+static ink_platform_timer_t s_power_timer;
+
+static void on_power_timer(void *user_data) {
+    (void)user_data;
+    const bench_event_message_t event = {.type = BENCH_EVENT_POWER_TIMER};
+    xQueueSend(s_events, &event, 0);
+}
+
+static void restart_power_timer(void) {
+    ink_platform_timer_stop(s_power_timer);
+    if (s_raw_power_off_ms > 0) { ink_platform_timer_start(s_power_timer, s_raw_power_off_ms); }
+}
+
+/* Tắt nguồn và báo bằng gói DRAWN (việc 7), để trang thấy lúc nguồn tắt. */
+static esp_err_t raw_power_off(void) {
+    ink_platform_timer_stop(s_power_timer);
+    const bench_drawn_t drawn = {.action = INK_DISPLAY_ACTION_POWER_OFF, .purpose = 255, .error = bench_draw_power_off()};
+    send_drawn(&drawn);
+    return drawn.error;
+}
+
+/* POWER_OFF: trống = tắt ngay; 4 byte = đặt thời gian tự tắt (0 = không tự tắt). */
+static esp_err_t handle_power_off(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_RAW, ESP_ERR_INVALID_STATE, TAG, "power off: raw only");
+    if (length >= 4) {
+        s_raw_power_off_ms = read_u32(payload);
+        restart_power_timer();
+        return ESP_OK;
+    }
+    return raw_power_off();
+}
+
 /* Vẽ slot; đường raw gửi DRAWN ngay, đường pipeline gửi khi ink_display báo. Trả false nếu không vẽ được. */
 static bool draw_slot(uint8_t slot, uint32_t press_ms) {
     if (s_path == BENCH_PATH_PIPELINE) {
@@ -218,6 +256,7 @@ static bool draw_slot(uint8_t slot, uint32_t press_ms) {
     if (error != ESP_OK) { return false; }
     if (press_ms != 0) { drawn.input_ms = start_ms - press_ms; }
     send_drawn(&drawn);
+    restart_power_timer();
     return true;
 }
 
@@ -314,6 +353,7 @@ static esp_err_t handle_draw(const uint8_t *payload, size_t length) {
     bench_drawn_t drawn;
     ESP_RETURN_ON_ERROR(bench_draw_raw(payload[0], &s_raw, &drawn), TAG, "raw");
     send_drawn(&drawn);
+    restart_power_timer();
     return ESP_OK;
 }
 
@@ -402,7 +442,7 @@ static void handle_packet(const bench_packet_t *packet) {
             stop_sequence();
             break;
         case BENCH_POWER_OFF:
-            error = bench_draw_power_off();
+            error = handle_power_off(payload, length);
             break;
         case BENCH_PROFILE_LOAD:
             error = ink_bsp_display_load_profile(payload, length);
@@ -477,6 +517,9 @@ static void handle_event(const bench_event_message_t *event) {
             if (drawn.frame) { schedule_next_step(); }
             break;
         }
+        case BENCH_EVENT_POWER_TIMER:
+            raw_power_off();
+            break;
     }
     if (uxQueueMessagesWaiting(s_events) == 0) {
         ink_gesture_output_t gestures;
@@ -531,6 +574,7 @@ esp_err_t bench_task_start(bench_path_t path) {
     ESP_RETURN_ON_ERROR(bench_draw_init(path, display, s_events), TAG, "draw");
     init_raw_settings();
     ESP_RETURN_ON_ERROR(ink_platform_timer_create(on_sequence_timer, nullptr, "sequence", &s_sequence_timer), TAG, "timer");
+    ESP_RETURN_ON_ERROR(ink_platform_timer_create(on_power_timer, nullptr, "power", &s_power_timer), TAG, "timer");
 
     const ink_hal_button_device_t *buttons      = nullptr;
     size_t                         button_count = 0;

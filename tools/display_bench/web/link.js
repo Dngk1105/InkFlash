@@ -12,13 +12,33 @@ export const Command = Object.freeze({
     SUBMIT: 0x05,
     PLAY: 0x06,
     STOP: 0x07,
-    SELECT_PROFILE: 0x08,
-    TUNE: 0x09,
+    POWER_OFF: 0x08,
+    PROFILE_LOAD: 0x09,
     SET_OPTIONS: 0x0a,
     READ_TEMP: 0x0b,
+    OTP_DUMP: 0x0c,
 });
 
-const Event = Object.freeze({ACK: 0x80, INFO: 0x81, DRAWN: 0x82, GESTURE: 0x83, TEMP: 0x84, LOG: 0x85});
+const Event = Object.freeze({ACK: 0x80, INFO: 0x81, DRAWN: 0x82, GESTURE: 0x83, TEMP: 0x84, LOG: 0x85, OTP: 0x86});
+
+/* Mục đích vẽ theo thứ tự ink_hal_display_purpose_t; ý định theo ink_display_policy_intent_t. */
+export const PURPOSES = Object.freeze([
+    {key: 'text', name: 'TEXT'},
+    {key: 'ui', name: 'UI'},
+    {key: 'page', name: 'PAGE'},
+    {key: 'clean_strong', name: 'dọn mạnh'},
+    {key: 'clean_fast', name: 'dọn nhanh'},
+    {key: 'clean_edge_center', name: 'dọn tâm viền'},
+    {key: 'clean_edge_neighbor', name: 'dọn quanh viền'},
+    {key: 'clean_light', name: 'dọn nhẹ'},
+]);
+export const Intent = Object.freeze({AUTO: 0, TEXT: 1, UI: 2, PAGE: 3});
+export const INTENT_NAMES = ['AUTO', 'TEXT', 'UI', 'PAGE'];
+export const SubmitFlag = Object.freeze({DEFER_CLEANUP: 1, BEFORE_SLEEP: 2});
+export const ACTION_NAMES = ['không vẽ', 'vẽ', 'dọn mạnh', 'dọn nhanh', 'dọn tâm viền', 'dọn quanh viền', 'dọn nhẹ', 'tắt nguồn'];
+export const Action = Object.freeze({NONE: 0, DRAW: 1, CLEAN_STRONG: 2, CLEAN_FAST: 3, EDGE_CENTER: 4, EDGE_NEIGHBOR: 5, LIGHT: 6, POWER_OFF: 7});
+export const MAX_BANDS = 9;
+export const SOURCE_HAND = 255;
 
 const UPLOAD_CHUNK_BYTES = 4096;
 const REPLY_TIMEOUT_MS = 3000;
@@ -54,6 +74,40 @@ class Reader {
     }
 }
 
+/* Khối cài đặt (bench.md): mỗi mục đích một preset, rồi ngưỡng nợ và thời gian của thang dọn. */
+function readOptions(reader) {
+    const presets = PURPOSES.map(() => {
+        const bandCount = reader.u8();
+        const bands = [];
+        for (let i = 0; i < MAX_BANDS; i++) { bands.push({maxCelsius: reader.i8(), profileId: reader.u16()}); }
+        return {
+            bands: bands.slice(0, bandCount),
+            partialMode: reader.u8() !== 0,
+            ptScan: reader.u8() !== 0,
+            driveBorder: reader.u8() !== 0,
+            debtWeight: reader.u8(),
+        };
+    });
+    const options = {presets, autoUiPercent: reader.u8(), debtSoft: reader.u8(), debtPage: reader.u8(), debtCeiling: reader.u8(), debtCeilingMax: reader.u8()};
+    reader.u8(); reader.u8(); reader.u8();
+    Object.assign(options, {edgeMs: reader.u32(), lightMs: reader.u32(), strongMs: reader.u32(), powerOffMs: reader.u32()});
+    return options;
+}
+
+export function writeOptions(writer, options) {
+    for (const preset of options.presets) {
+        writer.u8(preset.bands.length);
+        for (let i = 0; i < MAX_BANDS; i++) {
+            const band = preset.bands[i] ?? {maxCelsius: 0, profileId: 0};
+            writer.u8(band.maxCelsius).u16(band.profileId);
+        }
+        writer.u8(preset.partialMode ? 1 : 0).u8(preset.ptScan ? 1 : 0).u8(preset.driveBorder ? 1 : 0).u8(preset.debtWeight);
+    }
+    writer.u8(options.autoUiPercent).u8(options.debtSoft).u8(options.debtPage).u8(options.debtCeiling).u8(options.debtCeilingMax);
+    writer.u8(0).u8(0).u8(0);
+    return writer.u32(options.edgeMs).u32(options.lightMs).u32(options.strongMs).u32(options.powerOffMs);
+}
+
 function parseInfo(payload) {
     const reader = new Reader(payload);
     const info = {
@@ -63,29 +117,39 @@ function parseInfo(payload) {
         xAlign: reader.u8(),
         slotCount: reader.u8(),
         profileCount: reader.u8(),
-        defaultFull: reader.u8(),
-        defaultPartial: reader.u8(),
     };
     info.firmware = reader.text();
     info.profiles = [];
-    for (let i = 0; i < info.profileCount; i++) { info.profiles.push({typicalMs: reader.u16(), name: reader.text()}); }
+    for (let i = 0; i < info.profileCount; i++) {
+        info.profiles.push({index: i, id: reader.u16(), drawMs: reader.u16(), source: reader.u8(), name: reader.text()});
+    }
+    info.options = readOptions(reader);
     return info;
 }
 
-const MODE_NAMES = ['không vẽ', 'partial', 'full'];
-
 function parseDrawn(payload) {
     const reader = new Reader(payload);
+    const slot = reader.u8();
+    const action = reader.u8();
+    const purpose = reader.u8();
     const drawn = {
-        slot: reader.u8(),
-        mode: MODE_NAMES[reader.u8()] ?? '?',
-        profile: reader.u8(),
+        slot,
+        action,
+        actionName: ACTION_NAMES[action] ?? '?',
+        purpose,
+        purposeName: PURPOSES[purpose]?.name ?? 'raw',
         temperatureCelsius: reader.i8(),
         temperatureValid: reader.u8() !== 0,
+        maxDebt: reader.u8(),
+        ceiling: reader.u8(),
+        frame: reader.u8() !== 0,
+        profileId: reader.u16(),
     };
-    reader.u8();
+    reader.u16();
+    drawn.mode = drawn.actionName; /* tên cũ, cho lịch sử chấm điểm */
     drawn.error = reader.i32();
     drawn.window = {x: reader.u16(), y: reader.u16(), width: reader.u16(), height: reader.u16()};
+    drawn.flaggedCount = reader.u32();
     drawn.inputMs = reader.u32();
     drawn.queueMs = reader.u32();
     drawn.diffMs = reader.u32();
@@ -120,6 +184,7 @@ export class Writer {
     constructor() { this.bytes = []; }
     u8(value) { this.bytes.push(value & 0xff); return this; }
     u16(value) { return this.u8(value).u8(value >> 8); }
+    u32(value) { return this.u16(value & 0xffff).u16(value >>> 16); }
     array(values) { for (const value of values) { this.u8(value); } return this; }
     result() { return new Uint8Array(this.bytes); }
 }
@@ -127,7 +192,7 @@ export class Writer {
 /* ---- Liên kết ---- */
 
 /*
- * Sự kiện phát ra: 'info', 'drawn', 'gesture', 'log', 'state' (detail: 'connected' | 'disconnected' | 'reconnecting').
+ * Sự kiện phát ra: 'info', 'drawn', 'gesture', 'log', 'otp', 'state' (detail: 'connected' | 'disconnected' | 'reconnecting').
  * send() chờ ACK (hoặc INFO, TEMP) cùng seq.
  */
 export class BenchLink extends EventTarget {
@@ -325,6 +390,11 @@ export class BenchLink extends EventTarget {
                 break;
             }
             case Event.DRAWN: this.emit('drawn', parseDrawn(payload)); break;
+            case Event.OTP: {
+                const offset = payload[0] | (payload[1] << 8);
+                this.emit('otp', {offset, bytes: payload.slice(2)});
+                break;
+            }
             case Event.GESTURE: this.emit('gesture', parseGesture(payload)); break;
             case Event.LOG: this.emit('log', new TextDecoder().decode(payload)); break;
             default: this.emit('log', `[web] gói lạ 0x${type.toString(16)}`);
