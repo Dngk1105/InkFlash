@@ -7,7 +7,7 @@ import {
 import {
     DITHER_NAMES, DitherMethod, FRAME_BYTES, createFrame, grayToFrame, imageToGray, renderFrame, viewRectToPanel, viewSize,
 } from './frames.js';
-import {OldSource, TESTS, TEST_FIRST_SLOT, TEST_SLOT_COUNT, VCOM_OPTIONS, WindowKind, defaultOrientation} from './tests.js';
+import {OldSource, TESTS, TEST_FIRST_SLOT, TEST_SLOT_COUNT, PSR_SECOND_OPTIONS, VCOM_OPTIONS, WindowKind, defaultOrientation} from './tests.js';
 
 /* ---- Hằng số ---- */
 
@@ -1222,6 +1222,7 @@ function setupControls() {
     for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 
     fillSelect($('vcom-override'), VCOM_OPTIONS, VCOM_FROM_PROFILE);
+    fillSelect($('psr-second'), PSR_SECOND_OPTIONS, 0x0d);
     fillSelect($('dither'), Object.values(DitherMethod).map((method) => ({value: method, label: DITHER_NAMES[method]})), DitherMethod.FLOYD_STEINBERG);
     renderRawForm();
     $('orientation').value = app.orientation;

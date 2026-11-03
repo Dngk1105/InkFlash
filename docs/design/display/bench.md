@@ -100,7 +100,7 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | Dọn viền theo cờ | pipeline | Lật ô với ý định `UI`, nghỉ: lượt dọn tâm và quanh viền có xoá viền không; số điểm có cờ so với viền thấy trên ảnh chụp; DRF dọn dưới 100 ms không |
 | Dọn viền nhiều ô | pipeline | Như bài trên với nhiều ô khác cỡ, khác chỗ, lật lần lượt hoặc cùng lúc: cờ thưa có bỏ sót viền ở ô nhỏ, ô gần nhau không |
 | PSR byte 2 và tắt nguồn | pipeline | Trang chữ có nợ, nghỉ qua dọn viền, dọn nhẹ, tắt nguồn, với PSR byte 2 là `0D` rồi `0E`: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
-| VCOM và vùng đứng yên | raw | Nửa trắng, nửa đen đứng yên, ô giữa lật nhiều lần với window cả màn, quét VCOM_DC từ `00` (−0,1 V) tới `13` (−2,0 V): vùng đứng yên có đổi màu dần trong lúc chạy và sau khi chạy không |
+| VCOM và vùng đứng yên | raw | Nửa trắng, nửa đen đứng yên, ô giữa lật nhiều lần với window cả màn, quét VCOM_DC từ `00` (−0,1 V) tới `13` (−2,0 V) và PSR byte 2 (có TIEG 0): vùng đứng yên có đổi màu dần trong lúc chạy, lúc tắt nguồn và sau đó không |
 | Chữ cho `TEXT` | raw | Trang chữ cuộn bằng profile chọn: profile nào cho chữ rõ nhất trong 0,3–0,4 s |
 | Thang dọn | pipeline | Lật nhiều lần rồi nghỉ qua cả ba bậc: đúng thứ tự, đúng thời điểm, đúng nợ sau mỗi bậc |
 | Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn diff (policy, trạng thái từng điểm trong PSRAM, mặt phẳng cũ) mất bao lâu |

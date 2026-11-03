@@ -27,6 +27,14 @@ export const VCOM_OPTIONS = Object.freeze([
     })),
 ]);
 
+/* PSR byte 2 (commands.md): D3 TS_AUTO, D2 TIEG (VGL nối đất sau POF), D1 NORG, D0 VC_LUTZ. */
+export const PSR_SECOND_OPTIONS = Object.freeze([
+    {value: 0x0d, label: '0D: TIEG 1, VCOM nổi sau khi vẽ (mặc định UC8253, GxEPD2)'},
+    {value: 0x0e, label: '0E: TIEG 1, VCOM nối đất ngoài lúc vẽ (mã mẫu hãng)'},
+    {value: 0x09, label: '09: như 0D, TIEG 0 (VGL không nối đất sau POF)'},
+    {value: 0x0a, label: '0A: như 0E, TIEG 0'},
+]);
+
 /* ---- Hình dùng chung ---- */
 
 function centeredBox(orientation, boxWidth, boxHeight) {
@@ -236,8 +244,7 @@ export const TESTS = [
         path: 'pipeline',
         description: 'Trang chữ, một ô lật N lần với ý định UI cho có nợ, rồi máy nghỉ qua dọn viền, dọn nhẹ và tắt nguồn (dọn mạnh dời xa để không xoá dấu vết). Chạy hai lần, 0D rồi 0E, cùng thông số. Xem có hạt nào tự xám sau gói "tắt nguồn" không, và hạt xám là đen nhạt đi hay trắng tối đi, trong vùng ô hay cả ở vùng chữ không bị đụng. Đặt power_off_ms = 0 để xem hạt có xám khi nguồn vẫn bật.',
         params: [
-            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d,
-                options: [{value: 0x0d, label: '0D: VCOM nổi sau khi vẽ (GxEPD2)'}, {value: 0x0e, label: '0E: VCOM nối đất ngoài lúc vẽ (hãng)'}]},
+            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d, options: PSR_SECOND_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 20, min: 1, max: 60},
             {key: 'interval', label: 'ms giữa hai lần', value: 300, min: 0, max: 10000, step: 50},
             {key: 'edge', label: 'edge_ms', value: 2000, min: 0, max: 60000, step: 500},
@@ -266,11 +273,12 @@ export const TESTS = [
         id: 'vcom_still',
         name: 'VCOM và vùng đứng yên',
         path: 'raw',
-        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy cùng profile với nhiều VCOM_DC (09 = −1,0 V như TR8; mã nhỏ hơn là ít âm hơn). So vùng đứng yên trong lúc chạy và vài phút sau: nửa trắng có tối dần, nửa đen có nhạt dần không.',
+        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy cùng profile với nhiều VCOM_DC (09 = −1,0 V như TR8; mã nhỏ hơn là ít âm hơn). So vùng đứng yên trong lúc chạy, ngay sau gói tắt nguồn và vài phút sau: nửa trắng có tối dần, nửa đen có nhạt dần không. PSR byte 2 có TIEG 0 để xem VGL nối đất lúc POF có phải nguyên nhân.',
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
             {key: 'vcom', label: 'VCOM_DC', type: 'select', value: 255,
                 options: VCOM_OPTIONS},
+            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d, options: PSR_SECOND_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 60, min: 1, max: 200},
             {key: 'interval', label: 'ms giữa hai lần', value: 200, min: 0, max: 10000, step: 50},
         ],
@@ -290,6 +298,7 @@ export const TESTS = [
                 intervalMs: values.interval,
                 repeat: 1,
                 vcomOverride: values.vcom,
+                psrSecond: values.psr,
                 raw: {profile: values.profile, windowKind: WindowKind.WHOLE, partialMode: true},
                 note: 'Chụp ảnh vùng đứng yên trước khi chạy, sau lần cuối, và 2–3 phút sau, cùng góc, cùng đèn. Ô giữa: nửa trái đổi trắng → đen, nửa phải đen → trắng.',
             };
