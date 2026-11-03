@@ -169,6 +169,7 @@ static void send_drawn(const bench_drawn_t *drawn) {
     put_u32(&writer, drawn->driver.spi_us);
     put_u32(&writer, drawn->driver.panel_us);
     put_u32(&writer, drawn->driver.after_us);
+    put_u32(&writer, drawn->driver.power_us);
     bench_link_send(BENCH_DRAWN, 0, writer.bytes, writer.length);
 }
 

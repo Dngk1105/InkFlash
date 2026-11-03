@@ -26,6 +26,7 @@ const SEGMENTS = [
     {key: 'queueMs', label: 'queue'},
     {key: 'diffMs', label: 'diff'},
     {key: 'spiMs', label: 'spi'},
+    {key: 'powerMs', label: 'bật nguồn'},
     {key: 'panelMs', label: 'panel'},
     {key: 'afterMs', label: 'after'},
     {key: 'totalMs', label: 'tổng'},
@@ -671,6 +672,13 @@ function onDrawn(drawn) {
     if (!drawn.frame) { log(`[web] ${drawn.actionName}${drawn.action === Action.POWER_OFF ? '' : ` ${profileNameById(drawn.profileId)}, panel ${format(drawn.panelMs, 1)} ms`}`); }
 }
 
+/* input chỉ có khi khung do nút bấm; queue chỉ có ở đường pipeline. */
+function segmentText(drawn, key) {
+    if (key === 'inputMs' && drawn.inputMs === 0) { return '– (không do nút)'; }
+    if (key === 'queueMs' && app.info?.path !== 'pipeline') { return '– (raw)'; }
+    return `${format(drawn[key], 1)} ms`;
+}
+
 function renderLastDrawn(drawn) {
     const items = [
         ['việc', drawn.frame ? `${drawn.actionName} (khung slot ${drawn.slot})` : drawn.actionName],
@@ -681,7 +689,7 @@ function renderLastDrawn(drawn) {
         ['nợ lớn nhất', `${drawn.maxDebt} / trần ${drawn.ceiling}`],
         ['điểm có cờ viền', String(drawn.flaggedCount)],
         ['lỗi', drawn.error === 0 ? 'không' : espErrorName(drawn.error)],
-        ...SEGMENTS.map(({key, label}) => [label, `${format(drawn[key], 1)} ms`]),
+        ...SEGMENTS.map(({key, label}) => [label, segmentText(drawn, key)]),
     ];
     $('last-drawn').replaceChildren(...items.flatMap(([label, value]) => [
         element('dt', {text: label}),
@@ -958,8 +966,9 @@ function renderChart(drawn) {
     context.scale(ratio, ratio);
     context.clearRect(0, 0, width, height);
     const style = getComputedStyle(document.documentElement);
-    const colors = [style.getPropertyValue('--brand-teal'), style.getPropertyValue('--accent'), style.getPropertyValue('--brand-bronze')];
-    const parts = ['spiMs', 'panelMs', 'afterMs'];
+    const colors = [style.getPropertyValue('--brand-teal'), style.getPropertyValue('--brand-purple'), style.getPropertyValue('--accent'),
+        style.getPropertyValue('--brand-bronze')];
+    const parts = ['spiMs', 'powerMs', 'panelMs', 'afterMs'];
     const items = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.POWER_OFF);
     const maximum = Math.max(1, ...items.map((item) => parts.reduce((sum, key) => sum + item[key], 0)));
     const left = 44;
@@ -980,11 +989,11 @@ function renderChart(drawn) {
         });
     });
     context.fillStyle = style.getPropertyValue('--text-muted');
-    ['spi', 'panel', 'after'].forEach((label, index) => {
+    ['spi', 'bật nguồn', 'panel', 'after'].forEach((label, index) => {
         context.fillStyle = colors[index];
-        context.fillRect(left + index * 70, height - 12, 10, 10);
+        context.fillRect(left + index * 90, height - 12, 10, 10);
         context.fillStyle = style.getPropertyValue('--text');
-        context.fillText(label, left + index * 70 + 14, height - 3);
+        context.fillText(label, left + index * 90 + 14, height - 3);
     });
 }
 

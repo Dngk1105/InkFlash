@@ -42,7 +42,8 @@ typedef struct {
 
 typedef struct {
     uint32_t spi_us;   /**< Gửi ảnh và bảng sóng, trước khi quét */
-    uint32_t panel_us; /**< panel quét tới khi BUSY cao (rảnh) */
+    uint32_t power_us; /**< bật nguồn analog (PON) nếu đang tắt; 0 nếu nguồn đã bật */
+    uint32_t panel_us; /**< panel quét tới khi BUSY cao (rảnh), không gồm power_us */
     uint32_t after_us; /**< sau khi quét */
 } ink_hal_display_timing_t;
 

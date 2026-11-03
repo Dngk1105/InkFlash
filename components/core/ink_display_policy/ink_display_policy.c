@@ -217,14 +217,20 @@ static void recompute_max_debt(ink_display_policy_state_t *state) {
     state->priv.max_debt = max_debt;
 }
 
+/* Các điểm đổi màu duyệt theo byte: byte không đổi thì bỏ cả 8 điểm (PSRAM chậm, không đọc trạng thái của chúng). */
+
 /* Có điểm đổi màu trong window mà nợ cộng `weight` sẽ vượt `ceiling`. */
 static bool would_exceed(const ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds,
                          uint32_t weight, uint32_t ceiling) {
     const ink_display_policy_config_t *config = &state->priv.config;
     for (uint32_t y = bounds.top; y <= bounds.bottom; y++) {
-        for (uint32_t x = bounds.left; x <= bounds.right; x++) {
-            const bool changed = is_white(config, shown, x, y) != is_white(config, next, x, y);
-            if (changed && debt_of(*pixel_state(state, x, y)) + weight > ceiling) { return true; }
+        for (size_t i = bounds.left / 8; i <= bounds.right / 8; i++) {
+            const uint8_t diff = diff_byte(config, shown, next, y, i);
+            if (diff == 0) { continue; }
+            for (uint32_t pixel = 0; pixel < 8; pixel++) {
+                const bool changed = (diff & pixel_bit(pixel)) != 0;
+                if (changed && debt_of(*pixel_state(state, (uint32_t)i * 8 + pixel, y)) + weight > ceiling) { return true; }
+            }
         }
     }
     return false;
@@ -234,12 +240,15 @@ static bool would_exceed(const ink_display_policy_state_t *state, const uint8_t 
 static void add_debt(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds, uint32_t weight) {
     const ink_display_policy_config_t *config = &state->priv.config;
     for (uint32_t y = bounds.top; y <= bounds.bottom; y++) {
-        for (uint32_t x = bounds.left; x <= bounds.right; x++) {
-            if (is_white(config, shown, x, y) == is_white(config, next, x, y)) { continue; }
-            uint8_t *pixel = pixel_state(state, x, y);
-            set_flag(state, pixel, FLAG_NONE);
-            set_debt(pixel, debt_of(*pixel) + weight);
-            if (debt_of(*pixel) > state->priv.max_debt) { state->priv.max_debt = debt_of(*pixel); }
+        for (size_t i = bounds.left / 8; i <= bounds.right / 8; i++) {
+            const uint8_t diff = diff_byte(config, shown, next, y, i);
+            for (uint32_t pixel = 0; pixel < 8 && diff != 0; pixel++) {
+                if ((diff & pixel_bit(pixel)) == 0) { continue; }
+                uint8_t *state_pixel = pixel_state(state, (uint32_t)i * 8 + pixel, y);
+                set_flag(state, state_pixel, FLAG_NONE);
+                set_debt(state_pixel, debt_of(*state_pixel) + weight);
+                if (debt_of(*state_pixel) > state->priv.max_debt) { state->priv.max_debt = debt_of(*state_pixel); }
+            }
         }
     }
 }
@@ -264,15 +273,17 @@ static bool neighbor(const ink_display_policy_config_t *config, uint32_t x, uint
     return true;
 }
 
+/* 8 điểm xung quanh, cắt theo màn; đọc thẳng 3 hàng của priv.pixels. */
 static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x, uint32_t y) {
-    for (int32_t dy = -1; dy <= 1; dy++) {
-        for (int32_t dx = -1; dx <= 1; dx++) {
-            uint32_t nx, ny;
-            if ((dx != 0 || dy != 0)
-                && neighbor(&state->priv.config, x, y, dx, dy, &nx, &ny)
-                && flag_of(*pixel_state(state, nx, ny)) != FLAG_NONE) {
-                return true;
-            }
+    const ink_display_policy_config_t *config = &state->priv.config;
+    const uint32_t                     left   = x > 0 ? x - 1 : 0;
+    const uint32_t                     right  = x + 1 < config->width ? x + 1 : x;
+    const uint32_t                     top    = y > 0 ? y - 1 : 0;
+    const uint32_t                     bottom = y + 1 < config->height ? y + 1 : y;
+    for (uint32_t row = top; row <= bottom; row++) {
+        const uint8_t *pixels = &state->priv.pixels[(size_t)row * config->width];
+        for (uint32_t column = left; column <= right; column++) {
+            if ((row != y || column != x) && flag_of(pixels[column]) != FLAG_NONE) { return true; }
         }
     }
     return false;
@@ -297,7 +308,28 @@ static uint8_t edge_flag(const ink_display_policy_state_t *state, const uint8_t 
     return FLAG_NONE;
 }
 
-/* Đánh dấu theo thứ tự hàng trong vùng đổi nới 1 điểm; chỉ điểm đứng yên, chưa có cờ, không có cờ xung quanh. */
+/* Byte khác nhau của hàng y, byte i; 0 ngoài màn. */
+static uint8_t diff_at(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next, int64_t y, int64_t i) {
+    if (y < 0 || y >= config->height || i < 0 || i >= (int64_t)row_bytes(config)) { return 0; }
+    return diff_byte(config, shown, next, (uint32_t)y, (size_t)i);
+}
+
+/* Điểm của byte có ít nhất một điểm kề cạnh đổi màu: hàng trên, hàng dưới, bên trái, bên phải. */
+static uint8_t near_change(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next, uint32_t y, size_t i) {
+    const uint8_t here  = diff_at(config, shown, next, y, (int64_t)i);
+    const uint8_t left  = diff_at(config, shown, next, y, (int64_t)i - 1);
+    const uint8_t right = diff_at(config, shown, next, y, (int64_t)i + 1);
+    /* điểm x + 1 về vị trí x, và điểm x - 1 về vị trí x */
+    const uint8_t sideways = (uint8_t)((here << 1) | (right >> 7)) | (uint8_t)((here >> 1) | (left << 7));
+    return (uint8_t)(diff_at(config, shown, next, (int64_t)y - 1, (int64_t)i)
+                     | diff_at(config, shown, next, (int64_t)y + 1, (int64_t)i)
+                     | sideways);
+}
+
+/*
+ * Đánh dấu theo thứ tự hàng trong vùng đổi nới 1 điểm; chỉ điểm đứng yên, chưa có cờ, không có cờ xung quanh.
+ * Cả hai luật cờ cần một điểm kề cạnh đổi màu, nên chỉ xét điểm đứng yên kề cạnh điểm đổi.
+ */
 static void mark_edges(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint32_t                     top    = bounds.top > 0 ? bounds.top - 1 : 0;
@@ -305,12 +337,16 @@ static void mark_edges(ink_display_policy_state_t *state, const uint8_t *shown, 
     const uint32_t                     bottom = bounds.bottom + 1 < config->height ? bounds.bottom + 1 : config->height - 1U;
     const uint32_t                     right  = bounds.right + 1 < config->width ? bounds.right + 1 : config->width - 1U;
     for (uint32_t y = top; y <= bottom; y++) {
-        for (uint32_t x = left; x <= right; x++) {
-            uint8_t   *pixel = pixel_state(state, x, y);
-            const bool still = is_white(config, shown, x, y) == is_white(config, next, x, y);
-            if (!still || flag_of(*pixel) != FLAG_NONE || any_flag_around(state, x, y)) { continue; }
-            const uint8_t flag = edge_flag(state, shown, next, x, y);
-            if (flag != FLAG_NONE) { set_flag(state, pixel, flag); }
+        for (size_t i = left / 8; i <= right / 8; i++) {
+            const uint8_t candidates = (uint8_t)(near_change(config, shown, next, y, i) & ~diff_at(config, shown, next, y, (int64_t)i));
+            for (uint32_t pixel = 0; pixel < 8 && candidates != 0; pixel++) {
+                const uint32_t x = (uint32_t)i * 8 + pixel;
+                if ((candidates & pixel_bit(pixel)) == 0 || x < left || x > right) { continue; }
+                uint8_t *state_pixel = pixel_state(state, x, y);
+                if (flag_of(*state_pixel) != FLAG_NONE || any_flag_around(state, x, y)) { continue; }
+                const uint8_t flag = edge_flag(state, shown, next, x, y);
+                if (flag != FLAG_NONE) { set_flag(state, state_pixel, flag); }
+            }
         }
     }
 }

@@ -246,7 +246,7 @@ static void read_temperature(ink_display_report_t *report) {
         ESP_LOGW(TAG, "read_temperature: %s", esp_err_to_name(error));
         return;
     }
-    /* 0x40 khi REG = 1 chưa đo trên BB0: số ngoài dải hoạt động của panel thì không dùng để chọn profile */
+    /* số ngoài dải hoạt động của panel coi là đọc sai, không dùng để chọn profile */
     if (report->temperature_celsius < MIN_TRUSTED_CELSIUS || report->temperature_celsius > MAX_TRUSTED_CELSIUS) {
         ESP_LOGW(TAG, "nhiệt độ %d °C ngoài dải tin được, giữ %d °C", report->temperature_celsius, s_celsius);
         return;

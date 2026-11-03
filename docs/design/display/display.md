@@ -185,7 +185,7 @@ nguồn. Trước khi ngủ luôn tắt nguồn.
 Nhiệt độ đổi độ nhớt của mực. Profile không mang nhiệt độ; mỗi preset có một bảng dải: nhiệt độ tối đa (°C) → id
 profile, xét từ trên xuống. `display` đọc cảm biến của controller trước mỗi lần dọn mạnh và dọn nhanh, rồi dùng nhiệt độ
 đó cho mọi preset tới lần đọc sau. Chưa đọc được lần nào thì dùng 25 °C; số đọc ngoài −10…60 °C thì bỏ, giữ nhiệt
-độ cũ (lệnh `0x40` khi REG = 1 chưa đo trên BB0). Nhiệt độ ghi vào báo cáo của lần vẽ có đọc.
+độ cũ. Lệnh `0x40` khi REG = 1 đọc được trên BB0, lệch nhiệt độ phòng khoảng 2–3 °C (2026-11-04). Nhiệt độ ghi vào báo cáo của lần vẽ có đọc.
 
 Bảng dải mặc định của dọn mạnh dùng 9 profile chép từ các dải TR0–TR8 của OTP, với đúng ngưỡng của OTP (5, 10, 15, 20,
 30, 80, 92, 100, 127 °C). Preset khác mặc định có một dải.
@@ -223,7 +223,7 @@ về thời gian.
 | Mép vùng | Driver làm tròn ra ngoài theo bước căn mép x mà nó khai báo trong bảng khả năng. |
 | Nguồn analog | Driver bật nguồn trước DRF nếu đang tắt và để nguồn bật sau DRF. Tắt bằng thao tác tắt nguồn. |
 | Thời gian chờ BUSY | Thời gian DRF của profile × 1,5 + 100 ms cho mỗi lần quét. |
-| Thời gian trả về | Ba số: SPI trước khi quét (đoạn 5), panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét. |
+| Thời gian trả về | Bốn số: SPI trước khi quét (đoạn 5), bật nguồn analog nếu đang tắt, panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét. |
 | Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không ngủ sâu. |
 
 Ngoài hàm vẽ, interface của driver màn có:
@@ -282,9 +282,15 @@ Danh sách profile:
 | 20 | `clean_full` | Điểm được chọn: 8 khung về màu ngược rồi 8 khung về màu của nó, 200 Hz; giữ màu 0 V | 90 ms | Dọn tâm viền |
 | 21 | `clean_edge` | Điểm được chọn: lắc 2–1–1–1–1–2 khung, kết thúc về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn quanh viền |
 | 22 | `clean_light` | Điểm được chọn: 4 khung về màu ngược rồi 4 khung về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn nhẹ |
+| 23 | `clean_full50` | Như `clean_full`, 15 + 15 khung, 50 Hz | 640 ms | Chỉ để so trên bench |
+| 24 | `clean_full100` | Như `clean_full`, 15 + 15 khung, 100 Hz | 320 ms | Chỉ để so trên bench |
+| 25 | `push5f50` | Điểm được chọn: 5 khung về màu của nó, 50 Hz; lệch điện tích (`allow_unbalanced`) | 140 ms | Chỉ để so trên bench, không gán cho preset nào |
+| 26 | `edge_patent50` | Dạng sóng xoá viền của US 11,568,827 (5 khung ± xen kẽ, 3 khung về màu của nó), 50 Hz; lệch điện tích | 200 ms | Chỉ để so trên bench, không gán cho preset nào |
 
-Thời gian một lần vẽ là số script tính, chưa đo trên BB0. Bảng chép từ OTP và các bảng `lut*` có điểm chuyển màu kéo
-một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0.
+Thời gian một lần vẽ là số script tính; số đo trên BB0 ở `docs/hardware/parts/weact-epaper-3.7/refresh.md` khớp trong
+khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và các bảng `lut*` có điểm chuyển màu
+kéo một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Đo trên BB0 (2026-11-04): ba bảng dọn 200 Hz làm vùng
+trắng được dọn đục dần; 23–26 có để so trên bench.
 
 ### Danh sách profile nằm ở đâu
 

@@ -493,13 +493,19 @@ function recompute_max_debt(state)
     state.priv.max_debt = max_debt;
 }
 
+/* Các điểm đổi màu duyệt theo byte: byte không đổi thì bỏ cả 8 điểm (PSRAM chậm, không đọc trạng thái của chúng). */
+
 function would_exceed(state, shown, next, bounds, weight, ceiling)
 {
     const config = state.priv.config;
     for (let y = bounds.top; y <= bounds.bottom; y++) {
-        for (let x = bounds.left; x <= bounds.right; x++) {
-            const changed = is_white(config, shown, x, y) !== is_white(config, next, x, y);
-            if (changed && debt_of(state.priv.pixels[pixel_state(state, x, y)]) + weight > ceiling) { return true; }
+        for (let i = Math.floor(bounds.left / 8); i <= Math.floor(bounds.right / 8); i++) {
+            const diff = diff_byte(config, shown, next, y, i);
+            if (diff === 0) { continue; }
+            for (let pixel = 0; pixel < 8; pixel++) {
+                const changed = (diff & pixel_bit(pixel)) !== 0;
+                if (changed && debt_of(state.priv.pixels[pixel_state(state, i * 8 + pixel, y)]) + weight > ceiling) { return true; }
+            }
         }
     }
     return false;
@@ -510,12 +516,15 @@ function add_debt(state, shown, next, bounds, weight)
     const config = state.priv.config;
     const pixels = state.priv.pixels;
     for (let y = bounds.top; y <= bounds.bottom; y++) {
-        for (let x = bounds.left; x <= bounds.right; x++) {
-            if (is_white(config, shown, x, y) === is_white(config, next, x, y)) { continue; }
-            const pixel = pixel_state(state, x, y);
-            set_flag(state, pixel, FLAG_NONE);
-            set_debt(pixels, pixel, debt_of(pixels[pixel]) + weight);
-            if (debt_of(pixels[pixel]) > state.priv.max_debt) { state.priv.max_debt = debt_of(pixels[pixel]); }
+        for (let i = Math.floor(bounds.left / 8); i <= Math.floor(bounds.right / 8); i++) {
+            const diff = diff_byte(config, shown, next, y, i);
+            for (let pixel = 0; pixel < 8 && diff !== 0; pixel++) {
+                if ((diff & pixel_bit(pixel)) === 0) { continue; }
+                const state_pixel = pixel_state(state, i * 8 + pixel, y);
+                set_flag(state, state_pixel, FLAG_NONE);
+                set_debt(pixels, state_pixel, debt_of(pixels[state_pixel]) + weight);
+                if (debt_of(pixels[state_pixel]) > state.priv.max_debt) { state.priv.max_debt = debt_of(pixels[state_pixel]); }
+            }
         }
     }
 }
@@ -535,12 +544,15 @@ function neighbor(config, x, y, dx, dy)
 
 function any_flag_around(state, x, y)
 {
-    for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-            const point = (dx !== 0 || dy !== 0) ? neighbor(state.priv.config, x, y, dx, dy) : null;
-            if (point !== null && flag_of(state.priv.pixels[pixel_state(state, point[0], point[1])]) !== FLAG_NONE) {
-                return true;
-            }
+    const config = state.priv.config;
+    const left = x > 0 ? x - 1 : 0;
+    const right = x + 1 < config.width ? x + 1 : x;
+    const top = y > 0 ? y - 1 : 0;
+    const bottom = y + 1 < config.height ? y + 1 : y;
+    for (let row = top; row <= bottom; row++) {
+        const base = row * config.width;
+        for (let column = left; column <= right; column++) {
+            if ((row !== y || column !== x) && flag_of(state.priv.pixels[base + column]) !== FLAG_NONE) { return true; }
         }
     }
     return false;
@@ -565,6 +577,22 @@ function edge_flag(state, shown, next, x, y)
     return FLAG_NONE;
 }
 
+function diff_at(config, shown, next, y, i)
+{
+    if (y < 0 || y >= config.height || i < 0 || i >= row_bytes(config)) { return 0; }
+    return diff_byte(config, shown, next, y, i);
+}
+
+function near_change(config, shown, next, y, i)
+{
+    const here = diff_at(config, shown, next, y, i);
+    const left = diff_at(config, shown, next, y, i - 1);
+    const right = diff_at(config, shown, next, y, i + 1);
+    /* điểm x + 1 về vị trí x, và điểm x - 1 về vị trí x */
+    const sideways = (((here << 1) | (right >> 7)) & 0xFF) | (((here >> 1) | (left << 7)) & 0xFF);
+    return (diff_at(config, shown, next, y - 1, i) | diff_at(config, shown, next, y + 1, i) | sideways) & 0xFF;
+}
+
 function mark_edges(state, shown, next, bounds)
 {
     const config = state.priv.config;
@@ -573,12 +601,16 @@ function mark_edges(state, shown, next, bounds)
     const bottom = bounds.bottom + 1 < config.height ? bounds.bottom + 1 : config.height - 1;
     const right = bounds.right + 1 < config.width ? bounds.right + 1 : config.width - 1;
     for (let y = top; y <= bottom; y++) {
-        for (let x = left; x <= right; x++) {
-            const pixel = pixel_state(state, x, y);
-            const still = is_white(config, shown, x, y) === is_white(config, next, x, y);
-            if (!still || flag_of(state.priv.pixels[pixel]) !== FLAG_NONE || any_flag_around(state, x, y)) { continue; }
-            const flag = edge_flag(state, shown, next, x, y);
-            if (flag !== FLAG_NONE) { set_flag(state, pixel, flag); }
+        for (let i = Math.floor(left / 8); i <= Math.floor(right / 8); i++) {
+            const candidates = near_change(config, shown, next, y, i) & ~diff_at(config, shown, next, y, i) & 0xFF;
+            for (let pixel = 0; pixel < 8 && candidates !== 0; pixel++) {
+                const x = i * 8 + pixel;
+                if ((candidates & pixel_bit(pixel)) === 0 || x < left || x > right) { continue; }
+                const state_pixel = pixel_state(state, x, y);
+                if (flag_of(state.priv.pixels[state_pixel]) !== FLAG_NONE || any_flag_around(state, x, y)) { continue; }
+                const flag = edge_flag(state, shown, next, x, y);
+                if (flag !== FLAG_NONE) { set_flag(state, state_pixel, flag); }
+            }
         }
     }
 }

@@ -27,7 +27,16 @@
      "tables": {"KW": [["VSH", 2], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 2]],
                 "WK": [["VSL", 2], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 2]]}},
     {"id": 22, "name": "clean_light", "base": "TR8", "frame_rate_hz": 200,
-     "tables": {"KW": [["VSH", 4], ["VSL", 4]], "WK": [["VSL", 4], ["VSH", 4]]}}
+     "tables": {"KW": [["VSH", 4], ["VSL", 4]], "WK": [["VSL", 4], ["VSH", 4]]}},
+    {"id": 23, "name": "clean_full50", "base": "TR8", "frame_rate_hz": 50,
+     "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}},
+    {"id": 24, "name": "clean_full100", "base": "TR8", "frame_rate_hz": 100,
+     "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}},
+    {"id": 25, "name": "push5f50", "base": "TR8", "frame_rate_hz": 50, "allow_unbalanced": true,
+     "tables": {"KW": [["VSL", 5]], "WK": [["VSH", 5]]}},
+    {"id": 26, "name": "edge_patent50", "base": "TR8", "frame_rate_hz": 50, "allow_unbalanced": true,
+     "tables": {"KW": [["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 3]],
+                "WK": [["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 3]]}}
   ],
   "purposes": {
     "text": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},

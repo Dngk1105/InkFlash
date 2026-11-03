@@ -125,6 +125,25 @@ Kết quả từ bản demo:
 - Deep clean: đảo cả màn đen rồi trắng trước khi vẽ. Mỗi vòng đen → trắng thêm khoảng 5,5 s. Bản demo xác nhận cách này xoá được chấm lốm đốm ở góc phải.
 - Partial refresh nhiều lần sẽ tích bóng mờ; cứ vài chục lần nên deep clean một lần.
 
+## Đo bằng display_bench, 2026-11-04
+
+Firmware test bản `9e5bf0a` (bảng sóng luôn nạp qua thanh ghi, REG = 1), 30 °C theo cảm biến, nhìn bằng mắt trên BB0.
+Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl`.
+
+| Bài | Cấu hình | Kết quả |
+|---|---|---|
+| Ô 80 × 40 lật 10 lần cùng chỗ | `lut10f50`, window vùng đổi, panel 250 ms | Ô vừa về trắng còn xám rất mờ (xám trong vùng); viền quanh ô 3/5 |
+| Ô cờ 16 điểm đảo 100 lần cả màn, rồi về trắng | TR8 (`tr8`), chế độ partial, panel 344 ms | Trong lúc đảo không thấy bóng; sau khi về trắng còn đốm của ô đen, màn xám dần. Chưa chạy với `tr8_kk0` để so |
+| Trang chữ cuộn | TR8, window vùng đổi, panel 352 ms | Chữ ổn (4/5) |
+| Ô A, rồi vẽ ô B ở chỗ khác | TR8, `PT_SCAN` = 0, window quanh B | Ô A không đổi. `PT_SCAN` = 1 chưa chạy |
+| Cả màn đổi trắng ↔ đen | TR8, chế độ partial | Không kéo viền (CDI `0xD7`) thì viền màn xám; kéo viền (`0x97`) thì đều màu, kể cả trong chế độ partial |
+| Ô lật 10 lần | Nhiều profile (có `3x5f50`), kéo viền | Viền đen xám hai bên ô ở mọi profile |
+| Dải xám dither, xem ngang | TR4 (`tr4`) cả màn ngoài chế độ partial, 2 598 ms | Vùng đen của dải trên cùng nhạt dần về phía vùng trắng; xem dọc thì đen đều. Chưa rõ nguyên nhân |
+| Cả màn đổi trắng ↔ đen 6 lần | `tr4` | Đổi ổn; sau nhiều lần đổi, màn tự xám dần khi nghỉ |
+| Cảm biến nhiệt `0x40` khi REG = 1 | 10 lần đọc, mỗi giây một lần | Luôn 30 °C, lệch nhiệt độ phòng khoảng 2–3 °C |
+| Bảng dọn 200 Hz cân bằng (`clean_full`, `clean_edge`, `clean_light`) | Thang dọn của `ink_display` | DRF khớp số tính (`clean_edge` 51 ms); PON khi nguồn đã tắt thêm khoảng 70 ms. Vùng trắng được dọn đục dần |
+| Dọn mạnh khi vượt trần nợ | `tr4` ở 30 °C | 2 553 ms mỗi lần, 3 lần trong 20 lần lật với ý định `UI` |
+
 ## Khuyến nghị của hãng panel
 
 

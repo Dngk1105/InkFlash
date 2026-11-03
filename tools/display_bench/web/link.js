@@ -156,7 +156,8 @@ function parseDrawn(payload) {
     drawn.spiMs = reader.u32() / 1000;
     drawn.panelMs = reader.u32() / 1000;
     drawn.afterMs = reader.u32() / 1000;
-    drawn.totalMs = drawn.inputMs + drawn.queueMs + drawn.diffMs + drawn.spiMs + drawn.panelMs + drawn.afterMs;
+    drawn.powerMs = reader.u32() / 1000;
+    drawn.totalMs = drawn.inputMs + drawn.queueMs + drawn.diffMs + drawn.spiMs + drawn.powerMs + drawn.panelMs + drawn.afterMs;
     drawn.receivedAt = Date.now();
     return drawn;
 }

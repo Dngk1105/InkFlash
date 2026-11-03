@@ -76,7 +76,7 @@ Gói máy gửi lên:
 |---|---|---|
 | `80` | ACK | mã lỗi (4) |
 | `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối cài đặt đang dùng |
-| `82` | DRAWN | slot, việc đã làm, mục đích (255 ở đường raw), nhiệt độ, nhiệt độ hợp lệ, nợ lớn nhất, trần nợ, khung (1 = lần vẽ một khung đã giao, 0 = lượt dọn hoặc tắt nguồn), id profile (2), 0 (2), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có cờ viền, input ms, queue ms, diff ms, spi µs, panel µs, after µs (4 mỗi số) |
+| `82` | DRAWN | slot, việc đã làm, mục đích (255 ở đường raw), nhiệt độ, nhiệt độ hợp lệ, nợ lớn nhất, trần nợ, khung (1 = lần vẽ một khung đã giao, 0 = lượt dọn hoặc tắt nguồn), id profile (2), 0 (2), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có cờ viền, input ms, queue ms, diff ms, spi µs, panel µs, after µs, bật nguồn µs (4 mỗi số) |
 | `83` | GESTURE | modifier, nút, loại cử chỉ, 0, thời điểm edge ms (4) |
 | `84` | TEMP | °C, 0, 0, 0, lỗi (4) |
 | `85` | LOG | một dòng chữ |

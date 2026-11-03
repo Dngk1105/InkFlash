@@ -277,10 +277,12 @@ static esp_err_t write_plane(ink_drv_uc8253_t *driver, uint8_t ram_command, cons
     return send_command(driver, CMD_PTOUT, nullptr, 0);
 }
 
-/* Datasheet không nói PON khi đang bật có kéo BUSY xuống không; chỉ gửi khi đang tắt. */
-static esp_err_t power_on(ink_drv_uc8253_t *driver) {
+/* Datasheet không nói PON khi đang bật có kéo BUSY xuống không; chỉ gửi khi đang tắt. Cộng thời gian vào `power_us`. */
+static esp_err_t power_on(ink_drv_uc8253_t *driver, uint32_t *power_us) {
     if (driver->power_on) { return ESP_OK; }
+    const int64_t start_us = esp_timer_get_time();
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PON, nullptr, 0, BUSY_SHORT_TIMEOUT_MS), TAG, "pon");
+    *power_us += (uint32_t)(esp_timer_get_time() - start_us);
     driver->power_on = true;
     return ESP_OK;
 }
@@ -294,11 +296,11 @@ static esp_err_t send_power_off(ink_drv_uc8253_t *driver) {
 
 /* Một lần DRF. Ngoài chế độ partial: cả màn, không PTIN. */
 static esp_err_t refresh(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const window_t *window,
-                         const ink_hal_display_draw_config_t *config) {
+                         const ink_hal_display_draw_config_t *config, uint32_t *power_us) {
     if (config->partial_mode) { ESP_RETURN_ON_ERROR(enter_window(driver, window, config->pt_scan), TAG, "window"); }
     const uint8_t cdi = config->drive_border ? CDI_DRIVE_BORDER : CDI_FLOAT_BORDER;
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_CDI, &cdi, 1), TAG, "cdi");
-    ESP_RETURN_ON_ERROR(power_on(driver), TAG, "pon");
+    ESP_RETURN_ON_ERROR(power_on(driver, power_us), TAG, "pon");
     const uint32_t timeout_ms = (uint32_t)profile->drf_ms * 3 / 2 + BUSY_MARGIN_MS;
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_DRF, nullptr, 0, timeout_ms), TAG, "drf");
     /* Sau mỗi DRF controller đổi vai hai vùng RAM (image-memory.md) */
@@ -381,8 +383,9 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
         ESP_RETURN_ON_ERROR(write_plane(driver, new_command, plane_new, &window), TAG, "new plane");
         ESP_RETURN_ON_ERROR(write_plane(driver, old_command, plane_old, &window), TAG, "old plane");
         out_timing->spi_us += elapsed_us(&mark_us);
-        ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, config), TAG, "refresh");
-        out_timing->panel_us += elapsed_us(&mark_us);
+        const uint32_t power_before = out_timing->power_us;
+        ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, config, &out_timing->power_us), TAG, "refresh");
+        out_timing->panel_us += elapsed_us(&mark_us) - (out_timing->power_us - power_before);
     }
     driver->needs_reset  = false;
     driver->ram_trusted  = true;
@@ -404,7 +407,7 @@ static esp_err_t power_off(void *context) {
 }
 
 /* Lệnh 0x40 kéo BUSY xuống trong lúc đo; byte đầu là TS[7:0], °C có dấu (UC8253 tr.27).
- * Chưa chạy trên BB0 khi REG = 1. */
+ * Đã đọc được trên BB0 khi REG = 1 (2026-11-04). */
 static esp_err_t read_temperature(void *context, int8_t *out_celsius) {
     ink_drv_uc8253_t *driver = context;
     ESP_RETURN_ON_FALSE(driver && out_celsius, ESP_ERR_INVALID_ARG, TAG, "arg");
