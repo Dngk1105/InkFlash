@@ -10,8 +10,8 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
 | `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
-| `display/` | Chủ duy nhất của màn: nhận khung, chọn cách vẽ, gọi driver, đo thời gian | màn | | `display_policy`, `frame_slots`, `hal`, `platform` |
-| `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, chọn partial/full, đếm bóng mờ | màn | Có | Chỉ thư viện C chuẩn |
+| `display/` | Chủ duy nhất của màn: nhận khung kèm ý định vẽ, chọn preset và profile, dọn khi nghỉ, tắt nguồn màn, gọi driver, đo thời gian | màn | | `display_policy`, `frame_slots`, `hal`, `platform` |
+| `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, giữ nợ và cờ viền của từng điểm, chọn cách vẽ, thang dọn khi nghỉ, dựng mặt phẳng cũ | màn | Có | Chỉ thư viện C chuẩn |
 | `frame_slots/` | Chủ của 3 khung đệm của `display`: mượn, giao, lấy ra vẽ, thành khung đang hiện, đếm khung bị bỏ | main, màn (bên gọi giữ lock) | Có | Chỉ thư viện C chuẩn |
 | `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
 | `input/` | Vỏ của input: ngắt nút, đóng dấu giờ, hẹn giờ theo deadline của `gesture`, đọc lại chân, lệnh `gesture` | main | | `gesture`, `hal`, `platform` |
@@ -23,7 +23,7 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
 | `platform/` | Log, config, giờ, hẹn giờ, RTC memory | nơi gọi | | ESP-IDF |
 | `hal/` | Interface phần cứng | nơi gọi | | |
-| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal` |
+| `drivers/` | Mỗi chip một component; driver màn mang danh sách profile bảng sóng do `tools/profile_gen.py` sinh | nơi gọi | | Làm theo interface `hal` |
 | `bsp/` | Bảng chân, chọn driver theo board, nạp profile tạm và đọc OTP của chip màn (chỉ firmware test gọi) | lúc khởi động | | `hal`, `drivers` |
 
 Khối không có trong cột "Được gọi" của một khối thì khối đó không được gọi tới.
@@ -39,10 +39,10 @@ Khối không có trong cột "Được gọi" của một khối thì khối đ
 ## Hai luồng chính
 
 **Lật thẻ:** ngắt nút → hàng đợi main → `input` gọi `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
-`display` chọn partial/full → driver vẽ.
+`display` chọn preset theo ý định của khung → driver vẽ. Nghỉ thì `display` dọn viền, dọn xám, rồi tắt nguồn màn.
 
 **Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
-vẽ màn nền → ngủ sâu. Bấm nút → khởi động → đọc snapshot → `display` coi màn nền là khung đang hiện → vẽ partial cả màn ra đúng màn trước, không chớp.
+vẽ màn nền (còn nợ thì dọn mạnh luôn), tắt nguồn màn → ngủ sâu. Bấm nút → khởi động → đọc snapshot → `display` coi màn nền là khung đang hiện → vẽ cả màn ra đúng màn trước bằng preset của ý định, không chớp.
 
 ## Gặp vấn đề thì đọc file nào
 
@@ -55,8 +55,8 @@ Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
 | Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
 | Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
-| Màn vẽ chậm, chớp, bóng mờ, viền xám, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
-| Thử màn khi chưa có app: gửi ảnh, chạy chuỗi ảnh, chấm điểm bảng sóng, đo tốc độ lật bằng firmware test | [design/display/bench.md](design/display/bench.md) |
+| Màn vẽ chậm, chớp, bóng mờ, viền xám, ý định vẽ của app, dọn màn khi nghỉ, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
+| Thử màn khi chưa có app: gửi ảnh, chạy chuỗi ảnh, chấm điểm bảng sóng, kiểm thang dọn, đo tốc độ lật bằng firmware test | [design/display/bench.md](design/display/bench.md) |
 | Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |

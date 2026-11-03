@@ -16,7 +16,7 @@ driver là vỏ mỏng bọc bên ngoài.
 | `gesture/` | Nút, IMU → cử chỉ | `input/`: ngắt GPIO, hẹn giờ |
 | `keymap/` | Cử chỉ → intent theo bảng gán | `system`: giữ và lưu bảng gán |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | Cổng nối storage và đồng hồ |
-| `display/` | So khung, chọn partial/full, đếm bóng mờ | Task màn, gọi driver |
+| `display/` | So khung, nợ và cờ viền của từng điểm, chọn cách vẽ, thang dọn | Task màn, gọi driver, hẹn giờ dọn |
 
 ## 2. Trạng thái thuộc khối nào thì chỉ khối đó sửa
 

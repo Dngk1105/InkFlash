@@ -31,8 +31,10 @@ RTC memory là vùng RAM nhỏ (8 KB) vẫn giữ dữ liệu khi ngủ sâu.
 ### Đi ngủ
 
 1. Mỗi khối ghi snapshot vào ô của mình.
-2. Vẽ màn nền: số thẻ cần ôn, mức pin.
-3. Chờ task màn vẽ xong.
+2. Vẽ màn nền: số thẻ cần ôn, mức pin. Khung màn nền mang cờ "trước khi ngủ": còn nợ bóng mờ thì `display` vẽ nó bằng
+   lượt dọn mạnh, rồi tắt nguồn màn. Nợ và cờ viền của từng điểm nằm trong PSRAM, mất khi ngủ, nên màn phải sạch trước
+   khi ngủ.
+3. Chờ task màn báo vẽ xong và tắt nguồn.
 4. Ngủ sâu, nút được cấu hình để đánh thức.
 
 App có thể xin giữ máy thức (ví dụ đang phát âm thanh), có giới hạn thời gian.
@@ -41,6 +43,6 @@ App có thể xin giữ máy thức (ví dụ đang phát âm thanh), có giới
 
 1. Đọc nguyên nhân thức. Thức từ ngủ sâu thì dùng kết quả dò phần cứng đã lưu, không dò lại.
 2. Đọc snapshot.
-3. Coi màn nền là ảnh đang hiện (máy đã vẽ nó trước khi ngủ, màn e-ink giữ hình khi mất nguồn), rồi vẽ màn cần hiện bằng partial refresh cả màn. Màn không chớp.
+3. Coi màn nền là ảnh đang hiện (máy đã vẽ nó trước khi ngủ, màn e-ink giữ hình khi mất nguồn), rồi vẽ màn cần hiện cả màn bằng preset của ý định, mặt phẳng cũ là màn nền. Màn không chớp. Mọi điểm bắt đầu với nợ bằng 0.
 
 Lần khởi động nguội (cấp điện lần đầu) thì dò phần cứng, không có snapshot, máy vào menu.
