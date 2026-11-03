@@ -44,7 +44,7 @@ static void clear_pixels(ink_display_policy_state_t *state) {
 ink_display_policy_error_t ink_display_policy_init(ink_display_policy_state_t *state, const ink_display_policy_config_t *config,
                                                    uint8_t *pixels) {
     if (state == nullptr || config == nullptr || pixels == nullptr || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
-    *state = (ink_display_policy_state_t){};
+    *state              = (ink_display_policy_state_t){};
     state->priv.config  = *config;
     state->priv.pixels  = pixels;
     state->priv.ceiling = config->debt_ceiling;
@@ -246,7 +246,12 @@ static void add_debt(ink_display_policy_state_t *state, const uint8_t *shown, co
 
 /* ---- Cờ viền (US 11,568,827, cột 11) ---- */
 
-static const int32_t s_cardinal[4][2] = {{0, -1}, {-1, 0}, {1, 0}, {0, 1}};
+static const int32_t s_cardinal[4][2] = {
+    {0,  -1},
+    {-1, 0 },
+    {1,  0 },
+    {0,  1 }
+};
 
 /* Điểm (x + dx, y + dy) nằm trong màn. */
 static bool neighbor(const ink_display_policy_config_t *config, uint32_t x, uint32_t y, int32_t dx, int32_t dy, uint32_t *out_x,
@@ -263,7 +268,8 @@ static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x,
     for (int32_t dy = -1; dy <= 1; dy++) {
         for (int32_t dx = -1; dx <= 1; dx++) {
             uint32_t nx, ny;
-            if ((dx != 0 || dy != 0) && neighbor(&state->priv.config, x, y, dx, dy, &nx, &ny)
+            if ((dx != 0 || dy != 0)
+                && neighbor(&state->priv.config, x, y, dx, dy, &nx, &ny)
                 && flag_of(*pixel_state(state, nx, ny)) != FLAG_NONE) {
                 return true;
             }
@@ -274,8 +280,8 @@ static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x,
 
 /* Cờ cho điểm đứng yên (x, y), hoặc FLAG_NONE. */
 static uint8_t edge_flag(const ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, uint32_t x, uint32_t y) {
-    const ink_display_policy_config_t *config = &state->priv.config;
-    const bool                         white  = is_white(config, next, x, y);
+    const ink_display_policy_config_t *config         = &state->priv.config;
+    const bool                         white          = is_white(config, next, x, y);
     bool                               all_next_white = true, any_shown_not_white = false, any_turned_black = false;
     for (size_t i = 0; i < 4; i++) {
         uint32_t nx, ny;
@@ -296,8 +302,8 @@ static void mark_edges(ink_display_policy_state_t *state, const uint8_t *shown, 
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint32_t                     top    = bounds.top > 0 ? bounds.top - 1 : 0;
     const uint32_t                     left   = bounds.left > 0 ? bounds.left - 1 : 0;
-    const uint32_t bottom = bounds.bottom + 1 < config->height ? bounds.bottom + 1 : config->height - 1U;
-    const uint32_t right  = bounds.right + 1 < config->width ? bounds.right + 1 : config->width - 1U;
+    const uint32_t                     bottom = bounds.bottom + 1 < config->height ? bounds.bottom + 1 : config->height - 1U;
+    const uint32_t                     right  = bounds.right + 1 < config->width ? bounds.right + 1 : config->width - 1U;
     for (uint32_t y = top; y <= bottom; y++) {
         for (uint32_t x = left; x <= right; x++) {
             uint8_t   *pixel = pixel_state(state, x, y);
@@ -344,7 +350,8 @@ static ink_display_policy_intent_t resolve_intent(const ink_display_policy_confi
 }
 
 /* Dọn cả màn, mặt phẳng cũ đảo bit; mọi nợ và cờ về 0. */
-static void decide_clean(ink_display_policy_state_t *state, ink_display_policy_action_t action, ink_display_policy_decision_t *out_decision) {
+static void decide_clean(ink_display_policy_state_t *state, ink_display_policy_action_t action,
+                         ink_display_policy_decision_t *out_decision) {
     clear_pixels(state);
     state->priv.shown_valid = true;
     state->priv.after_wake  = false;
@@ -364,7 +371,9 @@ static bool has_dirt(const ink_display_policy_state_t *state) {
 ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next,
                                                      ink_display_policy_request_t request, uint32_t now_ms,
                                                      ink_display_policy_decision_t *out_decision) {
-    if (state == nullptr || next == nullptr || out_decision == nullptr || !request_valid(request)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    if (state == nullptr || next == nullptr || out_decision == nullptr || !request_valid(request)) {
+        return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+    }
     if (state->priv.shown_valid && shown == nullptr) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
     const ink_display_policy_config_t *config = &state->priv.config;
 
@@ -434,7 +443,8 @@ static size_t pending_stages(const ink_display_policy_state_t *state, stage_t ou
     return count;
 }
 
-ink_display_policy_error_t ink_display_policy_idle(const ink_display_policy_state_t *state, uint32_t now_ms, ink_display_policy_idle_t *out_idle) {
+ink_display_policy_error_t ink_display_policy_idle(const ink_display_policy_state_t *state, uint32_t now_ms,
+                                                   ink_display_policy_idle_t *out_idle) {
     if (state == nullptr || out_idle == nullptr) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
     *out_idle = (ink_display_policy_idle_t){.action = INK_DISPLAY_POLICY_ACTION_NONE, .wait_ms = INK_DISPLAY_POLICY_NO_WAIT};
     if (!state->priv.shown_valid || state->priv.after_wake || !state->priv.has_frame || state->priv.defer) { return INK_DISPLAY_POLICY_OK; }

@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <!-- Thiết kế: docs/design/display/display.md -->
 <!--
-  Xem bảng sóng trong OTP của UC8253 (module WeAct 3.7", board BB0). Phần "Lõi" chép từng hàm của ink_waveform.c
-  sang JS, cùng tên; sửa ink_waveform.c thì sửa phần này trong cùng commit. Tab "Host test" chạy lại
-  test_ink_waveform.c trên bản JS. Dữ liệu OTP là bản đọc bằng lệnh 0xA2 trên BB0, 2026-10-30 (waveform.md).
+  Xem bảng sóng trong OTP của UC8253 (module WeAct 3.7", board BB0) và các profile chép từ nó. Phần "Lõi" đếm khung
+  và điện tích giống table_phases, table_frames, table_charge của tools/profile_gen.py (khối C ink_waveform cũ đã bỏ,
+  tên hàm JS giữ như cũ); sửa cách đếm trong script thì sửa phần này trong cùng commit. Tab "Host test" chạy các ca
+  của test_ink_waveform.c cũ trên bản JS. Dữ liệu OTP là bản đọc bằng lệnh 0xA2 trên BB0, 2026-10-30 (waveform.md),
+  cùng dữ liệu với otp_bb0.hex cạnh file này.
 -->
 <html lang="vi" data-preset="editorial" data-theme="light">
 <head>
@@ -358,7 +360,7 @@
 
     <section class="page" id="pageTests">
         <div class="card">
-            <h2>test_ink_waveform.c</h2>
+            <h2>Ca kiểm của bản JS</h2>
             <div class="summary" id="testSummary"></div>
             <div id="testList"></div>
             <div class="control-row"><button class="small primary" id="runTestsButton">Chạy lại</button></div>
@@ -431,11 +433,8 @@ const VCOM_LEVEL_NAMES = ["DC", "VSH+DC", "VSL−DC", "nổi"];
 /* DRF đo trên BB0 (refresh.md, waveform.md), theo dải. */
 const MEASURED_DRF_MS = {4: 2538, 5: 2598, 6: 2055, 7: 1492, 8: 344};
 
-/* Profile OTP trong s_presets (ink_drv_uc8253.c). otp_std_full đọc cảm biến nên dải tuỳ nhiệt độ phòng. */
-const DRIVER_PROFILES = [
-    {name: "otp90_full", temperature: 90, slot: "full, mặc định"},
-    {name: "otp110", temperature: 110, slot: "partial, mặc định; khuôn của mọi LUT thanh ghi"},
-];
+/* Profile chép nguyên một dải trong profiles.json của driver (id 1–9 là tr0–tr8). */
+const DRIVER_PROFILES = Array.from({length: 9}, (_, index) => ({name: `tr${index}`, band: index}));
 
 /* Bản đọc OTP bằng lệnh 0xA2 (ROTP), BB0, 2026-10-30, hai lần đọc khớp nhau. Bank 0 tới hết TR8; phần sau toàn FF.
  * Đã bỏ byte giả đầu tiên của ROTP: byte 0 ở đây là địa chỉ 0x000 (khoá A5). */
@@ -576,7 +575,7 @@ const OTP_HEX = [
         "FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
 ].join(" ");
 
-/* ---- Lõi chép từ ink_waveform.c ---- */
+/* ---- Lõi: cách đếm của tools/profile_gen.py ---- */
 
 function phase(level, frames)
 {
@@ -958,7 +957,7 @@ function band_title(band)
 
 function profiles_of_band(index)
 {
-    return DRIVER_PROFILES.filter((profile) => band_for_temperature(live.otp.thresholds, profile.temperature) === index);
+    return DRIVER_PROFILES.filter((profile) => profile.band === index);
 }
 
 function render_band_info(band)

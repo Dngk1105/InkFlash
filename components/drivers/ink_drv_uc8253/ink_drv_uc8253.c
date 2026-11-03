@@ -384,8 +384,8 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
         ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, config), TAG, "refresh");
         out_timing->panel_us += elapsed_us(&mark_us);
     }
-    driver->needs_reset = false;
-    driver->ram_trusted = true;
+    driver->needs_reset  = false;
+    driver->ram_trusted  = true;
     out_timing->after_us = elapsed_us(&mark_us);
     return ESP_OK;
 }
@@ -508,7 +508,8 @@ static esp_err_t configure_pins(const ink_drv_uc8253_config_t *config) {
 /* Danh sách profile cố định, rồi profile tạm (id 0, "tmp") tới khi bench nạp. */
 static void fill_profile_info(ink_drv_uc8253_t *driver) {
     for (size_t i = 0; i < INK_DRV_UC8253_PROFILE_COUNT; i++) { driver->profile_info[i] = profile_info(&ink_drv_uc8253_profiles[i]); }
-    driver->profile_info[TEMPORARY_PROFILE] = (ink_hal_display_profile_info_t){.id = 0, .name = "tmp", .source = INK_HAL_DISPLAY_SOURCE_HAND};
+    driver->profile_info[TEMPORARY_PROFILE] =
+        (ink_hal_display_profile_info_t){.id = 0, .name = "tmp", .source = INK_HAL_DISPLAY_SOURCE_HAND};
 }
 
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {

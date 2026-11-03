@@ -7,17 +7,28 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "ink_display_policy.h"
 #include "ink_frame_slots.h"
 #include <string.h>
 
 static const char *TAG = "ink_display";
 
-#define DEFAULT_PARTIALS_BEFORE_FULL 10
-#define DEFAULT_EDGE_MARGIN          0
-#define MAX_PARTIAL_PERCENT          100
-#define TASK_STACK_BYTES             4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
-#define TASK_PRIORITY                5
+/* Mặc định của cài đặt (display.md, "Cài đặt và báo cáo"); chưa đo, chỉnh bằng bench. */
+#define DEFAULT_WEIGHT_TEXT      1
+#define DEFAULT_WEIGHT_UI        2
+#define DEFAULT_WEIGHT_PAGE      1
+#define DEFAULT_AUTO_UI_PERCENT  10
+#define DEFAULT_DEBT_SOFT        2
+#define DEFAULT_DEBT_PAGE        6
+#define DEFAULT_DEBT_CEILING     8
+#define DEFAULT_DEBT_CEILING_MAX 15
+#define DEFAULT_EDGE_MS          2000
+#define DEFAULT_LIGHT_MS         10000
+#define DEFAULT_STRONG_MS        60000
+#define DEFAULT_POWER_OFF_MS     2000
+
+#define DEFAULT_CELSIUS  25   /* chưa đọc được cảm biến lần nào */
+#define TASK_STACK_BYTES 4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
+#define TASK_PRIORITY    5
 
 /* Thông báo cho task màn (bit của task notification). */
 #define NOTIFY_FRAME   (1U << 0)
@@ -26,10 +37,12 @@ static const char *TAG = "ink_display";
 /* ---- Trạng thái ---- */
 
 typedef struct {
-    uint8_t *buffer;
-    uint32_t press_ms;
-    int64_t  acquire_us;
-    int64_t  submit_us;
+    uint8_t             *buffer;
+    uint32_t             press_ms;
+    ink_display_intent_t intent;
+    uint8_t              flags;
+    int64_t              acquire_us;
+    int64_t              submit_us;
 } frame_t;
 
 static ink_hal_display_device_t     s_device;
@@ -47,7 +60,11 @@ static ink_display_options_t   s_requested_options;
 /* Chỉ task màn đụng. */
 static ink_display_policy_state_t s_policy;
 static ink_display_options_t      s_options;   /* cài đặt đang dùng */
-static uint8_t                   *s_old_plane; /* mặt phẳng cũ dựng riêng (đẩy lại viền, khung đầu) */
+static uint8_t                   *s_old_plane; /* mặt phẳng cũ dựng riêng (dọn) */
+static uint8_t                   *s_pixels;    /* trạng thái từng điểm của policy, PSRAM */
+static int8_t                     s_celsius = DEFAULT_CELSIUS;
+static bool                       s_power_on;      /* đã vẽ từ lần tắt nguồn gần nhất */
+static uint32_t                   s_last_drive_ms; /* DRF gần nhất */
 
 static void lock(void) {
     taskENTER_CRITICAL(&s_lock);
@@ -57,24 +74,78 @@ static void unlock(void) {
     taskEXIT_CRITICAL(&s_lock);
 }
 
+static uint32_t now_ms(void) {
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
+
 /* ---- Cài đặt ---- */
+
+static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight) {
+    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight};
+    preset.band_count = purpose_default->band_count < INK_HAL_DISPLAY_MAX_BANDS ? purpose_default->band_count : INK_HAL_DISPLAY_MAX_BANDS;
+    memcpy(preset.bands, purpose_default->bands, preset.band_count * sizeof(preset.bands[0]));
+    return preset;
+}
 
 ink_display_options_t ink_display_default_options(const ink_hal_display_capabilities_t *capabilities) {
     ink_display_options_t options = {
-        .partials_before_full = DEFAULT_PARTIALS_BEFORE_FULL,
-        .edge_margin          = DEFAULT_EDGE_MARGIN,
+        .auto_ui_percent  = DEFAULT_AUTO_UI_PERCENT,
+        .debt_soft        = DEFAULT_DEBT_SOFT,
+        .debt_page        = DEFAULT_DEBT_PAGE,
+        .debt_ceiling     = DEFAULT_DEBT_CEILING,
+        .debt_ceiling_max = DEFAULT_DEBT_CEILING_MAX,
+        .edge_ms          = DEFAULT_EDGE_MS,
+        .light_ms         = DEFAULT_LIGHT_MS,
+        .strong_ms        = DEFAULT_STRONG_MS,
+        .power_off_ms     = DEFAULT_POWER_OFF_MS,
     };
-    if (capabilities != nullptr) {
-        options.full_profile    = capabilities->default_profiles[INK_HAL_DISPLAY_SLOT_FULL];
-        options.partial_profile = capabilities->default_profiles[INK_HAL_DISPLAY_SLOT_PARTIAL];
+    if (capabilities == nullptr || capabilities->purpose_defaults == nullptr) { return options; }
+    static const uint8_t weights[INK_HAL_DISPLAY_PURPOSE_COUNT] = {
+        [INK_HAL_DISPLAY_PURPOSE_TEXT] = DEFAULT_WEIGHT_TEXT,
+        [INK_HAL_DISPLAY_PURPOSE_UI]   = DEFAULT_WEIGHT_UI,
+        [INK_HAL_DISPLAY_PURPOSE_PAGE] = DEFAULT_WEIGHT_PAGE,
+    };
+    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
+        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], weights[purpose]);
     }
     return options;
 }
 
+static ink_display_policy_config_t policy_config(const ink_hal_display_capabilities_t *capabilities, const ink_display_options_t *options) {
+    return (ink_display_policy_config_t){
+        .width   = capabilities->width,
+        .height  = capabilities->height,
+        .x_align = capabilities->x_align,
+        .weights =
+            {
+                      [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].debt_weight,
+                      [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].debt_weight,
+                      [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].debt_weight,
+                      },
+        .auto_ui_percent  = options->auto_ui_percent,
+        .debt_soft        = options->debt_soft,
+        .debt_page        = options->debt_page,
+        .debt_ceiling     = options->debt_ceiling,
+        .debt_ceiling_max = options->debt_ceiling_max,
+        .edge_ms          = options->edge_ms,
+        .light_ms         = options->light_ms,
+        .strong_ms        = options->strong_ms,
+    };
+}
+
+/* Thử config của policy trên một state tạm: cùng luật kiểm với lúc áp dụng. */
 static bool options_valid(const ink_display_options_t *options, const ink_hal_display_capabilities_t *capabilities) {
-    const bool profiles_valid =
-        options->full_profile < capabilities->profile_count && options->partial_profile < capabilities->profile_count;
-    return profiles_valid && options->partials_before_full > 0 && options->edge_margin <= INK_DISPLAY_POLICY_MAX_EDGE_MARGIN;
+    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
+        const uint8_t count = options->presets[purpose].band_count;
+        if (count == 0 || count > INK_HAL_DISPLAY_MAX_BANDS) { return false; }
+    }
+    static uint8_t                    probe_pixel;
+    ink_display_policy_state_t        probe;
+    const ink_display_policy_config_t config = policy_config(capabilities, options);
+    ink_display_policy_config_t       one    = config;
+    one.width                                = 1;
+    one.height                               = 1;
+    return config.width > 0 && config.height > 0 && ink_display_policy_init(&probe, &one, &probe_pixel) == INK_DISPLAY_POLICY_OK;
 }
 
 esp_err_t ink_display_set_options(const ink_display_options_t *options) {
@@ -108,8 +179,9 @@ uint8_t *ink_display_acquire(void) {
     return frame->buffer;
 }
 
-esp_err_t ink_display_submit(uint8_t *buffer, uint32_t press_ms) {
+esp_err_t ink_display_submit(uint8_t *buffer, uint32_t press_ms, ink_display_intent_t intent, uint8_t flags) {
     if (s_task == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (intent >= INK_DISPLAY_POLICY_INTENT_COUNT) { return ESP_ERR_INVALID_ARG; }
     lock();
     const int8_t borrowed = ink_frame_slots_borrowed(&s_slots);
     unlock();
@@ -118,6 +190,8 @@ esp_err_t ink_display_submit(uint8_t *buffer, uint32_t press_ms) {
     if (buffer != frame->buffer) { return ESP_ERR_INVALID_ARG; }
 
     frame->press_ms  = press_ms;
+    frame->intent    = intent;
+    frame->flags     = flags;
     frame->submit_us = esp_timer_get_time();
     lock();
     const ink_frame_slots_error_t error = ink_frame_slots_submit(&s_slots);
@@ -127,65 +201,59 @@ esp_err_t ink_display_submit(uint8_t *buffer, uint32_t press_ms) {
     return ESP_OK;
 }
 
-/* ---- Profile theo nhiệt độ (task màn) ---- */
-/* Bảng dải nhiệt độ (display.md). Hiện có một dải 0–40 °C, profile lấy từ cài đặt. */
+/* ---- Profile theo preset và nhiệt độ (task màn) ---- */
 
-typedef struct {
-    int8_t min_celsius;
-    int8_t max_celsius;
-    size_t profiles[INK_HAL_DISPLAY_SLOT_COUNT];
-} temperature_band_t;
-
-#define BAND_COUNT 1
-
-static temperature_band_t s_bands[BAND_COUNT] = {
-    {.min_celsius = 0, .max_celsius = 40}
-};
-static size_t s_selected[INK_HAL_DISPLAY_SLOT_COUNT]; /* profile đang gán trong driver */
-
-static const temperature_band_t *band_for(int8_t celsius) {
-    for (size_t i = 0; i < BAND_COUNT; i++) {
-        if (celsius >= s_bands[i].min_celsius && celsius <= s_bands[i].max_celsius) { return &s_bands[i]; }
+static bool band_profile(const ink_hal_display_band_t *bands, uint8_t count, int8_t celsius, uint16_t *out_id) {
+    if (count == 0) { return false; }
+    for (uint8_t i = 0; i < count; i++) {
+        if (celsius <= bands[i].max_celsius) {
+            *out_id = bands[i].profile_id;
+            return true;
+        }
     }
-    /* ngoài mọi dải: dùng dải gần nhất */
-    return celsius < s_bands[0].min_celsius ? &s_bands[0] : &s_bands[BAND_COUNT - 1];
+    *out_id = bands[count - 1].profile_id; /* nóng hơn dải cuối: dùng dải cuối */
+    return true;
 }
 
-static void select_profile(ink_hal_display_slot_t slot, size_t profile) {
-    if (s_selected[slot] == profile) { return; }
-    const esp_err_t error = s_device.operations->select_profile(s_device.context, slot, profile);
-    if (error != ESP_OK) {
-        ESP_LOGE(TAG, "select_profile: %s", esp_err_to_name(error));
-        return;
+static bool index_of(uint16_t id, size_t *out_index) {
+    const ink_hal_display_capabilities_t *capabilities = &s_device.capabilities;
+    for (size_t i = 0; i < capabilities->profile_count; i++) {
+        if (capabilities->profiles[i].id == id) {
+            *out_index = i;
+            return true;
+        }
     }
-    s_selected[slot] = profile;
+    return false;
 }
 
-/* Đọc nhiệt độ trước mỗi lần full, chọn profile của dải đó cho mọi slot. */
-static void select_profiles_for_temperature(ink_display_report_t *report) {
+/* Index profile của mục đích ở nhiệt độ hiện tại; id không còn trong danh sách thì dùng mặc định của driver. */
+static size_t profile_for(ink_hal_display_purpose_t purpose, uint16_t *out_id) {
+    const ink_display_preset_t *preset = &s_options.presets[purpose];
+    size_t                      index  = 0;
+    if (band_profile(preset->bands, preset->band_count, s_celsius, out_id) && index_of(*out_id, &index)) { return index; }
+    const ink_hal_display_purpose_default_t *fallback = &s_device.capabilities.purpose_defaults[purpose];
+    if (band_profile(fallback->bands, fallback->band_count, s_celsius, out_id) && index_of(*out_id, &index)) { return index; }
+    *out_id = s_device.capabilities.profiles[0].id;
+    return 0;
+}
+
+static void read_temperature(ink_display_report_t *report) {
     const esp_err_t error     = s_device.operations->read_temperature(s_device.context, &report->temperature_celsius);
     report->temperature_valid = error == ESP_OK;
     if (error != ESP_OK) {
         ESP_LOGW(TAG, "read_temperature: %s", esp_err_to_name(error));
         return;
     }
-    const temperature_band_t *band = band_for(report->temperature_celsius);
-    for (int slot = 0; slot < INK_HAL_DISPLAY_SLOT_COUNT; slot++) { select_profile((ink_hal_display_slot_t)slot, band->profiles[slot]); }
+    s_celsius = report->temperature_celsius;
 }
 
 /* ---- Áp dụng cài đặt (task màn) ---- */
 
 static void apply_options(const ink_display_options_t *options) {
-    s_options = *options;
-    for (size_t i = 0; i < BAND_COUNT; i++) {
-        s_bands[i].profiles[INK_HAL_DISPLAY_SLOT_FULL]    = options->full_profile;
-        s_bands[i].profiles[INK_HAL_DISPLAY_SLOT_PARTIAL] = options->partial_profile;
-    }
-    select_profile(INK_HAL_DISPLAY_SLOT_FULL, options->full_profile);
-    select_profile(INK_HAL_DISPLAY_SLOT_PARTIAL, options->partial_profile);
-    /* options đã kiểm ở ink_display_set_options(): hai hàm dưới không lỗi */
-    (void)ink_display_policy_set_partials_before_full(&s_policy, options->partials_before_full);
-    (void)ink_display_policy_set_edge_margin(&s_policy, options->edge_margin);
+    s_options                                = *options;
+    const ink_display_policy_config_t config = policy_config(&s_device.capabilities, options);
+    /* options đã kiểm ở ink_display_set_options() */
+    if (ink_display_policy_set_config(&s_policy, &config) != INK_DISPLAY_POLICY_OK) { ESP_LOGE(TAG, "policy config"); }
 }
 
 static void apply_requested_options(void) {
@@ -195,7 +263,7 @@ static void apply_requested_options(void) {
     apply_options(&options);
 }
 
-/* ---- Một lần vẽ (task màn) ---- */
+/* ---- Khung (task màn) ---- */
 
 /* Ảnh đang hiện trên màn, hoặc nullptr khi chưa biết. */
 static const uint8_t *shown_buffer(void) {
@@ -220,60 +288,89 @@ static void finish_frame(int8_t frame, bool show) {
     if (error != INK_FRAME_SLOTS_OK) { ESP_LOGE(TAG, "frame_slots %s: %d", show ? "show" : "release", error); }
 }
 
-/* Mặt phẳng cũ cho lần vẽ: khung đang hiện, hoặc bản dựng riêng. */
-static const uint8_t *prepare_old_plane(const uint8_t *shown, const uint8_t *next, const ink_display_policy_decision_t *decision) {
-    if (shown == nullptr) {
-        /* Chưa biết màn đang hiện gì: coi mọi điểm là đổi màu để panel kéo hết. */
-        for (size_t i = 0; i < s_frame_bytes; i++) { s_old_plane[i] = (uint8_t)~next[i]; }
-        return s_old_plane;
-    }
-
-    const bool push_edges = decision->mode == INK_DISPLAY_POLICY_MODE_PARTIAL && s_options.edge_margin > 0;
-    if (push_edges && ink_display_policy_edge_plane(&s_policy, shown, next, decision->window, s_old_plane) == INK_DISPLAY_POLICY_OK) {
-        return s_old_plane;
-    }
-    return shown;
+static void invert_into(const uint8_t *source, uint8_t *destination) {
+    for (size_t i = 0; i < s_frame_bytes; i++) { destination[i] = (uint8_t)~source[i]; }
 }
 
-static ink_display_mode_t report_mode(ink_display_policy_mode_t mode) {
-    switch (mode) {
-        case INK_DISPLAY_POLICY_MODE_PARTIAL:
-            return INK_DISPLAY_MODE_PARTIAL;
-        case INK_DISPLAY_POLICY_MODE_FULL:
-            return INK_DISPLAY_MODE_FULL;
-        case INK_DISPLAY_POLICY_MODE_NONE:
+static ink_hal_display_rect_t hal_rect(ink_display_policy_rect_t rect) {
+    return (ink_hal_display_rect_t){.x = rect.x, .y = rect.y, .width = rect.width, .height = rect.height};
+}
+
+static ink_hal_display_purpose_t purpose_of(ink_display_policy_action_t action, ink_display_policy_intent_t intent) {
+    switch (action) {
+        case INK_DISPLAY_POLICY_ACTION_DRAW:
+            if (intent == INK_DISPLAY_POLICY_INTENT_UI) { return INK_HAL_DISPLAY_PURPOSE_UI; }
+            return intent == INK_DISPLAY_POLICY_INTENT_PAGE ? INK_HAL_DISPLAY_PURPOSE_PAGE : INK_HAL_DISPLAY_PURPOSE_TEXT;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG:
+            return INK_HAL_DISPLAY_PURPOSE_CLEAN_STRONG;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_FAST:
+            return INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
+            return INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_CENTER;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
+            return INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_NEIGHBOR;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
+            return INK_HAL_DISPLAY_PURPOSE_CLEAN_LIGHT;
+        case INK_DISPLAY_POLICY_ACTION_NONE:
             break;
     }
-    return INK_DISPLAY_MODE_NONE;
+    return INK_HAL_DISPLAY_PURPOSE_COUNT;
 }
 
-static void notify_drawn(const ink_display_report_t *report) {
+static void fill_policy_stats(ink_display_report_t *report) {
+    report->max_debt      = ink_display_policy_max_debt(&s_policy);
+    report->ceiling       = ink_display_policy_ceiling(&s_policy);
+    report->flagged_count = ink_display_policy_flagged_count(&s_policy);
+}
+
+static void notify_drawn(ink_display_report_t *report) {
+    fill_policy_stats(report);
     if (s_on_drawn != nullptr) { s_on_drawn(report, s_user_data); }
+}
+
+/* Đọc nhiệt độ nếu cần, chọn profile theo preset của mục đích, gọi driver. */
+static esp_err_t drive(ink_hal_display_purpose_t purpose, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
+                       ink_display_report_t *report) {
+    const bool whole_clean = purpose == INK_HAL_DISPLAY_PURPOSE_CLEAN_STRONG || purpose == INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST;
+    if (whole_clean) { read_temperature(report); }
+    report->purpose       = purpose;
+    report->window        = window;
+    const size_t index    = profile_for(purpose, &report->profile_id);
+    report->diff_us       = esp_timer_get_time();
+    const esp_err_t error = s_device.operations->draw(s_device.context, plane_new, plane_old, window, index,
+                                                      &s_options.presets[purpose].config, &report->driver);
+    s_power_on            = true;
+    s_last_drive_ms       = now_ms();
+    return error;
+}
+
+static void power_off(ink_display_report_t *report) {
+    report->action  = INK_DISPLAY_ACTION_POWER_OFF;
+    report->purpose = INK_HAL_DISPLAY_PURPOSE_COUNT;
+    report->error   = s_device.operations->power_off(s_device.context);
+    s_power_on      = false;
+    if (report->error != ESP_OK) { ESP_LOGE(TAG, "power_off: %s", esp_err_to_name(report->error)); }
 }
 
 /* Policy chọn cách vẽ, rồi driver vẽ; report ghi lại kết quả. Trả false nếu policy lỗi (khung không vẽ). */
 static bool draw_frame(const frame_t *frame, ink_display_report_t *report) {
-    const uint8_t                *shown = shown_buffer();
-    ink_display_policy_decision_t decision;
-    if (ink_display_policy_decide(&s_policy, shown, frame->buffer, &decision) != INK_DISPLAY_POLICY_OK) {
+    const uint8_t                     *shown   = shown_buffer();
+    const ink_display_policy_request_t request = {.intent = frame->intent, .flags = frame->flags};
+    ink_display_policy_decision_t      decision;
+    if (ink_display_policy_decide(&s_policy, shown, frame->buffer, request, now_ms(), &decision) != INK_DISPLAY_POLICY_OK) {
         report->error = ESP_ERR_INVALID_STATE;
         return false;
     }
-    report->mode   = report_mode(decision.mode);
-    report->window = (ink_hal_display_rect_t){
-        .x      = decision.window.x,
-        .y      = decision.window.y,
-        .width  = decision.window.width,
-        .height = decision.window.height,
-    };
-    if (report->mode == INK_DISPLAY_MODE_NONE) { return true; }
+    report->action  = (ink_display_action_t)decision.action;
+    report->purpose = INK_HAL_DISPLAY_PURPOSE_COUNT;
+    if (decision.action == INK_DISPLAY_POLICY_ACTION_NONE) { return true; }
 
-    const ink_hal_display_slot_t slot = report->mode == INK_DISPLAY_MODE_FULL ? INK_HAL_DISPLAY_SLOT_FULL : INK_HAL_DISPLAY_SLOT_PARTIAL;
-    if (slot == INK_HAL_DISPLAY_SLOT_FULL) { select_profiles_for_temperature(report); }
-    report->profile          = s_selected[slot];
-    const uint8_t *plane_old = prepare_old_plane(shown, frame->buffer, &decision);
-    report->diff_us          = esp_timer_get_time();
-    report->error            = s_device.operations->draw(s_device.context, frame->buffer, plane_old, report->window, slot, &report->driver);
+    const uint8_t *plane_old = shown;
+    if (decision.old_plane == INK_DISPLAY_POLICY_OLD_INVERTED || shown == nullptr) {
+        invert_into(frame->buffer, s_old_plane);
+        plane_old = s_old_plane;
+    }
+    report->error = drive(purpose_of(decision.action, decision.intent), frame->buffer, plane_old, hal_rect(decision.window), report);
     return true;
 }
 
@@ -282,6 +379,7 @@ static void draw_latest(void) {
     if (index == INK_FRAME_SLOTS_NONE) { return; }
     const frame_t       *frame  = &s_frames[index];
     ink_display_report_t report = {
+        .frame      = true,
         .press_ms   = frame->press_ms,
         .acquire_us = frame->acquire_us,
         .submit_us  = frame->submit_us,
@@ -292,7 +390,7 @@ static void draw_latest(void) {
         ESP_LOGE(TAG, "policy decide");
         finish_frame(index, false);
     } else {
-        /* Vẽ xong hay lỗi, khung mới đều là khung đang hiện; lỗi thì lần sau full. */
+        /* Vẽ xong hay lỗi, khung mới đều là khung đang hiện; lỗi thì lần sau dọn mạnh. */
         finish_frame(index, true);
         if (report.error != ESP_OK) {
             ESP_LOGE(TAG, "draw: %s", esp_err_to_name(report.error));
@@ -300,15 +398,76 @@ static void draw_latest(void) {
         }
     }
     notify_drawn(&report);
+    if ((frame->flags & INK_DISPLAY_FLAG_BEFORE_SLEEP) != 0) {
+        ink_display_report_t off = {.take_us = esp_timer_get_time()};
+        power_off(&off);
+        notify_drawn(&off);
+    }
 }
 
+/* ---- Thang dọn và tắt nguồn khi nghỉ (task màn) ---- */
+
+/* Một lượt dọn: mặt phẳng mới là khung đang hiện, mặt phẳng cũ đảo bit ở các điểm được dọn. */
+static void run_cleanup(ink_display_policy_action_t action) {
+    const uint8_t *shown = shown_buffer();
+    if (shown == nullptr) { return; }
+    ink_display_report_t      report = {.action = (ink_display_action_t)action, .take_us = esp_timer_get_time()};
+    ink_display_policy_rect_t window;
+    if (ink_display_policy_cleanup_plane(&s_policy, shown, action, s_old_plane, &window) != INK_DISPLAY_POLICY_OK) {
+        ESP_LOGE(TAG, "cleanup plane");
+        return;
+    }
+    if (window.width > 0 && window.height > 0) {
+        report.error = drive(purpose_of(action, INK_DISPLAY_POLICY_INTENT_AUTO), shown, s_old_plane, hal_rect(window), &report);
+    }
+    if (report.error != ESP_OK) {
+        ESP_LOGE(TAG, "cleanup: %s", esp_err_to_name(report.error));
+        ink_display_policy_invalidate(&s_policy);
+    } else if (ink_display_policy_cleanup_done(&s_policy, action) != INK_DISPLAY_POLICY_OK) {
+        ESP_LOGE(TAG, "cleanup done");
+    }
+    if (window.width > 0) { notify_drawn(&report); }
+}
+
+static uint32_t power_off_wait_ms(uint32_t now) {
+    if (!s_power_on || s_options.power_off_ms == 0) { return INK_DISPLAY_POLICY_NO_WAIT; }
+    const uint32_t idle_ms = now - s_last_drive_ms;
+    return idle_ms >= s_options.power_off_ms ? 0 : s_options.power_off_ms - idle_ms;
+}
+
+/* Làm một bậc đã tới hạn (dọn hoặc tắt nguồn); trả số ms tới bậc sau. */
+static uint32_t run_idle(void) {
+    const uint32_t            now = now_ms();
+    ink_display_policy_idle_t idle;
+    if (ink_display_policy_idle(&s_policy, now, &idle) != INK_DISPLAY_POLICY_OK) { return INK_DISPLAY_POLICY_NO_WAIT; }
+    if (idle.action != INK_DISPLAY_POLICY_ACTION_NONE) {
+        run_cleanup(idle.action);
+        return 0;
+    }
+    const uint32_t power_wait = power_off_wait_ms(now);
+    if (power_wait == 0) {
+        ink_display_report_t report = {.take_us = esp_timer_get_time()};
+        power_off(&report);
+        notify_drawn(&report);
+        return idle.wait_ms;
+    }
+    return idle.wait_ms < power_wait ? idle.wait_ms : power_wait;
+}
+
+static TickType_t ticks_for(uint32_t wait_ms) {
+    return wait_ms == INK_DISPLAY_POLICY_NO_WAIT ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms) + 1;
+}
+
+/* Khung mới luôn được ưu tiên: mỗi vòng chỉ làm tối đa một lượt dọn, rồi xem lại thông báo. */
 static void task_main(void *user_data) {
     (void)user_data;
+    uint32_t wait_ms = INK_DISPLAY_POLICY_NO_WAIT;
     for (;;) {
-        uint32_t bits = 0;
-        xTaskNotifyWait(0, UINT32_MAX, &bits, portMAX_DELAY);
+        uint32_t   bits     = 0;
+        const bool notified = xTaskNotifyWait(0, UINT32_MAX, &bits, ticks_for(wait_ms)) == pdTRUE;
         if (bits & NOTIFY_OPTIONS) { apply_requested_options(); }
         if (bits & NOTIFY_FRAME) { draw_latest(); }
+        wait_ms = notified && (bits & NOTIFY_FRAME) ? 0 : run_idle();
     }
 }
 
@@ -317,33 +476,15 @@ static void task_main(void *user_data) {
 static esp_err_t check_config(const ink_display_config_t *config) {
     ESP_RETURN_ON_FALSE(config != nullptr && config->device != nullptr && config->device->operations != nullptr, ESP_ERR_INVALID_ARG, TAG,
                         "null device");
-    const ink_hal_display_operations_t *operations = config->device->operations;
-    ESP_RETURN_ON_FALSE(operations->draw && operations->select_profile && operations->read_temperature, ESP_ERR_INVALID_ARG, TAG,
+    const ink_hal_display_operations_t   *operations   = config->device->operations;
+    const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
+    ESP_RETURN_ON_FALSE(operations->draw && operations->power_off && operations->read_temperature, ESP_ERR_INVALID_ARG, TAG,
                         "null operation");
-    ESP_RETURN_ON_FALSE(config->device->capabilities.profile_count > 0, ESP_ERR_INVALID_ARG, TAG, "no profile");
-    const bool options_ok = config->options == nullptr || options_valid(config->options, &config->device->capabilities);
+    ESP_RETURN_ON_FALSE(capabilities->profile_count > 0 && capabilities->profiles && capabilities->purpose_defaults, ESP_ERR_INVALID_ARG,
+                        TAG, "no profile");
+    const bool options_ok = config->options == nullptr || options_valid(config->options, capabilities);
     ESP_RETURN_ON_FALSE(options_ok, ESP_ERR_INVALID_ARG, TAG, "options");
     return ESP_OK;
-}
-
-static esp_err_t init_policy(const ink_hal_display_capabilities_t *capabilities, const ink_display_options_t *options) {
-    const ink_display_policy_config_t config = {
-        .width                = capabilities->width,
-        .height               = capabilities->height,
-        .x_align              = capabilities->x_align,
-        .partials_before_full = options->partials_before_full,
-        .max_partial_percent  = MAX_PARTIAL_PERCENT,
-        .edge_margin          = options->edge_margin,
-    };
-    const bool valid = ink_display_policy_init(&s_policy, &config) == INK_DISPLAY_POLICY_OK;
-    ESP_RETURN_ON_FALSE(valid, ESP_ERR_INVALID_ARG, TAG, "capabilities");
-    return ESP_OK;
-}
-
-/* Profile driver đang dùng là mặc định của nó; cài đặt khác thì gán lại. */
-static void init_profiles(const ink_hal_display_capabilities_t *capabilities, const ink_display_options_t *options) {
-    for (int slot = 0; slot < INK_HAL_DISPLAY_SLOT_COUNT; slot++) { s_selected[slot] = capabilities->default_profiles[slot]; }
-    apply_options(options);
 }
 
 static void free_buffers(void) {
@@ -352,17 +493,24 @@ static void free_buffers(void) {
         s_frames[i].buffer = nullptr;
     }
     heap_caps_free(s_old_plane);
+    heap_caps_free(s_pixels);
     s_old_plane = nullptr;
+    s_pixels    = nullptr;
 }
 
-/* 3 khung và mặt phẳng cũ trong RAM nội: driver gửi chúng qua SPI DMA. */
-static esp_err_t allocate_buffers(void) {
+/* 3 khung và mặt phẳng cũ trong RAM nội (driver gửi qua SPI DMA); trạng thái từng điểm trong PSRAM (chỉ CPU đọc). */
+static esp_err_t allocate_buffers(size_t pixel_count) {
     for (int i = 0; i < INK_FRAME_SLOTS_COUNT; i++) {
         s_frames[i] = (frame_t){.buffer = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)};
     }
     s_old_plane = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    s_pixels    = heap_caps_malloc(pixel_count, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (s_pixels == nullptr) {
+        ESP_LOGW(TAG, "không có PSRAM: trạng thái từng điểm nằm trong RAM nội");
+        s_pixels = heap_caps_malloc(pixel_count, MALLOC_CAP_8BIT);
+    }
 
-    bool allocated = s_old_plane != nullptr;
+    bool allocated = s_old_plane != nullptr && s_pixels != nullptr;
     for (int i = 0; i < INK_FRAME_SLOTS_COUNT; i++) { allocated = allocated && s_frames[i].buffer != nullptr; }
     if (!allocated) {
         free_buffers();
@@ -382,17 +530,19 @@ esp_err_t ink_display_start(const ink_display_config_t *config) {
     if (s_task != nullptr) { return ESP_ERR_INVALID_STATE; }
     ESP_RETURN_ON_ERROR(check_config(config), TAG, "config");
     const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
-    const ink_display_options_t options = config->options != nullptr ? *config->options : ink_display_default_options(capabilities);
-    ESP_RETURN_ON_ERROR(init_policy(capabilities, &options), TAG, "policy");
-
-    s_device      = *config->device;
-    s_on_drawn    = config->on_drawn;
-    s_user_data   = config->user_data;
+    s_device                                           = *config->device;
+    s_on_drawn                                         = config->on_drawn;
+    s_user_data                                        = config->user_data;
+    s_options     = config->options != nullptr ? *config->options : ink_display_default_options(capabilities);
     s_frame_bytes = ((size_t)capabilities->width + 7) / 8 * capabilities->height;
-    init_profiles(capabilities, &options);
     if (ink_frame_slots_init(&s_slots) != INK_FRAME_SLOTS_OK) { return ESP_ERR_INVALID_STATE; }
+    ESP_RETURN_ON_ERROR(allocate_buffers((size_t)capabilities->width * capabilities->height), TAG, "buffers");
 
-    ESP_RETURN_ON_ERROR(allocate_buffers(), TAG, "buffers");
+    const ink_display_policy_config_t policy = policy_config(capabilities, &s_options);
+    if (ink_display_policy_init(&s_policy, &policy, s_pixels) != INK_DISPLAY_POLICY_OK) {
+        free_buffers();
+        return ESP_ERR_INVALID_ARG;
+    }
     if (config->background != nullptr) { restore_background(config->background); }
 
     const BaseType_t created =

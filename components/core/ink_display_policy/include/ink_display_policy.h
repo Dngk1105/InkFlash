@@ -165,7 +165,8 @@ typedef struct {
  * Gọi từ: task màn.
  * @return INK_DISPLAY_POLICY_ERROR_ARGUMENT nếu nullptr hoặc action không phải lượt dọn khi nghỉ
  */
-[[nodiscard]] ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_state_t *state, ink_display_policy_action_t action);
+[[nodiscard]] ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_state_t *state,
+                                                                         ink_display_policy_action_t action);
 
 /**
  * Màn không chắc đang hiện gì (driver vẽ lỗi): lần decide sau là dọn mạnh.

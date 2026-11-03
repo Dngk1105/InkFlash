@@ -100,7 +100,7 @@ def repeat_count(value):
 
 
 def table_phases(table):
-    """(mức, số khung đã nhân lặp) của từng pha, như ink_waveform.c cũ."""
+    """(mức, số khung đã nhân lặp) của từng pha. profiles/waveform_view.html đếm giống hệt."""
     phases = []
     for group in range(GROUP_COUNT):
         bytes_ = table[group * GROUP_BYTES:(group + 1) * GROUP_BYTES]

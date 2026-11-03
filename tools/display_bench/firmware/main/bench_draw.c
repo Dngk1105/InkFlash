@@ -14,12 +14,13 @@
 
 static const char *TAG = "bench_draw";
 
-#define RAW_PARTIALS_BEFORE_FULL 10
+#define RAW_PURPOSE 255 /* gói DRAWN của đường raw: không có mục đích */
 
 static bench_path_t             s_path;
 static ink_hal_display_device_t s_device;
 static size_t                   s_frame_bytes;
 static uint8_t                 *s_slots[BENCH_SLOT_COUNT]; /* PSRAM */
+static ink_display_options_t    s_options;
 
 /* ---- Slot ---- */
 
@@ -27,8 +28,8 @@ const ink_hal_display_capabilities_t *bench_draw_capabilities(void) {
     return &s_device.capabilities;
 }
 
-size_t bench_draw_frame_bytes(void) {
-    return s_frame_bytes;
+const ink_display_options_t *bench_draw_options(void) {
+    return &s_options;
 }
 
 esp_err_t bench_draw_upload(uint8_t slot, uint16_t offset, const uint8_t *data, size_t length) {
@@ -48,84 +49,82 @@ static uint32_t elapsed_ms(int64_t from_us, int64_t to_us) {
 /* ---- Đường raw: task bench gọi thẳng driver ---- */
 /* Bộ đệm vẽ nằm trong RAM nội như hợp đồng của driver; slot nằm trong PSRAM nên chép sang trước khi vẽ. */
 
-static uint8_t                   *s_shown; /* ảnh đang hiện */
-static uint8_t                   *s_new;
-static uint8_t                   *s_old;
-static bool                       s_shown_valid;
-static ink_display_policy_state_t s_policy;
-static size_t                     s_raw_profiles[INK_HAL_DISPLAY_SLOT_COUNT]; /* profile đang gán, để ghi vào gói DRAWN */
+static uint8_t *s_shown; /* ảnh đang hiện */
+static uint8_t *s_new;
+static uint8_t *s_old;
+static bool     s_shown_valid;
 
 static void invert(const uint8_t *source, uint8_t *destination) {
     for (size_t i = 0; i < s_frame_bytes; i++) { destination[i] = (uint8_t)~source[i]; }
 }
 
-/* Kiểu vẽ và window; trả false nếu policy chọn không vẽ. */
-static bool choose_window(bench_kind_t kind, ink_hal_display_rect_t requested, ink_display_mode_t *out_mode,
-                          ink_hal_display_rect_t *out_window) {
-    if (kind == BENCH_KIND_FULL) {
-        *out_mode   = INK_DISPLAY_MODE_FULL;
+/* Window theo kiểu của gói; false nếu kiểu vùng đổi mà hai khung giống hệt. */
+static bool choose_window(const bench_raw_settings_t *settings, ink_hal_display_rect_t *out_window) {
+    if (settings->window_kind == BENCH_WINDOW_GIVEN && settings->window.width > 0 && settings->window.height > 0) {
+        *out_window = settings->window;
+        return true;
+    }
+    if (settings->window_kind != BENCH_WINDOW_CHANGED || !s_shown_valid) {
         *out_window = full_window();
         return true;
     }
-    if (kind == BENCH_KIND_PARTIAL) {
-        *out_mode   = INK_DISPLAY_MODE_PARTIAL;
-        *out_window = requested.width > 0 && requested.height > 0 ? requested : full_window();
-        return true;
-    }
-
-    ink_display_policy_decision_t decision;
-    const uint8_t                *shown = s_shown_valid ? s_shown : nullptr;
-    if (ink_display_policy_decide(&s_policy, shown, s_new, &decision) != INK_DISPLAY_POLICY_OK) { return false; }
-    if (decision.mode == INK_DISPLAY_POLICY_MODE_NONE) { return false; }
-    *out_mode   = decision.mode == INK_DISPLAY_POLICY_MODE_FULL ? INK_DISPLAY_MODE_FULL : INK_DISPLAY_MODE_PARTIAL;
-    *out_window = (ink_hal_display_rect_t){decision.window.x, decision.window.y, decision.window.width, decision.window.height};
+    const ink_hal_display_capabilities_t *capabilities = &s_device.capabilities;
+    const ink_display_policy_config_t     config       = {
+                  .width = capabilities->width, .height = capabilities->height, .x_align = capabilities->x_align};
+    ink_display_policy_rect_t changed;
+    if (!ink_display_policy_changed_window(&config, s_shown, s_new, &changed)) { return false; }
+    *out_window = (ink_hal_display_rect_t){changed.x, changed.y, changed.width, changed.height};
     return true;
 }
 
-static const uint8_t *prepare_old_plane(bench_old_source_t source, uint8_t old_slot, uint8_t edge_margin, ink_display_mode_t mode,
-                                        ink_hal_display_rect_t window) {
-    if (source == BENCH_OLD_SLOT && old_slot < BENCH_SLOT_COUNT) {
-        memcpy(s_old, s_slots[old_slot], s_frame_bytes);
-        return s_old;
+static const uint8_t *prepare_old_plane(const bench_raw_settings_t *settings) {
+    switch (settings->old_source) {
+        case BENCH_OLD_SLOT:
+            if (settings->old_slot < BENCH_SLOT_COUNT) {
+                memcpy(s_old, s_slots[settings->old_slot], s_frame_bytes);
+                return s_old;
+            }
+            break;
+        case BENCH_OLD_SAME:
+            return s_new;
+        case BENCH_OLD_INVERTED:
+            invert(s_new, s_old);
+            return s_old;
+        case BENCH_OLD_SHOWN:
+            break;
     }
-    if (source == BENCH_OLD_INVERTED || !s_shown_valid) {
+    if (!s_shown_valid) {
         invert(s_new, s_old);
-        return s_old;
-    }
-
-    const bool push_edges = mode == INK_DISPLAY_MODE_PARTIAL
-        && edge_margin > 0
-        && ink_display_policy_set_edge_margin(&s_policy, edge_margin) == INK_DISPLAY_POLICY_OK;
-    const ink_display_policy_rect_t policy_window = {window.x, window.y, window.width, window.height};
-    if (push_edges && ink_display_policy_edge_plane(&s_policy, s_shown, s_new, policy_window, s_old) == INK_DISPLAY_POLICY_OK) {
         return s_old;
     }
     return s_shown;
 }
 
-esp_err_t bench_draw_raw(uint8_t slot, bench_kind_t kind, bench_old_source_t old_source, uint8_t old_slot, uint8_t edge_margin,
-                         ink_hal_display_rect_t window, bench_drawn_t *out) {
+esp_err_t bench_draw_raw(uint8_t slot, const bench_raw_settings_t *settings, bench_drawn_t *out) {
     ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_RAW, ESP_ERR_INVALID_STATE, TAG, "not raw");
     ESP_RETURN_ON_FALSE(slot < BENCH_SLOT_COUNT, ESP_ERR_INVALID_ARG, TAG, "slot");
+    ESP_RETURN_ON_FALSE(settings->profile < s_device.capabilities.profile_count, ESP_ERR_INVALID_ARG, TAG, "profile");
     const int64_t start_us = esp_timer_get_time();
-    *out                   = (bench_drawn_t){.slot = slot, .mode = INK_DISPLAY_MODE_NONE};
+    *out                   = (bench_drawn_t){.slot = slot, .action = INK_DISPLAY_ACTION_NONE, .frame = true, .purpose = RAW_PURPOSE};
     memcpy(s_new, s_slots[slot], s_frame_bytes);
 
-    ink_display_mode_t     mode;
-    ink_hal_display_rect_t draw_window;
-    if (!choose_window(kind, window, &mode, &draw_window)) { return ESP_OK; }
-    const ink_hal_display_slot_t display_slot = mode == INK_DISPLAY_MODE_FULL ? INK_HAL_DISPLAY_SLOT_FULL : INK_HAL_DISPLAY_SLOT_PARTIAL;
-    const uint8_t               *plane_old    = prepare_old_plane(old_source, old_slot, edge_margin, mode, draw_window);
-    out->mode                                 = mode;
-    out->window                               = draw_window;
-    out->profile                              = (uint8_t)s_raw_profiles[display_slot];
-    out->diff_ms                              = elapsed_ms(start_us, esp_timer_get_time());
+    ink_hal_display_rect_t window;
+    if (!choose_window(settings, &window)) { return ESP_OK; }
+    const uint8_t *plane_old = prepare_old_plane(settings);
+    out->action              = INK_DISPLAY_ACTION_DRAW;
+    out->window              = window;
+    out->profile_id          = s_device.capabilities.profiles[settings->profile].id;
+    out->diff_ms             = elapsed_ms(start_us, esp_timer_get_time());
 
-    out->error = s_device.operations->draw(s_device.context, s_new, plane_old, draw_window, display_slot, &out->driver);
+    out->error = s_device.operations->draw(s_device.context, s_new, plane_old, window, settings->profile, &settings->config, &out->driver);
     memcpy(s_shown, s_new, s_frame_bytes);
     s_shown_valid = out->error == ESP_OK;
-    if (out->error != ESP_OK) { ink_display_policy_invalidate(&s_policy); }
     return ESP_OK;
+}
+
+esp_err_t bench_draw_power_off(void) {
+    ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_RAW, ESP_ERR_INVALID_STATE, TAG, "not raw");
+    return s_device.operations->power_off(s_device.context);
 }
 
 static esp_err_t init_raw(void) {
@@ -133,26 +132,13 @@ static esp_err_t init_raw(void) {
     s_new   = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     s_old   = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     ESP_RETURN_ON_FALSE(s_shown && s_new && s_old, ESP_ERR_NO_MEM, TAG, "raw buffers");
-
-    const ink_hal_display_capabilities_t *capabilities = &s_device.capabilities;
-    const ink_display_policy_config_t     config       = {
-                  .width                = capabilities->width,
-                  .height               = capabilities->height,
-                  .x_align              = capabilities->x_align,
-                  .partials_before_full = RAW_PARTIALS_BEFORE_FULL,
-                  .max_partial_percent  = 100,
-                  .edge_margin          = 0,
-    };
-    ESP_RETURN_ON_FALSE(ink_display_policy_init(&s_policy, &config) == INK_DISPLAY_POLICY_OK, ESP_ERR_INVALID_ARG, TAG, "policy");
-    for (int slot = 0; slot < INK_HAL_DISPLAY_SLOT_COUNT; slot++) { s_raw_profiles[slot] = capabilities->default_profiles[slot]; }
     return ESP_OK;
 }
 
 /* ---- Đường pipeline: qua ink_display như app thật ---- */
 
-static QueueHandle_t         s_queue;
-static ink_display_options_t s_options;
-static uint8_t               s_submitted_slot; /* slot giao gần nhất; ink_display luôn vẽ khung mới nhất */
+static QueueHandle_t s_queue;
+static uint8_t       s_submitted_slot; /* slot giao gần nhất; ink_display luôn vẽ khung mới nhất */
 
 /* Task màn: chép report vào message cho task bench, không làm gì lâu. */
 static void on_drawn(const ink_display_report_t *report, void *user_data) {
@@ -161,35 +147,40 @@ static void on_drawn(const ink_display_report_t *report, void *user_data) {
     xQueueSend(s_queue, &message, portMAX_DELAY);
 }
 
-esp_err_t bench_draw_submit(uint8_t slot, uint32_t press_ms) {
+esp_err_t bench_draw_submit(uint8_t slot, uint32_t press_ms, ink_display_intent_t intent, uint8_t flags) {
     ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_PIPELINE, ESP_ERR_INVALID_STATE, TAG, "not pipeline");
     ESP_RETURN_ON_FALSE(slot < BENCH_SLOT_COUNT, ESP_ERR_INVALID_ARG, TAG, "slot");
     uint8_t *frame = ink_display_acquire();
     ESP_RETURN_ON_FALSE(frame != nullptr, ESP_ERR_INVALID_STATE, TAG, "acquire");
     memcpy(frame, s_slots[slot], s_frame_bytes);
     s_submitted_slot = slot;
-    return ink_display_submit(frame, press_ms);
+    return ink_display_submit(frame, press_ms, intent, flags);
 }
 
 void bench_draw_from_report(const ink_display_report_t *report, bench_drawn_t *out) {
-    const bool from_button = report->press_ms != 0;
+    const bool from_button = report->frame && report->press_ms != 0;
+    const bool drew        = report->action != INK_DISPLAY_ACTION_NONE && report->action != INK_DISPLAY_ACTION_POWER_OFF;
     *out                   = (bench_drawn_t){
                           .slot                = s_submitted_slot,
                           .error               = report->error,
-                          .mode                = report->mode,
+                          .action              = report->action,
+                          .frame               = report->frame,
+                          .purpose             = report->purpose == INK_HAL_DISPLAY_PURPOSE_COUNT ? RAW_PURPOSE : (uint8_t)report->purpose,
+                          .profile_id          = report->profile_id,
                           .window              = report->window,
-                          .profile             = (uint8_t)report->profile,
                           .temperature_celsius = report->temperature_celsius,
                           .temperature_valid   = report->temperature_valid,
+                          .max_debt            = report->max_debt,
+                          .ceiling             = report->ceiling,
+                          .flagged_count       = report->flagged_count,
                           .input_ms            = from_button ? (uint32_t)(report->acquire_us / 1000) - report->press_ms : 0,
-                          .queue_ms            = elapsed_ms(report->submit_us, report->take_us),
-                          .diff_ms             = report->mode == INK_DISPLAY_MODE_NONE ? 0 : elapsed_ms(report->take_us, report->diff_us),
+                          .queue_ms            = report->frame ? elapsed_ms(report->submit_us, report->take_us) : 0,
+                          .diff_ms             = drew ? elapsed_ms(report->take_us, report->diff_us) : 0,
                           .driver              = report->driver,
     };
 }
 
 static esp_err_t init_pipeline(void) {
-    s_options                         = ink_display_default_options(&s_device.capabilities);
     const ink_display_config_t config = {
         .device   = &s_device,
         .options  = &s_options,
@@ -198,29 +189,17 @@ static esp_err_t init_pipeline(void) {
     return ink_display_start(&config);
 }
 
-/* ---- Profile, nhiệt độ ---- */
-
-esp_err_t bench_draw_select_profile(ink_hal_display_slot_t slot, size_t profile) {
-    ESP_RETURN_ON_FALSE(slot < INK_HAL_DISPLAY_SLOT_COUNT && profile < s_device.capabilities.profile_count, ESP_ERR_INVALID_ARG, TAG,
-                        "profile");
-    if (s_path == BENCH_PATH_PIPELINE) {
-        ink_display_options_t options = s_options;
-        if (slot == INK_HAL_DISPLAY_SLOT_FULL) {
-            options.full_profile = profile;
-        } else {
-            options.partial_profile = profile;
-        }
-        ESP_RETURN_ON_ERROR(ink_display_set_options(&options), TAG, "set_options");
-        s_options = options;
-        return ESP_OK;
-    }
-    ESP_RETURN_ON_ERROR(s_device.operations->select_profile(s_device.context, slot, profile), TAG, "select_profile");
-    s_raw_profiles[slot] = profile;
+esp_err_t bench_draw_set_options(const ink_display_options_t *options) {
+    ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_PIPELINE, ESP_ERR_INVALID_STATE, TAG, "not pipeline");
+    ESP_RETURN_ON_ERROR(ink_display_set_options(options), TAG, "set_options");
+    s_options = *options;
     return ESP_OK;
 }
 
+/* ---- Nhiệt độ ---- */
+
 esp_err_t bench_draw_read_temperature(int8_t *out_celsius) {
-    /* Đường pipeline: chỉ task màn gọi driver; nhiệt độ có trong gói DRAWN của lần full. */
+    /* Đường pipeline: chỉ task màn gọi driver; nhiệt độ có trong gói DRAWN của lần dọn mạnh. */
     ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_RAW, ESP_ERR_NOT_SUPPORTED, TAG, "pipeline");
     return s_device.operations->read_temperature(s_device.context, out_celsius);
 }
@@ -232,17 +211,11 @@ esp_err_t bench_draw_init(bench_path_t path, const ink_hal_display_device_t *dev
     s_device      = *device;
     s_queue       = event_queue;
     s_frame_bytes = ((size_t)device->capabilities.width + 7) / 8 * device->capabilities.height;
+    s_options     = ink_display_default_options(&device->capabilities);
     for (int slot = 0; slot < BENCH_SLOT_COUNT; slot++) {
         s_slots[slot] = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_SPIRAM);
         ESP_RETURN_ON_FALSE(s_slots[slot] != nullptr, ESP_ERR_NO_MEM, TAG, "slot %d", slot);
         memset(s_slots[slot], 0xFF, s_frame_bytes);
     }
     return path == BENCH_PATH_RAW ? init_raw() : init_pipeline();
-}
-
-esp_err_t bench_draw_set_options(const ink_display_options_t *options) {
-    ESP_RETURN_ON_FALSE(s_path == BENCH_PATH_PIPELINE, ESP_ERR_INVALID_STATE, TAG, "not pipeline");
-    ESP_RETURN_ON_ERROR(ink_display_set_options(options), TAG, "set_options");
-    s_options = *options;
-    return ESP_OK;
 }

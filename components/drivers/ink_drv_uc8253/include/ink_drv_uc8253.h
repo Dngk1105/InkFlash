@@ -14,14 +14,14 @@
 #include "ink_hal_display.h"
 #include <stdint.h>
 
-#define INK_DRV_UC8253_WIDTH       240
-#define INK_DRV_UC8253_HEIGHT      416
-#define INK_DRV_UC8253_FRAME_BYTES (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
-#define INK_DRV_UC8253_TABLE_COUNT 5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
-#define INK_DRV_UC8253_TABLE_BYTES 42 /* 6 nhóm × 7 byte, chế độ KW */
-#define INK_DRV_UC8253_NAME_BYTES  16
-#define INK_DRV_UC8253_MAX_PROFILES 32 /* chỗ trong bảng khả năng, gồm profile tạm */
-#define INK_DRV_UC8253_OTP_BYTES   (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
+#define INK_DRV_UC8253_WIDTH        240
+#define INK_DRV_UC8253_HEIGHT       416
+#define INK_DRV_UC8253_FRAME_BYTES  (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
+#define INK_DRV_UC8253_TABLE_COUNT  5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
+#define INK_DRV_UC8253_TABLE_BYTES  42 /* 6 nhóm × 7 byte, chế độ KW */
+#define INK_DRV_UC8253_NAME_BYTES   16
+#define INK_DRV_UC8253_MAX_PROFILES 32                /* chỗ trong bảng khả năng, gồm profile tạm */
+#define INK_DRV_UC8253_OTP_BYTES    (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */
@@ -36,9 +36,9 @@ typedef struct {
 typedef struct {
     uint16_t    id;
     const char *name;
-    uint8_t     source; /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_HAND */
-    uint8_t     scans;  /**< số DRF cho một lần vẽ, 1–4 */
-    uint8_t     pll;    /**< byte lệnh 0x30 */
+    uint8_t     source;   /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_HAND */
+    uint8_t     scans;    /**< số DRF cho một lần vẽ, 1–4 */
+    uint8_t     pll;      /**< byte lệnh 0x30 */
     uint8_t     power[4]; /**< VG, VSH, VSL, VDHR: byte 2–5 của lệnh 0x01 */
     uint8_t     vcom;     /**< byte lệnh 0x82 */
     uint8_t     eopt;

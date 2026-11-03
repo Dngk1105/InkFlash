@@ -289,7 +289,7 @@ một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0.
 
 | Nơi | Nội dung | Ai tạo |
 |---|---|---|
-| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép dải nào, profile vẽ tay viết bằng các pha (mức điện áp, số khung), mặc định theo mục đích | Dev |
+| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép dải nào, profile vẽ tay viết bằng các pha (mức điện áp, số khung), mặc định theo mục đích. `waveform_view.html` cùng thư mục vẽ các dải của bản dump | Dev |
 | `ink_drv_uc8253_profiles.c`, mảng C const trong flash | Sinh bằng `tools/profile_gen.py` từ nguồn trên; không sửa tay | Script, lúc dev chạy |
 | Một ô profile tạm trong RAM của driver | Profile gửi từ PC để thử mà không phải nạp lại firmware (gói `.inkw` do script sinh); mất khi reset. Index bằng số profile cố định | Dev, qua bench |
 
