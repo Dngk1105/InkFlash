@@ -78,22 +78,18 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
     return ESP_OK;
 }
 
-#define TUNE_CDI 0xD7 /* viền nổi, như partial của GxEPD2 */
-
-esp_err_t ink_bsp_display_tune(ink_hal_display_slot_t slot, const ink_bsp_display_tune_t *tune) {
-    ESP_RETURN_ON_FALSE(tune != nullptr, ESP_ERR_INVALID_ARG, TAG, "null arg");
+esp_err_t ink_bsp_display_load_profile(const uint8_t *blob, size_t length) {
+    ESP_RETURN_ON_FALSE(blob != nullptr, ESP_ERR_INVALID_ARG, TAG, "null arg");
     ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
-    const ink_drv_uc8253_profile_t profile = {
-        .source        = INK_DRV_UC8253_SOURCE_REGISTER,
-        .frames        = tune->frames,
-        .frame_rate_hz = tune->frame_rate_hz,
-        .hold_frames   = tune->hold_frames,
-        .scans         = tune->scans,
-        .keep_power_on = tune->keep_power_on,
-        .pt_scan       = true,
-        .cdi           = TUNE_CDI,
-    };
-    return ink_drv_uc8253_tune(&s_display_driver, slot, &profile);
+    return ink_drv_uc8253_load_temporary(&s_display_driver, blob, length);
+}
+
+esp_err_t ink_bsp_display_read_otp(uint8_t *out, size_t capacity, size_t *out_length) {
+    ESP_RETURN_ON_FALSE(out && out_length, ESP_ERR_INVALID_ARG, TAG, "null arg");
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
+    ESP_RETURN_ON_ERROR(ink_drv_uc8253_read_otp(&s_display_driver, out, capacity), TAG, "otp");
+    *out_length = INK_DRV_UC8253_OTP_BYTES;
+    return ESP_OK;
 }
 
 /* ---- Khởi tạo board ---- */

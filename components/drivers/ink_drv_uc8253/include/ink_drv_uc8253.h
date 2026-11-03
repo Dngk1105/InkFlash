@@ -14,11 +14,14 @@
 #include "ink_hal_display.h"
 #include <stdint.h>
 
-#define INK_DRV_UC8253_WIDTH         240
-#define INK_DRV_UC8253_HEIGHT        416
-#define INK_DRV_UC8253_FRAME_BYTES   (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
-#define INK_DRV_UC8253_PROFILE_COUNT 12   /* 11 preset và profile "tune" */
-#define INK_DRV_UC8253_TR_BYTES      0xE9 /* một dải nhiệt độ trong OTP (waveform.md) */
+#define INK_DRV_UC8253_WIDTH       240
+#define INK_DRV_UC8253_HEIGHT      416
+#define INK_DRV_UC8253_FRAME_BYTES (INK_DRV_UC8253_WIDTH / 8 * INK_DRV_UC8253_HEIGHT)
+#define INK_DRV_UC8253_TABLE_COUNT 5  /* LUTC, LUTWW, LUTKW, LUTWK, LUTKK (lệnh 0x20–0x24) */
+#define INK_DRV_UC8253_TABLE_BYTES 42 /* 6 nhóm × 7 byte, chế độ KW */
+#define INK_DRV_UC8253_NAME_BYTES  16
+#define INK_DRV_UC8253_MAX_PROFILES 32 /* chỗ trong bảng khả năng, gồm profile tạm */
+#define INK_DRV_UC8253_OTP_BYTES   (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */
@@ -29,48 +32,41 @@ typedef struct {
     uint32_t          spi_clock_hz; /**< 0 = 4 MHz */
 } ink_drv_uc8253_config_t;
 
-typedef enum : uint8_t {
-    INK_DRV_UC8253_SOURCE_OTP_FORCED, /**< sóng OTP, chọn dải bằng nhiệt độ ép (E0 02 + E5) */
-    INK_DRV_UC8253_SOURCE_OTP_SENSOR, /**< sóng OTP, chọn dải theo cảm biến (E0 00) */
-    INK_DRV_UC8253_SOURCE_REGISTER,   /**< LUT nạp qua thanh ghi (REG = 1), điện áp lấy từ dải TR8 trong OTP */
-} ink_drv_uc8253_source_t;
-
+/** Một profile bảng sóng, nạp qua thanh ghi (REG = 1). Do tools/profile_gen.py sinh. */
 typedef struct {
-    const char             *name;
-    ink_drv_uc8253_source_t source;
-    uint8_t                 temperature;      /**< OTP_FORCED: mã gửi kèm E5; 110 trở lên chọn TR8 */
-    uint16_t                otp_drf_ms;       /**< OTP: DRF đo trên BB0 (refresh.md), làm thời gian điển hình */
-    uint8_t                 frames;           /**< REGISTER: số khung mỗi lần đổi màu; 0 = chép nguyên bảng TR8 */
-    uint8_t                 hold_frames;      /**< REGISTER: xung giữ (ink_waveform_parameters_t) */
-    uint16_t                frame_rate_hz;    /**< REGISTER: tần số khung (lệnh PLL); 0 = của TR8 */
-    uint8_t                 scans;            /**< số lần DRF cho một lần vẽ, mỗi lần đẩy lại cùng cặp bit; 0 coi như 1 */
-    bool                    pt_scan;          /**< partial: quét gate cả ngoài window */
-    uint8_t                 cdi;              /**< byte lệnh 0x50: bit 1 = trắng; 0x97 viền làm mới (full), 0xD7 viền nổi */
-    bool                    keep_power_on;    /**< partial: không POF sau khi quét */
-    bool                    allow_unbalanced; /**< cho nạp LUT có LUTWK + LUTKW khác 0 */
+    uint16_t    id;
+    const char *name;
+    uint8_t     source; /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_HAND */
+    uint8_t     scans;  /**< số DRF cho một lần vẽ, 1–4 */
+    uint8_t     pll;    /**< byte lệnh 0x30 */
+    uint8_t     power[4]; /**< VG, VSH, VSL, VDHR: byte 2–5 của lệnh 0x01 */
+    uint8_t     vcom;     /**< byte lệnh 0x82 */
+    uint8_t     eopt;
+    uint8_t     xon[2];
+    uint16_t    drf_ms; /**< một lần DRF */
+    uint8_t     tables[INK_DRV_UC8253_TABLE_COUNT][INK_DRV_UC8253_TABLE_BYTES];
 } ink_drv_uc8253_profile_t;
 
 typedef struct {
     ink_drv_uc8253_config_t config;
 
     /** Chỉ task màn đụng. */
-    size_t                         slot_profiles[INK_HAL_DISPLAY_SLOT_COUNT];
-    ink_drv_uc8253_profile_t       tune_profile;
-    ink_hal_display_profile_info_t profile_info[INK_DRV_UC8253_PROFILE_COUNT];
-    int                            loaded_profile; /**< profile đang nạp trong thanh ghi controller; -1 = chưa có */
-    bool                           register_mode;  /**< PSR đang đặt REG = 1 */
-    bool                           power_on;       /**< nguồn analog đang bật (sau PON, chưa POF) */
-    bool                           ram_trusted;    /**< RAM ảnh khớp mặt phẳng của lần vẽ trước; false sau reset */
-    bool                           ram_swapped;    /**< số DRF từ lúc reset là lẻ: 0x10 đang là vùng NEW */
-    bool                           needs_reset;    /**< lần vẽ trước lỗi giữa chừng: không còn biết lượt */
-    bool                           tr8_valid;
-    uint8_t                        tr8[INK_DRV_UC8253_TR_BYTES]; /**< dải TR8 đọc từ OTP: điện áp, VCOM, PLL, LUT */
+    const ink_drv_uc8253_profile_t *temporary_profile; /**< nullptr = chưa nạp profile tạm */
+    int                             loaded_profile;    /**< profile đang nạp trong thanh ghi controller; -1 = chưa có */
+    bool                            power_on;          /**< nguồn analog đang bật (sau PON, chưa POF) */
+    bool                            ram_trusted;       /**< RAM ảnh khớp mặt phẳng của lần vẽ trước; false sau reset */
+    bool                            ram_swapped;       /**< số DRF từ lúc reset là lẻ: 0x10 đang là vùng NEW */
+    bool                            needs_reset;       /**< lần vẽ trước lỗi giữa chừng: không còn biết lượt */
 
-    /** ink_drv_uc8253_tune ghi từ task khác, draw lấy ra. */
-    portMUX_TYPE             tune_lock;
-    bool                     tune_pending;
-    ink_hal_display_slot_t   tune_slot;
-    ink_drv_uc8253_profile_t tune_request;
+    /** ink_drv_uc8253_load_temporary ghi từ task khác, draw lấy ra. */
+    portMUX_TYPE             temporary_lock;
+    bool                     temporary_pending;
+    ink_drv_uc8253_profile_t temporary_request;
+    char                     temporary_request_name[INK_DRV_UC8253_NAME_BYTES];
+    ink_drv_uc8253_profile_t temporary;
+    char                     temporary_name[INK_DRV_UC8253_NAME_BYTES];
+
+    ink_hal_display_profile_info_t profile_info[INK_DRV_UC8253_MAX_PROFILES];
 
     spi_device_handle_t spi;
     SemaphoreHandle_t   busy_ready; /**< ISR give khi BUSY lên cao */
@@ -80,16 +76,22 @@ typedef struct {
 
 /**
  * Reset controller, gửi cấu hình panel và điền `out_device`. Không đổi ảnh trên màn.
+ * Bảng khả năng liệt kê các profile cố định rồi profile tạm ở cuối.
  * Gọi từ: bsp, một lần, từ task.
  * @return ESP_ERR_INVALID_ARG nếu có con trỏ nullptr; ESP_ERR_TIMEOUT nếu BUSY không lên; lỗi GPIO, SPI
  */
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device);
 
 /**
- * Chỉnh tay: gán `profile` (tên bỏ qua, thành profile "tune") cho slot, có tác dụng từ lần vẽ sau.
- * LUT tự dựng (source REGISTER, frames > 0) mà LUTWK + LUTKW khác 0 thì từ chối, kể cả khi có allow_unbalanced.
- * Gọi từ: task khác task màn (lệnh `epd tune`).
- * @return ESP_ERR_INVALID_ARG nếu nullptr, slot sai, thông số ngoài khoảng, tần số khung không có trong bảng PLL,
- *         hoặc LUT lệch
+ * Nạp gói `.inkw` (tools/profile_gen.py --blob) thành profile tạm, có tác dụng từ lần vẽ sau. Chỉ firmware test dùng.
+ * Gọi từ: task khác task màn, hoặc task màn giữa hai lần vẽ.
+ * @return ESP_ERR_INVALID_ARG nếu nullptr, sai mã nhận dạng, phiên bản, độ dài hoặc CRC; giữ profile tạm cũ
  */
-esp_err_t ink_drv_uc8253_tune(ink_drv_uc8253_t *driver, ink_hal_display_slot_t slot, const ink_drv_uc8253_profile_t *profile);
+esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t *blob, size_t length);
+
+/**
+ * Đọc INK_DRV_UC8253_OTP_BYTES byte đầu của OTP bằng lệnh 0xA2 vào `out`. Chỉ firmware test dùng.
+ * Gọi từ: task đang gọi draw (không gọi song song với draw).
+ * @return ESP_ERR_INVALID_ARG nếu nullptr hoặc length nhỏ hơn INK_DRV_UC8253_OTP_BYTES; lỗi SPI
+ */
+esp_err_t ink_drv_uc8253_read_otp(ink_drv_uc8253_t *driver, uint8_t *out, size_t length);

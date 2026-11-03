@@ -8,7 +8,7 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "ink_waveform.h"
+#include "ink_drv_uc8253_profiles.h"
 #include <string.h>
 
 static const char *TAG = "ink_drv_uc8253";
@@ -35,137 +35,53 @@ static const char *TAG = "ink_drv_uc8253";
 #define CMD_PTIN   0x91
 #define CMD_PTOUT  0x92
 #define CMD_ROTP   0xA2
-#define CMD_CCSET  0xE0
-#define CMD_TSSET  0xE5
 
-/* PSR như GxEPD2: KW, quét lên, dịch phải; bit REG (D5) chọn LUT thanh ghi. */
-#define PSR_OTP        0x1F
+/* PSR như GxEPD2: KW, quét lên, dịch phải; bit REG (D5) = 1 chọn LUT thanh ghi ở mọi lần vẽ. */
 #define PSR_REGISTER   0x3F
-#define PSR_SOFT_RESET 0x1E /* như PSR_OTP nhưng RST_N (D0) = 0: reset mềm, RAM ảnh thành rác (image-memory.md) */
+#define PSR_SOFT_RESET 0x1E /* RST_N (D0) = 0: reset mềm, RAM ảnh thành rác (image-memory.md) */
 #define PSR_SECOND     0x0D
 
 #define PWR_SOURCE_INTERNAL 0x03 /* byte 1 của PWR: nguồn trong, giá trị mặc định (commands.md) */
-#define CCSET_SENSOR        0x00 /* đo nhiệt độ bằng cảm biến */
-#define CCSET_TSFIX         0x02 /* D1: dùng nhiệt độ đặt bằng TSSET */
 #define PTL_SCAN_ALL        0x01 /* byte 7 của PTL: quét gate cả trong và ngoài window */
 #define PTL_SCAN_WINDOW     0x00 /* chỉ quét trong window */
+#define CDI_DRIVE_BORDER    0x97 /* viền làm mới theo bảng sóng */
+#define CDI_FLOAT_BORDER    0xD7 /* viền nổi, như partial của GxEPD2 */
 
-#define BUSY_SHORT_TIMEOUT_MS   200
-#define BUSY_REFRESH_TIMEOUT_MS 5000
+#define BUSY_SHORT_TIMEOUT_MS 200
+#define BUSY_MARGIN_MS        100 /* timeout chờ DRF = drf_ms × 1,5 + chừng này */
+#define LUT_SEND_BYTES        56  /* 0x20, 0x22–0x24 nhận 8 nhóm, KW dùng 6; 0x21 nhận 42 byte */
+#define TABLE_WHITE_TO_WHITE  1
 
-/* ---- Bố cục OTP, chế độ KW (UC8253 tr.47–52, waveform.md) ---- */
+/* ---- Gói .inkw (tools/profile_gen.py) ---- */
 
-#define OTP_LOCK       0xA5
-#define OTP_TR_FIRST   0x2A
-#define OTP_TR8        8
-#define OTP_READ_BYTES (1 + OTP_TR_FIRST + (OTP_TR8 + 1) * INK_DRV_UC8253_TR_BYTES) /* byte đầu của ROTP là byte giả */
-#define TR_FRAME_RATE  0x00
-#define TR_VG          0x01
-#define TR_VSH         0x02
-#define TR_VSL         0x03
-#define TR_VDHR        0x04
-#define TR_VCOM        0x05
-#define TR_EOPT        0x06
-#define TR_XON_LOW     0x07
-#define TR_XON_HIGH    0x08
-#define TR_LUT_FIRST   0x09
-#define TR8_FRAMES     15
-#define LUT_SEND_BYTES 56 /* 0x20, 0x22–0x24 nhận 8 nhóm, KW dùng 6; 0x21 nhận 42 byte */
+#define BLOB_MAGIC         "INKW"
+#define BLOB_VERSION       1
+#define BLOB_HEADER_BYTES  8 /* magic 4, version 1, 0, độ dài payload 2 */
+#define BLOB_PAYLOAD_BYTES (2 + INK_DRV_UC8253_NAME_BYTES + 3 + 4 + 2 + 2 + 2 + INK_DRV_UC8253_TABLE_COUNT * INK_DRV_UC8253_TABLE_BYTES)
+#define BLOB_BYTES         (BLOB_HEADER_BYTES + BLOB_PAYLOAD_BYTES + 2)
 
 /* ---- Profile ---- */
 
-#define TUNE_PROFILE    (INK_DRV_UC8253_PROFILE_COUNT - 1)
-#define NO_PROFILE      (-1)
-#define CDI_FULL        0x97
-#define CDI_PARTIAL     0xD7
-#define DEFAULT_FULL    1 /* otp90_full */
-#define DEFAULT_PARTIAL 2 /* otp110 */
+#define NO_PROFILE        (-1)
+#define TEMPORARY_PROFILE INK_DRV_UC8253_PROFILE_COUNT
+#define PROFILE_SLOTS     (INK_DRV_UC8253_PROFILE_COUNT + 1)
 
-/* Các bảng sóng đã đo trên BB0 (refresh.md). Mặc định chọn sau, khi so bằng mắt xong. */
-static const ink_drv_uc8253_profile_t s_presets[TUNE_PROFILE] = {
-    {.name = "otp_std_full", .source = INK_DRV_UC8253_SOURCE_OTP_SENSOR, .otp_drf_ms = 2600, .cdi = CDI_FULL},
-    {.name = "otp90_full", .source = INK_DRV_UC8253_SOURCE_OTP_FORCED, .temperature = 90, .otp_drf_ms = 2055, .cdi = CDI_FULL},
-    {.name        = "otp110",
-     .source      = INK_DRV_UC8253_SOURCE_OTP_FORCED,
-     .temperature = 110,
-     .otp_drf_ms  = 344,
-     .pt_scan     = true,
-     .cdi         = CDI_PARTIAL},
-    {.name = "lut15f50", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 0, .frame_rate_hz = 50, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut15f65", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 0, .frame_rate_hz = 65, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut12f50", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 12, .frame_rate_hz = 50, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut10f50", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 10, .frame_rate_hz = 50, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut15f100", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 0, .frame_rate_hz = 100, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut6f50", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 6, .frame_rate_hz = 50, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name = "lut4f200", .source = INK_DRV_UC8253_SOURCE_REGISTER, .frames = 4, .frame_rate_hz = 200, .pt_scan = true, .cdi = CDI_PARTIAL},
-    {.name          = "3x5f50",
-     .source        = INK_DRV_UC8253_SOURCE_REGISTER,
-     .frames        = 5,
-     .frame_rate_hz = 50,
-     .scans         = 3,
-     .pt_scan       = true,
-     .cdi           = CDI_PARTIAL},
-};
+static_assert(PROFILE_SLOTS <= INK_DRV_UC8253_MAX_PROFILES, "tăng INK_DRV_UC8253_MAX_PROFILES");
 
+/* nullptr nếu index ngoài danh sách hoặc profile tạm chưa nạp. */
 static const ink_drv_uc8253_profile_t *profile_at(const ink_drv_uc8253_t *driver, size_t index) {
-    return index == TUNE_PROFILE ? &driver->tune_profile : &s_presets[index];
+    if (index < INK_DRV_UC8253_PROFILE_COUNT) { return &ink_drv_uc8253_profiles[index]; }
+    if (index == TEMPORARY_PROFILE) { return driver->temporary_profile; }
+    return nullptr;
 }
 
-static uint32_t scan_count(const ink_drv_uc8253_profile_t *profile) {
-    return profile->scans == 0 ? 1 : profile->scans;
-}
-
-/* Bảng tần số khung của PLL (UC8253 tr.26). */
-static uint32_t pll_hz(uint8_t code) {
-    code &= 0x1F;
-    if (code < 16) { return 5 + 5U * code; }
-    if (code < 24) { return 85 + 5U * (code - 16); }
-    return 130 + 10U * (code - 24);
-}
-
-/* Mã PLL đúng bằng `hz`; false nếu bảng không có. */
-static bool pll_code(uint32_t hz, uint8_t *out_code) {
-    for (uint8_t code = 0; code < 32; code++) {
-        if (pll_hz(code) == hz) {
-            *out_code = code;
-            return true;
-        }
-    }
-    return false;
-}
-
-static uint32_t typical_ms(const ink_drv_uc8253_profile_t *profile) {
-    if (profile->source != INK_DRV_UC8253_SOURCE_REGISTER) { return profile->otp_drf_ms; }
-    const uint32_t frames = profile->frames == 0 ? TR8_FRAMES : profile->frames;
-    const uint32_t hz     = profile->frame_rate_hz == 0 ? 50 : profile->frame_rate_hz; /* TR8: 50 Hz (waveform.md) */
-    return (frames + 2) * 1000 / hz * scan_count(profile);
-}
-
-/* Kiểm thông số; với LUT tự dựng thì dựng luôn vào `out_waveform`. */
-static esp_err_t check_profile(const ink_drv_uc8253_profile_t *profile, ink_waveform_t *out_waveform) {
-    if (profile->source != INK_DRV_UC8253_SOURCE_REGISTER) { return ESP_OK; }
-    uint8_t code;
-    ESP_RETURN_ON_FALSE(profile->frame_rate_hz == 0 || pll_code(profile->frame_rate_hz, &code), ESP_ERR_INVALID_ARG, TAG,
-                        "%u Hz không có trong bảng PLL", profile->frame_rate_hz);
-    if (profile->frames == 0) { return ESP_OK; }
-    const ink_waveform_parameters_t parameters = {.frames = profile->frames, .hold_frames = profile->hold_frames};
-    ESP_RETURN_ON_FALSE(ink_waveform_build(&parameters, out_waveform) == INK_WAVEFORM_OK, ESP_ERR_INVALID_ARG, TAG, "frames %u hold %u",
-                        profile->frames, profile->hold_frames);
-    return ESP_OK;
-}
-
-/* Kiểm cân bằng điện tích (display.md, "Kiểm tra cân bằng điện tích"). */
-static esp_err_t check_charge(const char *name, const ink_waveform_t *waveform, bool allow_unbalanced) {
-    ink_waveform_charge_t charge;
-    if (ink_waveform_charge(waveform, &charge) != INK_WAVEFORM_OK) { return ESP_ERR_INVALID_ARG; }
-    if (charge.hold_white != 0 || charge.hold_black != 0) {
-        ESP_LOGW(TAG, "%s: bảng giữ màu lệch (trắng %ld, đen %ld khung)", name, (long)charge.hold_white, (long)charge.hold_black);
-    }
-    if (charge.cycle != 0 && !allow_unbalanced) {
-        ESP_LOGE(TAG, "%s: LUTWK + LUTKW = %ld khung, từ chối", name, (long)charge.cycle);
-        return ESP_ERR_INVALID_ARG;
-    }
-    return ESP_OK;
+static ink_hal_display_profile_info_t profile_info(const ink_drv_uc8253_profile_t *profile) {
+    return (ink_hal_display_profile_info_t){
+        .id      = profile->id,
+        .name    = profile->name,
+        .source  = profile->source,
+        .draw_ms = (uint32_t)profile->drf_ms * profile->scans,
+    };
 }
 
 /* ---- SPI ---- */
@@ -260,18 +176,6 @@ static esp_err_t read_after_command(ink_drv_uc8253_t *driver, uint8_t command, b
     return restore_error;
 }
 
-/* Đọc dải TR8 từ OTP một lần, làm khuôn cho mọi LUT thanh ghi. */
-static esp_err_t read_tr8(ink_drv_uc8253_t *driver) {
-    if (driver->tr8_valid) { return ESP_OK; }
-    ESP_RETURN_ON_ERROR(read_after_command(driver, CMD_ROTP, false, OTP_READ_BYTES), TAG, "rotp");
-    const uint8_t *otp = &driver->window_buffer[1];
-    /* Chỉ bank 0 đã đọc và kiểm trên module này (waveform.md). */
-    ESP_RETURN_ON_FALSE(otp[0] == OTP_LOCK, ESP_ERR_NOT_SUPPORTED, TAG, "OTP bank 0 không có khoá A5");
-    memcpy(driver->tr8, &otp[OTP_TR_FIRST + OTP_TR8 * INK_DRV_UC8253_TR_BYTES], INK_DRV_UC8253_TR_BYTES);
-    driver->tr8_valid = true;
-    return ESP_OK;
-}
-
 /* ---- Khởi tạo controller ---- */
 
 /* PSR (0x00): byte 1 chọn nguồn bảng sóng và reset mềm, byte 2 cố định. */
@@ -280,12 +184,11 @@ static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
     return send_command(driver, CMD_PSR, psr, sizeof(psr));
 }
 
-/* Trạng thái lượt sau reset mềm: RAM rác, nguồn tắt, bảng sóng OTP. */
+/* Trạng thái sau reset mềm: RAM rác, nguồn tắt, chưa có bảng sóng. */
 static void forget_controller_state(ink_drv_uc8253_t *driver) {
     driver->ram_swapped    = false;
     driver->ram_trusted    = false;
     driver->power_on       = false;
-    driver->register_mode  = false;
     driver->loaded_profile = NO_PROFILE;
     driver->needs_reset    = false;
 }
@@ -300,69 +203,39 @@ static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     const uint8_t soft_reset[2] = {PSR_SOFT_RESET, PSR_SECOND};
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_PSR, soft_reset, sizeof(soft_reset), BUSY_SHORT_TIMEOUT_MS), TAG, "soft reset");
     forget_controller_state(driver);
-    return send_panel_setting(driver, PSR_OTP);
+    return send_panel_setting(driver, PSR_REGISTER);
 }
 
-/* ---- Nạp bảng sóng ---- */
+/* ---- Nạp profile ---- */
 
-static esp_err_t set_register_mode(ink_drv_uc8253_t *driver, bool enable) {
-    if (driver->register_mode == enable) { return ESP_OK; }
-    ESP_RETURN_ON_ERROR(send_panel_setting(driver, enable ? PSR_REGISTER : PSR_OTP), TAG, "psr");
-    driver->register_mode = enable;
-    return ESP_OK;
-}
-
-/* PWR, VDCS, PLL, LUTOPT lấy từ dải TR8; PLL theo profile nếu có Hz. Chờ BUSY sau LUTOPT. */
-static esp_err_t send_tr8_settings(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
-    const uint8_t *tr8   = driver->tr8;
-    const uint8_t  pwr[] = {PWR_SOURCE_INTERNAL, tr8[TR_VG], tr8[TR_VSH], tr8[TR_VSL], tr8[TR_VDHR]};
+/* PWR, VDCS, PLL, LUTOPT của profile; chờ BUSY sau LUTOPT. */
+static esp_err_t send_voltages(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
+    const uint8_t pwr[] = {PWR_SOURCE_INTERNAL, profile->power[0], profile->power[1], profile->power[2], profile->power[3]};
     /* Byte 4–5 của LUTOPT lấy theo nhánh exp/uc8253-lut, đã chạy trên BB0. */
-    const uint8_t lutopt[] = {tr8[TR_EOPT], tr8[TR_XON_LOW], tr8[TR_XON_HIGH], 0xFF, 0x00};
-    uint8_t       pll      = tr8[TR_FRAME_RATE];
-    if (profile->frame_rate_hz != 0) { pll_code(profile->frame_rate_hz, &pll); }
-
+    const uint8_t lutopt[] = {profile->eopt, profile->xon[0], profile->xon[1], 0xFF, 0x00};
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PWR, pwr, sizeof(pwr)), TAG, "pwr");
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_VDCS, &tr8[TR_VCOM], 1), TAG, "vdcs");
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_PLL, &pll, 1), TAG, "pll");
+    ESP_RETURN_ON_ERROR(send_command(driver, CMD_VDCS, &profile->vcom, 1), TAG, "vdcs");
+    ESP_RETURN_ON_ERROR(send_command(driver, CMD_PLL, &profile->pll, 1), TAG, "pll");
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_LUTOPT, lutopt, sizeof(lutopt)), TAG, "lutopt");
     return wait_ready(driver, BUSY_SHORT_TIMEOUT_MS);
 }
 
 /* 5 bảng 0x20–0x24: LUTWW nhận 42 byte, bảng khác 56 byte (2 nhóm cuối bằng 0). */
-static esp_err_t send_lut_tables(ink_drv_uc8253_t *driver, const ink_waveform_t *waveform) {
-    for (size_t table = 0; table < INK_WAVEFORM_TABLE_COUNT; table++) {
+static esp_err_t send_tables(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
+    for (size_t table = 0; table < INK_DRV_UC8253_TABLE_COUNT; table++) {
         static uint8_t bytes[LUT_SEND_BYTES]; /* DMA đọc: không để trên stack */
         memset(bytes, 0, sizeof(bytes));
-        memcpy(bytes, waveform->tables[table], INK_WAVEFORM_TABLE_BYTES);
-        const size_t length = table == INK_WAVEFORM_TABLE_WHITE_TO_WHITE ? INK_WAVEFORM_TABLE_BYTES : LUT_SEND_BYTES;
+        memcpy(bytes, profile->tables[table], INK_DRV_UC8253_TABLE_BYTES);
+        const size_t length = table == TABLE_WHITE_TO_WHITE ? INK_DRV_UC8253_TABLE_BYTES : LUT_SEND_BYTES;
         ESP_RETURN_ON_ERROR(send_command(driver, (uint8_t)(CMD_LUTC + table), bytes, length), TAG, "lut %u", (unsigned)table);
     }
     return ESP_OK;
 }
 
-/* Đã chạy trên BB0, nhánh exp/uc8253-lut. */
-static esp_err_t send_register_waveform(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const ink_waveform_t *waveform) {
-    ESP_RETURN_ON_ERROR(send_tr8_settings(driver, profile), TAG, "tr8 settings");
-    ESP_RETURN_ON_ERROR(send_lut_tables(driver, waveform), TAG, "lut tables");
-    return set_register_mode(driver, true);
-}
-
-static esp_err_t load_profile(ink_drv_uc8253_t *driver, size_t index) {
+static esp_err_t load_profile(ink_drv_uc8253_t *driver, size_t index, const ink_drv_uc8253_profile_t *profile) {
     if (driver->loaded_profile == (int)index) { return ESP_OK; }
-    const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
-    if (profile->source != INK_DRV_UC8253_SOURCE_REGISTER) {
-        ESP_RETURN_ON_ERROR(set_register_mode(driver, false), TAG, "otp");
-    } else {
-        ESP_RETURN_ON_ERROR(read_tr8(driver), TAG, "tr8");
-        ink_waveform_t waveform;
-        if (profile->frames == 0) {
-            memcpy(waveform.tables, &driver->tr8[TR_LUT_FIRST], sizeof(waveform.tables));
-        } else {
-            ESP_RETURN_ON_ERROR(check_profile(profile, &waveform), TAG, "profile");
-        }
-        ESP_RETURN_ON_ERROR(check_charge(profile->name, &waveform, profile->allow_unbalanced), TAG, "charge");
-        ESP_RETURN_ON_ERROR(send_register_waveform(driver, profile, &waveform), TAG, "lut");
-    }
+    ESP_RETURN_ON_ERROR(send_voltages(driver, profile), TAG, "voltages");
+    ESP_RETURN_ON_ERROR(send_tables(driver, profile), TAG, "tables");
     driver->loaded_profile = (int)index;
     return ESP_OK;
 }
@@ -372,6 +245,10 @@ static esp_err_t load_profile(ink_drv_uc8253_t *driver, size_t index) {
 typedef struct {
     uint16_t x0, x1, y0, y1; /* gồm cả mép; x0, x1 + 1 là bội của X_ALIGN */
 } window_t;
+
+static window_t whole_screen(void) {
+    return (window_t){.x0 = 0, .x1 = INK_DRV_UC8253_WIDTH - 1, .y0 = 0, .y1 = INK_DRV_UC8253_HEIGHT - 1};
+}
 
 /* Vào chế độ partial với window đã căn mép (PTIN rồi PTL). Bên gọi gửi PTOUT khi xong. */
 static esp_err_t enter_window(ink_drv_uc8253_t *driver, const window_t *window, bool pt_scan) {
@@ -408,49 +285,25 @@ static esp_err_t power_on(ink_drv_uc8253_t *driver) {
     return ESP_OK;
 }
 
-static esp_err_t power_off(ink_drv_uc8253_t *driver) {
+static esp_err_t send_power_off(ink_drv_uc8253_t *driver) {
     if (!driver->power_on) { return ESP_OK; }
     ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_POF, nullptr, 0, BUSY_SHORT_TIMEOUT_MS), TAG, "pof");
     driver->power_on = false;
     return ESP_OK;
 }
 
-/* CCSET + TSSET: bảng OTP chọn theo nhiệt độ đặt tay. */
-static esp_err_t force_otp_temperature(ink_drv_uc8253_t *driver, uint8_t celsius) {
-    const uint8_t ccset = CCSET_TSFIX;
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_CCSET, &ccset, 1), TAG, "ccset");
-    return send_command(driver, CMD_TSSET, &celsius, 1);
-}
-
-/* TSFIX còn từ lần vẽ trước: phải xoá để controller đo nhiệt độ thật. */
-static esp_err_t use_temperature_sensor(ink_drv_uc8253_t *driver) {
-    const uint8_t ccset = CCSET_SENSOR;
-    return send_command(driver, CMD_CCSET, &ccset, 1);
-}
-
-/* Bảng LUT thanh ghi không đọc nhiệt độ: không gửi gì. */
-static esp_err_t select_temperature(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile) {
-    switch (profile->source) {
-        case INK_DRV_UC8253_SOURCE_OTP_FORCED:
-            return force_otp_temperature(driver, profile->temperature);
-        case INK_DRV_UC8253_SOURCE_OTP_SENSOR:
-            return use_temperature_sensor(driver);
-        case INK_DRV_UC8253_SOURCE_REGISTER:
-            return ESP_OK;
-    }
-    return ESP_ERR_INVALID_ARG;
-}
-
-/* Một lần DRF. Full: cả màn, không vào chế độ partial. */
-static esp_err_t refresh(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const window_t *window, bool full) {
-    if (!full) { ESP_RETURN_ON_ERROR(enter_window(driver, window, profile->pt_scan), TAG, "window"); }
-    ESP_RETURN_ON_ERROR(select_temperature(driver, profile), TAG, "temperature");
-    ESP_RETURN_ON_ERROR(send_command(driver, CMD_CDI, &profile->cdi, 1), TAG, "cdi");
+/* Một lần DRF. Ngoài chế độ partial: cả màn, không PTIN. */
+static esp_err_t refresh(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const window_t *window,
+                         const ink_hal_display_draw_config_t *config) {
+    if (config->partial_mode) { ESP_RETURN_ON_ERROR(enter_window(driver, window, config->pt_scan), TAG, "window"); }
+    const uint8_t cdi = config->drive_border ? CDI_DRIVE_BORDER : CDI_FLOAT_BORDER;
+    ESP_RETURN_ON_ERROR(send_command(driver, CMD_CDI, &cdi, 1), TAG, "cdi");
     ESP_RETURN_ON_ERROR(power_on(driver), TAG, "pon");
-    ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_DRF, nullptr, 0, BUSY_REFRESH_TIMEOUT_MS), TAG, "drf");
+    const uint32_t timeout_ms = (uint32_t)profile->drf_ms * 3 / 2 + BUSY_MARGIN_MS;
+    ESP_RETURN_ON_ERROR(run_busy_command(driver, CMD_DRF, nullptr, 0, timeout_ms), TAG, "drf");
     /* Sau mỗi DRF controller đổi vai hai vùng RAM (image-memory.md) */
     driver->ram_swapped = !driver->ram_swapped;
-    return full ? ESP_OK : send_command(driver, CMD_PTOUT, nullptr, 0);
+    return config->partial_mode ? send_command(driver, CMD_PTOUT, nullptr, 0) : ESP_OK;
 }
 
 static uint32_t elapsed_us(int64_t *since_us) {
@@ -460,25 +313,27 @@ static uint32_t elapsed_us(int64_t *since_us) {
     return (uint32_t)result;
 }
 
-static void apply_tune(ink_drv_uc8253_t *driver) {
-    taskENTER_CRITICAL(&driver->tune_lock);
-    const bool                     pending = driver->tune_pending;
-    const ink_hal_display_slot_t   slot    = driver->tune_slot;
-    const ink_drv_uc8253_profile_t profile = driver->tune_request;
-    driver->tune_pending                   = false;
-    taskEXIT_CRITICAL(&driver->tune_lock);
+/* Profile tạm do task khác nạp: lấy ra trước lần vẽ; quên profile đang nạp nếu nó là profile tạm. */
+static void apply_temporary(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->temporary_lock);
+    const bool pending = driver->temporary_pending;
+    if (pending) {
+        driver->temporary = driver->temporary_request;
+        memcpy(driver->temporary_name, driver->temporary_request_name, sizeof(driver->temporary_name));
+        driver->temporary_pending = false;
+    }
+    taskEXIT_CRITICAL(&driver->temporary_lock);
     if (!pending) { return; }
-    driver->tune_profile                          = profile;
-    driver->tune_profile.name                     = driver->profile_info[TUNE_PROFILE].name;
-    driver->profile_info[TUNE_PROFILE].typical_ms = typical_ms(&driver->tune_profile);
-    driver->slot_profiles[slot]                   = TUNE_PROFILE;
-    if (driver->loaded_profile == TUNE_PROFILE) { driver->loaded_profile = NO_PROFILE; }
+    driver->temporary.name                  = driver->temporary_name;
+    driver->temporary_profile               = &driver->temporary;
+    driver->profile_info[TEMPORARY_PROFILE] = profile_info(&driver->temporary);
+    if (driver->loaded_profile == TEMPORARY_PROFILE) { driver->loaded_profile = NO_PROFILE; }
 }
 
-/* Window đã căn mép, hoặc cả màn khi full hay khi RAM không còn đáng tin. */
-static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rect_t rect, bool full, window_t *out_window) {
-    if (full || !driver->ram_trusted) {
-        *out_window = (window_t){.x0 = 0, .x1 = INK_DRV_UC8253_WIDTH - 1, .y0 = 0, .y1 = INK_DRV_UC8253_HEIGHT - 1};
+/* Window đã căn mép, hoặc cả màn khi ngoài chế độ partial hay khi RAM không còn đáng tin. */
+static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rect_t rect, bool partial_mode, window_t *out_window) {
+    if (!partial_mode || !driver->ram_trusted) {
+        *out_window = whole_screen();
         return ESP_OK;
     }
     const bool not_empty = rect.width > 0 && rect.height > 0;
@@ -503,22 +358,22 @@ static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rec
 }
 
 static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t rect,
-                             ink_hal_display_slot_t slot, ink_hal_display_timing_t *out_timing) {
+                             size_t index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
-    apply_tune(driver);
-    const bool full = slot == INK_HAL_DISPLAY_SLOT_FULL;
-    window_t   window;
-    ESP_RETURN_ON_ERROR(make_window(driver, rect, full, &window), TAG, "window");
-    const size_t                    index   = driver->slot_profiles[slot];
+    apply_temporary(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
+    ESP_RETURN_ON_FALSE(profile != nullptr, index == TEMPORARY_PROFILE ? ESP_ERR_INVALID_STATE : ESP_ERR_INVALID_ARG, TAG, "profile %u",
+                        (unsigned)index);
+    window_t window;
+    ESP_RETURN_ON_ERROR(make_window(driver, rect, config->partial_mode, &window), TAG, "window");
 
     int64_t mark_us = esp_timer_get_time();
     *out_timing     = (ink_hal_display_timing_t){};
-    ESP_RETURN_ON_ERROR(load_profile(driver, index), TAG, "profile %s", profile->name);
+    ESP_RETURN_ON_ERROR(load_profile(driver, index, profile), TAG, "profile %s", profile->name);
     out_timing->spi_us += elapsed_us(&mark_us);
 
     driver->needs_reset = true; /* lỗi giữa chừng thì không còn biết lượt */
-    for (uint32_t scan = 0; scan < scan_count(profile); scan++) {
+    for (uint32_t scan = 0; scan < profile->scans; scan++) {
         /* Số DRF từ reset chẵn: mới vào 0x13, cũ vào 0x10; lẻ thì ngược lại. Ghi cả
          * hai trước DRF như luồng của hãng (GDEY037T03 tr.39). */
         const uint8_t new_command = driver->ram_swapped ? CMD_DTM1 : CMD_DTM2;
@@ -526,36 +381,30 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
         ESP_RETURN_ON_ERROR(write_plane(driver, new_command, plane_new, &window), TAG, "new plane");
         ESP_RETURN_ON_ERROR(write_plane(driver, old_command, plane_old, &window), TAG, "old plane");
         out_timing->spi_us += elapsed_us(&mark_us);
-        ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, full), TAG, "refresh");
+        ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, config), TAG, "refresh");
         out_timing->panel_us += elapsed_us(&mark_us);
     }
     driver->needs_reset = false;
     driver->ram_trusted = true;
-
-    if (full || !profile->keep_power_on) { ESP_RETURN_ON_ERROR(power_off(driver), TAG, "pof"); }
     out_timing->after_us = elapsed_us(&mark_us);
     return ESP_OK;
 }
 
 /* ---- Bảng hàm ink_hal_display ---- */
 
-static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
-                      ink_hal_display_slot_t slot, ink_hal_display_timing_t *out_timing) {
-    ESP_RETURN_ON_FALSE(context && plane_new && plane_old && out_timing && slot < INK_HAL_DISPLAY_SLOT_COUNT, ESP_ERR_INVALID_ARG, TAG,
-                        "arg");
-    return draw_planes(context, plane_new, plane_old, window, slot, out_timing);
+static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window, size_t profile,
+                      const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
+    ESP_RETURN_ON_FALSE(context && plane_new && plane_old && config && out_timing, ESP_ERR_INVALID_ARG, TAG, "arg");
+    return draw_planes(context, plane_new, plane_old, window, profile, config, out_timing);
 }
 
-static esp_err_t select_profile(void *context, ink_hal_display_slot_t slot, size_t index) {
-    ink_drv_uc8253_t *driver = context;
-    ESP_RETURN_ON_FALSE(driver && slot < INK_HAL_DISPLAY_SLOT_COUNT && index < INK_DRV_UC8253_PROFILE_COUNT, ESP_ERR_INVALID_ARG, TAG,
-                        "arg");
-    driver->slot_profiles[slot] = index;
-    return ESP_OK;
+static esp_err_t power_off(void *context) {
+    ESP_RETURN_ON_FALSE(context, ESP_ERR_INVALID_ARG, TAG, "arg");
+    return send_power_off(context);
 }
 
 /* Lệnh 0x40 kéo BUSY xuống trong lúc đo; byte đầu là TS[7:0], °C có dấu (UC8253 tr.27).
- * Chưa chạy trên BB0. */
+ * Chưa chạy trên BB0 khi REG = 1. */
 static esp_err_t read_temperature(void *context, int8_t *out_celsius) {
     ink_drv_uc8253_t *driver = context;
     ESP_RETURN_ON_FALSE(driver && out_celsius, ESP_ERR_INVALID_ARG, TAG, "arg");
@@ -566,24 +415,71 @@ static esp_err_t read_temperature(void *context, int8_t *out_celsius) {
 
 static const ink_hal_display_operations_t s_operations = {
     .draw             = draw,
-    .select_profile   = select_profile,
+    .power_off        = power_off,
     .read_temperature = read_temperature,
 };
 
-/* ---- Chỉnh tay ---- */
+/* ---- Firmware test: profile tạm, đọc OTP ---- */
 
-esp_err_t ink_drv_uc8253_tune(ink_drv_uc8253_t *driver, ink_hal_display_slot_t slot, const ink_drv_uc8253_profile_t *profile) {
-    ESP_RETURN_ON_FALSE(driver && profile && slot < INK_HAL_DISPLAY_SLOT_COUNT, ESP_ERR_INVALID_ARG, TAG, "arg");
-    ink_waveform_t waveform;
-    ESP_RETURN_ON_ERROR(check_profile(profile, &waveform), TAG, "profile");
-    if (profile->source == INK_DRV_UC8253_SOURCE_REGISTER && profile->frames != 0) {
-        ESP_RETURN_ON_ERROR(check_charge("tune", &waveform, false), TAG, "charge");
+static uint16_t read_u16(const uint8_t *bytes) {
+    return (uint16_t)(bytes[0] | (bytes[1] << 8));
+}
+
+/* CRC-16/CCITT-FALSE, như tools/profile_gen.py. */
+static uint16_t crc16(const uint8_t *bytes, size_t length) {
+    uint16_t crc = 0xFFFF;
+    for (size_t i = 0; i < length; i++) {
+        crc ^= (uint16_t)(bytes[i] << 8);
+        for (int bit = 0; bit < 8; bit++) { crc = (crc & 0x8000) ? (uint16_t)((crc << 1) ^ 0x1021) : (uint16_t)(crc << 1); }
     }
-    taskENTER_CRITICAL(&driver->tune_lock);
-    driver->tune_request = *profile;
-    driver->tune_slot    = slot;
-    driver->tune_pending = true;
-    taskEXIT_CRITICAL(&driver->tune_lock);
+    return crc;
+}
+
+/* Bố cục payload: id, tên, nguồn, số lần quét, PLL, PWR (4), VCOM, EOPT, XON (2), DRF ms, 5 bảng. */
+static void parse_blob(const uint8_t *payload, ink_drv_uc8253_profile_t *out_profile, char *out_name) {
+    const uint8_t *cursor = payload;
+    out_profile->id       = read_u16(cursor);
+    cursor += 2;
+    memcpy(out_name, cursor, INK_DRV_UC8253_NAME_BYTES);
+    out_name[INK_DRV_UC8253_NAME_BYTES - 1] = '\0';
+    cursor += INK_DRV_UC8253_NAME_BYTES;
+    out_profile->source = *cursor++;
+    out_profile->scans  = *cursor++;
+    out_profile->pll    = *cursor++;
+    memcpy(out_profile->power, cursor, sizeof(out_profile->power));
+    cursor += sizeof(out_profile->power);
+    out_profile->vcom = *cursor++;
+    out_profile->eopt = *cursor++;
+    memcpy(out_profile->xon, cursor, sizeof(out_profile->xon));
+    cursor += sizeof(out_profile->xon);
+    out_profile->drf_ms = read_u16(cursor);
+    cursor += 2;
+    memcpy(out_profile->tables, cursor, sizeof(out_profile->tables));
+}
+
+esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t *blob, size_t length) {
+    ESP_RETURN_ON_FALSE(driver && blob && length == BLOB_BYTES, ESP_ERR_INVALID_ARG, TAG, "blob length %u", (unsigned)length);
+    ESP_RETURN_ON_FALSE(memcmp(blob, BLOB_MAGIC, 4) == 0 && blob[4] == BLOB_VERSION, ESP_ERR_INVALID_ARG, TAG, "blob magic");
+    ESP_RETURN_ON_FALSE(read_u16(&blob[6]) == BLOB_PAYLOAD_BYTES, ESP_ERR_INVALID_ARG, TAG, "blob payload");
+    const uint16_t crc = read_u16(&blob[BLOB_BYTES - 2]);
+    ESP_RETURN_ON_FALSE(crc16(&blob[4], BLOB_BYTES - 6) == crc, ESP_ERR_INVALID_ARG, TAG, "blob crc");
+
+    ink_drv_uc8253_profile_t profile;
+    char                     name[INK_DRV_UC8253_NAME_BYTES];
+    parse_blob(&blob[BLOB_HEADER_BYTES], &profile, name);
+    ESP_RETURN_ON_FALSE(profile.scans >= 1 && profile.scans <= 4 && profile.drf_ms > 0, ESP_ERR_INVALID_ARG, TAG, "blob scans");
+    taskENTER_CRITICAL(&driver->temporary_lock);
+    driver->temporary_request = profile;
+    memcpy(driver->temporary_request_name, name, sizeof(name));
+    driver->temporary_pending = true;
+    taskEXIT_CRITICAL(&driver->temporary_lock);
+    return ESP_OK;
+}
+
+esp_err_t ink_drv_uc8253_read_otp(ink_drv_uc8253_t *driver, uint8_t *out, size_t length) {
+    ESP_RETURN_ON_FALSE(driver && out && length >= INK_DRV_UC8253_OTP_BYTES, ESP_ERR_INVALID_ARG, TAG, "arg");
+    ESP_RETURN_ON_ERROR(read_after_command(driver, CMD_ROTP, false, INK_DRV_UC8253_OTP_BYTES + 1), TAG, "rotp");
+    memcpy(out, &driver->window_buffer[1], INK_DRV_UC8253_OTP_BYTES); /* byte đầu của ROTP là byte giả */
     return ESP_OK;
 }
 
@@ -609,20 +505,20 @@ static esp_err_t configure_pins(const ink_drv_uc8253_config_t *config) {
     return gpio_config(&busy_config);
 }
 
+/* Danh sách profile cố định, rồi profile tạm (id 0, "tmp") tới khi bench nạp. */
+static void fill_profile_info(ink_drv_uc8253_t *driver) {
+    for (size_t i = 0; i < INK_DRV_UC8253_PROFILE_COUNT; i++) { driver->profile_info[i] = profile_info(&ink_drv_uc8253_profiles[i]); }
+    driver->profile_info[TEMPORARY_PROFILE] = (ink_hal_display_profile_info_t){.id = 0, .name = "tmp", .source = INK_HAL_DISPLAY_SOURCE_HAND};
+}
+
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");
     *driver = (ink_drv_uc8253_t){
         .config         = *config,
-        .slot_profiles  = {[INK_HAL_DISPLAY_SLOT_FULL] = DEFAULT_FULL, [INK_HAL_DISPLAY_SLOT_PARTIAL] = DEFAULT_PARTIAL},
-        .tune_profile   = s_presets[DEFAULT_PARTIAL],
         .loaded_profile = NO_PROFILE,
-        .tune_lock      = portMUX_INITIALIZER_UNLOCKED,
+        .temporary_lock = portMUX_INITIALIZER_UNLOCKED,
     };
-    for (size_t i = 0; i < TUNE_PROFILE; i++) {
-        driver->profile_info[i] = (ink_hal_display_profile_info_t){.name = s_presets[i].name, .typical_ms = typical_ms(&s_presets[i])};
-    }
-    driver->profile_info[TUNE_PROFILE] = (ink_hal_display_profile_info_t){.name = "tune", .typical_ms = typical_ms(&driver->tune_profile)};
-    driver->tune_profile.name          = "tune";
+    fill_profile_info(driver);
 
     ESP_RETURN_ON_ERROR(configure_pins(config), TAG, "pins");
     ESP_RETURN_ON_ERROR(add_device(driver, false), TAG, "spi_bus_add_device");
@@ -636,8 +532,8 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
         .height           = INK_DRV_UC8253_HEIGHT,
         .x_align          = X_ALIGN,
         .profiles         = driver->profile_info,
-        .profile_count    = INK_DRV_UC8253_PROFILE_COUNT,
-        .default_profiles = {[INK_HAL_DISPLAY_SLOT_FULL] = DEFAULT_FULL, [INK_HAL_DISPLAY_SLOT_PARTIAL] = DEFAULT_PARTIAL},
+        .profile_count    = PROFILE_SLOTS,
+        .purpose_defaults = ink_drv_uc8253_purpose_defaults,
     };
 
     *out_device = (ink_hal_display_device_t){

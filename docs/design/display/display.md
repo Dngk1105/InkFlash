@@ -117,9 +117,9 @@ chữ nhật bao vùng đổi (mép x căn theo bước căn của driver), rồ
 | # | Điều kiện | Cách vẽ |
 |---|---|---|
 | 1 | Chưa biết màn đang hiện gì (khởi động nguội), hoặc lần vẽ trước bị lỗi | Dọn mạnh |
-| 2 | Khung giống hệt khung đang hiện | Không vẽ |
-| 3 | Lần vẽ đầu sau khi thức dậy, khung đang hiện là màn nền đã vẽ trước khi ngủ | Preset của ý định, window cả màn |
-| 4 | Cờ trước khi ngủ, và còn nợ hoặc còn cờ viền | Dọn mạnh |
+| 2 | Cờ trước khi ngủ, và còn nợ hoặc còn cờ viền | Dọn mạnh |
+| 3 | Khung giống hệt khung đang hiện | Không vẽ |
+| 4 | Lần vẽ đầu sau khi thức dậy, khung đang hiện là màn nền đã vẽ trước khi ngủ | Preset của ý định, window cả màn |
 | 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Dọn mạnh, vẽ luôn khung này (không dọn trước rồi mới vẽ) |
 | 6 | Ý định `PAGE` và nợ lớn nhất đã tới `debt_page` | Dọn nhanh |
 | 7 | Còn lại | Preset của ý định, chỉ vùng đổi |
@@ -269,7 +269,7 @@ Danh sách profile:
 
 | Id | Profile | Bảng sóng | Một lần vẽ | Dùng cho |
 |---|---|---|---|---|
-| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới vài giây | Dọn mạnh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE`, dọn nhanh |
+| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE`, dọn nhanh |
 | 10 | `lut15f65` | TR8, 65 Hz | 262 ms | |
 | 11 | `lut15f100` | TR8, 100 Hz | 170 ms | |
 | 12 | `lut12f50` | Kéo 12 khung, 50 Hz | 280 ms | |

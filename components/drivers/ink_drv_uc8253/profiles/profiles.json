@@ -1,0 +1,43 @@
+{
+  "design": "docs/design/display/display.md",
+  "about": "Nguồn danh sách profile của driver UC8253. Sửa file này rồi chạy python tools/profile_gen.py để kiểm và sinh lại ink_drv_uc8253_profiles.c. copy: chép nguyên một dải của OTP; base: lấy điện áp của dải đó, bảng sóng tự dựng. drive_frames: điểm đổi màu kéo đủ số khung, điểm giữ màu đứng yên. tables: các pha [mức, số khung] của từng bảng (0, VSH, VSL); bảng không ghi thì 0 V. Mức VSH kéo về đen, VSL kéo về trắng.",
+  "otp": "otp_bb0.hex",
+  "retired_ids": [],
+  "profiles": [
+    {"id": 1, "name": "tr0", "copy": "TR0"},
+    {"id": 2, "name": "tr1", "copy": "TR1"},
+    {"id": 3, "name": "tr2", "copy": "TR2"},
+    {"id": 4, "name": "tr3", "copy": "TR3"},
+    {"id": 5, "name": "tr4", "copy": "TR4"},
+    {"id": 6, "name": "tr5", "copy": "TR5"},
+    {"id": 7, "name": "tr6", "copy": "TR6"},
+    {"id": 8, "name": "tr7", "copy": "TR7"},
+    {"id": 9, "name": "tr8", "copy": "TR8"},
+    {"id": 10, "name": "lut15f65", "copy": "TR8", "frame_rate_hz": 65},
+    {"id": 11, "name": "lut15f100", "copy": "TR8", "frame_rate_hz": 100},
+    {"id": 12, "name": "lut12f50", "base": "TR8", "frame_rate_hz": 50, "drive_frames": 12},
+    {"id": 13, "name": "lut10f50", "base": "TR8", "frame_rate_hz": 50, "drive_frames": 10},
+    {"id": 14, "name": "lut6f50", "base": "TR8", "frame_rate_hz": 50, "drive_frames": 6},
+    {"id": 15, "name": "lut4f200", "base": "TR8", "frame_rate_hz": 200, "drive_frames": 4},
+    {"id": 16, "name": "3x5f50", "base": "TR8", "frame_rate_hz": 50, "drive_frames": 5, "scans": 3},
+    {"id": 17, "name": "tr8_kk0", "copy": "TR8", "tables": {"KK": [["0", 15]]}},
+    {"id": 20, "name": "clean_full", "base": "TR8", "frame_rate_hz": 200,
+     "tables": {"KW": [["VSH", 8], ["VSL", 8]], "WK": [["VSL", 8], ["VSH", 8]]}},
+    {"id": 21, "name": "clean_edge", "base": "TR8", "frame_rate_hz": 200,
+     "tables": {"KW": [["VSH", 2], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 2]],
+                "WK": [["VSL", 2], ["VSH", 1], ["VSL", 1], ["VSH", 1], ["VSL", 1], ["VSH", 2]]}},
+    {"id": 22, "name": "clean_light", "base": "TR8", "frame_rate_hz": 200,
+     "tables": {"KW": [["VSH", 4], ["VSL", 4]], "WK": [["VSL", 4], ["VSH", 4]]}}
+  ],
+  "purposes": {
+    "text": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "ui": {"bands": [[127, 13]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "page": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "clean_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
+                     "partial_mode": false, "pt_scan": true, "drive_border": true},
+    "clean_fast": {"bands": [[127, 9]], "partial_mode": false, "pt_scan": true, "drive_border": true},
+    "clean_edge_center": {"bands": [[127, 20]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "clean_edge_neighbor": {"bands": [[127, 21]], "partial_mode": true, "pt_scan": true, "drive_border": false},
+    "clean_light": {"bands": [[127, 22]], "partial_mode": true, "pt_scan": true, "drive_border": false}
+  }
+}
