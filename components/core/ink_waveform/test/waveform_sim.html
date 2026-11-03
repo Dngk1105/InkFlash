@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<!-- Thiết kế: docs/design/display/display.md -->
+<!--
+  Xem bảng sóng trong OTP của UC8253 (module WeAct 3.7", board BB0). Phần "Lõi" chép từng hàm của ink_waveform.c
+  sang JS, cùng tên; sửa ink_waveform.c thì sửa phần này trong cùng commit. Tab "Host test" chạy lại
+  test_ink_waveform.c trên bản JS. Dữ liệu OTP là bản đọc bằng lệnh 0xA2 trên BB0, 2026-10-30 (waveform.md).
+-->
+<html lang="vi" data-preset="editorial" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waveform OTP</title>
+<style>
+    /* ---- Theme: preset Editorial của Archify, sáng và tối (docs/writing-visualizations.md, mục "Giao diện") ---- */
+    :root, [data-preset="editorial"][data-theme="light"] {
+        --bg: #f2eee5;
+        --grid: #d8d0c2;
+        --panel: #fbf8f1;
+        --panel-strong: #ede6d8;
+        --panel-border: #c4b9a6;
+        --panel-border-soft: #dcd4c5;
+        --text: #242018;
+        --text-muted: #6f6658;
+        --text-dim: #948a79;
+        --accent: #9f403d;
+        --accent-strong: #7d2a27;
+        --accent-soft: #f4dcdb;
+        --on-accent: #ffffff;
+        --brand-teal: #287e84;
+        --brand-bronze: #9a671f;
+        --brand-green: #397b53;
+        --brand-purple: #765d86;
+        --error: #b42318;
+        --pixel-white: #ffffff;
+        --pixel-black: #1f1d1a;
+        --font-serif: "Newsreader", "Charter", "Cambria", "Georgia", serif;
+        --font-sans: "Segoe UI", system-ui, sans-serif;
+        --font-mono: "Cascadia Code", Consolas, monospace;
+    }
+
+    [data-preset="editorial"][data-theme="dark"] {
+        --bg: #181611;
+        --grid: #39342a;
+        --panel: #231f18;
+        --panel-strong: #2e2921;
+        --panel-border: #625a4a;
+        --panel-border-soft: #443e33;
+        --text: #f4eddf;
+        --text-muted: #b9ae9b;
+        --text-dim: #776e60;
+        --accent: #cf6662;
+        --accent-strong: #f4eddf;
+        --accent-soft: #382424;
+        --on-accent: #181611;
+        --brand-teal: #7fc6c7;
+        --brand-bronze: #d8ad68;
+        --brand-green: #8fc29e;
+        --brand-purple: #c0a4d0;
+        --error: #f0857d;
+        --pixel-white: #e9e3d5;
+        --pixel-black: #0c0b09;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+            linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem,
+                color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
+            repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px,
+                color-mix(in srgb, var(--grid) 38%, transparent) 32px);
+        background-attachment: fixed;
+        color: var(--text);
+        font: 14px/1.45 var(--font-sans);
+    }
+
+    header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
+        padding: 12px 16px;
+        background: var(--panel);
+        border-bottom: 2px solid var(--panel-border);
+    }
+
+    header h1 { margin: 0; font: 600 21px var(--font-serif); letter-spacing: -0.01em; color: var(--accent-strong); }
+
+    .tabs { display: flex; gap: 4px; padding: 3px; background: var(--panel-strong); border: 1px solid var(--panel-border); border-radius: 4px; }
+
+    .tab { padding: 5px 14px; border: none; border-radius: 3px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.active { background: var(--panel); color: var(--accent); font-weight: 600; }
+
+    .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+
+    button.small, select {
+        padding: 4px 10px;
+        border: 1px solid var(--panel-border);
+        border-radius: 3px;
+        background: var(--panel);
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+    }
+
+    button.small:hover { background: var(--panel-strong); border-color: var(--text-muted); }
+
+    button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent-strong); }
+
+    button.primary:hover { background: var(--accent-strong); color: var(--on-accent); }
+
+    input[type="checkbox"] { accent-color: var(--accent); }
+
+    input[type="number"] {
+        width: 80px;
+        padding: 3px 6px;
+        border: 1px solid var(--panel-border);
+        border-radius: 2px;
+        background: var(--panel);
+        color: var(--text);
+        font: 13px var(--font-mono);
+        text-align: right;
+    }
+
+    select:focus, input[type="number"]:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+
+    main { padding: 14px 16px; }
+
+    .page { display: none; }
+
+    .page.active { display: grid; gap: 14px; }
+
+    #pageBand.active { grid-template-columns: 300px minmax(0, 1fr); }
+
+    #pageTests.active { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+
+    @media (max-width: 1100px) {
+        #pageBand.active, #pageTests.active { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 3px; padding: 12px 14px; min-width: 0; }
+
+    .card h2 {
+        margin: 0 0 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid var(--panel-border-soft);
+        font: 600 14.5px var(--font-serif);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--accent);
+    }
+
+    .column { display: grid; gap: 14px; align-content: start; min-width: 0; }
+
+    .hint { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+
+    code, .mono { font-family: var(--font-mono); }
+
+    code { background: var(--panel-strong); color: var(--accent-strong); padding: 0 4px; }
+
+    .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; }
+
+    .control-row label { color: var(--text-muted); font-size: 13px; }
+
+    /* ---- Bảng ---- */
+    .scroll { overflow-x: auto; }
+
+    table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    table.data th, table.data td { padding: 4px 8px; border-bottom: 1px solid var(--panel-border-soft); text-align: left; vertical-align: top; }
+
+    table.data th { background: var(--panel-strong); color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+
+    table.data td.number, table.data th.number { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+
+    table.data tr.clickable { cursor: pointer; }
+
+    table.data tr.clickable:hover td { background: var(--panel-strong); }
+
+    table.data tr.selected td { background: var(--accent-soft); }
+
+    table.form { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    table.form td { padding: 2px 0; border-bottom: 1px solid var(--panel-border-soft); }
+
+    table.form td:first-child { color: var(--text-muted); }
+
+    table.form td:last-child { text-align: right; font-family: var(--font-mono); }
+
+    .dim { color: var(--text-dim); }
+
+    .warn { color: var(--brand-bronze); }
+
+    .bad { color: var(--error); }
+
+    .good { color: var(--brand-green); }
+
+    /* ---- Dạng sóng ---- */
+    svg.wave { width: 100%; height: auto; display: block; background: var(--bg); border: 1px solid var(--panel-border-soft); }
+
+    svg.wave .row-background { fill: var(--panel); }
+
+    svg.wave .row-label { font: 600 12px var(--font-mono); fill: var(--text); }
+
+    svg.wave .row-sublabel { font: 10.5px var(--font-sans); fill: var(--text-muted); }
+
+    svg.wave .level-label { font: 9.5px var(--font-mono); fill: var(--text-dim); }
+
+    svg.wave .axis-line { stroke: var(--panel-border-soft); stroke-width: 1; }
+
+    svg.wave .zero-line { stroke: var(--panel-border); stroke-width: 1; stroke-dasharray: 2 3; }
+
+    svg.wave .group-line { stroke: var(--brand-purple); stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.7; }
+
+    svg.wave .group-label { font: 9.5px var(--font-mono); fill: var(--brand-purple); }
+
+    svg.wave .tick-label { font: 10px var(--font-mono); fill: var(--text-muted); }
+
+    svg.wave .trace { fill: none; stroke: var(--text); stroke-width: 1.6; stroke-linejoin: miter; }
+
+    svg.wave .fill-vsh { fill: var(--text); opacity: 0.5; }
+
+    svg.wave .fill-vsl { fill: var(--brand-teal); opacity: 0.45; }
+
+    svg.wave .fill-vdhr { fill: var(--brand-bronze); opacity: 0.5; }
+
+    svg.wave .fill-float { fill: var(--brand-purple); opacity: 0.35; }
+
+    svg.wave .end-label { font: 10.5px var(--font-mono); fill: var(--text-muted); }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+
+    .legend i { display: inline-block; width: 14px; height: 10px; vertical-align: middle; margin-right: 4px; border: 1px solid var(--panel-border); }
+
+    .legend i.vsh { background: var(--text); opacity: 0.5; }
+
+    .legend i.vsl { background: var(--brand-teal); opacity: 0.45; }
+
+    .legend i.group { border: none; border-top: 2px dashed var(--brand-purple); height: 0; width: 16px; }
+
+    /* ---- Phase decode ---- */
+    .phase-chip { display: inline-block; margin: 1px 2px; padding: 0 4px; border: 1px solid var(--panel-border-soft); border-radius: 2px; font: 12px var(--font-mono); white-space: nowrap; }
+
+    .phase-chip.vsh { border-color: var(--text); }
+
+    .phase-chip.vsl { border-color: var(--brand-teal); color: var(--brand-teal); }
+
+    .phase-chip.zero { color: var(--text-muted); }
+
+    .phase-chip.empty { color: var(--text-dim); border-style: dashed; }
+
+    /* ---- Host test ---- */
+    .test-item { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--panel-border-soft); font-size: 13px; }
+
+    .test-item .status { width: 42px; font: 600 12px var(--font-mono); }
+
+    .test-item .status.pass { color: var(--brand-green); }
+
+    .test-item .status.fail { color: var(--error); }
+
+    .test-item .name { font-family: var(--font-mono); overflow-wrap: anywhere; }
+
+    .test-item .detail { color: var(--error); font-size: 12px; }
+
+    .summary { font: 600 14px var(--font-mono); margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<header>
+    <h1>Bảng sóng OTP · UC8253</h1>
+    <div class="tabs">
+        <button class="tab active" id="tabBand">Một dải</button>
+        <button class="tab" id="tabOverview">Tổng quan</button>
+        <button class="tab" id="tabTests">Host test</button>
+    </div>
+    <div class="header-right">
+        <button class="small" id="themeButton">Tối</button>
+    </div>
+</header>
+
+<main>
+    <section class="page active" id="pageBand">
+        <div class="column">
+            <div class="card">
+                <h2>Chọn dải</h2>
+                <div class="control-row">
+                    <label for="bandSelect">Dải</label>
+                    <select id="bandSelect"></select>
+                </div>
+                <div class="control-row">
+                    <label for="compareSelect">So với</label>
+                    <select id="compareSelect"></select>
+                </div>
+                <div class="control-row">
+                    <input type="checkbox" id="sharedScale">
+                    <label for="sharedScale">Cùng thang khung giữa hai dải</label>
+                </div>
+                <div class="control-row">
+                    <label for="temperatureInput">Nhiệt độ (E5 hoặc cảm biến)</label>
+                    <input type="number" id="temperatureInput" value="90" min="-128" max="127">
+                </div>
+                <p class="hint" id="temperatureResult"></p>
+            </div>
+            <div class="card">
+                <h2>Thông số dải</h2>
+                <table class="form" id="bandInfo"></table>
+                <p class="hint">Thời gian tính = (số khung bảng dài nhất + 2) / tần số khung (waveform.md). DRF đo: refresh.md, BB0.</p>
+            </div>
+            <div class="card">
+                <h2>Điện tích</h2>
+                <table class="form" id="chargeInfo"></table>
+                <p class="hint">Theo <code>ink_waveform_charge</code>: VSH +1, VSL −1 mỗi khung. <code>cycle</code> = LUTWK + LUTKW.</p>
+            </div>
+        </div>
+        <div class="column">
+            <div class="card">
+                <h2 id="waveTitle">Dạng sóng</h2>
+                <div id="waveMain"></div>
+                <div class="legend">
+                    <span><i class="vsh"></i>VSH, kéo về đen</span>
+                    <span><i class="vsl"></i>VSL, kéo về trắng</span>
+                    <span><i class="group"></i>ranh giới nhóm</span>
+                </div>
+                <p class="hint">Trục ngang là khung (50 Hz = 20 ms/khung). Thứ tự trải theo khung: mỗi nhóm lặp <code>group repeat</code> lần;
+                    trong nhóm, trạng thái 1 (pha 1, 2) lặp trước, rồi trạng thái 2 (pha 3, 4) (UC8253 tr.22). Bảng VCOM: mức 00 là VCOM_DC.
+                    Bảng ngắn hơn bảng dài nhất được cấp 0 V phần còn lại (tr.24).</p>
+            </div>
+            <div class="card" id="compareCard" hidden>
+                <h2 id="compareTitle">So sánh</h2>
+                <div id="waveCompare"></div>
+            </div>
+            <div class="card">
+                <h2>Giải mã từng nhóm</h2>
+                <div class="scroll"><table class="data" id="decodeTable"></table></div>
+                <p class="hint">Mỗi pha ghi <code>mức × số khung</code>. Cột lặp: nhóm / trạng thái 1 / trạng thái 2. Nhóm toàn 0 bị ẩn.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="page" id="pageOverview">
+        <div class="card">
+            <h2>Các dải trong bank 0</h2>
+            <div class="scroll"><table class="data" id="overviewTable"></table></div>
+            <p class="hint">Bấm một dòng để mở dải đó. Profile của driver lấy từ <code>s_presets</code> trong ink_drv_uc8253.c.
+                TR9–TR16 toàn <code>FF</code>, không dùng.</p>
+        </div>
+        <div class="card">
+            <h2>Đầu bank 0</h2>
+            <table class="form" id="headerInfo"></table>
+        </div>
+    </section>
+
+    <section class="page" id="pageTests">
+        <div class="card">
+            <h2>test_ink_waveform.c</h2>
+            <div class="summary" id="testSummary"></div>
+            <div id="testList"></div>
+            <div class="control-row"><button class="small primary" id="runTestsButton">Chạy lại</button></div>
+            <p class="hint">Bỏ phần kiểm con trỏ <code>nullptr</code> của <code>test_build_rejects_bad_parameters</code>.</p>
+        </div>
+        <div class="card">
+            <h2>Đối chiếu dữ liệu với waveform.md</h2>
+            <div class="summary" id="dataSummary"></div>
+            <div id="dataList"></div>
+            <p class="hint">Chỉ có ở bản JS: kiểm bản dump nhúng trong file khớp các số đã ghi trong docs.</p>
+        </div>
+    </section>
+</main>
+
+<script>
+"use strict";
+
+/* ---- Hằng số ---- */
+
+/* ink_waveform.h */
+const INK_WAVEFORM_GROUP_COUNT = 6;
+const INK_WAVEFORM_GROUP_BYTES = 7;
+const INK_WAVEFORM_TABLE_BYTES = INK_WAVEFORM_GROUP_COUNT * INK_WAVEFORM_GROUP_BYTES;
+const INK_WAVEFORM_MAX_FRAMES = 63;
+const INK_WAVEFORM_OK = 0;
+const INK_WAVEFORM_ERROR_ARGUMENT = 1;
+const INK_WAVEFORM_TABLE_VCOM = 0;
+const INK_WAVEFORM_TABLE_WHITE_TO_WHITE = 1;
+const INK_WAVEFORM_TABLE_BLACK_TO_WHITE = 2;
+const INK_WAVEFORM_TABLE_WHITE_TO_BLACK = 3;
+const INK_WAVEFORM_TABLE_BLACK_TO_BLACK = 4;
+const INK_WAVEFORM_TABLE_COUNT = 5;
+const INK_WAVEFORM_LEVEL_ZERO = 0;
+const INK_WAVEFORM_LEVEL_VSH = 1;
+const INK_WAVEFORM_LEVEL_VSL = 2;
+const INK_WAVEFORM_LEVEL_VDHR = 3;
+
+/* ink_waveform.c */
+const GROUP_REPEAT = 0;
+const PHASE_FIRST = 1;
+const PHASE_COUNT = 4;
+const STATE_1_REPEAT = 5;
+const STATE_2_REPEAT = 6;
+
+/* ink_drv_uc8253.c, bố cục OTP chế độ KW (UC8253 tr.47–52) */
+const OTP_LOCK = 0xA5;
+const OTP_TR_FIRST = 0x2A;
+const INK_DRV_UC8253_TR_BYTES = 0xE9;
+const TR_FRAME_RATE = 0x00;
+const TR_VG = 0x01;
+const TR_VSH = 0x02;
+const TR_VSL = 0x03;
+const TR_VDHR = 0x04;
+const TR_VCOM = 0x05;
+const TR_EOPT = 0x06;
+const TR_XON_LOW = 0x07;
+const TR_XON_HIGH = 0x08;
+const TR_LUT_FIRST = 0x09;
+const OTP_DEFAULTS_FIRST = 0x01;
+const OTP_DEFAULTS_COUNT = 19;
+const OTP_TB_FIRST = 0x1A;
+const OTP_TB_COUNT = 16;
+const OTP_TR_COUNT = 17;
+
+const TABLE_NAMES = ["LUTC", "LUTWW", "LUTKW", "LUTWK", "LUTKK"];
+const TABLE_MEANINGS = ["VCOM", "trắng giữ trắng", "đen thành trắng", "trắng thành đen", "đen giữ đen"];
+const SOURCE_LEVEL_NAMES = ["0V", "VSH", "VSL", "VDHR"];
+const VCOM_LEVEL_NAMES = ["DC", "VSH+DC", "VSL−DC", "nổi"];
+
+/* DRF đo trên BB0 (refresh.md, waveform.md), theo dải. */
+const MEASURED_DRF_MS = {4: 2538, 5: 2598, 6: 2055, 7: 1492, 8: 344};
+
+/* Profile OTP trong s_presets (ink_drv_uc8253.c). otp_std_full đọc cảm biến nên dải tuỳ nhiệt độ phòng. */
+const DRIVER_PROFILES = [
+    {name: "otp90_full", temperature: 90, slot: "full, mặc định"},
+    {name: "otp110", temperature: 110, slot: "partial, mặc định; khuôn của mọi LUT thanh ghi"},
+];
+
+/* Bản đọc OTP bằng lệnh 0xA2 (ROTP), BB0, 2026-10-30, hai lần đọc khớp nhau. Bank 0 tới hết TR8; phần sau toàn FF.
+ * Đã bỏ byte giả đầu tiên của ROTP: byte 0 ở đây là địa chỉ 0x000 (khoá A5). */
+const OTP_HEX = [
+        "A5 A5 D7 00 D7 D7 27 00 97 22 F0 01 A0 00 00 00",
+        "00 88 03 00 09 FF FF FE FF FF 05 0A 0F 14 1E 50",
+        "5C 64 7F FF FF FF FF FF FF FF 09 10 3F 3F 14 13",
+        "00 00 00 01 24 24 24 24 01 01 02 1E 01 1E 01 01",
+        "01 02 0F 00 0F 00 01 01 01 06 00 06 00 01 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 01 64 64",
+        "24 24 01 01 02 9E 01 5E 01 01 01 02 8F 00 8F 00",
+        "01 01 01 86 00 86 00 01 01 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 01 64 64 24 24 01 01 02 9E",
+        "01 5E 01 01 01 02 8F 00 8F 00 01 01 01 86 00 86",
+        "00 01 01 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 01 24 24 A4 A4 01 01 02 9E 01 5E 01 01 01 02",
+        "4F 00 4F 00 01 01 01 46 00 46 00 01 01 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 01 24 24 A4 A4",
+        "01 01 02 9E 01 5E 01 01 01 02 4F 00 4F 00 01 01",
+        "01 46 00 46 00 01 01 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 FF FF FF FF FF FF FF FF FF FF FF",
+        "FF FF FF 09 10 3F 3F 14 13 00 00 00 01 18 18 18",
+        "18 01 01 02 19 01 19 01 01 01 02 0A 00 0A 00 01",
+        "01 01 04 00 04 00 01 01 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 01 58 58 18 18 01 01 02 99 01",
+        "59 01 01 01 02 8A 00 8A 00 01 01 01 84 00 84 00",
+        "01 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "01 58 58 18 18 01 01 02 99 01 59 01 01 01 02 8A",
+        "00 8A 00 01 01 01 84 00 84 00 01 01 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 01 18 18 98 98 01",
+        "01 02 99 01 59 01 01 01 02 4A 00 4A 00 01 01 01",
+        "44 00 44 00 01 01 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 01 18 18 98 98 01 01 02 99 01 59 01",
+        "01 01 02 4A 00 4A 00 01 01 01 44 00 44 00 01 01",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 FF FF",
+        "FF FF FF FF FF FF FF FF FF FF FF FF 09 10 3F 3F",
+        "14 13 00 00 00 01 13 13 13 13 01 01 03 12 01 12",
+        "01 01 01 01 0F 00 0F 00 01 01 01 04 00 04 00 01",
+        "01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01",
+        "53 53 13 13 01 01 03 92 01 52 01 01 01 01 8F 00",
+        "8F 00 01 01 01 84 00 84 00 01 01 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 01 53 53 13 13 01 01",
+        "03 92 01 52 01 01 01 01 8F 00 8F 00 01 01 01 84",
+        "00 84 00 01 01 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 01 13 13 93 93 01 01 03 92 01 52 01 01",
+        "01 01 4F 00 4F 00 01 01 01 44 00 44 00 01 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 01 13 13",
+        "93 93 01 01 03 92 01 52 01 01 01 01 4F 00 4F 00",
+        "01 01 01 44 00 44 00 01 01 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 FF FF FF FF FF FF FF FF FF",
+        "FF FF FF FF FF 09 10 3F 3F 14 13 00 00 00 01 10",
+        "10 10 10 01 01 02 12 01 12 01 01 01 01 0D 00 0D",
+        "00 01 01 01 03 00 03 00 01 01 01 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 01 50 50 10 10 01 01 02",
+        "92 01 52 01 01 01 01 8D 00 8D 00 01 01 01 83 00",
+        "83 00 01 01 01 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 01 50 50 10 10 01 01 02 92 01 52 01 01 01",
+        "01 8D 00 8D 00 01 01 01 83 00 83 00 01 01 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 01 10 10 90",
+        "90 01 01 02 92 01 52 01 01 01 01 4D 00 4D 00 01",
+        "01 01 43 00 43 00 01 01 01 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 01 10 10 90 90 01 01 02 92 01",
+        "52 01 01 01 01 4D 00 4D 00 01 01 01 43 00 43 00",
+        "01 01 01 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "FF FF FF FF FF FF FF FF FF FF FF FF FF FF 09 10",
+        "3F 3F 14 13 00 00 00 01 0A 0A 0A 0A 01 01 02 0F",
+        "01 0F 01 01 01 01 0A 00 0A 00 01 01 01 00 00 00",
+        "00 01 01 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 01 4A 4A 0A 0A 01 01 02 8F 01 4F 01 01 01 01",
+        "8A 00 8A 00 01 01 01 80 00 80 00 01 01 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 01 4A 4A 0A 0A",
+        "01 01 02 8F 01 4F 01 01 01 01 8A 00 8A 00 01 01",
+        "01 80 00 80 00 01 01 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 01 0A 0A 8A 8A 01 01 02 8F 01 4F",
+        "01 01 01 01 4A 00 4A 00 01 01 01 40 00 40 00 01",
+        "01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01",
+        "0A 0A 8A 8A 01 01 02 8F 01 4F 01 01 01 01 4A 00",
+        "4A 00 01 01 01 40 00 40 00 01 01 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 FF FF FF FF FF FF FF",
+        "FF FF FF FF FF FF FF 09 10 3F 3F 14 13 00 00 00",
+        "01 0A 0B 0A 0B 01 01 02 0F 01 0F 01 01 01 01 08",
+        "00 08 00 01 01 01 03 00 02 00 01 01 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 01 4A 4B 0A 0B 01",
+        "01 02 8F 01 4F 01 01 01 01 88 00 88 00 01 01 01",
+        "83 00 82 00 01 01 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 01 4A 4B 0A 0B 01 01 02 8F 01 4F 01",
+        "01 01 01 88 00 88 00 01 01 01 83 00 82 00 01 01",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 0A",
+        "0B 8A 8B 01 01 02 8F 01 4F 01 01 01 01 48 00 48",
+        "00 01 01 01 43 00 42 00 01 01 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 01 0A 0B 8A 8B 01 01 02",
+        "8F 01 4F 01 01 01 01 48 00 48 00 01 01 01 43 00",
+        "42 00 01 01 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 FF FF FF FF FF FF FF FF FF FF FF FF FF FF",
+        "09 10 3F 3F 14 13 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 01 4A 00 00 00 01 00 01 42 82 00 00 14",
+        "00 01 8A 00 00 00 01 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 01 41 09",
+        "00 00 01 00 01 42 82 00 00 14 00 01 81 09 00 00",
+        "01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 01 81 09 00 00 01 00 01 42",
+        "82 00 00 14 00 01 41 09 00 00 01 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 01 8A 00 00 00 01 00 01 42 82 00 00 14 00 01",
+        "4A 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 FF FF FF FF FF",
+        "FF FF FF FF FF FF FF FF FF 09 10 3F 3F 14 13 00",
+        "00 00 01 08 08 08 08 01 01 01 02 02 02 02 01 01",
+        "01 08 08 08 08 01 01 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 01 48 48 48",
+        "48 01 01 01 02 02 02 02 01 01 01 88 88 88 88 01",
+        "01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 01 48 48 48 48 01 01 01 02 02",
+        "02 02 01 01 01 88 88 88 88 01 01 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "01 88 88 88 88 01 01 01 02 02 02 02 01 01 01 48",
+        "48 48 48 01 01 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 00 00 00 00 00 00 01 88 88 88 88 01",
+        "01 01 02 02 02 02 01 01 01 48 48 48 48 01 01 00",
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        "00 00 00 00 FF FF FF FF FF FF FF FF FF FF FF FF",
+        "FF FF 09 10 3F 3F 14 09 00 00 00 01 0E 01 00 00",
+        "01 01 01 00 00 00 00 01 01 01 00 00 00 00 01 01",
+        "01 00 00 00 00 01 01 01 00 00 00 00 01 01 01 00",
+        "00 00 00 01 01 01 0E 01 00 00 01 01 01 00 00 00",
+        "00 01 01 01 00 00 00 00 01 01 01 00 00 00 00 01",
+        "01 01 00 00 00 00 01 01 01 00 00 00 00 01 01 01",
+        "8E 81 00 00 01 01 01 00 00 00 00 01 01 01 00 00",
+        "00 00 01 01 01 00 00 00 00 01 01 01 00 00 00 00",
+        "01 01 01 00 00 00 00 01 01 01 4E 41 00 00 01 01",
+        "01 00 00 00 00 01 01 01 00 00 00 00 01 01 01 00",
+        "00 00 00 01 01 01 00 00 00 00 01 01 01 00 00 00",
+        "00 01 01 01 0E 41 00 00 01 01 01 00 00 00 00 01",
+        "01 01 00 00 00 00 01 01 01 00 00 00 00 01 01 01",
+        "00 00 00 00 01 01 01 00 00 00 00 01 01 FF FF FF",
+        "FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF"
+].join(" ");
+
+/* ---- Lõi chép từ ink_waveform.c ---- */
+
+function phase(level, frames)
+{
+    return ((level << 6) | (frames & 0x3F)) & 0xFF;
+}
+
+function repeat_count(value)
+{
+    return value === 0 ? 1 : value;
+}
+
+/* Một nhóm, hai pha đầu của trạng thái 1; các nhóm còn lại bằng 0. */
+function set_table(table, first_level, first_frames, second_level, second_frames)
+{
+    table.fill(0);
+    table[GROUP_REPEAT] = 1;
+    table[PHASE_FIRST] = phase(first_level, first_frames);
+    table[PHASE_FIRST + 1] = phase(second_level, second_frames);
+    table[STATE_1_REPEAT] = 1;
+    table[STATE_2_REPEAT] = 1;
+}
+
+function new_waveform()
+{
+    const tables = [];
+    for (let i = 0; i < INK_WAVEFORM_TABLE_COUNT; i++) { tables.push(new Uint8Array(INK_WAVEFORM_TABLE_BYTES)); }
+    return {tables};
+}
+
+function ink_waveform_build(parameters, out_waveform)
+{
+    if (parameters == null || out_waveform == null) { return INK_WAVEFORM_ERROR_ARGUMENT; }
+    const frames = parameters.frames;
+    const hold = parameters.hold_frames;
+    if (frames === 0 || frames > INK_WAVEFORM_MAX_FRAMES || hold > frames) { return INK_WAVEFORM_ERROR_ARGUMENT; }
+    const tables = out_waveform.tables;
+    /* Mức 00 của bảng VCOM là VCOM_DC: VCOM đứng yên. */
+    set_table(tables[INK_WAVEFORM_TABLE_VCOM], INK_WAVEFORM_LEVEL_ZERO, frames, INK_WAVEFORM_LEVEL_ZERO, 0);
+    set_table(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE], INK_WAVEFORM_LEVEL_VSL, frames, INK_WAVEFORM_LEVEL_ZERO, 0);
+    set_table(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK], INK_WAVEFORM_LEVEL_VSH, frames, INK_WAVEFORM_LEVEL_ZERO, 0);
+    set_table(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE], INK_WAVEFORM_LEVEL_ZERO, frames - hold, INK_WAVEFORM_LEVEL_VSL, hold);
+    set_table(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK], INK_WAVEFORM_LEVEL_ZERO, frames - hold, INK_WAVEFORM_LEVEL_VSH, hold);
+    return INK_WAVEFORM_OK;
+}
+
+/* Gọi `visit` cho từng pha, kèm số khung đã nhân lặp. */
+function for_each_phase(table, visit, user_data)
+{
+    for (let group = 0; group < INK_WAVEFORM_GROUP_COUNT; group++) {
+        const base = group * INK_WAVEFORM_GROUP_BYTES;
+        const group_repeat = repeat_count(table[base + GROUP_REPEAT]);
+        for (let i = 0; i < PHASE_COUNT; i++) {
+            const phase_byte = table[base + PHASE_FIRST + i];
+            const state_repeat = repeat_count(table[base + (i < 2 ? STATE_1_REPEAT : STATE_2_REPEAT)]);
+            visit(phase_byte, (phase_byte & 0x3F) * state_repeat * group_repeat, user_data);
+        }
+    }
+}
+
+function add_frames(phase_byte, frames, user_data)
+{
+    user_data.value += frames;
+}
+
+function add_charge(phase_byte, frames, user_data)
+{
+    const level = phase_byte >> 6;
+    if (level === INK_WAVEFORM_LEVEL_VSH) { user_data.value += frames; }
+    if (level === INK_WAVEFORM_LEVEL_VSL) { user_data.value -= frames; }
+}
+
+function ink_waveform_table_frames(table)
+{
+    const total = {value: 0};
+    if (table != null) { for_each_phase(table, add_frames, total); }
+    return total.value;
+}
+
+function ink_waveform_frames(waveform)
+{
+    if (waveform == null) { return 0; }
+    let longest = 0;
+    for (let i = 0; i < INK_WAVEFORM_TABLE_COUNT; i++) {
+        const frames = ink_waveform_table_frames(waveform.tables[i]);
+        if (frames > longest) { longest = frames; }
+    }
+    return longest;
+}
+
+function table_charge(table)
+{
+    const charge = {value: 0};
+    for_each_phase(table, add_charge, charge);
+    return charge.value;
+}
+
+function ink_waveform_charge(waveform, out_charge)
+{
+    if (waveform == null || out_charge == null) { return INK_WAVEFORM_ERROR_ARGUMENT; }
+    const tables = waveform.tables;
+    out_charge.cycle = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK]) + table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE]);
+    out_charge.hold_white = table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE]);
+    out_charge.hold_black = table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK]);
+    return INK_WAVEFORM_OK;
+}
+
+/* ---- Đọc bản dump OTP (chỉ có ở bản JS) ---- */
+
+function parse_hex(text)
+{
+    return Uint8Array.from(text.trim().split(/\s+/), (pair) => parseInt(pair, 16));
+}
+
+function signed_byte(value)
+{
+    return value >= 0x80 ? value - 0x100 : value;
+}
+
+function hex_byte(value)
+{
+    return value.toString(16).toUpperCase().padStart(2, "0");
+}
+
+/* Một dải TR: 9 byte thông số rồi 5 bảng 42 byte (UC8253 tr.52). */
+function read_band(otp, index)
+{
+    const first = OTP_TR_FIRST + index * INK_DRV_UC8253_TR_BYTES;
+    if (first + INK_DRV_UC8253_TR_BYTES > otp.length) { return null; }
+    const bytes = otp.subarray(first, first + INK_DRV_UC8253_TR_BYTES);
+    if (bytes.every((value) => value === 0xFF)) { return null; }
+    const waveform = new_waveform();
+    for (let table = 0; table < INK_WAVEFORM_TABLE_COUNT; table++) {
+        const start = TR_LUT_FIRST + table * INK_WAVEFORM_TABLE_BYTES;
+        waveform.tables[table].set(bytes.subarray(start, start + INK_WAVEFORM_TABLE_BYTES));
+    }
+    const charge = {};
+    ink_waveform_charge(waveform, charge);
+    return {
+        index,
+        address: first,
+        frame_rate_code: bytes[TR_FRAME_RATE],
+        vg: bytes[TR_VG],
+        vsh: bytes[TR_VSH],
+        vsl: bytes[TR_VSL],
+        vdhr: bytes[TR_VDHR],
+        vcom: bytes[TR_VCOM],
+        eopt: bytes[TR_EOPT],
+        xon: bytes[TR_XON_LOW] | (bytes[TR_XON_HIGH] << 8),
+        waveform,
+        frames: ink_waveform_frames(waveform),
+        charge,
+    };
+}
+
+/* Bảng tần số khung của PLL (UC8253 tr.26), chép từ pll_hz trong ink_drv_uc8253.c. */
+function pll_hz(code)
+{
+    code &= 0x1F;
+    if (code < 16) { return 5 + 5 * code; }
+    if (code < 24) { return 85 + 5 * (code - 16); }
+    return 130 + 10 * (code - 24);
+}
+
+/* Chọn dải theo nhiệt độ (UC8253 tr.48–50): dải đầu tiên có nhiệt độ ≤ TBi; TBi = 7F là dải cuối. */
+function band_for_temperature(thresholds, celsius)
+{
+    for (let i = 0; i < thresholds.length; i++) {
+        if (thresholds[i] === 0x7F || celsius <= signed_byte(thresholds[i])) { return i; }
+    }
+    return thresholds.length;
+}
+
+function band_range_text(thresholds, index)
+{
+    const upper = thresholds[index];
+    const lower = index === 0 ? null : signed_byte(thresholds[index - 1]);
+    if (upper === 0x7F) { return `> ${lower} °C`; }
+    if (lower === null) { return `≤ ${signed_byte(upper)} °C`; }
+    return `${lower + 1}–${signed_byte(upper)} °C`;
+}
+
+function load_otp()
+{
+    const bytes = parse_hex(OTP_HEX);
+    const thresholds = Array.from(bytes.subarray(OTP_TB_FIRST, OTP_TB_FIRST + OTP_TB_COUNT));
+    const used_thresholds = [];
+    for (const value of thresholds) {
+        if (value === 0xFF) { break; }
+        used_thresholds.push(value);
+        if (value === 0x7F) { break; }
+    }
+    const bands = [];
+    for (let i = 0; i < OTP_TR_COUNT; i++) {
+        const band = read_band(bytes, i);
+        if (band === null) { break; }
+        bands.push(band);
+    }
+    return {
+        bytes,
+        lock: bytes[0],
+        defaults: Array.from(bytes.subarray(OTP_DEFAULTS_FIRST, OTP_DEFAULTS_FIRST + OTP_DEFAULTS_COUNT)),
+        thresholds: used_thresholds,
+        bands,
+    };
+}
+
+/* ---- Trải bảng theo khung để vẽ (chỉ có ở bản JS) ---- */
+
+/* Danh sách đoạn {level, frames, start, group}. Thứ tự: lặp nhóm ở ngoài, trong nhóm trạng thái 1 rồi trạng thái 2. */
+function expand_table(table)
+{
+    const segments = [];
+    const groups = [];
+    let frame = 0;
+    for (let group = 0; group < INK_WAVEFORM_GROUP_COUNT; group++) {
+        const base = group * INK_WAVEFORM_GROUP_BYTES;
+        const group_start = frame;
+        const group_repeat = repeat_count(table[base + GROUP_REPEAT]);
+        for (let round = 0; round < group_repeat; round++) {
+            for (let state = 0; state < 2; state++) {
+                const state_repeat = repeat_count(table[base + (state === 0 ? STATE_1_REPEAT : STATE_2_REPEAT)]);
+                for (let pass = 0; pass < state_repeat; pass++) {
+                    for (let i = state * 2; i < state * 2 + 2; i++) {
+                        const phase_byte = table[base + PHASE_FIRST + i];
+                        const frames = phase_byte & 0x3F;
+                        if (frames === 0) { continue; }
+                        const level = phase_byte >> 6;
+                        const last = segments[segments.length - 1];
+                        if (last && last.level === level && last.start + last.frames === frame) {
+                            last.frames += frames;
+                        } else {
+                            segments.push({level, frames, start: frame, group});
+                        }
+                        frame += frames;
+                    }
+                }
+            }
+        }
+        if (frame > group_start) { groups.push({group, start: group_start, end: frame}); }
+    }
+    return {segments, groups, frames: frame};
+}
+
+/* ---- Vẽ ---- */
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svg_element(name, attributes, parent)
+{
+    const element = document.createElementNS(SVG_NS, name);
+    for (const [key, value] of Object.entries(attributes)) { element.setAttribute(key, value); }
+    if (parent) { parent.appendChild(element); }
+    return element;
+}
+
+function svg_text(content, attributes, parent)
+{
+    const element = svg_element("text", attributes, parent);
+    element.textContent = content;
+    return element;
+}
+
+const WAVE_WIDTH = 1000;
+const WAVE_LABEL_WIDTH = 118;
+const WAVE_RIGHT = 54;
+const WAVE_ROW_HEIGHT = 62;
+const WAVE_ROW_GAP = 8;
+const WAVE_TOP = 22;
+const WAVE_BOTTOM = 26;
+
+/* Mức điện áp của bảng nguồn → toạ độ: VSH ở trên, VSL ở dưới, VDHR nửa trên. */
+function level_offset(level, is_vcom)
+{
+    if (is_vcom) { return level === 1 ? -1 : level === 2 ? 1 : 0; }
+    if (level === INK_WAVEFORM_LEVEL_VSH) { return -1; }
+    if (level === INK_WAVEFORM_LEVEL_VSL) { return 1; }
+    if (level === INK_WAVEFORM_LEVEL_VDHR) { return -0.5; }
+    return 0;
+}
+
+function level_class(level, is_vcom)
+{
+    if (is_vcom) { return level === 3 ? "fill-float" : level === 1 ? "fill-vsh" : level === 2 ? "fill-vsl" : null; }
+    return [null, "fill-vsh", "fill-vsl", "fill-vdhr"][level];
+}
+
+function tick_step(frames)
+{
+    for (const step of [1, 2, 5, 10, 20, 25, 50, 100]) {
+        if (frames / step <= 12) { return step; }
+    }
+    return 200;
+}
+
+function draw_band(container, band, scale_frames)
+{
+    container.textContent = "";
+    const plot_width = WAVE_WIDTH - WAVE_LABEL_WIDTH - WAVE_RIGHT;
+    const height = WAVE_TOP + INK_WAVEFORM_TABLE_COUNT * (WAVE_ROW_HEIGHT + WAVE_ROW_GAP) + WAVE_BOTTOM;
+    const svg = svg_element("svg", {class: "wave", viewBox: `0 0 ${WAVE_WIDTH} ${height}`, role: "img",
+                                    "aria-label": `Dạng sóng TR${band.index}`}, container);
+    const total = Math.max(scale_frames, 1);
+    const x_of = (frame) => WAVE_LABEL_WIDTH + (frame / total) * plot_width;
+
+    for (let table = 0; table < INK_WAVEFORM_TABLE_COUNT; table++) {
+        const is_vcom = table === INK_WAVEFORM_TABLE_VCOM;
+        const top = WAVE_TOP + table * (WAVE_ROW_HEIGHT + WAVE_ROW_GAP);
+        const middle = top + WAVE_ROW_HEIGHT / 2;
+        const amplitude = WAVE_ROW_HEIGHT / 2 - 7;
+        const expanded = expand_table(band.waveform.tables[table]);
+
+        svg_element("rect", {class: "row-background", x: WAVE_LABEL_WIDTH, y: top, width: plot_width, height: WAVE_ROW_HEIGHT}, svg);
+        svg_text(TABLE_NAMES[table], {class: "row-label", x: 8, y: middle - 4}, svg);
+        svg_text(TABLE_MEANINGS[table], {class: "row-sublabel", x: 8, y: middle + 11}, svg);
+        svg_text(is_vcom ? "VCOMH" : "VSH", {class: "level-label", x: WAVE_LABEL_WIDTH - 4, y: middle - amplitude + 3, "text-anchor": "end"}, svg);
+        svg_text(is_vcom ? "DC" : "0", {class: "level-label", x: WAVE_LABEL_WIDTH - 4, y: middle + 3, "text-anchor": "end"}, svg);
+        svg_text(is_vcom ? "VCOML" : "VSL", {class: "level-label", x: WAVE_LABEL_WIDTH - 4, y: middle + amplitude + 3, "text-anchor": "end"}, svg);
+        svg_element("line", {class: "zero-line", x1: WAVE_LABEL_WIDTH, x2: WAVE_LABEL_WIDTH + plot_width, y1: middle, y2: middle}, svg);
+
+        for (const group of expanded.groups) {
+            if (group.start === 0) { continue; }
+            const x = x_of(group.start);
+            svg_element("line", {class: "group-line", x1: x, x2: x, y1: top, y2: top + WAVE_ROW_HEIGHT}, svg);
+        }
+        if (table === 0 || expanded.groups.length > 1) {
+            for (const group of expanded.groups) {
+                const x = x_of(group.start) + 3;
+                if (table === INK_WAVEFORM_TABLE_VCOM || table === INK_WAVEFORM_TABLE_WHITE_TO_WHITE) {
+                    svg_text(`G${group.group}`, {class: "group-label", x, y: top + 10}, svg);
+                }
+            }
+        }
+
+        let path = `M ${x_of(0)} ${middle}`;
+        for (const segment of expanded.segments) {
+            const x0 = x_of(segment.start);
+            const x1 = x_of(segment.start + segment.frames);
+            const y = middle + level_offset(segment.level, is_vcom) * amplitude;
+            const fill = level_class(segment.level, is_vcom);
+            if (fill) {
+                const rect = svg_element("rect", {class: fill, x: x0, y: Math.min(y, middle), width: Math.max(x1 - x0, 0.6),
+                                                  height: Math.abs(y - middle)}, svg);
+                const names = is_vcom ? VCOM_LEVEL_NAMES : SOURCE_LEVEL_NAMES;
+                svg_element("title", {}, rect).textContent =
+                    `${TABLE_NAMES[table]} G${segment.group}: ${names[segment.level]} × ${segment.frames} khung, khung ${segment.start}–${segment.start + segment.frames - 1}`;
+            }
+            path += ` L ${x0} ${y} L ${x1} ${y}`;
+        }
+        const end_x = x_of(expanded.frames);
+        path += ` L ${end_x} ${middle}`;
+        if (expanded.frames < total) { path += ` L ${x_of(total)} ${middle}`; }
+        svg_element("path", {class: "trace", d: path}, svg);
+        const charge = table_charge(band.waveform.tables[table]);
+        svg_text(`${expanded.frames}`, {class: "end-label", x: WAVE_LABEL_WIDTH + plot_width + 6, y: middle - 2}, svg);
+        svg_text(is_vcom ? "" : `Σ${charge > 0 ? "+" : ""}${charge}`, {class: "end-label", x: WAVE_LABEL_WIDTH + plot_width + 6, y: middle + 12}, svg);
+    }
+
+    const axis_y = WAVE_TOP + INK_WAVEFORM_TABLE_COUNT * (WAVE_ROW_HEIGHT + WAVE_ROW_GAP) - WAVE_ROW_GAP;
+    svg_element("line", {class: "axis-line", x1: WAVE_LABEL_WIDTH, x2: WAVE_LABEL_WIDTH + plot_width, y1: axis_y, y2: axis_y}, svg);
+    const step = tick_step(total);
+    for (let frame = 0; frame <= total; frame += step) {
+        const x = x_of(frame);
+        svg_element("line", {class: "axis-line", x1: x, x2: x, y1: axis_y, y2: axis_y + 4}, svg);
+        svg_text(`${frame}`, {class: "tick-label", x, y: axis_y + 16, "text-anchor": "middle"}, svg);
+    }
+    svg_text("khung", {class: "tick-label", x: WAVE_LABEL_WIDTH - 4, y: axis_y + 16, "text-anchor": "end"}, svg);
+    svg_text("khung, Σ", {class: "tick-label", x: WAVE_WIDTH - 4, y: 14, "text-anchor": "end"}, svg);
+}
+
+function band_time_ms(band)
+{
+    return Math.round((band.frames + 2) * 1000 / pll_hz(band.frame_rate_code));
+}
+
+function band_title(band)
+{
+    return `TR${band.index} · ${band_range_text(live.otp.thresholds, band.index)} · ${band.frames} khung`;
+}
+
+function profiles_of_band(index)
+{
+    return DRIVER_PROFILES.filter((profile) => band_for_temperature(live.otp.thresholds, profile.temperature) === index);
+}
+
+function render_band_info(band)
+{
+    const rows = [
+        ["Địa chỉ", `0x${band.address.toString(16).toUpperCase().padStart(4, "0")}`],
+        ["Dải nhiệt độ", band_range_text(live.otp.thresholds, band.index)],
+        ["Tần số khung", `${hex_byte(band.frame_rate_code)} = ${pll_hz(band.frame_rate_code)} Hz`],
+        ["VG / VSH / VSL / VDHR", `${hex_byte(band.vg)} ${hex_byte(band.vsh)} ${hex_byte(band.vsl)} ${hex_byte(band.vdhr)}`],
+        ["VCOM_DC", hex_byte(band.vcom)],
+        ["EOPT / XON", `${hex_byte(band.eopt)} / ${band.xon.toString(16).toUpperCase().padStart(4, "0")}`],
+        ["Số khung (bảng dài nhất)", `${band.frames}`],
+        ["Thời gian tính", `${band_time_ms(band)} ms`],
+        ["DRF đo", MEASURED_DRF_MS[band.index] ? `${MEASURED_DRF_MS[band.index]} ms` : "chưa đo"],
+        ["Profile driver", profiles_of_band(band.index).map((profile) => profile.name).join(", ") || "—"],
+    ];
+    document.getElementById("bandInfo").innerHTML = rows.map(([name, value]) => `<tr><td>${name}</td><td>${value}</td></tr>`).join("");
+}
+
+function charge_cell(value)
+{
+    const text = `${value > 0 ? "+" : ""}${value}`;
+    return value === 0 ? `<span class="good">${text}</span>` : `<span class="warn">${text}</span>`;
+}
+
+function render_charge(band)
+{
+    const tables = band.waveform.tables;
+    const rows = [
+        ["LUTWW", charge_cell(table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE]))],
+        ["LUTKW", charge_cell(table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE]))],
+        ["LUTWK", charge_cell(table_charge(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK]))],
+        ["LUTKK", charge_cell(table_charge(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK]))],
+        ["cycle (WK + KW)", charge_cell(band.charge.cycle)],
+        ["hold_white / hold_black", `${charge_cell(band.charge.hold_white)} / ${charge_cell(band.charge.hold_black)}`],
+    ];
+    document.getElementById("chargeInfo").innerHTML = rows.map(([name, value]) => `<tr><td>${name}</td><td>${value}</td></tr>`).join("");
+}
+
+function phase_chip(phase_byte, is_vcom)
+{
+    const frames = phase_byte & 0x3F;
+    const level = phase_byte >> 6;
+    const names = is_vcom ? VCOM_LEVEL_NAMES : SOURCE_LEVEL_NAMES;
+    if (frames === 0) { return `<span class="phase-chip empty">${hex_byte(phase_byte)}</span>`; }
+    const kind = is_vcom ? "zero" : ["zero", "vsh", "vsl", "vsh"][level];
+    return `<span class="phase-chip ${kind}" title="byte ${hex_byte(phase_byte)}">${names[level]}×${frames}</span>`;
+}
+
+function render_decode(band)
+{
+    let html = "<tr><th>Bảng</th><th>Nhóm</th><th>Byte</th><th>Trạng thái 1</th><th>Trạng thái 2</th><th class=\"number\">Lặp</th><th class=\"number\">Khung</th></tr>";
+    for (let table = 0; table < INK_WAVEFORM_TABLE_COUNT; table++) {
+        const bytes = band.waveform.tables[table];
+        const is_vcom = table === INK_WAVEFORM_TABLE_VCOM;
+        for (let group = 0; group < INK_WAVEFORM_GROUP_COUNT; group++) {
+            const base = group * INK_WAVEFORM_GROUP_BYTES;
+            const phases = bytes.subarray(base + PHASE_FIRST, base + PHASE_FIRST + PHASE_COUNT);
+            if (phases.every((value) => (value & 0x3F) === 0)) { continue; }
+            const single = new Uint8Array(INK_WAVEFORM_TABLE_BYTES);
+            single.set(bytes.subarray(base, base + INK_WAVEFORM_GROUP_BYTES));
+            const raw = Array.from(bytes.subarray(base, base + INK_WAVEFORM_GROUP_BYTES), hex_byte).join(" ");
+            html += `<tr><td class="mono">${TABLE_NAMES[table]}</td><td class="mono">G${group}</td><td class="mono dim">${raw}</td>`
+                + `<td>${phase_chip(phases[0], is_vcom)}${phase_chip(phases[1], is_vcom)}</td>`
+                + `<td>${phase_chip(phases[2], is_vcom)}${phase_chip(phases[3], is_vcom)}</td>`
+                + `<td class="number">${bytes[base + GROUP_REPEAT]} / ${bytes[base + STATE_1_REPEAT]} / ${bytes[base + STATE_2_REPEAT]}</td>`
+                + `<td class="number">${ink_waveform_table_frames(single)}</td></tr>`;
+        }
+    }
+    document.getElementById("decodeTable").innerHTML = html;
+}
+
+function render_band_page()
+{
+    const band = live.otp.bands[live.band];
+    const compare = live.compare === null ? null : live.otp.bands[live.compare];
+    const shared = document.getElementById("sharedScale").checked && compare !== null;
+    const scale = shared ? Math.max(band.frames, compare.frames) : band.frames;
+    document.getElementById("waveTitle").textContent = band_title(band);
+    draw_band(document.getElementById("waveMain"), band, scale);
+    document.getElementById("compareCard").hidden = compare === null;
+    if (compare !== null) {
+        document.getElementById("compareTitle").textContent = band_title(compare);
+        draw_band(document.getElementById("waveCompare"), compare, shared ? scale : compare.frames);
+    }
+    render_band_info(band);
+    render_charge(band);
+    render_decode(band);
+}
+
+function render_temperature()
+{
+    const celsius = Number(document.getElementById("temperatureInput").value);
+    const index = band_for_temperature(live.otp.thresholds, celsius);
+    const band = live.otp.bands[index];
+    document.getElementById("temperatureResult").textContent = band
+        ? `${celsius} °C → TR${index}, ${band.frames} khung, khoảng ${band_time_ms(band)} ms.`
+        : `${celsius} °C → TR${index}: dải trống, controller không làm mới.`;
+}
+
+function render_overview()
+{
+    let html = "<tr><th>Dải</th><th>Nhiệt độ</th><th class=\"number\">Khung</th><th class=\"number\">Tính</th><th class=\"number\">DRF đo</th>"
+        + "<th class=\"number\">VCOM</th><th class=\"number\">cycle</th><th class=\"number\">hold W / K</th><th>Bảng theo bit mới</th><th>Profile driver</th></tr>";
+    for (const band of live.otp.bands) {
+        const tables = band.waveform.tables;
+        const same = (a, b) => tables[a].every((value, i) => value === tables[b][i]);
+        const by_new_bit = same(INK_WAVEFORM_TABLE_WHITE_TO_WHITE, INK_WAVEFORM_TABLE_BLACK_TO_WHITE)
+            && same(INK_WAVEFORM_TABLE_WHITE_TO_BLACK, INK_WAVEFORM_TABLE_BLACK_TO_BLACK);
+        html += `<tr class="clickable${band.index === live.band ? " selected" : ""}" data-band="${band.index}">`
+            + `<td class="mono">TR${band.index}</td><td>${band_range_text(live.otp.thresholds, band.index)}</td>`
+            + `<td class="number">${band.frames}</td><td class="number">${band_time_ms(band)} ms</td>`
+            + `<td class="number">${MEASURED_DRF_MS[band.index] ? MEASURED_DRF_MS[band.index] + " ms" : "—"}</td>`
+            + `<td class="number">${hex_byte(band.vcom)}</td><td class="number">${charge_cell(band.charge.cycle)}</td>`
+            + `<td class="number">${charge_cell(band.charge.hold_white)} / ${charge_cell(band.charge.hold_black)}</td>`
+            + `<td>${by_new_bit ? "Có: WW = KW, WK = KK" : "Không"}</td>`
+            + `<td class="mono">${profiles_of_band(band.index).map((profile) => profile.name).join(", ") || ""}</td></tr>`;
+    }
+    const table = document.getElementById("overviewTable");
+    table.innerHTML = html;
+    for (const row of table.querySelectorAll("tr.clickable")) {
+        row.addEventListener("click", () => {
+            select_band(Number(row.dataset.band));
+            show_page("band");
+        });
+    }
+    const defaults = live.otp.defaults.map(hex_byte).join(" ");
+    const thresholds = live.otp.thresholds.map((value) => `${hex_byte(value)} (${signed_byte(value)})`).join(", ");
+    document.getElementById("headerInfo").innerHTML = [
+        ["Khoá 0x000", `${hex_byte(live.otp.lock)} ${live.otp.lock === OTP_LOCK ? "(bank 0 dùng được)" : "(không có khoá)"}`],
+        ["Mặc định 0x001–0x013", defaults],
+        ["TB0–TB8", thresholds],
+        ["Số dải dùng được", `${live.otp.bands.length}`],
+    ].map(([name, value]) => `<tr><td>${name}</td><td>${value}</td></tr>`).join("");
+}
+
+/* ---- Điều khiển ---- */
+
+const live = {otp: null, band: 6, compare: 8};
+
+function fill_band_selects()
+{
+    const options = live.otp.bands.map((band) => `<option value="${band.index}">TR${band.index} (${band_range_text(live.otp.thresholds, band.index)})</option>`).join("");
+    document.getElementById("bandSelect").innerHTML = options;
+    document.getElementById("compareSelect").innerHTML = "<option value=\"\">Không</option>" + options;
+    document.getElementById("bandSelect").value = String(live.band);
+    document.getElementById("compareSelect").value = live.compare === null ? "" : String(live.compare);
+}
+
+function select_band(index)
+{
+    live.band = index;
+    document.getElementById("bandSelect").value = String(index);
+    render_band_page();
+    render_overview();
+}
+
+function bind_controls()
+{
+    document.getElementById("bandSelect").addEventListener("change", (event) => select_band(Number(event.target.value)));
+    document.getElementById("compareSelect").addEventListener("change", (event) => {
+        live.compare = event.target.value === "" ? null : Number(event.target.value);
+        render_band_page();
+    });
+    document.getElementById("sharedScale").addEventListener("change", render_band_page);
+    document.getElementById("temperatureInput").addEventListener("input", render_temperature);
+}
+
+/* ---- Host test: chép từ test_ink_waveform.c ---- */
+
+class AssertionError extends Error {}
+
+function TEST_ASSERT_EQUAL(expected, actual)
+{
+    if (expected !== actual) { throw new AssertionError(`kỳ vọng ${expected}, nhận ${actual}`); }
+}
+
+const TEST_ASSERT_EQUAL_UINT32 = TEST_ASSERT_EQUAL;
+const TEST_ASSERT_EQUAL_INT32 = TEST_ASSERT_EQUAL;
+
+/* Bảng một nhóm, một pha. */
+function set_single_phase(table, level, frames)
+{
+    table.fill(0);
+    table[0] = 1;
+    table[1] = ((level << 6) | frames) & 0xFF;
+    table[5] = 1;
+    table[6] = 1;
+}
+
+/* TR8 đọc từ OTP (waveform.md): LUTKK là 0 V 14 khung rồi VSH 1 khung. */
+function tr8_like()
+{
+    const waveform = new_waveform();
+    set_single_phase(waveform.tables[INK_WAVEFORM_TABLE_VCOM], INK_WAVEFORM_LEVEL_ZERO, 15);
+    set_single_phase(waveform.tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE], INK_WAVEFORM_LEVEL_ZERO, 15);
+    set_single_phase(waveform.tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE], INK_WAVEFORM_LEVEL_VSL, 15);
+    set_single_phase(waveform.tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK], INK_WAVEFORM_LEVEL_VSH, 15);
+    const black_to_black = waveform.tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK];
+    set_single_phase(black_to_black, INK_WAVEFORM_LEVEL_ZERO, 14);
+    black_to_black[2] = ((INK_WAVEFORM_LEVEL_VSH << 6) | 1) & 0xFF;
+    return waveform;
+}
+
+function test_build_rejects_bad_parameters()
+{
+    const waveform = new_waveform();
+    const zero_frames = {frames: 0, hold_frames: 0};
+    const too_long = {frames: 64, hold_frames: 0};
+    const long_hold = {frames: 4, hold_frames: 5};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_ERROR_ARGUMENT, ink_waveform_build(zero_frames, waveform));
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_ERROR_ARGUMENT, ink_waveform_build(too_long, waveform));
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_ERROR_ARGUMENT, ink_waveform_build(long_hold, waveform));
+}
+
+function test_build_six_frames_is_balanced()
+{
+    const waveform = new_waveform();
+    const parameters = {frames: 6, hold_frames: 0};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_build(parameters, waveform));
+    TEST_ASSERT_EQUAL_UINT32(6, ink_waveform_frames(waveform));
+    const charge = {};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_charge(waveform, charge));
+    TEST_ASSERT_EQUAL_INT32(0, charge.cycle);
+    TEST_ASSERT_EQUAL_INT32(0, charge.hold_white);
+    TEST_ASSERT_EQUAL_INT32(0, charge.hold_black);
+}
+
+function test_build_hold_pulse_keeps_length()
+{
+    const waveform = new_waveform();
+    const parameters = {frames: 10, hold_frames: 2};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_build(parameters, waveform));
+    TEST_ASSERT_EQUAL_UINT32(10, ink_waveform_frames(waveform));
+    const charge = {};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_charge(waveform, charge));
+    TEST_ASSERT_EQUAL_INT32(0, charge.cycle);
+    TEST_ASSERT_EQUAL_INT32(-2, charge.hold_white);
+    TEST_ASSERT_EQUAL_INT32(2, charge.hold_black);
+}
+
+function test_tr8_cycle_balanced_hold_black_warns()
+{
+    const waveform = tr8_like();
+    TEST_ASSERT_EQUAL_UINT32(15, ink_waveform_frames(waveform));
+    const charge = {};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_charge(waveform, charge));
+    TEST_ASSERT_EQUAL_INT32(0, charge.cycle);
+    TEST_ASSERT_EQUAL_INT32(0, charge.hold_white);
+    TEST_ASSERT_EQUAL_INT32(1, charge.hold_black);
+}
+
+function test_unequal_push_is_unbalanced()
+{
+    const waveform = new_waveform();
+    const parameters = {frames: 6, hold_frames: 0};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_build(parameters, waveform));
+    set_single_phase(waveform.tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE], INK_WAVEFORM_LEVEL_VSL, 4);
+    const charge = {};
+    TEST_ASSERT_EQUAL(INK_WAVEFORM_OK, ink_waveform_charge(waveform, charge));
+    TEST_ASSERT_EQUAL_INT32(2, charge.cycle);
+}
+
+function test_frames_count_repeats()
+{
+    const table = new Uint8Array(INK_WAVEFORM_TABLE_BYTES);
+    set_single_phase(table, INK_WAVEFORM_LEVEL_VSH, 5);
+    table[0] = 3;                                          /* lặp nhóm */
+    table[3] = ((INK_WAVEFORM_LEVEL_VSL << 6) | 2) & 0xFF; /* trạng thái 2 */
+    table[6] = 2;                                          /* lặp trạng thái 2 */
+    TEST_ASSERT_EQUAL_UINT32((5 + 2 * 2) * 3, ink_waveform_table_frames(table));
+}
+
+function test_zero_repeat_counts_once()
+{
+    const table = new Uint8Array(INK_WAVEFORM_TABLE_BYTES);
+    set_single_phase(table, INK_WAVEFORM_LEVEL_VSH, 7);
+    table[0] = 0;
+    table[5] = 0;
+    TEST_ASSERT_EQUAL_UINT32(7, ink_waveform_table_frames(table));
+}
+
+const HOST_TESTS = [
+    test_build_rejects_bad_parameters,
+    test_build_six_frames_is_balanced,
+    test_build_hold_pulse_keeps_length,
+    test_tr8_cycle_balanced_hold_black_warns,
+    test_unequal_push_is_unbalanced,
+    test_frames_count_repeats,
+    test_zero_repeat_counts_once,
+];
+
+/* Chỉ có ở bản JS: các số đã ghi trong waveform.md phải khớp bản dump nhúng. */
+function band_of(index)
+{
+    const band = live.otp.bands[index];
+    if (!band) { throw new AssertionError(`không có TR${index}`); }
+    return band;
+}
+
+function check_lock_and_thresholds()
+{
+    TEST_ASSERT_EQUAL(OTP_LOCK, live.otp.lock);
+    TEST_ASSERT_EQUAL("05 0A 0F 14 1E 50 5C 64 7F", live.otp.thresholds.map(hex_byte).join(" "));
+    TEST_ASSERT_EQUAL("A5 D7 00 D7 D7 27 00 97 22 F0 01 A0 00 00 00 00 88 03 00", live.otp.defaults.map(hex_byte).join(" "));
+}
+
+function check_nine_bands()
+{
+    TEST_ASSERT_EQUAL(9, live.otp.bands.length);
+}
+
+function check_frame_counts_tr4_to_tr8()
+{
+    const expected = {4: 126, 5: 129, 6: 102, 7: 74, 8: 17};
+    for (const [index, frames_plus_two] of Object.entries(expected)) {
+        TEST_ASSERT_EQUAL(frames_plus_two, band_of(Number(index)).frames + 2);
+    }
+}
+
+function check_voltages_all_bands()
+{
+    for (const band of live.otp.bands) {
+        TEST_ASSERT_EQUAL("09 10 3F 3F 14", [band.frame_rate_code, band.vg, band.vsh, band.vsl, band.vdhr].map(hex_byte).join(" "));
+        TEST_ASSERT_EQUAL(band.index === 8 ? 0x09 : 0x13, band.vcom);
+    }
+}
+
+function check_tr8_tables()
+{
+    const tables = band_of(8).waveform.tables;
+    const first_phases = (table) => Array.from(table.subarray(PHASE_FIRST, PHASE_FIRST + 2), hex_byte).join(" ");
+    TEST_ASSERT_EQUAL("0E 01", first_phases(tables[INK_WAVEFORM_TABLE_VCOM]));
+    TEST_ASSERT_EQUAL("0E 01", first_phases(tables[INK_WAVEFORM_TABLE_WHITE_TO_WHITE]));
+    TEST_ASSERT_EQUAL("8E 81", first_phases(tables[INK_WAVEFORM_TABLE_BLACK_TO_WHITE]));
+    TEST_ASSERT_EQUAL("4E 41", first_phases(tables[INK_WAVEFORM_TABLE_WHITE_TO_BLACK]));
+    TEST_ASSERT_EQUAL("0E 41", first_phases(tables[INK_WAVEFORM_TABLE_BLACK_TO_BLACK]));
+}
+
+const DATA_CHECKS = [
+    check_lock_and_thresholds,
+    check_nine_bands,
+    check_frame_counts_tr4_to_tr8,
+    check_voltages_all_bands,
+    check_tr8_tables,
+];
+
+function run_list(tests, list_id, summary_id)
+{
+    let passed = 0;
+    let html = "";
+    for (const test of tests) {
+        let error = null;
+        try { test(); } catch (caught) { error = caught; }
+        if (error === null) { passed++; }
+        html += `<div class="test-item"><span class="status ${error ? "fail" : "pass"}">${error ? "FAIL" : "PASS"}</span>`
+            + `<div><div class="name">${test.name}</div>${error ? `<div class="detail">${error.message}</div>` : ""}</div></div>`;
+        if (error && !(error instanceof AssertionError)) { console.error(error); }
+    }
+    document.getElementById(list_id).innerHTML = html;
+    const summary = document.getElementById(summary_id);
+    summary.textContent = `${passed}/${tests.length} qua`;
+    summary.className = `summary ${passed === tests.length ? "good" : "bad"}`;
+}
+
+function run_all_tests()
+{
+    run_list(HOST_TESTS, "testList", "testSummary");
+    run_list(DATA_CHECKS, "dataList", "dataSummary");
+}
+
+/* ---- Theme sáng/tối ---- */
+
+const THEME_KEY = "inkflash-sim-theme";
+
+/* SVG dùng biến CSS nên tự đổi màu theo theme, không cần vẽ lại. */
+function apply_theme(theme)
+{
+    document.documentElement.dataset.theme = theme;
+    document.getElementById("themeButton").textContent = theme === "dark" ? "Sáng" : "Tối";
+}
+
+/* Chỉ lưu khi người dùng bấm, để chưa chọn thì vẫn theo hệ điều hành. */
+function setup_theme()
+{
+    let saved = null;
+    try { saved = localStorage.getItem(THEME_KEY); } catch { /* trình duyệt chặn đọc: theo hệ điều hành */ }
+    const prefers_dark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    apply_theme(saved ?? (prefers_dark ? "dark" : "light"));
+    document.getElementById("themeButton").addEventListener("click", () => {
+        const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+        try { localStorage.setItem(THEME_KEY, theme); } catch { /* trình duyệt chặn lưu: chỉ mất lựa chọn lần sau */ }
+        apply_theme(theme);
+    });
+}
+
+/* ---- Khởi động ---- */
+
+function show_page(page)
+{
+    for (const [name, page_id, tab_id] of [["band", "pageBand", "tabBand"], ["overview", "pageOverview", "tabOverview"], ["tests", "pageTests", "tabTests"]]) {
+        document.getElementById(page_id).classList.toggle("active", page === name);
+        document.getElementById(tab_id).classList.toggle("active", page === name);
+    }
+}
+
+function start()
+{
+    setup_theme();
+    live.otp = load_otp();
+    fill_band_selects();
+    bind_controls();
+    render_band_page();
+    render_temperature();
+    render_overview();
+    document.getElementById("tabBand").addEventListener("click", () => show_page("band"));
+    document.getElementById("tabOverview").addEventListener("click", () => show_page("overview"));
+    document.getElementById("tabTests").addEventListener("click", () => show_page("tests"));
+    document.getElementById("runTestsButton").addEventListener("click", run_all_tests);
+    run_all_tests();
+}
+
+start();
+</script>
+</body>
+</html>
