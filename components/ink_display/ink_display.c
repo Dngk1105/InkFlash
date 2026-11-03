@@ -82,8 +82,8 @@ static uint32_t now_ms(void) {
 
 /* ---- Cài đặt ---- */
 
-static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight) {
-    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight};
+static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight, bool edge_flags) {
+    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight, .edge_flags = edge_flags};
     preset.band_count = purpose_default->band_count < INK_HAL_DISPLAY_MAX_BANDS ? purpose_default->band_count : INK_HAL_DISPLAY_MAX_BANDS;
     memcpy(preset.bands, purpose_default->bands, preset.band_count * sizeof(preset.bands[0]));
     return preset;
@@ -108,7 +108,9 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
         [INK_HAL_DISPLAY_PURPOSE_PAGE] = DEFAULT_WEIGHT_PAGE,
     };
     for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], weights[purpose]);
+        /* Chỉ UI: trang chữ đánh dấu hàng nghìn cờ, lượt dọn tâm viền làm cả trang chớp lấm tấm */
+        const bool edge_flags    = purpose == INK_HAL_DISPLAY_PURPOSE_UI;
+        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], weights[purpose], edge_flags);
     }
     return options;
 }
@@ -123,6 +125,12 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
                       [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].debt_weight,
                       [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].debt_weight,
                       [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].debt_weight,
+                      },
+        .edge_flags =
+            {
+                      [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].edge_flags,
+                      [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].edge_flags,
+                      [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].edge_flags,
                       },
         .auto_ui_percent  = options->auto_ui_percent,
         .debt_soft        = options->debt_soft,

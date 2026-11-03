@@ -153,6 +153,7 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl`.
 | Bài "VCOM và vùng đứng yên" | `tr8`, VCOM_DC `0x13` (−2,0 V) so với `0x09` (−1,0 V) | −2,0 V tệ hơn. −1,0 V: trong lúc chạy ổn; sau khi chạy, nửa trắng đứng yên tối dần, nửa đen giữ nguyên |
 | Bài "VCOM và vùng đứng yên", quét VCOM_DC thấp hơn `0x09` | `tr8` | Nửa trắng vẫn tối dần; đen không đủ, nhạt và chớp. Nửa trắng tối đi đúng lúc tắt nguồn (log "tắt nguồn") |
 | Trang chữ cuộn, so ứng viên | `tr8` | `tr8` đủ tốt cho chữ |
+| Bài "VCOM và vùng đứng yên", đổi PSR byte 2 | `tr8`, VCOM_DC theo profile | Tốt tới tệ: `0x0A` (TIEG 0, NORG 1, VC_LUTZ 0), `0x09`, `0x0E`, `0x0D`. Với `0x0A`, để yên một lúc thì ô nhỏ vừa đổi về trắng đậm dần, nhẹ hơn nhiều so với `0x0D`. Driver dùng `0x0A` |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
 ## Khuyến nghị của hãng panel

@@ -64,11 +64,11 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `0A` | SET_OPTIONS | cài đặt của `ink_display`, cùng bố cục với khối cài đặt trong INFO. Chỉ đường pipeline |
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần dọn mạnh) |
 | `0C` | OTP_DUMP | trống; trả các gói OTP rồi ACK. Chỉ đường raw |
-| `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau. Máy khởi động lại thì về `0D`, theo profile. Cả hai đường |
+| `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau. Máy khởi động lại thì về `0A`, theo profile. Cả hai đường |
 
 Khối cài đặt (trong SET_OPTIONS và INFO): với mỗi mục đích theo thứ tự `TEXT`, `UI`, `PAGE`, dọn mạnh, dọn nhanh, dọn
 tâm viền, dọn quanh viền, dọn nhẹ: số dải, 9 dải (°C có dấu 1 byte, id profile 2 byte), vào chế độ partial, `PT_SCAN`,
-kéo viền màn, trọng số nợ. Sau đó: `auto_ui_percent`, `debt_soft`, `debt_page`, `debt_ceiling`, `debt_ceiling_max`,
+kéo viền màn, trọng số nợ, đánh dấu cờ viền (chỉ `TEXT`, `UI`, `PAGE` dùng). Sau đó: `auto_ui_percent`, `debt_soft`, `debt_page`, `debt_ceiling`, `debt_ceiling_max`,
 3 byte 0, `edge_ms`, `light_ms`, `strong_ms`, `power_off_ms` (4 byte mỗi số).
 
 Gói máy gửi lên:
@@ -99,7 +99,7 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | Giữ màu 0 V | raw | Ô cờ đảo 100 lần bằng `tr8` rồi bằng `tr8_kk0`: điểm đứng yên có xám dần không |
 | Dọn viền theo cờ | pipeline | Lật ô với ý định `UI`, nghỉ: lượt dọn tâm và quanh viền có xoá viền không; số điểm có cờ so với viền thấy trên ảnh chụp; DRF dọn dưới 100 ms không |
 | Dọn viền nhiều ô | pipeline | Như bài trên với nhiều ô khác cỡ, khác chỗ, lật lần lượt hoặc cùng lúc: cờ thưa có bỏ sót viền ở ô nhỏ, ô gần nhau không |
-| PSR byte 2 và tắt nguồn | pipeline | Trang chữ có nợ, nghỉ qua dọn viền, dọn nhẹ, tắt nguồn, với PSR byte 2 là `0D` rồi `0E`: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
+| PSR byte 2 và tắt nguồn | pipeline | Trang chữ có nợ, nghỉ qua dọn viền, dọn nhẹ, tắt nguồn, với các giá trị PSR byte 2: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
 | VCOM và vùng đứng yên | raw | Nửa trắng, nửa đen đứng yên, ô giữa lật nhiều lần với window cả màn, quét VCOM_DC từ `00` (−0,1 V) tới `13` (−2,0 V) và PSR byte 2 (có TIEG 0): vùng đứng yên có đổi màu dần trong lúc chạy, lúc tắt nguồn và sau đó không |
 | Chữ cho `TEXT` | raw | Trang chữ cuộn bằng profile chọn: profile nào cho chữ rõ nhất trong 0,3–0,4 s |
 | Thang dọn | pipeline | Lật nhiều lần rồi nghỉ qua cả ba bậc: đúng thứ tự, đúng thời điểm, đúng nợ sau mỗi bậc |

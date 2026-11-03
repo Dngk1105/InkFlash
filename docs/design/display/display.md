@@ -93,14 +93,14 @@ màn, mặt phẳng cũ đảo bit:
 | Profile | Bảng sóng, điện áp, tần số khung |
 | Cấu hình vẽ | Vào chế độ partial (PTL) hay không, `PT_SCAN`, có kéo viền màn không |
 
-Mỗi mục đích vẽ có một **preset**: profile theo dải nhiệt độ, cấu hình vẽ, trọng số nợ. Preset nằm ở `display`, không
+Mỗi mục đích vẽ có một **preset**: profile theo dải nhiệt độ, cấu hình vẽ, trọng số nợ, có đánh dấu cờ viền không. Preset nằm ở `display`, không
 nằm trong profile, nên cùng một bảng sóng dùng được cho nhiều mục đích.
 
 | Mục đích | Dùng cho | Mặt phẳng cũ | Window |
 |---|---|---|---|
 | `TEXT`, `UI`, `PAGE` | Vẽ khung theo ý định | Khung đang hiện | Vùng đổi |
 | Dọn mạnh | Khởi động nguội, sau lỗi, vượt trần nợ, cuối thang dọn, trước khi ngủ | Khung mới đảo bit | Cả màn |
-| Dọn nhanh | `PAGE` khi nợ đã quá ngưỡng | Khung mới đảo bit | Cả màn |
+| Dọn nhanh | `PAGE` khi nợ đã quá ngưỡng. Mặc định dùng cùng dải nhiệt độ với dọn mạnh: đo trên BB0, `tr8` cả màn làm vùng không đổi đậm dần | Khung mới đảo bit | Cả màn |
 | Dọn tâm viền | Bậc 1 của thang dọn | Khung đang hiện, đảo bit ở điểm có cờ viền | Bao các điểm có cờ |
 | Dọn quanh viền | Bậc 1 của thang dọn, ngay sau dọn tâm | Khung đang hiện, đảo bit ở điểm kề cạnh điểm có cờ | Bao các điểm đó |
 | Dọn nhẹ | Bậc 2 của thang dọn | Khung đang hiện, đảo bit ở điểm có nợ xám | Bao các điểm đó |
@@ -141,7 +141,9 @@ Mỗi điểm có một byte trong PSRAM (240 × 416 điểm, khoảng 100 KB), 
 | Nợ xám (4 bit) | Mỗi lần điểm đổi màu bằng preset của ý định, nợ của nó cộng trọng số của preset; tối đa 15 |
 
 **Cờ viền.** Điểm đứng yên nằm cạnh điểm vừa đổi màu bị điện trường lan sang, đổi màu một phần và để lại viền. Luật
-đánh dấu theo bằng sáng chế US 11,568,827 của E Ink, chạy trong mỗi lần vẽ theo ý định:
+đánh dấu theo bằng sáng chế US 11,568,827 của E Ink, chạy trong mỗi lần vẽ theo ý định có bật cờ viền ở preset. Mặc định chỉ
+`UI` bật: đổi một trang chữ đánh dấu hàng nghìn cờ (đo trên BB0: 7 929), và lượt dọn tâm viền chạy lắc qua lại ở từng điểm
+có cờ nên cả trang chớp lấm tấm. Viền của `TEXT`, `PAGE` để lượt dọn mạnh xoá:
 
 | Cờ | Điều kiện |
 |---|---|
@@ -275,7 +277,7 @@ Danh sách profile:
 
 | Id | Profile | Bảng sóng | Một lần vẽ | Dùng cho |
 |---|---|---|---|---|
-| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE`, dọn nhanh |
+| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh, dọn nhanh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE` |
 | 10 | `lut15f65` | TR8, 65 Hz | 262 ms | |
 | 11 | `lut15f100` | TR8, 100 Hz | 170 ms | |
 | 12 | `lut12f50` | Kéo 12 khung, 50 Hz | 280 ms | |
@@ -354,7 +356,7 @@ khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`
 
 | Cài đặt | Nghĩa | Mặc định |
 |---|---|---|
-| Preset của từng mục đích | Bảng dải nhiệt độ → id profile; cấu hình vẽ; trọng số nợ (chỉ preset của ý định). Id không còn trong danh sách thì dùng mặc định của driver cho mục đích đó | Mặc định theo mục đích của driver; trọng số `TEXT` 1, `UI` 2, `PAGE` 1 |
+| Preset của từng mục đích | Bảng dải nhiệt độ → id profile; cấu hình vẽ; trọng số nợ và đánh dấu cờ viền (chỉ preset của ý định). Id không còn trong danh sách thì dùng mặc định của driver cho mục đích đó | Mặc định theo mục đích của driver; trọng số `TEXT` 1, `UI` 2, `PAGE` 1; cờ viền chỉ `UI` |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
 | `debt_soft`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn nhanh khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Trần nợ lúc nghỉ và trần lớn nhất khi đang thao tác | 8, 15 |

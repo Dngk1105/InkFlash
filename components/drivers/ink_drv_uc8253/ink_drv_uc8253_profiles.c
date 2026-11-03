@@ -781,6 +781,14 @@ static const ink_hal_display_band_t s_clean_strong_bands[] = {
     {.max_celsius = 127, .profile_id = 9}
 };
 static const ink_hal_display_band_t s_clean_fast_bands[] = {
+    {.max_celsius = 5,   .profile_id = 1},
+    {.max_celsius = 10,  .profile_id = 2},
+    {.max_celsius = 15,  .profile_id = 3},
+    {.max_celsius = 20,  .profile_id = 4},
+    {.max_celsius = 30,  .profile_id = 5},
+    {.max_celsius = 80,  .profile_id = 6},
+    {.max_celsius = 92,  .profile_id = 7},
+    {.max_celsius = 100, .profile_id = 8},
     {.max_celsius = 127, .profile_id = 9}
 };
 static const ink_hal_display_band_t s_clean_edge_center_bands[] = {
@@ -807,7 +815,7 @@ const ink_hal_display_purpose_default_t ink_drv_uc8253_purpose_defaults[INK_HAL_
                                                      .band_count = 9,
                                                      .config     = {.partial_mode = false, .pt_scan = true, .drive_border = true}},
     [INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST]          = {.bands      = s_clean_fast_bands,
-                                                     .band_count = 1,
+                                                     .band_count = 9,
                                                      .config     = {.partial_mode = false, .pt_scan = true, .drive_border = true}},
     [INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_CENTER]   = {.bands      = s_clean_edge_center_bands,
                                                      .band_count = 1,

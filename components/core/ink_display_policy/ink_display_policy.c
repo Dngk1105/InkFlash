@@ -442,7 +442,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);
-    mark_edges(state, shown, next, changed);
+    if (config->edge_flags[intent]) { mark_edges(state, shown, next, changed); }
 
     *out_decision = (ink_display_policy_decision_t){
         .action    = INK_DISPLAY_POLICY_ACTION_DRAW,

@@ -317,7 +317,7 @@ function new_state()
 
 function copy_config(config)
 {
-    return {...config, weights: [...config.weights]};
+    return {...config, weights: [...config.weights], edge_flags: [...config.edge_flags]};
 }
 
 function ink_display_policy_init(state, config, pixels)
@@ -700,7 +700,7 @@ function ink_display_policy_decide(state, shown, next, request, now_ms, out_deci
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);
-    mark_edges(state, shown, next, changed);
+    if (config.edge_flags[intent]) { mark_edges(state, shown, next, changed); }
 
     Object.assign(out_decision, {action: INK_DISPLAY_POLICY_ACTION_DRAW, intent, window, old_plane: INK_DISPLAY_POLICY_OLD_SHOWN});
     return INK_DISPLAY_POLICY_OK;
@@ -841,6 +841,7 @@ const live = {
     config: {
         width: LIVE_WIDTH, height: LIVE_HEIGHT, x_align: 8,
         weights: [0, 1, 2, 1],       /* DEFAULT_WEIGHT_TEXT, _UI, _PAGE */
+        edge_flags: [false, false, true, false], /* ink_display_default_options: chỉ UI */
         auto_ui_percent: 10,         /* DEFAULT_AUTO_UI_PERCENT */
         debt_soft: 2, debt_page: 6, debt_ceiling: 8, debt_ceiling_max: 15,
         edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
@@ -1104,7 +1105,8 @@ function render()
 /* ---- Điều khiển ---- */
 
 const CONFIG_FIELDS = [
-    ["weights.1", "trọng số TEXT"], ["weights.2", "trọng số UI"], ["weights.3", "trọng số PAGE"], ["auto_ui_percent", "auto_ui_percent"],
+    ["weights.1", "trọng số TEXT"], ["weights.2", "trọng số UI"], ["weights.3", "trọng số PAGE"],
+    ["edge_flags.1", "cờ viền TEXT (0/1)"], ["edge_flags.2", "cờ viền UI (0/1)"], ["edge_flags.3", "cờ viền PAGE (0/1)"], ["auto_ui_percent", "auto_ui_percent"],
     ["debt_soft", "debt_soft"], ["debt_page", "debt_page"], ["debt_ceiling", "debt_ceiling"], ["debt_ceiling_max", "debt_ceiling_max"],
     ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["power_off_ms", "(vỏ) power_off_ms"],
 ];
@@ -1113,7 +1115,8 @@ function config_value(key)
 {
     if (key === "power_off_ms") { return live.power_off_ms; }
     const [name, index] = key.split(".");
-    return index === undefined ? live.config[name] : live.config[name][Number(index)];
+    const value = index === undefined ? live.config[name] : live.config[name][Number(index)];
+    return typeof value === "boolean" ? Number(value) : value;
 }
 
 function render_config_form()
@@ -1138,7 +1141,7 @@ function apply_config()
         const value = Number(document.getElementById(`config-${key}`).value);
         if (key === "power_off_ms") { live.power_off_ms = value; continue; }
         const [name, index] = key.split(".");
-        if (index === undefined) { config[name] = value; } else { config[name][Number(index)] = value; }
+        if (index === undefined) { config[name] = value; } else { config[name][Number(index)] = name === "edge_flags" ? value !== 0 : value; }
     }
     if (ink_display_policy_set_config(live.state, config) !== INK_DISPLAY_POLICY_OK) {
         shell_log("set_config: ERROR_ARGUMENT, giữ config cũ");
@@ -1239,7 +1242,7 @@ function expect_less_or_equal(threshold, actual) { if (!(actual <= threshold)) {
 
 function default_config()
 {
-    return {width: WIDTH, height: HEIGHT, x_align: 8, weights: [0, 1, 2, 1], auto_ui_percent: 10, debt_soft: 2, debt_page: 6,
+    return {width: WIDTH, height: HEIGHT, x_align: 8, weights: [0, 1, 2, 1], edge_flags: [false, true, true, true], auto_ui_percent: 10, debt_soft: 2, debt_page: 6,
         debt_ceiling: 8, debt_ceiling_max: 15, edge_ms: 2000, light_ms: 10000, strong_ms: 60000};
 }
 
@@ -1461,6 +1464,25 @@ const TESTS = {
         expect_equal(1, t.pixels[3 * WIDTH + 6] & 0x03);
         expect_equal(1, t.pixels[4 * WIDTH + 3] & 0x03);
         expect_equal(1, t.pixels[5 * WIDTH + 5] & 0x03);
+        expect_equal(4, ink_display_policy_flagged_count(t.state));
+    },
+    test_intent_without_edge_flags_marks_nothing_but_adds_debt() {
+        const config = default_config();
+        config.edge_flags[INK_DISPLAY_POLICY_INTENT_TEXT] = false;
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(config);
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
+        expect_equal(1, ink_display_policy_max_debt(t.state));
+        black_box(4, 3);
+        t.now_ms += 100;
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
+        t.next.fill(0xFF);
+        t.now_ms += 100;
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
         expect_equal(4, ink_display_policy_flagged_count(t.state));
     },
     test_marks_light_edge_next_to_pixel_that_turns_black() {

@@ -87,6 +87,7 @@ function readOptions(reader) {
             ptScan: reader.u8() !== 0,
             driveBorder: reader.u8() !== 0,
             debtWeight: reader.u8(),
+            edgeFlags: reader.u8() !== 0,
         };
     });
     const options = {presets, autoUiPercent: reader.u8(), debtSoft: reader.u8(), debtPage: reader.u8(), debtCeiling: reader.u8(), debtCeilingMax: reader.u8()};
@@ -102,7 +103,7 @@ export function writeOptions(writer, options) {
             const band = preset.bands[i] ?? {maxCelsius: 0, profileId: 0};
             writer.u8(band.maxCelsius).u16(band.profileId);
         }
-        writer.u8(preset.partialMode ? 1 : 0).u8(preset.ptScan ? 1 : 0).u8(preset.driveBorder ? 1 : 0).u8(preset.debtWeight);
+        writer.u8(preset.partialMode ? 1 : 0).u8(preset.ptScan ? 1 : 0).u8(preset.driveBorder ? 1 : 0).u8(preset.debtWeight).u8(preset.edgeFlags ? 1 : 0);
     }
     writer.u8(options.autoUiPercent).u8(options.debtSoft).u8(options.debtPage).u8(options.debtCeiling).u8(options.debtCeilingMax);
     writer.u8(0).u8(0).u8(0);

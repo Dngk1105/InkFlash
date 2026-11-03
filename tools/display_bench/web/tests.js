@@ -29,10 +29,10 @@ export const VCOM_OPTIONS = Object.freeze([
 
 /* PSR byte 2 (commands.md): D3 TS_AUTO, D2 TIEG (VGL nối đất sau POF), D1 NORG, D0 VC_LUTZ. */
 export const PSR_SECOND_OPTIONS = Object.freeze([
-    {value: 0x0d, label: '0D: TIEG 1, VCOM nổi sau khi vẽ (mặc định UC8253, GxEPD2)'},
+    {value: 0x0a, label: '0A: TIEG 0, VCOM nối đất ngoài lúc vẽ (mặc định driver)'},
+    {value: 0x09, label: '09: TIEG 0, VCOM nổi sau khi vẽ'},
     {value: 0x0e, label: '0E: TIEG 1, VCOM nối đất ngoài lúc vẽ (mã mẫu hãng)'},
-    {value: 0x09, label: '09: như 0D, TIEG 0 (VGL không nối đất sau POF)'},
-    {value: 0x0a, label: '0A: như 0E, TIEG 0'},
+    {value: 0x0d, label: '0D: TIEG 1, VCOM nổi sau khi vẽ (mặc định UC8253, GxEPD2)'},
 ]);
 
 /* ---- Hình dùng chung ---- */
@@ -242,9 +242,9 @@ export const TESTS = [
         id: 'psr_power_off',
         name: 'PSR byte 2 và tắt nguồn',
         path: 'pipeline',
-        description: 'Trang chữ, một ô lật N lần với ý định UI cho có nợ, rồi máy nghỉ qua dọn viền, dọn nhẹ và tắt nguồn (dọn mạnh dời xa để không xoá dấu vết). Chạy hai lần, 0D rồi 0E, cùng thông số. Xem có hạt nào tự xám sau gói "tắt nguồn" không, và hạt xám là đen nhạt đi hay trắng tối đi, trong vùng ô hay cả ở vùng chữ không bị đụng. Đặt power_off_ms = 0 để xem hạt có xám khi nguồn vẫn bật.',
+        description: 'Trang chữ, một ô lật N lần với ý định UI cho có nợ, rồi máy nghỉ qua dọn viền, dọn nhẹ và tắt nguồn (dọn mạnh dời xa để không xoá dấu vết). Chạy với từng giá trị PSR byte 2, cùng thông số. Xem có hạt nào tự xám sau gói "tắt nguồn" không, và hạt xám là đen nhạt đi hay trắng tối đi, trong vùng ô hay cả ở vùng chữ không bị đụng. Đặt power_off_ms = 0 để xem hạt có xám khi nguồn vẫn bật.',
         params: [
-            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d, options: PSR_SECOND_OPTIONS},
+            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0a, options: PSR_SECOND_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 20, min: 1, max: 60},
             {key: 'interval', label: 'ms giữa hai lần', value: 300, min: 0, max: 10000, step: 50},
             {key: 'edge', label: 'edge_ms', value: 2000, min: 0, max: 60000, step: 500},
@@ -278,7 +278,7 @@ export const TESTS = [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
             {key: 'vcom', label: 'VCOM_DC', type: 'select', value: 255,
                 options: VCOM_OPTIONS},
-            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0d, options: PSR_SECOND_OPTIONS},
+            {key: 'psr', label: 'PSR byte 2', type: 'select', value: 0x0a, options: PSR_SECOND_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 60, min: 1, max: 200},
             {key: 'interval', label: 'ms giữa hai lần', value: 200, min: 0, max: 10000, step: 50},
         ],

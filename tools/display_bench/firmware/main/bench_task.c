@@ -65,7 +65,7 @@ static void put_text(writer_t *writer, const char *text) {
 
 /* ---- Khối cài đặt (bench.md, "Giao thức") ---- */
 
-#define OPTIONS_PRESET_BYTES (1 + INK_HAL_DISPLAY_MAX_BANDS * 3 + 4)
+#define OPTIONS_PRESET_BYTES (1 + INK_HAL_DISPLAY_MAX_BANDS * 3 + 5)
 #define OPTIONS_BYTES        (INK_HAL_DISPLAY_PURPOSE_COUNT * OPTIONS_PRESET_BYTES + 8 + 16)
 
 static void put_options(writer_t *writer, const ink_display_options_t *options) {
@@ -80,6 +80,7 @@ static void put_options(writer_t *writer, const ink_display_options_t *options) 
         put_u8(writer, preset->config.pt_scan);
         put_u8(writer, preset->config.drive_border);
         put_u8(writer, preset->debt_weight);
+        put_u8(writer, preset->edge_flags);
     }
     put_u8(writer, options->auto_ui_percent);
     put_u8(writer, options->debt_soft);
@@ -106,7 +107,8 @@ static esp_err_t read_options(const uint8_t *payload, size_t length, ink_display
         preset->config =
             (ink_hal_display_draw_config_t){.partial_mode = cursor[0] != 0, .pt_scan = cursor[1] != 0, .drive_border = cursor[2] != 0};
         preset->debt_weight = cursor[3];
-        cursor += 4;
+        preset->edge_flags  = cursor[4] != 0;
+        cursor += 5;
     }
     out_options->auto_ui_percent  = cursor[0];
     out_options->debt_soft        = cursor[1];

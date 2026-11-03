@@ -20,14 +20,16 @@ static uint32_t                   s_now_ms;
 
 static ink_display_policy_config_t default_config(void) {
     return (ink_display_policy_config_t){
-        .width           = WIDTH,
-        .height          = HEIGHT,
-        .x_align         = 8,
-        .weights         = {[INK_DISPLAY_POLICY_INTENT_TEXT] = 1, [INK_DISPLAY_POLICY_INTENT_UI] = 2, [INK_DISPLAY_POLICY_INTENT_PAGE] = 1},
-        .auto_ui_percent = 10,
-        .debt_soft       = 2,
-        .debt_page       = 6,
-        .debt_ceiling    = 8,
+        .width   = WIDTH,
+        .height  = HEIGHT,
+        .x_align = 8,
+        .weights = {[INK_DISPLAY_POLICY_INTENT_TEXT] = 1,    [INK_DISPLAY_POLICY_INTENT_UI] = 2,    [INK_DISPLAY_POLICY_INTENT_PAGE] = 1   },
+        .edge_flags =
+            {[INK_DISPLAY_POLICY_INTENT_TEXT] = true, [INK_DISPLAY_POLICY_INTENT_UI] = true, [INK_DISPLAY_POLICY_INTENT_PAGE] = true},
+        .auto_ui_percent  = 10,
+        .debt_soft        = 2,
+        .debt_page        = 6,
+        .debt_ceiling     = 8,
         .debt_ceiling_max = 15,
         .edge_ms          = 2000,
         .light_ms         = 10000,
@@ -334,6 +336,27 @@ static void test_marks_dark_edge_around_box_that_turns_white(void) {
     TEST_ASSERT_EQUAL_UINT32(4, ink_display_policy_flagged_count(&s_state));
 }
 
+static void test_intent_without_edge_flags_marks_nothing_but_adds_debt(void) {
+    ink_display_policy_config_t config                = default_config();
+    config.edge_flags[INK_DISPLAY_POLICY_INTENT_TEXT] = false;
+    black_box(4, 3);
+    memcpy(s_shown, s_next, SIZE);
+    start(&config);
+    memset(s_next, 0xFF, SIZE);
+    draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+    TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
+    TEST_ASSERT_EQUAL_UINT8(1, ink_display_policy_max_debt(&s_state));
+    black_box(4, 3);
+    s_now_ms += 100;
+    draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+    TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
+    /* UI vẫn đánh dấu: ô về trắng như bài trên */
+    memset(s_next, 0xFF, SIZE);
+    s_now_ms += 100;
+    draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    TEST_ASSERT_EQUAL_UINT32(4, ink_display_policy_flagged_count(&s_state));
+}
+
 static void test_marks_light_edge_next_to_pixel_that_turns_black(void) {
     const ink_display_policy_config_t config = default_config();
     set_black(s_shown, 5, 5);
@@ -568,6 +591,7 @@ int main(void) {
     RUN_TEST(test_page_with_high_debt_draws_clean_fast);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
     RUN_TEST(test_marks_dark_edge_around_box_that_turns_white);
+    RUN_TEST(test_intent_without_edge_flags_marks_nothing_but_adds_debt);
     RUN_TEST(test_marks_light_edge_next_to_pixel_that_turns_black);
     RUN_TEST(test_changed_pixel_loses_its_flag);
     RUN_TEST(test_idle_ladder_runs_edge_then_light_then_strong);

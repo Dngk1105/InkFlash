@@ -32,6 +32,7 @@ typedef struct {
     uint8_t                       band_count;
     ink_hal_display_draw_config_t config;
     uint8_t                       debt_weight; /**< chỉ TEXT, UI, PAGE dùng */
+    bool                          edge_flags;  /**< chỉ TEXT, UI, PAGE dùng: khung vẽ bằng preset này đánh dấu cờ viền */
 } ink_display_preset_t;
 
 /** Cài đặt đổi được lúc chạy. */

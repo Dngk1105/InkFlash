@@ -22,8 +22,8 @@
 #define INK_DRV_UC8253_NAME_BYTES         16
 #define INK_DRV_UC8253_MAX_PROFILES       32                /* chỗ trong bảng khả năng, gồm profile tạm */
 #define INK_DRV_UC8253_OTP_BYTES          (0x2A + 9 * 0xE9) /* bank 0 từ khoá A5 tới hết dải TR8 (waveform.md) */
-#define INK_DRV_UC8253_PSR_SECOND_DEFAULT 0x0D              /* như GxEPD2: NORG = 0, VC_LUTZ = 1; mã mẫu hãng dùng 0x0E */
-#define INK_DRV_UC8253_VCOM_FROM_PROFILE  0xFF              /* không thay VCOM_DC của profile */
+#define INK_DRV_UC8253_PSR_SECOND_DEFAULT 0x0A /* TIEG = 0, NORG = 1, VC_LUTZ = 0: ít tối vùng trắng nhất khi POF (refresh.md) */
+#define INK_DRV_UC8253_VCOM_FROM_PROFILE  0xFF /* không thay VCOM_DC của profile */
 
 typedef struct {
     spi_host_device_t host; /**< bus đã khởi tạo, max_transfer_sz ≥ INK_DRV_UC8253_FRAME_BYTES */

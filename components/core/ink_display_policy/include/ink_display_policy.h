@@ -65,16 +65,17 @@ typedef struct {
 typedef struct {
     uint16_t width; /**< cỡ gốc, từ bảng khả năng của driver */
     uint16_t height;
-    uint8_t  x_align;                                  /**< mép x window là bội của số này */
-    uint8_t  weights[INK_DISPLAY_POLICY_INTENT_COUNT]; /**< nợ cộng cho mỗi điểm đổi màu; index AUTO không dùng */
-    uint8_t  auto_ui_percent;                          /**< AUTO: window nhỏ hơn chừng này % diện tích màn thì là UI */
-    uint8_t  debt_soft;                                /**< dọn nhẹ các điểm có nợ từ mức này */
-    uint8_t  debt_page;                                /**< PAGE khi nợ lớn nhất tới mức này thì dọn nhanh */
-    uint8_t  debt_ceiling;                             /**< trần nợ lúc nghỉ */
-    uint8_t  debt_ceiling_max;                         /**< trần lớn nhất khi đang thao tác liên tục */
-    uint32_t edge_ms;                                  /**< bậc 1 của thang dọn; cũng là khoảng "đang thao tác"; 0 = bỏ */
-    uint32_t light_ms;                                 /**< bậc 2; 0 = bỏ */
-    uint32_t strong_ms;                                /**< bậc 3; 0 = bỏ */
+    uint8_t  x_align;                                     /**< mép x window là bội của số này */
+    uint8_t  weights[INK_DISPLAY_POLICY_INTENT_COUNT];    /**< nợ cộng cho mỗi điểm đổi màu; index AUTO không dùng */
+    bool     edge_flags[INK_DISPLAY_POLICY_INTENT_COUNT]; /**< khung của ý định này đánh dấu cờ viền; index AUTO không dùng */
+    uint8_t  auto_ui_percent;                             /**< AUTO: window nhỏ hơn chừng này % diện tích màn thì là UI */
+    uint8_t  debt_soft;                                   /**< dọn nhẹ các điểm có nợ từ mức này */
+    uint8_t  debt_page;                                   /**< PAGE khi nợ lớn nhất tới mức này thì dọn nhanh */
+    uint8_t  debt_ceiling;                                /**< trần nợ lúc nghỉ */
+    uint8_t  debt_ceiling_max;                            /**< trần lớn nhất khi đang thao tác liên tục */
+    uint32_t edge_ms;                                     /**< bậc 1 của thang dọn; cũng là khoảng "đang thao tác"; 0 = bỏ */
+    uint32_t light_ms;                                    /**< bậc 2; 0 = bỏ */
+    uint32_t strong_ms;                                   /**< bậc 3; 0 = bỏ */
 } ink_display_policy_config_t;
 
 typedef struct {

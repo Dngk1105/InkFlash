@@ -304,7 +304,7 @@ function renderPanel() {
 }
 
 /* Gói SET_PANEL: PSR byte 2, VCOM_DC thay thế. Giá trị bỏ trống thì giữ giá trị máy đang dùng. */
-async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0d, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE}) {
+async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0a, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE}) {
     await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).result());
     app.settings.psrSecond = psrSecond;
     app.settings.vcomOverride = vcomOverride;
@@ -339,12 +339,12 @@ const OPTION_FIELDS = [
     ['option-power-off-ms', 'powerOffMs'],
 ];
 
-/* Bảng preset: mỗi mục đích một hàng (profile hoặc theo dải, chế độ partial, PT_SCAN, kéo viền, trọng số). */
+/* Bảng preset: mỗi mục đích một hàng (profile hoặc theo dải, chế độ partial, PT_SCAN, kéo viền, trọng số, cờ viền). */
 function renderOptionsForm() {
     const options = app.settings.options;
     if (!options || !app.info) { return; }
     const profileOptions = app.info.profiles.map((profile) => ({value: String(profile.id), label: `${profile.name} (${profile.drawMs} ms)`}));
-    const header = element('tr', {}, ['Mục đích', 'Profile', 'Partial', 'PT_SCAN', 'Viền', 'Trọng số'].map((title) => element('th', {text: title})));
+    const header = element('tr', {}, ['Mục đích', 'Profile', 'Partial', 'PT_SCAN', 'Viền', 'Trọng số', 'Cờ viền'].map((title) => element('th', {text: title})));
     const rows = PURPOSES.map((purpose, index) => {
         const preset = options.presets[index];
         const select = element('select', {id: `preset-profile-${index}`});
@@ -357,7 +357,8 @@ function renderOptionsForm() {
             return input;
         };
         const weight = element('input', {type: 'number', id: `preset-weight-${index}`, min: '0', max: '15', value: String(preset.debtWeight)});
-        if (index > 2) { weight.disabled = true; }
+        const edgeFlags = check('edge-flags', preset.edgeFlags);
+        if (index > 2) { weight.disabled = true; edgeFlags.disabled = true; }
         return element('tr', {}, [
             element('td', {class: 'text', text: purpose.name}),
             element('td', {}, [select]),
@@ -365,6 +366,7 @@ function renderOptionsForm() {
             element('td', {}, [check('pt', preset.ptScan)]),
             element('td', {}, [check('border', preset.driveBorder)]),
             element('td', {}, [weight]),
+            element('td', {}, [edgeFlags]),
         ]);
     });
     $('preset-table').replaceChildren(header, ...rows);
@@ -380,6 +382,7 @@ function readOptionsForm() {
         preset.ptScan = $(`preset-pt-${index}`).checked;
         preset.driveBorder = $(`preset-border-${index}`).checked;
         preset.debtWeight = Number($(`preset-weight-${index}`).value);
+        preset.edgeFlags = $(`preset-edge-flags-${index}`).checked;
     });
     for (const [id, key] of OPTION_FIELDS) { options[key] = Math.max(0, Number($(id).value) || 0); }
     return options;
@@ -1222,7 +1225,7 @@ function setupControls() {
     for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
 
     fillSelect($('vcom-override'), VCOM_OPTIONS, VCOM_FROM_PROFILE);
-    fillSelect($('psr-second'), PSR_SECOND_OPTIONS, 0x0d);
+    fillSelect($('psr-second'), PSR_SECOND_OPTIONS, 0x0a);
     fillSelect($('dither'), Object.values(DitherMethod).map((method) => ({value: method, label: DITHER_NAMES[method]})), DitherMethod.FLOYD_STEINBERG);
     renderRawForm();
     $('orientation').value = app.orientation;
