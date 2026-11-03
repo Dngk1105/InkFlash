@@ -1,2151 +1,1664 @@
 <!DOCTYPE html>
 <!-- Thiết kế: docs/design/display/display.md -->
 <!--
-  Mô phỏng ink_display_policy trên trình duyệt với theme Editorial của Archify.
-  Phần "Lõi C23 chép sang JS" giữ nguyên 1:1 tên hàm, tên biến, thứ tự câu lệnh từ ink_display_policy.c.
-  Tab "Host test" chạy lại toàn bộ 15 ca test từ test_ink_display_policy.c.
+  Mô phỏng ink_display_policy trên trình duyệt. Phần "Lõi" chép từng hàm của ink_display_policy.c sang JS, cùng tên,
+  cùng thứ tự lệnh; sửa ink_display_policy.c thì sửa phần này trong cùng commit. Phần "Giả lập vỏ" làm đúng thứ tự
+  của task màn trong ink_display.c: lấy khung → decide → vẽ → báo; nghỉ thì idle → cleanup_plane → vẽ →
+  cleanup_done; tắt nguồn sau power_off_ms. Tab "Host test" chạy lại test_ink_display_policy.c trên bản JS.
 -->
 <html lang="vi" data-preset="editorial" data-theme="light">
-
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>InkFlash — Display Policy & Coordinate Simulator</title>
-    <style>
-        /* ==========================================================================
-       ARCHIFY EDITORIAL PRESET THEME (LIGHT & DARK)
-       ========================================================================== */
-        :root,
-        [data-preset="editorial"][data-theme="light"] {
-            --bg: #f2eee5;
-            --grid: #d8d0c2;
-            --panel: #fbf8f1;
-            --panel-strong: #ede6d8;
-            --panel-border: #c4b9a6;
-            --panel-border-soft: #dcd4c5;
-            --lane-fill: rgba(229, 221, 207, 0.42);
-            --lane-stroke: #b8aa94;
-            --text: #242018;
-            --text-muted: #6f6658;
-            --text-dim: #948a79;
-            --text-faint: #b3a998;
-            --mask: #fbf8f1;
-
-            --accent: #9f403d;
-            /* Editorial Terracotta / Crimson */
-            --accent-strong: #7d2a27;
-            --accent-soft: #f4dcdb;
-
-            --brand-teal: #287e84;
-            /* Editorial Teal */
-            --brand-teal-soft: #e0f0f1;
-            --brand-green: #397b53;
-            /* Editorial Forest */
-            --brand-bronze: #9a671f;
-            /* Editorial Ochre/Amber */
-            --brand-purple: #765d86;
-            /* Editorial Muted Purple for Halo */
-            --brand-purple-soft: #ede6f2;
-
-            --window-color: #287e84;
-            --bounds-color: #9f403d;
-            --halo-color: #765d86;
-
-            --pixel-white: #ffffff;
-            --pixel-black: #1f1d1a;
-            --pixel-grid: #e2dbce;
-            --pixel-pad: #dfd9cc;
-
-            --font-serif: "Time News Roman", "Newsreader", "Charter", "Georgia", "Iowan Old Style", serif;
-            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            --font-mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
-        }
-
-        [data-preset="editorial"][data-theme="dark"] {
-            --bg: #181611;
-            --grid: #39342a;
-            --panel: #231f18;
-            --panel-strong: #2e2921;
-            --panel-border: #625a4a;
-            --panel-border-soft: #443e33;
-            --lane-fill: rgba(52, 46, 35, 0.46);
-            --lane-stroke: #726957;
-            --text: #f4eddf;
-            --text-muted: #b9ae9b;
-            --text-dim: #776e60;
-            --text-faint: #595246;
-            --mask: #231f18;
-
-            --accent: #cf6662;
-            --accent-strong: #f4eddf;
-            --accent-soft: #382424;
-
-            --brand-teal: #7fc6c7;
-            --brand-teal-soft: #193234;
-            --brand-green: #8fc29e;
-            --brand-bronze: #d8ad68;
-            --brand-purple: #c0a4d0;
-            --brand-purple-soft: #2e2436;
-
-            --window-color: #7fc6c7;
-            --bounds-color: #cf6662;
-            --halo-color: #c0a4d0;
-
-            --pixel-white: #e9e3d5;
-            --pixel-black: #0c0b09;
-            --pixel-grid: #2e2a22;
-            --pixel-pad: #26221b;
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            background-color: var(--bg);
-            background-image:
-                linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
-                repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px, color-mix(in srgb, var(--grid) 38%, transparent) 32px);
-            background-attachment: fixed;
-            color: var(--text);
-            font-family: var(--font-sans);
-            font-size: 13.5px;
-            line-height: 1.45;
-            min-height: 100vh;
-        }
-
-        /* ---- Header Archify Editorial ---- */
-        header.editorial-header {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px 20px;
-            padding: 12px 24px;
-            background: var(--panel);
-            border-bottom: 2px solid var(--panel-border);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-        }
-
-        .brand-group {
-            display: flex;
-            align-items: baseline;
-            gap: 12px;
-        }
-
-        h1.editorial-title {
-            margin: 0;
-            font-family: var(--font-serif);
-            font-size: 21px;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-            color: var(--accent-strong);
-        }
-
-        .editorial-badge {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            text-transform: uppercase;
-            padding: 2px 7px;
-            border-radius: 3px;
-            background: var(--accent-soft);
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            font-weight: 600;
-        }
-
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* ---- Tab navigation ---- */
-        .tabs {
-            display: flex;
-            gap: 4px;
-            background: var(--panel-strong);
-            padding: 3px;
-            border-radius: 4px;
-            border: 1px solid var(--panel-border);
-        }
-
-        .tab-btn {
-            padding: 5px 14px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-family: var(--font-sans);
-            font-size: 12.5px;
-            font-weight: 500;
-            cursor: pointer;
-            border-radius: 3px;
-            transition: all 0.15s ease;
-        }
-
-        .tab-btn:hover {
-            color: var(--text);
-        }
-
-        .tab-btn.active {
-            background: var(--panel);
-            color: var(--accent);
-            font-weight: 600;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-        }
-
-        /* ---- Theme button ---- */
-        .btn-icon {
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            color: var(--text);
-            padding: 5px 11px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-family: var(--font-mono);
-            font-size: 12px;
-        }
-
-        .btn-icon:hover {
-            background: var(--panel-strong);
-        }
-
-        /* ---- Main Container ---- */
-        main.editorial-main {
-            max-width: 1480px;
-            margin: 0 auto;
-            padding: 16px 20px 32px;
-        }
-
-        .page {
-            display: none;
-        }
-
-        .page.active {
-            display: block;
-        }
-
-        /* ---- Live layout: 3 columns ---- */
-        .live-layout {
-            display: grid;
-            grid-template-columns: 290px minmax(0, 1fr) 340px;
-            gap: 16px;
-            align-items: start;
-        }
-
-        @media (max-width: 1180px) {
-            .live-layout {
-                grid-template-columns: 290px minmax(0, 1fr);
-            }
-
-            .col-decision {
-                grid-column: 1 / -1;
-            }
-        }
-
-        @media (max-width: 860px) {
-            .live-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* ---- Editorial Card & Box Style ---- */
-        .card {
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-            padding: 14px 16px;
-            margin-bottom: 14px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-        }
-
-        .card h2 {
-            margin: 0 0 10px 0;
-            font-family: var(--font-serif);
-            font-size: 14.5px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--accent);
-            border-bottom: 1px solid var(--panel-border-soft);
-            padding-bottom: 6px;
-        }
-
-        .card h3 {
-            margin: 10px 0 6px 0;
-            font-size: 12.5px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        /* ---- Form controls ---- */
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 6px 10px;
-            align-items: center;
-            font-size: 12.5px;
-        }
-
-        .form-grid label {
-            color: var(--text-muted);
-        }
-
-        input[type="number"],
-        select {
-            padding: 3px 6px;
-            border: 1px solid var(--panel-border);
-            border-radius: 2px;
-            background: var(--panel);
-            color: var(--text);
-            font-family: var(--font-mono);
-            font-size: 12.5px;
-            text-align: right;
-            width: 82px;
-        }
-
-        input[type="number"]:focus,
-        select:focus {
-            outline: 1px solid var(--accent);
-            border-color: var(--accent);
-        }
-
-        .btn-action {
-            width: 100%;
-            padding: 7px 10px;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-            color: var(--text);
-            font-family: var(--font-sans);
-            font-size: 12.5px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.12s ease;
-            margin-top: 6px;
-            text-align: center;
-        }
-
-        .btn-action:hover {
-            background: var(--panel-strong);
-            border-color: var(--text-muted);
-        }
-
-        .btn-primary {
-            background: var(--accent);
-            border-color: var(--accent-strong);
-            color: #ffffff;
-        }
-
-        .btn-primary:hover {
-            background: var(--accent-strong);
-            color: #ffffff;
-        }
-
-        .btn-teal {
-            background: var(--brand-teal);
-            border-color: var(--brand-teal);
-            color: #ffffff;
-        }
-
-        .btn-teal:hover {
-            background: color-mix(in srgb, var(--brand-teal) 85%, black);
-        }
-
-        .btn-group-row {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-        }
-
-        /* ---- Status indicators ---- */
-        .status-badge {
-            display: inline-block;
-            padding: 2px 7px;
-            font-family: var(--font-mono);
-            font-size: 11px;
-            font-weight: 600;
-            border-radius: 2px;
-        }
-
-        .status-true {
-            background: var(--brand-teal-soft);
-            color: var(--brand-teal);
-            border: 1px solid var(--brand-teal);
-        }
-
-        .status-false {
-            background: var(--panel-strong);
-            color: var(--text-dim);
-            border: 1px solid var(--panel-border);
-        }
-
-        /* ---- Pixel Matrix View Area ---- */
-        .matrix-toolbar {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: space-between;
-            gap: 10px;
-            margin-bottom: 12px;
-            padding: 8px 12px;
-            background: var(--panel-strong);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-        }
-
-        .mode-radios {
-            display: flex;
-            gap: 14px;
-            font-size: 12.5px;
-            font-weight: 500;
-        }
-
-        .mode-radios label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-        }
-
-        .matrix-viewport {
-            overflow-x: auto;
-            padding: 8px;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-            min-height: 280px;
-        }
-
-        /* ---- Coordinate & Pixel Grid Table ---- */
-        .grid-table {
-            border-collapse: collapse;
-            margin: 0 auto;
-            user-select: none;
-        }
-
-        .grid-table th {
-            font-family: var(--font-mono);
-            font-size: 10px;
-            font-weight: normal;
-            color: var(--text-dim);
-            text-align: center;
-            padding: 2px;
-        }
-
-        .th-byte-header {
-            border-bottom: 1px solid var(--panel-border);
-            background: var(--panel-strong);
-            color: var(--text-muted) !important;
-            font-weight: 600 !important;
-            font-size: 10.5px !important;
-            padding: 4px !important;
-        }
-
-        .th-x-align {
-            color: var(--brand-teal) !important;
-            font-weight: bold !important;
-            border-left: 2px solid var(--brand-teal);
-        }
-
-        .th-row-y {
-            border-right: 1px solid var(--panel-border);
-            background: var(--panel-strong);
-            padding: 0 6px !important;
-            text-align: right;
-            color: var(--text-muted) !important;
-            font-weight: 600 !important;
-        }
-
-        .pixel-cell {
-            width: 22px;
-            height: 22px;
-            min-width: 22px;
-            border: 1px solid var(--pixel-grid);
-            text-align: center;
-            vertical-align: middle;
-            cursor: pointer;
-            position: relative;
-            font-family: var(--font-mono);
-            font-size: 8.5px;
-            transition: transform 0.05s ease;
-        }
-
-        .pixel-cell:hover {
-            outline: 2px solid var(--accent);
-            z-index: 5;
-        }
-
-        /* Byte boundary */
-        .byte-start {
-            border-left: 2px solid var(--panel-border) !important;
-        }
-
-        /* x_align boundary */
-        .align-boundary {
-            border-left: 2px dashed var(--brand-teal) !important;
-        }
-
-        /* State colors for pixels */
-        .px-white {
-            background: var(--pixel-white);
-            color: #888;
-        }
-
-        .px-black {
-            background: var(--pixel-black);
-            color: #aaa;
-        }
-
-        /* Overlay effects */
-        .px-diff {
-            box-shadow: inset 0 0 0 3px var(--accent);
-        }
-
-        .px-diff::after {
-            content: "Δ";
-            position: absolute;
-            top: 2px;
-            right: 2px;
-            font-size: 9px;
-            font-weight: bold;
-            color: var(--accent);
-            line-height: 1;
-        }
-
-        .px-halo {
-            background-color: var(--brand-purple-soft) !important;
-            box-shadow: inset 0 0 0 2px var(--brand-purple);
-        }
-
-        .px-halo::before {
-            content: "⚡";
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            font-size: 9px;
-            line-height: 1;
-        }
-
-        .px-pad {
-            background: var(--pixel-pad) !important;
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        /* Bounding box and Aligned Window highlights */
-        .in-window {
-            background-color: rgba(40, 126, 132, 0.08);
-        }
-
-        .win-border-top {
-            border-top: 3px solid var(--window-color) !important;
-        }
-
-        .win-border-bottom {
-            border-bottom: 3px solid var(--window-color) !important;
-        }
-
-        .win-border-left {
-            border-left: 3px solid var(--window-color) !important;
-        }
-
-        .win-border-right {
-            border-right: 3px solid var(--window-color) !important;
-        }
-
-        .bounds-border-top {
-            outline-offset: -2px;
-            outline-top: 2px dashed var(--bounds-color);
-        }
-
-        /* ---- Inspector Box ---- */
-        .inspector-card {
-            background: var(--panel-strong);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-            padding: 10px 14px;
-            margin-top: 14px;
-            font-family: var(--font-mono);
-            font-size: 11.5px;
-        }
-
-        .inspector-title {
-            font-family: var(--font-serif);
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 6px;
-            text-transform: uppercase;
-        }
-
-        .inspector-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 6px 12px;
-        }
-
-        .inspector-item span {
-            color: var(--text-dim);
-        }
-
-        /* ---- Decision Result Card ---- */
-        .decision-banner {
-            padding: 16px;
-            border-radius: 3px;
-            border: 2px solid var(--panel-border);
-            text-align: center;
-            margin-bottom: 14px;
-        }
-
-        .decision-banner.mode-full {
-            background: var(--accent-soft);
-            border-color: var(--accent);
-        }
-
-        .decision-banner.mode-full .decision-text {
-            color: var(--accent);
-        }
-
-        .decision-banner.mode-partial {
-            background: var(--brand-teal-soft);
-            border-color: var(--brand-teal);
-        }
-
-        .decision-banner.mode-partial .decision-text {
-            color: var(--brand-teal);
-        }
-
-        .decision-banner.mode-none {
-            background: var(--panel-strong);
-            border-color: var(--panel-border);
-        }
-
-        .decision-banner.mode-none .decision-text {
-            color: var(--text-muted);
-        }
-
-        .decision-text {
-            font-family: var(--font-serif);
-            font-size: 26px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            margin: 0;
-        }
-
-        .decision-sub {
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
-
-        /* Policy Rules list */
-        .rules-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            font-size: 12px;
-        }
-
-        .rule-item {
-            display: flex;
-            gap: 8px;
-            align-items: baseline;
-            padding: 6px 8px;
-            border-bottom: 1px solid var(--panel-border-soft);
-            color: var(--text-dim);
-        }
-
-        .rule-item.active-rule {
-            background: var(--brand-teal-soft);
-            color: var(--brand-teal);
-            font-weight: 600;
-            border-radius: 3px;
-            border: 1px solid var(--brand-teal);
-        }
-
-        .rule-num {
-            font-family: var(--font-mono);
-            font-weight: bold;
-            min-width: 16px;
-        }
-
-        /* ---- Host Test Tab Styles ---- */
-        .test-summary-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 20px;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 3px;
-            margin-bottom: 16px;
-        }
-
-        .test-count-badge {
-            font-family: var(--font-mono);
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--brand-teal);
-        }
-
-        .test-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            font-size: 13px;
-        }
-
-        .test-table th {
-            background: var(--panel-strong);
-            border-bottom: 2px solid var(--panel-border);
-            padding: 8px 12px;
-            text-align: left;
-            font-family: var(--font-serif);
-        }
-
-        .test-table td {
-            padding: 8px 12px;
-            border-bottom: 1px solid var(--panel-border-soft);
-        }
-
-        .test-pass {
-            color: var(--brand-teal);
-            font-weight: 600;
-            font-family: var(--font-mono);
-        }
-
-        .test-fail {
-            color: var(--accent);
-            font-weight: 600;
-            font-family: var(--font-mono);
-        }
-
-        .btn-load-test {
-            padding: 3px 8px;
-            font-size: 11px;
-            font-family: var(--font-sans);
-            background: var(--panel-strong);
-            border: 1px solid var(--panel-border);
-            cursor: pointer;
-            border-radius: 2px;
-        }
-
-        .btn-load-test:hover {
-            background: var(--accent);
-            color: #fff;
-            border-color: var(--accent);
-        }
-
-        /* ---- Formula / Explanatory Tab ---- */
-        .doc-section {
-            max-width: 920px;
-            margin: 0 auto;
-        }
-
-        .math-box {
-            background: var(--panel);
-            border-left: 3px solid var(--accent);
-            padding: 10px 16px;
-            margin: 12px 0;
-            font-family: var(--font-mono);
-            font-size: 12.5px;
-        }
-
-        code {
-            font-family: var(--font-mono);
-            background: var(--panel-strong);
-            padding: 1px 5px;
-            border-radius: 2px;
-            font-size: 12px;
-            color: var(--accent-strong);
-        }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Display policy</title>
+<style>
+    /* ---- Theme: preset Editorial của Archify, sáng và tối (docs/writing-visualizations.md, mục "Giao diện") ---- */
+    :root, [data-preset="editorial"][data-theme="light"] {
+        --bg: #f2eee5;
+        --grid: #d8d0c2;
+        --panel: #fbf8f1;
+        --panel-strong: #ede6d8;
+        --panel-border: #c4b9a6;
+        --panel-border-soft: #dcd4c5;
+        --text: #242018;
+        --text-muted: #6f6658;
+        --text-dim: #948a79;
+        --accent: #9f403d;
+        --accent-strong: #7d2a27;
+        --accent-soft: #f4dcdb;
+        --brand-teal: #287e84;
+        --brand-bronze: #9a671f;
+        --brand-green: #397b53;
+        --brand-purple: #765d86;
+        --error: #b42318;
+        --pixel-white: #ffffff;
+        --pixel-black: #1f1d1a;
+        --font-serif: "Newsreader", "Charter", "Cambria", "Georgia", serif;
+        --font-sans: "Segoe UI", system-ui, sans-serif;
+        --font-mono: "Cascadia Code", Consolas, monospace;
+    }
+
+    [data-preset="editorial"][data-theme="dark"] {
+        --bg: #181611;
+        --grid: #39342a;
+        --panel: #231f18;
+        --panel-strong: #2e2921;
+        --panel-border: #625a4a;
+        --panel-border-soft: #443e33;
+        --text: #f4eddf;
+        --text-muted: #b9ae9b;
+        --text-dim: #776e60;
+        --accent: #cf6662;
+        --accent-strong: #f4eddf;
+        --accent-soft: #382424;
+        --brand-teal: #7fc6c7;
+        --brand-bronze: #d8ad68;
+        --brand-green: #8fc29e;
+        --brand-purple: #c0a4d0;
+        --error: #f0857d;
+        --pixel-white: #e9e3d5;
+        --pixel-black: #0c0b09;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+            linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem,
+                color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
+            repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px,
+                color-mix(in srgb, var(--grid) 38%, transparent) 32px);
+        background-attachment: fixed;
+        color: var(--text);
+        font: 14px/1.45 var(--font-sans);
+    }
+
+    header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px 20px;
+        padding: 12px 16px;
+        background: var(--panel);
+        border-bottom: 2px solid var(--panel-border);
+    }
+
+    header h1 { margin: 0; font: 600 21px var(--font-serif); color: var(--accent-strong); }
+
+    .tabs { display: flex; gap: 4px; padding: 3px; background: var(--panel-strong); border: 1px solid var(--panel-border); border-radius: 4px; }
+    .tab { padding: 5px 14px; border: none; border-radius: 3px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--panel); color: var(--accent); font-weight: 600; }
+    .clock { margin-left: auto; font-family: var(--font-mono); color: var(--brand-purple); }
+    header select { width: auto; }
+
+    main { padding: 16px; }
+    .page { display: none; }
+    .page.active { display: grid; gap: 16px; }
+    #pageLive.active { grid-template-columns: 300px minmax(0, 1fr) 320px; align-items: start; }
+    @media (max-width: 1100px) { #pageLive.active { grid-template-columns: minmax(0, 1fr); } }
+
+    .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 4px; padding: 12px 14px; min-width: 0; }
+    .card + .card { margin-top: 12px; }
+    .card h2 { margin: 0 0 8px; font: 600 13px var(--font-serif); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
+    .hint { color: var(--text-muted); font-size: 12px; margin: 6px 0 0; }
+
+    .form { display: grid; grid-template-columns: minmax(0, 1fr) 88px; gap: 6px 8px; align-items: center; }
+    .form label { color: var(--text-muted); font-size: 13px; }
+    input[type="number"], select {
+        width: 100%; padding: 3px 6px; background: var(--panel); color: var(--text);
+        border: 1px solid var(--panel-border); border-radius: 3px; font: 13px var(--font-mono);
+    }
+    button {
+        padding: 5px 12px; background: var(--panel); color: var(--text); border: 1px solid var(--panel-border);
+        border-radius: 3px; cursor: pointer; font: inherit;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); color: var(--panel); border-color: var(--accent); }
+    .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+
+    .boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    @media (max-width: 650px) { .boards { grid-template-columns: minmax(0, 1fr); } }
+    .board h3 { margin: 0 0 4px; font: 600 12px var(--font-sans); color: var(--text-muted); }
+    canvas.matrix { width: 100%; height: auto; display: block; border: 1px solid var(--panel-border-soft); image-rendering: pixelated; }
+    canvas.matrix.editable { cursor: crosshair; }
+
+    table.fields { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.fields td { padding: 2px 4px; border-bottom: 1px solid var(--panel-border-soft); }
+    table.fields td:first-child { font-family: var(--font-mono); color: var(--text-muted); }
+    table.fields td:last-child { font-family: var(--font-mono); text-align: right; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+    .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border: 1px solid var(--panel-border); }
+    .legend .dark::before { background: var(--accent); }
+    .legend .light::before { background: var(--brand-teal); }
+    .legend .debt::before { background: var(--brand-bronze); }
+    .legend .window::before { background: transparent; border: 2px solid var(--brand-teal); }
+
+    .log {
+        height: 260px; overflow: auto; margin: 0; padding: 6px 8px; background: var(--panel-strong);
+        border: 1px solid var(--panel-border-soft); font: 12px/1.4 var(--font-mono); white-space: pre-wrap;
+    }
+    .log .shell { color: var(--brand-purple); }
+
+    .ladder { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+    .ladder li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid var(--panel-border-soft); }
+    .ladder li.done { color: var(--text-dim); text-decoration: line-through; }
+    .ladder li.next { color: var(--brand-purple); font-weight: 600; }
+
+    .tests { list-style: none; margin: 0; padding: 0; font: 13px var(--font-mono); }
+    .tests li { padding: 3px 0; border-bottom: 1px solid var(--panel-border-soft); }
+    .tests .pass { color: var(--brand-green); }
+    .tests .fail { color: var(--error); }
+    .summary { font-weight: 600; margin-bottom: 8px; }
+</style>
 </head>
-
 <body>
+<header>
+    <h1>ink_display_policy</h1>
+    <nav class="tabs">
+        <button class="tab active" data-page="pageLive">Chạy trực tiếp</button>
+        <button class="tab" data-page="pageTests">Host test</button>
+    </nav>
+    <span class="clock" id="clock">0 ms</span>
+    <button id="pauseButton">Tạm dừng</button>
+    <select id="speedSelect" aria-label="Tốc độ đồng hồ"><option value="0.1">0.1×</option><option value="1" selected>1×</option><option value="5">5×</option><option value="20">20×</option></select>
+    <button id="themeButton">Tối</button>
+</header>
 
-    <header class="editorial-header">
-        <div class="brand-group">
-            <h1 class="editorial-title">InkFlash — ink_display_policy</h1>
-            <span class="editorial-badge">C23 Host Simulator</span>
-        </div>
-
-        <div class="header-controls">
-            <nav class="tabs">
-                <button class="tab-btn active" onclick="switchTab('live')">Ma trận X, Y</button>
-                <button class="tab-btn" onclick="switchTab('tests')">Host Test (15 Ca)</button>
-                <button class="tab-btn" onclick="switchTab('theory')">Nguyên lý X, Y & Halo</button>
-            </nav>
-            <button class="btn-icon" onclick="toggleTheme()" id="themeBtn" title="Đổi sáng/tối">🌓 Light</button>
-        </div>
-    </header>
-
-    <main class="editorial-main">
-
-        <!-- ====================================================================
-         TAB 1: LIVE COORDINATE & PIXEL SIMULATOR
-         ==================================================================== -->
-        <div id="pageLive" class="page active">
-            <div class="live-layout">
-
-                <!-- CỘT TRÁI: CẤU HÌNH & TRẠNG THÁI (290px) -->
-                <div class="col-config">
-
-                    <div class="card">
-                        <h2>Cấu hình (Config)</h2>
-
-                        <div style="margin-bottom: 10px;">
-                            <label
-                                style="font-size: 11.5px; color: var(--text-dim); display: block; margin-bottom: 4px;">Kích
-                                thước mẫu:</label>
-                            <select id="presetSize" onchange="applySizePreset()" style="width: 100%; text-align: left;">
-                                <option value="20x4" selected>20 × 4 điểm (Chuẩn Host Test)</option>
-                                <option value="40x16">40 × 16 điểm (Vẽ ký tự/biểu tượng)</option>
-                                <option value="24x8">24 × 8 điểm (3 byte tròn)</option>
-                            </select>
-                        </div>
-
-                        <div class="form-grid">
-                            <label>Chiều rộng (width):</label>
-                            <input type="number" id="cfgWidth" value="20" min="8" max="120" step="1"
-                                onchange="updateConfig()">
-
-                            <label>Chiều cao (height):</label>
-                            <input type="number" id="cfgHeight" value="4" min="1" max="64" step="1"
-                                onchange="updateConfig()">
-
-                            <label>Căn mép X (x_align):</label>
-                            <input type="number" id="cfgAlign" value="8" min="1" max="16" step="1"
-                                onchange="updateConfig()">
-
-                            <label>Ngưỡng bóng mờ:</label>
-                            <input type="number" id="cfgPartials" value="3" min="1" max="100" onchange="updateConfig()">
-
-                            <label>Vùng đổi tối đa (%):</label>
-                            <input type="number" id="cfgMaxPercent" value="100" min="1" max="100"
-                                onchange="updateConfig()">
-
-                            <label>Nới viền (edge_margin):</label>
-                            <input type="number" id="cfgMargin" value="0" min="0" max="7" onchange="updateConfig()">
-                        </div>
-
-                        <button class="btn-action" onclick="resetToDefaultConfig()">Đặt lại cấu hình gốc</button>
-                    </div>
-
-                    <div class="card">
-                        <h2>Trạng thái nội bộ (priv)</h2>
-                        <div class="form-grid">
-                            <label>Số lần partial:</label>
-                            <span id="stPartialCount" style="font-family: var(--font-mono); font-weight: bold;">0</span>
-
-                            <label>Màn có hình chuẩn (shown_valid):</label>
-                            <span id="stShownValid" class="status-badge status-false">false</span>
-
-                            <label>Vừa thức dậy (after_wake):</label>
-                            <span id="stAfterWake" class="status-badge status-false">false</span>
-                        </div>
-
-                        <h3>Tác vụ mô phỏng</h3>
-                        <button class="btn-action btn-teal" onclick="actionCommit()">Vẽ thành công (Commit shown =
-                            next)</button>
-                        <button class="btn-action" onclick="actionAssumeShown()">assume_shown() (Thức dậy)</button>
-                        <button class="btn-action" onclick="actionInvalidate()">invalidate() (Báo lỗi màn)</button>
-                        <button class="btn-action" onclick="actionResetState()">init() lại từ đầu</button>
-                    </div>
-
-                    <div class="card">
-                        <h2>Mẫu nét vẽ X, Y</h2>
-                        <button class="btn-action" onclick="presetSinglePixel()">1 Điểm giữa byte (x=9, y=1)</button>
-                        <button class="btn-action" onclick="presetCrossByte()">1 Điểm biên byte (x=8, y=1)</button>
-                        <button class="btn-action" onclick="presetScreenEdge()">Điểm mép màn (x=19, y=3)</button>
-                        <button class="btn-action" onclick="presetPaddingBits()">Đổi bit đệm cuối hàng
-                            (Padding)</button>
-                        <button class="btn-action" onclick="presetLetterT()">Vẽ chữ T (Xem quầng viền Halo)</button>
-                        <button class="btn-action" onclick="presetLargeArea()">Vùng lớn 80% (Kích hoạt Full)</button>
-                        <button class="btn-action" onclick="presetInvertNext()">Đảo toàn bộ khung next</button>
-                        <button class="btn-action" onclick="presetClearAll()">Xóa trắng cả 2 khung</button>
-                    </div>
-
+<main>
+    <section class="page active" id="pageLive">
+        <div>
+            <div class="card">
+                <h2>Khung mới</h2>
+                <p class="hint">Nhấp hoặc kéo trên "Khung mới" để tô; chuột phải để xoá về trắng. Rồi giao khung.</p>
+                <div class="form">
+                    <label for="intentSelect">Ý định</label>
+                    <select id="intentSelect"><option value="0">AUTO</option><option value="1">TEXT</option><option value="2" selected>UI</option><option value="3">PAGE</option></select>
+                    <label for="deferCheck">Hoãn dọn</label><input id="deferCheck" type="checkbox">
+                    <label for="sleepCheck">Trước khi ngủ</label><input id="sleepCheck" type="checkbox">
                 </div>
-
-                <!-- CỘT GIỮA: MA TRẬN TỌA ĐỘ VÀ PIXEL (FLEX 1) -->
-                <div class="col-matrix">
-
-                    <div class="matrix-toolbar">
-                        <div class="mode-radios">
-                            <label>
-                                <input type="radio" name="editMode" value="next" checked onchange="renderMatrix()">
-                                <span>Vẽ trên <strong>Khung mới (next)</strong></span>
-                            </label>
-                            <label>
-                                <input type="radio" name="editMode" value="shown" onchange="renderMatrix()">
-                                <span>Vẽ trên <strong>Khung hiện (shown)</strong></span>
-                            </label>
-                        </div>
-
-                        <div style="font-size: 12px; color: var(--text-dim); display: flex; gap: 12px;">
-                            <span><span style="color:var(--accent); font-weight:bold;">Δ</span> Khác nhau</span>
-                            <span><span style="color:var(--brand-purple); font-weight:bold;">⚡</span> Quầng Halo</span>
-                            <span><span style="color:var(--brand-teal); font-weight:bold;">■</span> Window</span>
-                        </div>
-                    </div>
-
-                    <div class="matrix-viewport">
-                        <div id="matrixContainer"></div>
-                    </div>
-
-                    <div class="inspector-card">
-                        <div class="inspector-title">Thanh tra Tọa độ (Pixel Inspector)</div>
-                        <div class="inspector-grid" id="inspectorContent">
-                            <div class="inspector-item">Tọa độ: <span id="inspCoord">(di chuột vào ô)</span></div>
-                            <div class="inspector-item">Byte Offset: <span id="inspByte">-</span></div>
-                            <div class="inspector-item">Vị trí Bit: <span id="inspBit">-</span></div>
-                            <div class="inspector-item">Giá trị shown: <span id="inspShown">-</span></div>
-                            <div class="inspector-item">Giá trị next: <span id="inspNext">-</span></div>
-                            <div class="inspector-item">Lệch (diff): <span id="inspDiff">-</span></div>
-                            <div class="inspector-item">Thuộc Halo: <span id="inspHalo">-</span></div>
-                            <div class="inspector-item">Mặt phẳng cũ (out_old): <span id="inspOutOld">-</span></div>
-                        </div>
-                    </div>
-
+                <div class="row">
+                    <button class="primary" id="submitButton">Giao khung</button>
+                    <button id="boxButton">Ô 6 × 4 đảo màu</button>
+                    <button id="copyButton">Lấy lại khung đang hiện</button>
                 </div>
-
-                <!-- CỘT PHẢI: QUYẾT ĐỊNH & PHÂN TÍCH (340px) -->
-                <div class="col-decision">
-
-                    <div id="decisionBanner" class="decision-banner mode-full">
-                        <div
-                            style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 2px;">
-                            Quyết định vẽ (Decide Result)
-                        </div>
-                        <h3 id="decisionModeText" class="decision-text">FULL</h3>
-                        <div id="decisionWindowText" class="decision-sub">window: [x=0, y=0, w=20, h=4]</div>
-                    </div>
-
-                    <div class="card">
-                        <h2>Chi tiết Cửa sổ (Window & Area)</h2>
-                        <div class="form-grid" style="font-size: 12px;">
-                            <label>Bounding box thô (changed):</label>
-                            <span id="txtRawBounds" style="font-family: var(--font-mono); font-weight: bold;">-</span>
-
-                            <label>Window đã căn chỉnh:</label>
-                            <span id="txtAlignedWindow"
-                                style="font-family: var(--font-mono); font-weight: bold; color: var(--brand-teal);">-</span>
-
-                            <label>Diện tích vùng đổi:</label>
-                            <span id="txtWindowArea" style="font-family: var(--font-mono);">-</span>
-
-                            <label>Diện tích toàn màn:</label>
-                            <span id="txtScreenArea" style="font-family: var(--font-mono);">-</span>
-
-                            <label>Tỷ lệ % diện tích:</label>
-                            <span id="txtPercentArea" style="font-family: var(--font-mono); font-weight: bold;">-</span>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h2>Thứ tự 6 Quy tắc Quyết định</h2>
-                        <ol class="rules-list">
-                            <li id="rule1" class="rule-item">
-                                <span class="rule-num">1.</span>
-                                <span>Màn chưa có khung chuẩn <code>!shown_valid</code> &rarr;
-                                    <strong>FULL</strong></span>
-                            </li>
-                            <li id="rule2" class="rule-item">
-                                <span class="rule-num">2.</span>
-                                <span>Hai khung giống hệt nhau <code>diff == 0</code> &rarr;
-                                    <strong>NONE</strong></span>
-                            </li>
-                            <li id="rule3" class="rule-item">
-                                <span class="rule-num">3.</span>
-                                <span>Vừa thức dậy <code>after_wake</code> &rarr; <strong>PARTIAL cả màn</strong></span>
-                            </li>
-                            <li id="rule4" class="rule-item">
-                                <span class="rule-num">4.</span>
-                                <span>Đã tới ngưỡng bóng mờ <code>count &ge; limit</code> &rarr;
-                                    <strong>FULL</strong></span>
-                            </li>
-                            <li id="rule5" class="rule-item">
-                                <span class="rule-num">5.</span>
-                                <span>Vùng đổi vượt % <code>area &gt; max_%</code> &rarr; <strong>FULL</strong></span>
-                            </li>
-                            <li id="rule6" class="rule-item">
-                                <span class="rule-num">6.</span>
-                                <span>Mặc định: Chỉ quét vùng đổi &rarr; <strong>PARTIAL</strong></span>
-                            </li>
-                        </ol>
-                    </div>
-
-                    <div class="card">
-                        <h2>Mặt phẳng cũ (out_old Hex)</h2>
-                        <div style="font-size: 11.5px; color: var(--text-dim); margin-bottom: 6px;">
-                            Các byte trong window được đảo bit ở vị trí quầng viền (Halo) để controller e-ink quét điện
-                            áp tẩy sạch bóng viền chữ:
-                        </div>
-                        <pre id="hexOutOld"
-                            style="background: var(--panel-strong); border: 1px solid var(--panel-border); padding: 8px; font-family: var(--font-mono); font-size: 11px; margin: 0; overflow-x: auto; max-height: 140px;"></pre>
-                    </div>
-
+                <div class="row">
+                    <button id="wakeButton">Thức dậy (màn nền)</button>
+                    <button id="errorButton">Lần vẽ trước lỗi</button>
                 </div>
-
+            </div>
+            <div class="card">
+                <h2>Config</h2>
+                <div class="form" id="configForm"></div>
+                <div class="row"><button id="applyConfigButton">Áp dụng (set_config)</button></div>
             </div>
         </div>
 
-        <!-- ====================================================================
-         TAB 2: HOST TESTS (15 Ca kiểm thử C)
-         ==================================================================== -->
-        <div id="pageTests" class="page">
-            <div class="test-summary-bar">
-                <div>
-                    <h2 style="margin: 0 0 4px 0; font-family: var(--font-serif); font-size: 18px;">Toàn bộ Host Test
-                        của ink_display_policy</h2>
-                    <div style="color: var(--text-muted); font-size: 12.5px;">Bản JS chạy cùng logic, cùng biến và cùng
-                        ca test với <code>test_ink_display_policy.c</code></div>
+        <div>
+            <div class="card">
+                <h2>Màn và trạng thái từng điểm</h2>
+                <div class="boards">
+                    <div class="board"><h3>Khung đang hiện (shown) và window lần vẽ gần nhất</h3><canvas class="matrix" id="shownCanvas"></canvas></div>
+                    <div class="board"><h3>Khung mới (next)</h3><canvas class="matrix editable" id="nextCanvas"></canvas></div>
+                    <div class="board"><h3>Nợ và cờ viền (priv.pixels)</h3><canvas class="matrix" id="pixelCanvas"></canvas></div>
+                    <div class="board"><h3>Mặt phẳng cũ của lần vẽ gần nhất (điểm bị kéo tô đậm)</h3><canvas class="matrix" id="oldCanvas"></canvas></div>
                 </div>
-                <div style="text-align: right;">
-                    <div class="test-count-badge" id="testPassCount">15 / 15 PASS</div>
-                    <button class="btn-action btn-primary" onclick="runAllHostTests()"
-                        style="margin-top: 4px; padding: 4px 12px; font-size: 12px;">Chạy lại kiểm thử</button>
-                </div>
+                <div class="legend"><span class="dark">cờ viền tối</span><span class="light">cờ viền sáng</span><span class="debt">nợ (đậm = nhiều)</span><span class="window">window</span></div>
             </div>
-
-            <table class="test-table">
-                <thead>
-                    <tr>
-                        <th style="width: 40px;">#</th>
-                        <th>Tên ca test (theo file C)</th>
-                        <th>Ý nghĩa & Quy ước kiểm tra</th>
-                        <th style="width: 100px;">Kết quả</th>
-                        <th style="width: 160px; text-align: right;">Tác vụ</th>
-                    </tr>
-                </thead>
-                <tbody id="testTableBody">
-                </tbody>
-            </table>
+            <div class="card">
+                <h2>Log</h2>
+                <pre class="log" id="log"></pre>
+            </div>
         </div>
 
-        <!-- ====================================================================
-         TAB 3: THEORY & FORMULAS (Giải thích nguyên lý X, Y)
-         ==================================================================== -->
-        <div id="pageTheory" class="page">
-            <div class="doc-section card">
-                <h2 style="font-size: 18px; margin-top: 6px;">Toán học Tọa độ X, Y trong Bộ điều khiển E-ink</h2>
-
-                <p>Màn E-ink InkFlash (UC8253, 240 × 416) quản lý bộ nhớ ảnh theo dạng <strong>1 bit mỗi pixel</strong>,
-                    xếp liên tiếp theo hàng ngang từ trái sang phải, từ trên xuống dưới.</p>
-
-                <h3>1. Chuyển đổi giữa Tọa độ (x, y) và Bộ nhớ RAM</h3>
-                <p>Mỗi byte chứa 8 điểm ảnh liên tiếp trên cùng một hàng Y:</p>
-                <div class="math-box">
-                    row_bytes = (width + 7) / 8<br>
-                    offset = y * row_bytes + (x / 8)<br>
-                    pixel_in_byte = x % 8<br>
-                    mask = 0x80 >> pixel_in_byte &nbsp;&nbsp;/* Điểm x=0 nằm ở bit 7 (cao nhất), x=7 ở bit 0 */
-                </div>
-
-                <h3>2. Bỏ qua bit đệm cuối hàng (Padding bits)</h3>
-                <p>Nếu chiều rộng màn không chia hết cho 8 (ví dụ <code>width = 20</code>, cần
-                    <code>(20 + 7) / 8 = 3</code> byte mỗi hàng = 24 bit). Byte thứ 3 chỉ dùng 4 bit (bit 7..4 cho
-                    x=16..19), 4 bit còn lại (bit 3..0) là bit đệm.</p>
-                <p>Hàm <code>diff_byte</code> áp dụng mặt nạ lọc để loại bỏ hoàn toàn các thay đổi ở bit đệm:</p>
-                <div class="math-box">
-                    diff &= (0xFF << (8 - width % 8)); &nbsp;&nbsp;/* Xóa sạch 4 bit đệm cuối hàng */ </div>
-
-                        <h3>3. Căn chỉnh mép X (x_align)</h3>
-                        <p>Phần cứng điều khiển e-ink thường chỉ nhận địa chỉ nạp RAM theo cụm (ví dụ cụm 8 pixel = 1
-                            byte). Nếu vùng đổi có <code>left = 9</code>, <code>right = 11</code>, ta không thể gửi tọa
-                            độ 9 qua SPI mà phải nới ra ngoài:</p>
-                        <div class="math-box">
-                            aligned_left = (left / align) * align;
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/* Làm tròn xuống bội số của
-                            align (ví dụ 9 &rarr; 8) */<br>
-                            aligned_right = ((right + align - 1) / align) * align; /* Làm tròn lên bội số của align (ví
-                            dụ 11 &rarr; 16) */
-                        </div>
-
-                        <h3>4. Quầng làm sạch viền (Edge Halo Plane)</h3>
-                        <p>Khi vẽ partial, điện trường biên làm các hạt mực xung quanh nét vẽ bị dính cặn (tạo viền bóng
-                            xám). Thuật toán giải quyết bằng cách:</p>
-                        <ol style="padding-left: 20px; line-height: 1.6;">
-                            <li>Nới rộng các điểm đổi sang trái/phải và trên/dưới trong bán kính
-                                <code>edge_margin</code> điểm ảnh (&le; 7).</li>
-                            <li>Tìm các điểm nằm trong bán kính nới nhưng <strong>bản thân nó không hề bị đổi
-                                    màu</strong>:
-                                <div class="math-box">halo = near_change & ~diff_byte;</div>
-                            </li>
-                            <li>Lật ngược bit cũ của các điểm halo này trong bộ đệm <code>out_old</code>:
-                                <div class="math-box">out_old[offset] = shown[offset] ^ halo;</div>
-                            </li>
-                            <li>Khi controller e-ink so sánh <code>out_old</code> và <code>next</code>, nó thấy các điểm
-                                viền này khác nhau nên sẽ phát xung kéo hạt mực về lại đúng màu chuẩn, tẩy sạch bóng
-                                viền mà không cần quét toàn màn hình!</li>
-                        </ol>
-                </div>
+        <div>
+            <div class="card">
+                <h2>Thang dọn (ink_display_policy_idle)</h2>
+                <ul class="ladder" id="ladder"></ul>
+                <p class="hint" id="idleText"></p>
             </div>
+            <div class="card">
+                <h2>priv</h2>
+                <table class="fields" id="privTable"></table>
+            </div>
+        </div>
+    </section>
 
-    </main>
+    <section class="page" id="pageTests">
+        <div class="card">
+            <h2>test_ink_display_policy.c</h2>
+            <div class="summary" id="testSummary"></div>
+            <ul class="tests" id="testList"></ul>
+            <div class="row"><button class="primary" id="runTestsButton">Chạy lại</button></div>
+            <p class="hint">Bỏ phần kiểm con trỏ nullptr trong các ca kiểm tham số; phần còn lại giữ nguyên bước và giá trị kỳ vọng.</p>
+        </div>
+    </section>
+</main>
 
-    <script>
-        /* ==========================================================================
-           LÕI C23 CHÉP SANG JS (1:1 VỚI ink_display_policy.c)
-           ========================================================================== */
+<script>
+/* ---- Hằng số ---- */
 
-        const INK_DISPLAY_POLICY_MAX_EDGE_MARGIN = 7;
-        const INK_DISPLAY_POLICY_OK = 0;
-        const INK_DISPLAY_POLICY_ERROR_ARGUMENT = 1;
+/* ink_display_policy.h */
+const INK_DISPLAY_POLICY_MAX_DEBT = 15;
+const INK_DISPLAY_POLICY_NO_WAIT = 0xFFFFFFFF;
+const INK_DISPLAY_POLICY_OK = 0;
+const INK_DISPLAY_POLICY_ERROR_ARGUMENT = 1;
+const INK_DISPLAY_POLICY_INTENT_AUTO = 0;
+const INK_DISPLAY_POLICY_INTENT_TEXT = 1;
+const INK_DISPLAY_POLICY_INTENT_UI = 2;
+const INK_DISPLAY_POLICY_INTENT_PAGE = 3;
+const INK_DISPLAY_POLICY_INTENT_COUNT = 4;
+const INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP = 1 << 0;
+const INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP = 1 << 1;
+const INK_DISPLAY_POLICY_ACTION_NONE = 0;
+const INK_DISPLAY_POLICY_ACTION_DRAW = 1;
+const INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG = 2;
+const INK_DISPLAY_POLICY_ACTION_CLEAN_FAST = 3;
+const INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER = 4;
+const INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR = 5;
+const INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT = 6;
+const INK_DISPLAY_POLICY_OLD_SHOWN = 0;
+const INK_DISPLAY_POLICY_OLD_INVERTED = 1;
+const ACTION_NAMES = ["không vẽ", "vẽ", "dọn mạnh", "dọn nhanh", "dọn tâm viền", "dọn quanh viền", "dọn nhẹ", "tắt nguồn"];
+const INTENT_NAMES = ["AUTO", "TEXT", "UI", "PAGE"];
 
-        const INK_DISPLAY_POLICY_MODE_NONE = 0;
-        const INK_DISPLAY_POLICY_MODE_PARTIAL = 1;
-        const INK_DISPLAY_POLICY_MODE_FULL = 2;
+/* ink_display_policy.c */
+const FLAG_MASK = 0x03;
+const FLAG_NONE = 0x00;
+const FLAG_DARK = 0x01;
+const FLAG_LIGHT = 0x02;
+const DEBT_SHIFT = 2;
+const DEBT_MASK = 0x0F << DEBT_SHIFT;
+const STAGE_EDGE = 1 << 0;
+const STAGE_LIGHT = 1 << 1;
+const STAGE_STRONG = 1 << 2;
+const UINT32_MAX = 0xFFFFFFFF;
 
-        function config_valid(config) {
-            return config.width !== 0
-                && config.height !== 0
-                && config.x_align !== 0
-                && config.partials_before_full !== 0
-                && config.max_partial_percent !== 0
-                && config.max_partial_percent <= 100
-                && config.edge_margin <= INK_DISPLAY_POLICY_MAX_EDGE_MARGIN;
-        }
+const u32 = (value) => value >>> 0;
 
-        function ink_display_policy_init(state, config) {
-            if (!state || !config || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
-            state.priv = {
-                config: { ...config },
-                partial_count: 0,
-                shown_valid: false,
-                after_wake: false
-            };
-            return INK_DISPLAY_POLICY_OK;
-        }
+/* ---- Lõi chép từ ink_display_policy.c ---- */
 
-        function ink_display_policy_invalidate(state) {
-            if (!state || !state.priv) return;
-            state.priv.shown_valid = false;
-            state.priv.after_wake = false;
-        }
+function config_valid(config)
+{
+    return config.width !== 0
+        && config.height !== 0
+        && config.x_align !== 0
+        && config.auto_ui_percent <= 100
+        && config.debt_soft !== 0
+        && config.debt_ceiling !== 0
+        && config.debt_ceiling <= config.debt_ceiling_max
+        && config.debt_ceiling_max <= INK_DISPLAY_POLICY_MAX_DEBT
+        && config.weights[INK_DISPLAY_POLICY_INTENT_TEXT] <= INK_DISPLAY_POLICY_MAX_DEBT
+        && config.weights[INK_DISPLAY_POLICY_INTENT_UI] <= INK_DISPLAY_POLICY_MAX_DEBT
+        && config.weights[INK_DISPLAY_POLICY_INTENT_PAGE] <= INK_DISPLAY_POLICY_MAX_DEBT;
+}
 
-        function ink_display_policy_assume_shown(state) {
-            if (!state || !state.priv) return;
-            state.priv.shown_valid = true;
-            state.priv.after_wake = true;
-        }
+function pixel_count(config)
+{
+    return config.width * config.height;
+}
 
-        function ink_display_policy_set_edge_margin(state, margin) {
-            if (!state || !state.priv || margin > INK_DISPLAY_POLICY_MAX_EDGE_MARGIN) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-            state.priv.config.edge_margin = margin;
-            return INK_DISPLAY_POLICY_OK;
-        }
+function clear_pixels(state)
+{
+    state.priv.pixels.fill(0, 0, pixel_count(state.priv.config));
+    state.priv.flagged_count = 0;
+    state.priv.max_debt = 0;
+}
 
-        function row_bytes(config) {
-            return Math.floor((config.width + 7) / 8);
-        }
+function new_state()
+{
+    return {priv: {config: null, pixels: null, flagged_count: 0, last_frame_ms: 0, max_debt: 0, ceiling: 0, stages_done: 0,
+        edge_center_done: false, defer: false, has_frame: false, shown_valid: false, after_wake: false}};
+}
 
-        function diff_byte(config, shown, next, y, i) {
-            const rb = row_bytes(config);
-            const offset = y * rb + i;
-            let diff = (shown[offset] ^ next[offset]) & 0xFF;
-            if (i === rb - 1 && (config.width % 8) !== 0) {
-                diff = (diff & ((0xFF << (8 - (config.width % 8))) & 0xFF)) & 0xFF;
-            }
-            return diff;
-        }
+function copy_config(config)
+{
+    return {...config, weights: [...config.weights]};
+}
 
-        function pixel_bit(pixel) {
-            return (0x80 >> pixel) & 0xFF;
-        }
+function ink_display_policy_init(state, config, pixels)
+{
+    if (state === null || config === null || pixels === null || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    Object.assign(state, new_state());
+    state.priv.config = copy_config(config);
+    state.priv.pixels = pixels;
+    state.priv.ceiling = config.debt_ceiling;
+    clear_pixels(state);
+    return INK_DISPLAY_POLICY_OK;
+}
 
-        function find_changed_bounds(config, shown, next) {
-            const bounds = { left: 0xFFFFFFFF, right: 0, top: 0xFFFFFFFF, bottom: 0 };
-            const rb = row_bytes(config);
-            for (let y = 0; y < config.height; y++) {
-                for (let i = 0; i < rb; i++) {
-                    const diff = diff_byte(config, shown, next, y, i);
-                    if (diff === 0) continue;
-                    for (let pixel = 0; pixel < 8; pixel++) {
-                        if ((diff & pixel_bit(pixel)) === 0) continue;
-                        const x = i * 8 + pixel;
-                        if (x < bounds.left) bounds.left = x;
-                        if (x > bounds.right) bounds.right = x;
-                    }
-                    if (y < bounds.top) bounds.top = y;
-                    bounds.bottom = y;
-                }
-            }
-            if (bounds.top === 0xFFFFFFFF) return null;
-            return bounds;
-        }
+function ink_display_policy_set_config(state, config)
+{
+    if (state === null || config === null || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    const old = state.priv.config;
+    if (config.width !== old.width || config.height !== old.height || config.x_align !== old.x_align) {
+        return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+    }
+    state.priv.config = copy_config(config);
+    if (state.priv.ceiling < config.debt_ceiling) { state.priv.ceiling = config.debt_ceiling; }
+    if (state.priv.ceiling > config.debt_ceiling_max) { state.priv.ceiling = config.debt_ceiling_max; }
+    return INK_DISPLAY_POLICY_OK;
+}
 
-        function make_window(config, bounds, margin) {
-            const left = bounds.left > margin ? bounds.left - margin : 0;
-            const top = bounds.top > margin ? bounds.top - margin : 0;
-            let right = bounds.right + margin + 1;
-            let bottom = bounds.bottom + margin + 1;
-            if (bottom > config.height) bottom = config.height;
+function ink_display_policy_invalidate(state)
+{
+    if (state === null) { return; }
+    state.priv.shown_valid = false;
+    state.priv.after_wake = false;
+}
 
-            const align = config.x_align;
-            const aligned_left = Math.floor(left / align) * align;
-            right = Math.floor((right + align - 1) / align) * align;
-            if (right > config.width) right = config.width;
-            return {
-                x: aligned_left,
-                y: top,
-                width: right - aligned_left,
-                height: bottom - top
-            };
-        }
+function ink_display_policy_assume_shown(state)
+{
+    if (state === null) { return; }
+    state.priv.shown_valid = true;
+    state.priv.after_wake = true;
+}
 
-        function decide_full(state, out_decision) {
-            state.priv.partial_count = 0;
-            state.priv.shown_valid = true;
-            out_decision.mode = INK_DISPLAY_POLICY_MODE_FULL;
-            out_decision.window = { x: 0, y: 0, width: state.priv.config.width, height: state.priv.config.height };
-        }
+function ink_display_policy_max_debt(state) { return state === null ? 0 : state.priv.max_debt; }
+function ink_display_policy_flagged_count(state) { return state === null ? 0 : state.priv.flagged_count; }
+function ink_display_policy_ceiling(state) { return state === null ? 0 : state.priv.ceiling; }
 
-        function ink_display_policy_decide(state, shown, next, out_decision) {
-            if (!state || !state.priv || !next || !out_decision) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-            if (state.priv.shown_valid && !shown) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-            const config = state.priv.config;
+/* ---- Khung 1 bit ---- */
 
-            if (!state.priv.shown_valid) {
-                decide_full(state, out_decision);
-                return INK_DISPLAY_POLICY_OK;
-            }
-            const changed = find_changed_bounds(config, shown, next);
-            if (!changed) {
-                out_decision.mode = INK_DISPLAY_POLICY_MODE_NONE;
-                out_decision.window = { x: 0, y: 0, width: 0, height: 0 };
-                return INK_DISPLAY_POLICY_OK;
-            }
-            if (state.priv.after_wake) {
-                state.priv.after_wake = false;
-                state.priv.partial_count++;
-                out_decision.mode = INK_DISPLAY_POLICY_MODE_PARTIAL;
-                out_decision.window = { x: 0, y: 0, width: config.width, height: config.height };
-                return INK_DISPLAY_POLICY_OK;
-            }
-            const window = make_window(config, changed, config.edge_margin);
-            const changed_area = BigInt(window.width) * BigInt(window.height);
-            const screen_area = BigInt(config.width) * BigInt(config.height);
-            if (state.priv.partial_count >= config.partials_before_full ||
-                changed_area * 100n > screen_area * BigInt(config.max_partial_percent)) {
-                decide_full(state, out_decision);
-                return INK_DISPLAY_POLICY_OK;
-            }
-            state.priv.partial_count++;
-            out_decision.mode = INK_DISPLAY_POLICY_MODE_PARTIAL;
-            out_decision.window = window;
-            return INK_DISPLAY_POLICY_OK;
-        }
+function row_bytes(config)
+{
+    return Math.floor((config.width + 7) / 8);
+}
 
-        function spread_horizontally(config, shown, next, y, i, margin) {
-            const rb = row_bytes(config);
+function pixel_bit(pixel)
+{
+    return (0x80 >> pixel) & 0xFF;
+}
+
+function is_white(config, frame, x, y)
+{
+    return (frame[y * row_bytes(config) + Math.floor(x / 8)] & pixel_bit(x % 8)) !== 0;
+}
+
+function invert_pixel(config, frame, x, y)
+{
+    frame[y * row_bytes(config) + Math.floor(x / 8)] ^= pixel_bit(x % 8);
+}
+
+function diff_byte(config, shown, next, y, i)
+{
+    const offset = y * row_bytes(config) + i;
+    let diff = (shown[offset] ^ next[offset]) & 0xFF;
+    if (i === row_bytes(config) - 1 && config.width % 8 !== 0) { diff &= (0xFF << (8 - config.width % 8)) & 0xFF; }
+    return diff;
+}
+
+function empty_bounds()
+{
+    return {left: UINT32_MAX, right: 0, top: UINT32_MAX, bottom: 0};
+}
+
+function add_to_bounds(bounds, x, y)
+{
+    if (x < bounds.left) { bounds.left = x; }
+    if (x > bounds.right) { bounds.right = x; }
+    if (y < bounds.top) { bounds.top = y; }
+    if (y > bounds.bottom) { bounds.bottom = y; }
+}
+
+function bounds_empty(bounds)
+{
+    return bounds.top === UINT32_MAX;
+}
+
+/* Bản JS trả khung bao, hoặc null thay cho false. */
+function find_changed_bounds(config, shown, next)
+{
+    const bounds = empty_bounds();
+    for (let y = 0; y < config.height; y++) {
+        for (let i = 0; i < row_bytes(config); i++) {
             const diff = diff_byte(config, shown, next, y, i);
-            const left = i > 0 ? diff_byte(config, shown, next, y, i - 1) : 0;
-            const right = i + 1 < rb ? diff_byte(config, shown, next, y, i + 1) : 0;
-            let spread = diff;
-            for (let shift = 1; shift <= margin; shift++) {
-                spread |= ((diff << shift) & 0xFF) | (right >> (8 - shift));
-                spread |= (diff >> shift) | ((left << (8 - shift)) & 0xFF);
-                spread &= 0xFF;
+            if (diff === 0) { continue; }
+            for (let pixel = 0; pixel < 8; pixel++) {
+                if ((diff & pixel_bit(pixel)) !== 0) { add_to_bounds(bounds, i * 8 + pixel, y); }
             }
-            return spread;
         }
+    }
+    if (bounds_empty(bounds)) { return null; }
+    return bounds;
+}
 
-        function ink_display_policy_edge_plane(state, shown, next, window, out_old) {
-            if (!state || !state.priv || !shown || !next || !out_old) return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-            const config = state.priv.config;
-            if (window.width === 0 || window.height === 0 ||
-                window.x + window.width > config.width ||
-                window.y + window.height > config.height) {
-                return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-            }
-            const margin = config.edge_margin;
-            const first_byte = Math.floor(window.x / 8);
-            const last_byte = Math.floor((window.x + window.width - 1) / 8);
-            const rb = row_bytes(config);
+function make_window(config, bounds)
+{
+    const align = config.x_align;
+    const aligned_left = Math.floor(bounds.left / align) * align;
+    let right = Math.floor((bounds.right + 1 + align - 1) / align) * align;
+    if (right > config.width) { right = config.width; }
+    return {x: aligned_left, y: bounds.top, width: right - aligned_left, height: bounds.bottom + 1 - bounds.top};
+}
 
-            for (let y = window.y; y < window.y + window.height; y++) {
-                const top = y > margin ? y - margin : 0;
-                const bottom = y + margin < config.height ? y + margin : config.height - 1;
-                for (let i = first_byte; i <= last_byte; i++) {
-                    let near_change = 0;
-                    for (let row = top; row <= bottom; row++) {
-                        near_change = (near_change | spread_horizontally(config, shown, next, row, i, margin)) & 0xFF;
-                    }
-                    const halo = (near_change & (~diff_byte(config, shown, next, y, i) & 0xFF)) & 0xFF;
-                    out_old[y * rb + i] = (shown[y * rb + i] ^ halo) & 0xFF;
-                }
+function whole_screen(config)
+{
+    return {x: 0, y: 0, width: config.width, height: config.height};
+}
+
+/* Bản JS trả window, hoặc null thay cho false. */
+function ink_display_policy_changed_window(config, shown, next)
+{
+    if (config === null || shown === null || next === null || config.x_align === 0) { return null; }
+    const bounds = find_changed_bounds(config, shown, next);
+    if (bounds === null) { return null; }
+    return make_window(config, bounds);
+}
+
+/* ---- Trạng thái từng điểm ---- */
+/* Bản C trả con trỏ tới byte; bản JS trả index trong priv.pixels. */
+
+function pixel_state(state, x, y)
+{
+    return y * state.priv.config.width + x;
+}
+
+function debt_of(pixel)
+{
+    return (pixel & DEBT_MASK) >> DEBT_SHIFT;
+}
+
+function flag_of(pixel)
+{
+    return pixel & FLAG_MASK;
+}
+
+function set_debt(pixels, index, debt)
+{
+    if (debt > INK_DISPLAY_POLICY_MAX_DEBT) { debt = INK_DISPLAY_POLICY_MAX_DEBT; }
+    pixels[index] = (pixels[index] & ~DEBT_MASK) | (debt << DEBT_SHIFT);
+}
+
+function set_flag(state, index, flag)
+{
+    const pixels = state.priv.pixels;
+    if (flag_of(pixels[index]) !== FLAG_NONE) { state.priv.flagged_count--; }
+    if (flag !== FLAG_NONE) { state.priv.flagged_count++; }
+    pixels[index] = (pixels[index] & ~FLAG_MASK) | flag;
+}
+
+function recompute_max_debt(state)
+{
+    let max_debt = 0;
+    const count = pixel_count(state.priv.config);
+    for (let i = 0; i < count; i++) {
+        const debt = debt_of(state.priv.pixels[i]);
+        if (debt > max_debt) { max_debt = debt; }
+    }
+    state.priv.max_debt = max_debt;
+}
+
+function would_exceed(state, shown, next, bounds, weight, ceiling)
+{
+    const config = state.priv.config;
+    for (let y = bounds.top; y <= bounds.bottom; y++) {
+        for (let x = bounds.left; x <= bounds.right; x++) {
+            const changed = is_white(config, shown, x, y) !== is_white(config, next, x, y);
+            if (changed && debt_of(state.priv.pixels[pixel_state(state, x, y)]) + weight > ceiling) { return true; }
+        }
+    }
+    return false;
+}
+
+function add_debt(state, shown, next, bounds, weight)
+{
+    const config = state.priv.config;
+    const pixels = state.priv.pixels;
+    for (let y = bounds.top; y <= bounds.bottom; y++) {
+        for (let x = bounds.left; x <= bounds.right; x++) {
+            if (is_white(config, shown, x, y) === is_white(config, next, x, y)) { continue; }
+            const pixel = pixel_state(state, x, y);
+            set_flag(state, pixel, FLAG_NONE);
+            set_debt(pixels, pixel, debt_of(pixels[pixel]) + weight);
+            if (debt_of(pixels[pixel]) > state.priv.max_debt) { state.priv.max_debt = debt_of(pixels[pixel]); }
+        }
+    }
+}
+
+/* ---- Cờ viền (US 11,568,827, cột 11) ---- */
+
+const s_cardinal = [[0, -1], [-1, 0], [1, 0], [0, 1]];
+
+/* Bản JS trả [x, y], hoặc null thay cho false. */
+function neighbor(config, x, y, dx, dy)
+{
+    const nx = x + dx;
+    const ny = y + dy;
+    if (nx < 0 || ny < 0 || nx >= config.width || ny >= config.height) { return null; }
+    return [nx, ny];
+}
+
+function any_flag_around(state, x, y)
+{
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const point = (dx !== 0 || dy !== 0) ? neighbor(state.priv.config, x, y, dx, dy) : null;
+            if (point !== null && flag_of(state.priv.pixels[pixel_state(state, point[0], point[1])]) !== FLAG_NONE) {
+                return true;
             }
+        }
+    }
+    return false;
+}
+
+function edge_flag(state, shown, next, x, y)
+{
+    const config = state.priv.config;
+    const white = is_white(config, next, x, y);
+    let all_next_white = true, any_shown_not_white = false, any_turned_black = false;
+    for (let i = 0; i < 4; i++) {
+        const point = neighbor(config, x, y, s_cardinal[i][0], s_cardinal[i][1]);
+        if (point === null) { continue; }
+        const next_white = is_white(config, next, point[0], point[1]);
+        const shown_white = is_white(config, shown, point[0], point[1]);
+        all_next_white = all_next_white && next_white;
+        any_shown_not_white = any_shown_not_white || !shown_white;
+        any_turned_black = any_turned_black || (shown_white && !next_white);
+    }
+    if (white && all_next_white && any_shown_not_white) { return FLAG_DARK; }
+    if (!white && any_turned_black) { return FLAG_LIGHT; }
+    return FLAG_NONE;
+}
+
+function mark_edges(state, shown, next, bounds)
+{
+    const config = state.priv.config;
+    const top = bounds.top > 0 ? bounds.top - 1 : 0;
+    const left = bounds.left > 0 ? bounds.left - 1 : 0;
+    const bottom = bounds.bottom + 1 < config.height ? bounds.bottom + 1 : config.height - 1;
+    const right = bounds.right + 1 < config.width ? bounds.right + 1 : config.width - 1;
+    for (let y = top; y <= bottom; y++) {
+        for (let x = left; x <= right; x++) {
+            const pixel = pixel_state(state, x, y);
+            const still = is_white(config, shown, x, y) === is_white(config, next, x, y);
+            if (!still || flag_of(state.priv.pixels[pixel]) !== FLAG_NONE || any_flag_around(state, x, y)) { continue; }
+            const flag = edge_flag(state, shown, next, x, y);
+            if (flag !== FLAG_NONE) { set_flag(state, pixel, flag); }
+        }
+    }
+}
+
+/* ---- Chọn cách vẽ ---- */
+
+function elapsed_ms(from_ms, to_ms)
+{
+    return u32(to_ms - from_ms);
+}
+
+function request_valid(request)
+{
+    return request.intent < INK_DISPLAY_POLICY_INTENT_COUNT;
+}
+
+function start_idle_period(state, request, now_ms)
+{
+    const config = state.priv.config;
+    const active = state.priv.has_frame && config.edge_ms > 0 && elapsed_ms(state.priv.last_frame_ms, now_ms) < config.edge_ms;
+    if (!active) {
+        state.priv.ceiling = config.debt_ceiling;
+    } else if (state.priv.ceiling < config.debt_ceiling_max) {
+        state.priv.ceiling++;
+    }
+    state.priv.last_frame_ms = u32(now_ms);
+    state.priv.has_frame = true;
+    state.priv.stages_done = 0;
+    state.priv.edge_center_done = false;
+    state.priv.defer = (request.flags & INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP) !== 0;
+}
+
+function resolve_intent(config, intent, window)
+{
+    if (intent !== INK_DISPLAY_POLICY_INTENT_AUTO) { return intent; }
+    const area = window.width * window.height;
+    const screen = config.width * config.height;
+    return area * 100 < screen * config.auto_ui_percent ? INK_DISPLAY_POLICY_INTENT_UI : INK_DISPLAY_POLICY_INTENT_TEXT;
+}
+
+function decide_clean(state, action, out_decision)
+{
+    clear_pixels(state);
+    state.priv.shown_valid = true;
+    state.priv.after_wake = false;
+    Object.assign(out_decision, {action, intent: INK_DISPLAY_POLICY_INTENT_AUTO, window: whole_screen(state.priv.config),
+        old_plane: INK_DISPLAY_POLICY_OLD_INVERTED});
+}
+
+function has_dirt(state)
+{
+    return state.priv.max_debt > 0 || state.priv.flagged_count > 0;
+}
+
+function ink_display_policy_decide(state, shown, next, request, now_ms, out_decision)
+{
+    if (state === null || next === null || out_decision === null || !request_valid(request)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    if (state.priv.shown_valid && shown === null) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    const config = state.priv.config;
+
+    const before_sleep = (request.flags & INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP) !== 0;
+    if (!state.priv.shown_valid || (before_sleep && has_dirt(state))) {
+        start_idle_period(state, request, now_ms);
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        return INK_DISPLAY_POLICY_OK;
+    }
+    const changed = find_changed_bounds(config, shown, next);
+    if (changed === null) {
+        state.priv.defer = (request.flags & INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP) !== 0;
+        Object.assign(out_decision, {action: INK_DISPLAY_POLICY_ACTION_NONE, intent: 0, window: {x: 0, y: 0, width: 0, height: 0}, old_plane: 0});
+        return INK_DISPLAY_POLICY_OK;
+    }
+    start_idle_period(state, request, now_ms);
+
+    const after_wake = state.priv.after_wake;
+    const window = after_wake ? whole_screen(config) : make_window(config, changed);
+    const intent = resolve_intent(config, request.intent, window);
+    const weight = config.weights[intent];
+    state.priv.after_wake = false;
+
+    if (!after_wake && would_exceed(state, shown, next, changed, weight, state.priv.ceiling)) {
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        return INK_DISPLAY_POLICY_OK;
+    }
+    if (intent === INK_DISPLAY_POLICY_INTENT_PAGE && state.priv.max_debt >= config.debt_page) {
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, out_decision);
+        return INK_DISPLAY_POLICY_OK;
+    }
+    add_debt(state, shown, next, changed, weight);
+    mark_edges(state, shown, next, changed);
+
+    Object.assign(out_decision, {action: INK_DISPLAY_POLICY_ACTION_DRAW, intent, window, old_plane: INK_DISPLAY_POLICY_OLD_SHOWN});
+    return INK_DISPLAY_POLICY_OK;
+}
+
+/* ---- Thang dọn khi nghỉ ---- */
+
+function pending_stages(state, out_stages)
+{
+    const config = state.priv.config;
+    const done = state.priv.stages_done;
+    let count = 0;
+    if (config.edge_ms > 0 && (done & STAGE_EDGE) === 0 && state.priv.flagged_count > 0) {
+        const action = state.priv.edge_center_done ? INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR : INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER;
+        out_stages[count++] = {action, after_ms: config.edge_ms};
+    }
+    if (config.light_ms > 0 && (done & STAGE_LIGHT) === 0 && state.priv.max_debt >= config.debt_soft) {
+        out_stages[count++] = {action: INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, after_ms: config.light_ms};
+    }
+    if (config.strong_ms > 0 && (done & STAGE_STRONG) === 0 && has_dirt(state)) {
+        out_stages[count++] = {action: INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, after_ms: config.strong_ms};
+    }
+    return count;
+}
+
+function ink_display_policy_idle(state, now_ms, out_idle)
+{
+    if (state === null || out_idle === null) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    Object.assign(out_idle, {action: INK_DISPLAY_POLICY_ACTION_NONE, wait_ms: INK_DISPLAY_POLICY_NO_WAIT});
+    if (!state.priv.shown_valid || state.priv.after_wake || !state.priv.has_frame || state.priv.defer) { return INK_DISPLAY_POLICY_OK; }
+
+    const stages = [];
+    const count = pending_stages(state, stages);
+    const elapsed = elapsed_ms(state.priv.last_frame_ms, now_ms);
+    for (let i = 0; i < count; i++) {
+        if (elapsed >= stages[i].after_ms) {
+            out_idle.action = stages[i].action;
             return INK_DISPLAY_POLICY_OK;
         }
+        const wait_ms = stages[i].after_ms - elapsed;
+        if (wait_ms < out_idle.wait_ms) { out_idle.wait_ms = wait_ms; }
+    }
+    return INK_DISPLAY_POLICY_OK;
+}
 
-        /* ==========================================================================
-           INTERACTIVE APPLICATION STATE & CONTROLLER
-           ========================================================================== */
+function cleanup_action(action)
+{
+    return action === INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER
+        || action === INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR
+        || action === INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT
+        || action === INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG;
+}
 
-        let g_config = {
-            width: 20,
-            height: 4,
-            x_align: 8,
-            partials_before_full: 3,
-            max_partial_percent: 100,
-            edge_margin: 0
-        };
-
-        let g_state = {};
-        let g_shown = new Uint8Array(0);
-        let g_next = new Uint8Array(0);
-        let g_old = new Uint8Array(0);
-
-        let g_currentDecision = { mode: INK_DISPLAY_POLICY_MODE_FULL, window: { x: 0, y: 0, width: 0, height: 0 } };
-        let g_rawBounds = null;
-        let g_activeRule = 1;
-
-        function allocateBuffers() {
-            const size = row_bytes(g_config) * g_config.height;
-            g_shown = new Uint8Array(size);
-            g_next = new Uint8Array(size);
-            g_old = new Uint8Array(size);
-            g_shown.fill(0xFF);
-            g_next.fill(0xFF);
-            g_old.fill(0xAA);
+function near_matching_center(state, shown, x, y)
+{
+    const config = state.priv.config;
+    const want = is_white(config, shown, x, y) ? FLAG_DARK : FLAG_LIGHT;
+    for (let i = 0; i < 4; i++) {
+        const point = neighbor(config, x, y, s_cardinal[i][0], s_cardinal[i][1]);
+        if (point !== null && flag_of(state.priv.pixels[pixel_state(state, point[0], point[1])]) === want) {
+            return true;
         }
+    }
+    return false;
+}
 
-        function initSimulator() {
-            allocateBuffers();
-            ink_display_policy_init(g_state, g_config);
-            // Sau init, màn chưa có shown_valid, decide lần đầu để nạp shown
-            g_state.priv.shown_valid = true;
-            updateSimulation();
+function selected_for(state, shown, action, x, y)
+{
+    const pixel = state.priv.pixels[pixel_state(state, x, y)];
+    switch (action) {
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
+            return flag_of(pixel) !== FLAG_NONE;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
+            return flag_of(pixel) === FLAG_NONE && near_matching_center(state, shown, x, y);
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
+            return debt_of(pixel) >= state.priv.config.debt_soft;
+        default:
+            return true; /* CLEAN_STRONG */
+    }
+}
+
+function ink_display_policy_cleanup_plane(state, shown, action, out_old, out_window)
+{
+    if (state === null || shown === null || out_old === null || out_window === null || !cleanup_action(action)) {
+        return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+    }
+    const config = state.priv.config;
+    out_old.set(shown.subarray(0, row_bytes(config) * config.height));
+    const bounds = empty_bounds();
+    for (let y = 0; y < config.height; y++) {
+        for (let x = 0; x < config.width; x++) {
+            if (!selected_for(state, shown, action, x, y)) { continue; }
+            invert_pixel(config, out_old, x, y);
+            add_to_bounds(bounds, x, y);
         }
+    }
+    Object.assign(out_window, bounds_empty(bounds) ? {x: 0, y: 0, width: 0, height: 0} : make_window(config, bounds));
+    if (action === INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG) { Object.assign(out_window, whole_screen(config)); }
+    return INK_DISPLAY_POLICY_OK;
+}
 
-        function getPixel(frame, x, y) {
-            const rb = row_bytes(g_config);
-            const offset = y * rb + Math.floor(x / 8);
-            const mask = 0x80 >> (x % 8);
-            return (frame[offset] & mask) !== 0 ? 1 : 0;
+function ink_display_policy_cleanup_done(state, action)
+{
+    if (state === null || !cleanup_action(action)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    const count = pixel_count(state.priv.config);
+    const pixels = state.priv.pixels;
+    switch (action) {
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
+            state.priv.edge_center_done = true;
+            break;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
+            for (let i = 0; i < count; i++) { pixels[i] &= ~FLAG_MASK; }
+            state.priv.flagged_count = 0;
+            state.priv.stages_done |= STAGE_EDGE;
+            break;
+        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
+            for (let i = 0; i < count; i++) {
+                if (debt_of(pixels[i]) >= state.priv.config.debt_soft) { set_debt(pixels, i, 0); }
+            }
+            recompute_max_debt(state);
+            state.priv.stages_done |= STAGE_LIGHT;
+            break;
+        default: /* CLEAN_STRONG */
+            clear_pixels(state);
+            state.priv.stages_done |= STAGE_EDGE | STAGE_LIGHT | STAGE_STRONG;
+            break;
+    }
+    return INK_DISPLAY_POLICY_OK;
+}
+
+/* ---- Giả lập vỏ: task màn trong ink_display.c ---- */
+/* Màn nhỏ để nhấp được từng điểm. Hằng số lấy từ ink_display.c (DEFAULT_*). */
+
+const LIVE_WIDTH = 48;
+const LIVE_HEIGHT = 28;
+
+const live = {
+    config: {
+        width: LIVE_WIDTH, height: LIVE_HEIGHT, x_align: 8,
+        weights: [0, 1, 2, 1],       /* DEFAULT_WEIGHT_TEXT, _UI, _PAGE */
+        auto_ui_percent: 10,         /* DEFAULT_AUTO_UI_PERCENT */
+        debt_soft: 2, debt_page: 6, debt_ceiling: 8, debt_ceiling_max: 15,
+        edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
+    },
+    power_off_ms: 2000,              /* DEFAULT_POWER_OFF_MS */
+    state: new_state(),
+    pixels: null,
+    shown: null,                     /* null = chưa biết màn hiện gì */
+    shown_buffer: null,
+    next: null,
+    old_plane: null,
+    last_window: null,
+    last_new: null,
+    power_on: false,
+    last_drive_ms: 0,
+    now_ms: 0,
+    speed: 1,
+    paused: false,
+    last_real_ms: performance.now(),
+};
+
+function frame_bytes() { return row_bytes(live.config) * live.config.height; }
+
+function shell_log(text)
+{
+    const view = document.getElementById("log");
+    const line = document.createElement("div");
+    line.className = "shell";
+    line.textContent = `${String(live.now_ms).padStart(7)} ms  ${text}`;
+    view.append(line);
+    while (view.childElementCount > 300) { view.firstElementChild.remove(); }
+    view.scrollTop = view.scrollHeight;
+}
+
+/* drive() của ink_display.c: chỉ ghi lại để vẽ. */
+function shell_drive(action, plane_new, plane_old, window)
+{
+    live.last_new = plane_new.slice();
+    live.old_plane = plane_old.slice();
+    live.last_window = {...window};
+    live.power_on = true;
+    live.last_drive_ms = live.now_ms;
+}
+
+/* notify_drawn() của ink_display.c: số liệu lấy sau khi policy đã cập nhật. */
+function shell_report(action, window)
+{
+    shell_log(`${ACTION_NAMES[action]}: window ${window.x},${window.y} ${window.width}×${window.height}, nợ lớn nhất ${ink_display_policy_max_debt(live.state)}, `
+        + `cờ ${ink_display_policy_flagged_count(live.state)}, trần ${ink_display_policy_ceiling(live.state)}`);
+}
+
+function invert_into(source, destination)
+{
+    for (let i = 0; i < source.length; i++) { destination[i] = ~source[i] & 0xFF; }
+}
+
+/* draw_frame() + draw_latest() của ink_display.c */
+function shell_submit()
+{
+    const flags = (document.getElementById("deferCheck").checked ? INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP : 0)
+        | (document.getElementById("sleepCheck").checked ? INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP : 0);
+    const request = {intent: Number(document.getElementById("intentSelect").value), flags};
+    const decision = {};
+    if (ink_display_policy_decide(live.state, live.shown, live.next, request, live.now_ms, decision) !== INK_DISPLAY_POLICY_OK) {
+        shell_log("policy decide lỗi");
+        return;
+    }
+    if (decision.action === INK_DISPLAY_POLICY_ACTION_NONE) {
+        shell_log("không vẽ: khung giống hệt");
+    } else {
+        let plane_old = live.shown;
+        if (decision.old_plane === INK_DISPLAY_POLICY_OLD_INVERTED || live.shown === null) {
+            plane_old = new Uint8Array(frame_bytes());
+            invert_into(live.next, plane_old);
         }
+        shell_drive(decision.action, live.next, plane_old, decision.window);
+        shell_report(decision.action, decision.window);
+        if (decision.action === INK_DISPLAY_POLICY_ACTION_DRAW) { shell_log(`  ý định ${INTENT_NAMES[decision.intent]}`); }
+    }
+    live.shown_buffer.set(live.next);
+    live.shown = live.shown_buffer;
+    if ((flags & INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP) !== 0) { shell_power_off(); }
+    render();
+}
 
-        function togglePixel(frame, x, y) {
-            const rb = row_bytes(g_config);
-            const offset = y * rb + Math.floor(x / 8);
-            const mask = 0x80 >> (x % 8);
-            frame[offset] ^= mask;
-        }
+function shell_power_off()
+{
+    live.power_on = false;
+    shell_log("tắt nguồn");
+}
 
-        function setPixelVal(frame, x, y, val) {
-            const rb = row_bytes(g_config);
-            const offset = y * rb + Math.floor(x / 8);
-            const mask = 0x80 >> (x % 8);
-            if (val === 1) {
-                frame[offset] |= mask;
-            } else {
-                frame[offset] &= (~mask) & 0xFF;
+/* run_cleanup() của ink_display.c */
+function shell_cleanup(action)
+{
+    const window = {};
+    const plane_old = new Uint8Array(frame_bytes());
+    if (ink_display_policy_cleanup_plane(live.state, live.shown, action, plane_old, window) !== INK_DISPLAY_POLICY_OK) { return; }
+    const drew = window.width > 0 && window.height > 0;
+    if (drew) { shell_drive(action, live.shown, plane_old, window); }
+    ink_display_policy_cleanup_done(live.state, action);
+    if (drew) { shell_report(action, window); }
+}
+
+/* run_idle() của ink_display.c: một bậc mỗi lần gọi. */
+function shell_idle()
+{
+    const idle = {};
+    ink_display_policy_idle(live.state, live.now_ms, idle);
+    if (idle.action !== INK_DISPLAY_POLICY_ACTION_NONE) {
+        shell_cleanup(idle.action);
+        return true;
+    }
+    const power_due = live.power_on && live.power_off_ms > 0 && live.now_ms - live.last_drive_ms >= live.power_off_ms;
+    if (power_due) {
+        shell_power_off();
+        return true;
+    }
+    return false;
+}
+
+function tick()
+{
+    const real = performance.now();
+    if (!live.paused) { live.now_ms = Math.floor(live.now_ms + (real - live.last_real_ms) * live.speed); }
+    live.last_real_ms = real;
+    let changed = false;
+    while (live.shown !== null && shell_idle()) { changed = true; }
+    document.getElementById("clock").textContent = `${live.now_ms} ms`;
+    render_ladder();
+    if (changed) { render(); }
+    requestAnimationFrame(tick);
+}
+
+/* ---- Vẽ ---- */
+
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+const CELL = 12;
+
+function prepare_canvas(canvas)
+{
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = LIVE_WIDTH * CELL * ratio;
+    canvas.height = LIVE_HEIGHT * CELL * ratio;
+    const context = canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    return context;
+}
+
+function draw_frame(canvas, frame, highlight)
+{
+    const context = prepare_canvas(canvas);
+    const config = live.config;
+    for (let y = 0; y < config.height; y++) {
+        for (let x = 0; x < config.width; x++) {
+            const white = frame === null ? true : is_white(config, frame, x, y);
+            context.fillStyle = frame === null ? css("--panel-strong") : white ? css("--pixel-white") : css("--pixel-black");
+            context.fillRect(x * CELL, y * CELL, CELL - 1, CELL - 1);
+            if (highlight !== null && highlight(x, y)) {
+                context.strokeStyle = css("--accent");
+                context.lineWidth = 2;
+                context.strokeRect(x * CELL + 2, y * CELL + 2, CELL - 5, CELL - 5);
             }
         }
+    }
+    return context;
+}
 
-        function updateSimulation() {
-            // 1. Phân tích luật quyết định
-            const config = g_state.priv.config;
-            g_rawBounds = find_changed_bounds(config, g_shown, g_next);
+function draw_window(context, window)
+{
+    if (!window || window.width === 0) { return; }
+    context.strokeStyle = css("--brand-teal");
+    context.lineWidth = 2;
+    context.strokeRect(window.x * CELL - 1, window.y * CELL - 1, window.width * CELL, window.height * CELL);
+}
 
-            if (!g_state.priv.shown_valid) {
-                g_activeRule = 1;
-            } else if (!g_rawBounds) {
-                g_activeRule = 2;
-            } else if (g_state.priv.after_wake) {
-                g_activeRule = 3;
-            } else {
-                const win = make_window(config, g_rawBounds, config.edge_margin);
-                const changed_area = BigInt(win.width) * BigInt(win.height);
-                const screen_area = BigInt(config.width) * BigInt(config.height);
-                if (g_state.priv.partial_count >= config.partials_before_full) {
-                    g_activeRule = 4;
-                } else if (changed_area * 100n > screen_area * BigInt(config.max_partial_percent)) {
-                    g_activeRule = 5;
-                } else {
-                    g_activeRule = 6;
-                }
+function draw_pixels(canvas)
+{
+    const context = prepare_canvas(canvas);
+    const pixels = live.state.priv.pixels;
+    for (let y = 0; y < LIVE_HEIGHT; y++) {
+        for (let x = 0; x < LIVE_WIDTH; x++) {
+            const pixel = pixels[y * LIVE_WIDTH + x];
+            const debt = debt_of(pixel);
+            context.fillStyle = css("--panel-strong");
+            context.fillRect(x * CELL, y * CELL, CELL - 1, CELL - 1);
+            if (debt > 0) {
+                context.globalAlpha = 0.15 + 0.85 * debt / INK_DISPLAY_POLICY_MAX_DEBT;
+                context.fillStyle = css("--brand-bronze");
+                context.fillRect(x * CELL, y * CELL, CELL - 1, CELL - 1);
+                context.globalAlpha = 1;
             }
-
-            // 2. Chạy quyết định thực tế (clone state để không làm biến dạng count khi render)
-            const backupState = {
-                priv: {
-                    config: { ...g_state.priv.config },
-                    partial_count: g_state.priv.partial_count,
-                    shown_valid: g_state.priv.shown_valid,
-                    after_wake: g_state.priv.after_wake
-                }
-            };
-            const dec = {};
-            ink_display_policy_decide(backupState, g_shown, g_next, dec);
-            g_currentDecision = dec;
-
-            // 3. Tính toán out_old nếu mode = PARTIAL
-            g_old.fill(0xAA);
-            if (dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL && dec.window.width > 0) {
-                ink_display_policy_edge_plane(g_state, g_shown, g_next, dec.window, g_old);
-            }
-
-            renderUI();
-        }
-
-        function renderUI() {
-            // Cập nhật trạng thái
-            document.getElementById("stPartialCount").textContent = g_state.priv.partial_count + " / " + g_config.partials_before_full;
-
-            const elShown = document.getElementById("stShownValid");
-            elShown.textContent = g_state.priv.shown_valid ? "true" : "false";
-            elShown.className = "status-badge " + (g_state.priv.shown_valid ? "status-true" : "status-false");
-
-            const elWake = document.getElementById("stAfterWake");
-            elWake.textContent = g_state.priv.after_wake ? "true" : "false";
-            elWake.className = "status-badge " + (g_state.priv.after_wake ? "status-true" : "status-false");
-
-            // Banner Quyết định
-            const banner = document.getElementById("decisionBanner");
-            const modeText = document.getElementById("decisionModeText");
-            const winText = document.getElementById("decisionWindowText");
-
-            if (g_currentDecision.mode === INK_DISPLAY_POLICY_MODE_FULL) {
-                banner.className = "decision-banner mode-full";
-                modeText.textContent = "FULL REFRESH";
-            } else if (g_currentDecision.mode === INK_DISPLAY_POLICY_MODE_PARTIAL) {
-                banner.className = "decision-banner mode-partial";
-                modeText.textContent = "PARTIAL REFRESH";
-            } else {
-                banner.className = "decision-banner mode-none";
-                modeText.textContent = "NONE (KHÔNG VẼ)";
-            }
-            const win = g_currentDecision.window || { x: 0, y: 0, width: 0, height: 0 };
-            winText.textContent = `window: [x=${win.x}, y=${win.y}, w=${win.width}, h=${win.height}]`;
-
-            // Cửa sổ & diện tích
-            if (g_rawBounds) {
-                document.getElementById("txtRawBounds").textContent = `[L=${g_rawBounds.left}, R=${g_rawBounds.right}, T=${g_rawBounds.top}, B=${g_rawBounds.bottom}]`;
-            } else {
-                document.getElementById("txtRawBounds").textContent = "Không đổi";
-            }
-
-            document.getElementById("txtAlignedWindow").textContent = `[x=${win.x}, y=${win.y}, w=${win.width}, h=${win.height}]`;
-            const winArea = win.width * win.height;
-            const scrArea = g_config.width * g_config.height;
-            const pct = scrArea > 0 ? ((winArea / scrArea) * 100).toFixed(1) : "0";
-            document.getElementById("txtWindowArea").textContent = `${winArea} pixel`;
-            document.getElementById("txtScreenArea").textContent = `${scrArea} pixel`;
-            document.getElementById("txtPercentArea").textContent = `${pct} %`;
-
-            // Highlight quy tắc
-            for (let r = 1; r <= 6; r++) {
-                const elRule = document.getElementById("rule" + r);
-                if (elRule) {
-                    elRule.className = "rule-item" + (r === g_activeRule ? " active-rule" : "");
-                }
-            }
-
-            // Hex out_old
-            const rb = row_bytes(g_config);
-            let hexStr = "";
-            for (let y = 0; y < g_config.height; y++) {
-                hexStr += `Hàng ${y.toString().padStart(2, "0")}: `;
-                for (let i = 0; i < rb; i++) {
-                    const b = g_old[y * rb + i];
-                    hexStr += b.toString(16).padStart(2, "0").toUpperCase() + " ";
-                }
-                hexStr += "\n";
-            }
-            document.getElementById("hexOutOld").textContent = hexStr;
-
-            // Vẽ ma trận
-            renderMatrix();
-        }
-
-        function renderMatrix() {
-            const container = document.getElementById("matrixContainer");
-            const editMode = document.querySelector('input[name="editMode"]:checked').value;
-            const activeFrame = editMode === "shown" ? g_shown : g_next;
-            const rb = row_bytes(g_config);
-            const win = g_currentDecision.window || { x: 0, y: 0, width: 0, height: 0 };
-
-            let html = `<table class="grid-table">`;
-
-            // Hàng 1: Đánh dấu Byte (Byte 0, Byte 1...)
-            html += `<tr><th class="th-row-y" rowspan="2">Y \\ X</th>`;
-            for (let b = 0; b < rb; b++) {
-                const colsInByte = Math.min(8, g_config.width - b * 8);
-                const padCols = 8 - colsInByte;
-                html += `<th colspan="8" class="th-byte-header byte-start">BYTE ${b} (offset: +${b})</th>`;
-            }
-            html += `</tr>`;
-
-            // Hàng 2: Tọa độ X (0..width-1) + bit index (7..0)
-            html += `<tr>`;
-            for (let b = 0; b < rb; b++) {
-                for (let bit = 0; bit < 8; bit++) {
-                    const x = b * 8 + bit;
-                    const isPad = x >= g_config.width;
-                    const isAlign = !isPad && (x % g_config.x_align === 0);
-                    let cls = bit === 0 ? "byte-start" : "";
-                    if (isAlign) cls += " th-x-align";
-
-                    if (isPad) {
-                        html += `<th class="${cls}" style="opacity:0.35;">x${x}<br><span style="font-size:8px;">b${7 - bit}</span></th>`;
-                    } else {
-                        html += `<th class="${cls}">x${x}<br><span style="font-size:8px;">b${7 - bit}</span></th>`;
-                    }
-                }
-            }
-            html += `</tr>`;
-
-            // Các hàng dữ liệu (Hàng Y)
-            for (let y = 0; y < g_config.height; y++) {
-                html += `<tr>`;
-                html += `<th class="th-row-y">y=${y}</th>`;
-
-                for (let b = 0; b < rb; b++) {
-                    const diffByteVal = diff_byte(g_config, g_shown, g_next, y, b);
-
-                    for (let bit = 0; bit < 8; bit++) {
-                        const x = b * 8 + bit;
-                        const isPad = x >= g_config.width;
-                        const isByteStart = bit === 0;
-                        const isAlignBoundary = !isPad && (x % g_config.x_align === 0) && (x > 0);
-
-                        if (isPad) {
-                            html += `<td class="pixel-cell px-pad ${isByteStart ? 'byte-start' : ''}" title="Bit đệm cuối hàng (bị diff_byte bỏ qua)">-</td>`;
-                            continue;
-                        }
-
-                        const pxVal = getPixel(activeFrame, x, y);
-                        const isDiff = (diffByteVal & pixel_bit(bit)) !== 0;
-
-                        // Kiểm tra có nằm trong window không
-                        const inWin = (win.width > 0) &&
-                            (x >= win.x && x < win.x + win.width) &&
-                            (y >= win.y && y < win.y + win.height);
-
-                        // Đường biên của window
-                        let winBorder = "";
-                        if (inWin) {
-                            if (y === win.y) winBorder += " win-border-top";
-                            if (y === win.y + win.height - 1) winBorder += " win-border-bottom";
-                            if (x === win.x) winBorder += " win-border-left";
-                            if (x === win.x + win.width - 1) winBorder += " win-border-right";
-                        }
-
-                        // Kiểm tra có phải halo không
-                        let isHalo = false;
-                        if (inWin && !isDiff) {
-                            // Xem trong out_old bit có bị đảo so với shown không
-                            const shownBit = getPixel(g_shown, x, y);
-                            const oldBit = (g_old[y * rb + b] & pixel_bit(bit)) !== 0 ? 1 : 0;
-                            if (oldBit !== shownBit) {
-                                isHalo = true;
-                            }
-                        }
-
-                        let classes = "pixel-cell";
-                        classes += pxVal === 1 ? " px-white" : " px-black";
-                        if (isByteStart) classes += " byte-start";
-                        if (isAlignBoundary) classes += " align-boundary";
-                        if (isDiff) classes += " px-diff";
-                        if (isHalo) classes += " px-halo";
-                        if (inWin) classes += " in-window";
-                        classes += winBorder;
-
-                        html += `<td class="${classes}"
-                             onclick="onPixelClick(${x}, ${y})"
-                             onmouseenter="onPixelHover(${x}, ${y})"></td>`;
-                    }
-                }
-                html += `</tr>`;
-            }
-
-            html += `</table>`;
-            container.innerHTML = html;
-        }
-
-        function onPixelClick(x, y) {
-            const editMode = document.querySelector('input[name="editMode"]:checked').value;
-            const activeFrame = editMode === "shown" ? g_shown : g_next;
-            togglePixel(activeFrame, x, y);
-            updateSimulation();
-            onPixelHover(x, y);
-        }
-
-        function onPixelHover(x, y) {
-            const rb = row_bytes(g_config);
-            const byteIdx = Math.floor(x / 8);
-            const bitPos = 7 - (x % 8);
-            const offset = y * rb + byteIdx;
-
-            const shownVal = getPixel(g_shown, x, y);
-            const nextVal = getPixel(g_next, x, y);
-            const isDiff = shownVal !== nextVal;
-
-            const oldByte = g_old[offset];
-            const oldBit = (oldByte & pixel_bit(x % 8)) !== 0 ? 1 : 0;
-            const isHalo = isDiff ? false : (oldBit !== shownVal);
-
-            document.getElementById("inspCoord").textContent = `(${x}, ${y})`;
-            document.getElementById("inspByte").textContent = `byte ${byteIdx} (offset ${offset})`;
-            document.getElementById("inspBit").textContent = `bit ${bitPos} (mask 0x${pixel_bit(x % 8).toString(16).toUpperCase()})`;
-            document.getElementById("inspShown").textContent = shownVal === 1 ? "1 (Trắng)" : "0 (Đen)";
-            document.getElementById("inspNext").textContent = nextVal === 1 ? "1 (Trắng)" : "0 (Đen)";
-            document.getElementById("inspDiff").textContent = isDiff ? "1 (CÓ ĐỔI)" : "0";
-            document.getElementById("inspHalo").textContent = isHalo ? "⚡ CÓ (Lật bit viền)" : "Không";
-            document.getElementById("inspOutOld").textContent = `${oldBit} (Hex: 0x${oldByte.toString(16).toUpperCase()})`;
-        }
-
-        /* ==========================================================================
-           TÁC VỤ VÀ NÚT ĐIỀU KHIỂN
-           ========================================================================== */
-
-        function actionCommit() {
-            // Mô phỏng 1 chu kỳ vẽ màn thành công
-            const dec = {};
-            ink_display_policy_decide(g_state, g_shown, g_next, dec);
-            g_shown.set(g_next);
-            updateSimulation();
-        }
-
-        function actionAssumeShown() {
-            ink_display_policy_assume_shown(g_state);
-            updateSimulation();
-        }
-
-        function actionInvalidate() {
-            ink_display_policy_invalidate(g_state);
-            updateSimulation();
-        }
-
-        function actionResetState() {
-            ink_display_policy_init(g_state, g_config);
-            g_state.priv.shown_valid = true;
-            updateSimulation();
-        }
-
-        function updateConfig() {
-            const w = parseInt(document.getElementById("cfgWidth").value, 10);
-            const h = parseInt(document.getElementById("cfgHeight").value, 10);
-            const align = parseInt(document.getElementById("cfgAlign").value, 10);
-            const part = parseInt(document.getElementById("cfgPartials").value, 10);
-            const maxPct = parseInt(document.getElementById("cfgMaxPercent").value, 10);
-            const margin = parseInt(document.getElementById("cfgMargin").value, 10);
-
-            const newCfg = {
-                width: w,
-                height: h,
-                x_align: align,
-                partials_before_full: part,
-                max_partial_percent: maxPct,
-                edge_margin: margin
-            };
-
-            if (config_valid(newCfg)) {
-                g_config = newCfg;
-                initSimulator();
-            } else {
-                alert("Cấu hình không hợp lệ theo quy ước!");
+            const flag = flag_of(pixel);
+            if (flag !== FLAG_NONE) {
+                context.fillStyle = flag === FLAG_DARK ? css("--accent") : css("--brand-teal");
+                context.beginPath();
+                context.arc(x * CELL + CELL / 2 - 0.5, y * CELL + CELL / 2 - 0.5, CELL / 3, 0, Math.PI * 2);
+                context.fill();
             }
         }
+    }
+}
 
-        function resetToDefaultConfig() {
-            g_config = {
-                width: 20,
-                height: 4,
-                x_align: 8,
-                partials_before_full: 3,
-                max_partial_percent: 100,
-                edge_margin: 0
-            };
-            syncConfigInputs();
-            initSimulator();
+function render_priv()
+{
+    const priv = live.state.priv;
+    const rows = [
+        ["flagged_count", priv.flagged_count], ["max_debt", priv.max_debt], ["ceiling", priv.ceiling],
+        ["last_frame_ms", priv.last_frame_ms], ["stages_done", `0b${priv.stages_done.toString(2).padStart(3, "0")}`],
+        ["edge_center_done", priv.edge_center_done], ["defer", priv.defer], ["has_frame", priv.has_frame],
+        ["shown_valid", priv.shown_valid], ["after_wake", priv.after_wake], ["(vỏ) power_on", live.power_on],
+    ];
+    document.getElementById("privTable").replaceChildren(...rows.map(([name, value]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${name}</td><td>${value}</td>`;
+        return row;
+    }));
+}
+
+function render_ladder()
+{
+    const priv = live.state.priv;
+    const config = priv.config;
+    if (config === null) { return; }
+    const elapsed = priv.has_frame ? elapsed_ms(priv.last_frame_ms, live.now_ms) : 0;
+    const items = [
+        ["Bậc 1: dọn tâm, rồi quanh viền", config.edge_ms, STAGE_EDGE],
+        ["Bậc 2: dọn nhẹ", config.light_ms, STAGE_LIGHT],
+        ["Bậc 3: dọn mạnh", config.strong_ms, STAGE_STRONG],
+    ];
+    const idle = {};
+    ink_display_policy_idle(live.state, live.now_ms, idle);
+    document.getElementById("ladder").replaceChildren(...items.map(([name, after, bit]) => {
+        const item = document.createElement("li");
+        const done = (priv.stages_done & bit) !== 0;
+        item.className = done ? "done" : "";
+        item.innerHTML = `<span>${name}</span><span>${after === 0 ? "bỏ" : `${after} ms`}</span>`;
+        return item;
+    }));
+    const power = live.power_on && live.power_off_ms > 0 ? ` · tắt nguồn sau ${Math.max(0, live.power_off_ms - (live.now_ms - live.last_drive_ms))} ms` : "";
+    document.getElementById("idleText").textContent = `Đã nghỉ ${elapsed} ms. `
+        + (priv.defer ? "Khung gần nhất có cờ hoãn dọn. " : "")
+        + (idle.wait_ms === INK_DISPLAY_POLICY_NO_WAIT ? "Không còn bậc nào." : `Bậc kế tiếp sau ${idle.wait_ms} ms.`) + power;
+}
+
+function render()
+{
+    const shown_context = draw_frame(document.getElementById("shownCanvas"), live.shown, null);
+    draw_window(shown_context, live.last_window);
+    draw_frame(document.getElementById("nextCanvas"), live.next, null);
+    draw_pixels(document.getElementById("pixelCanvas"));
+    const old = live.old_plane;
+    const plane_new = live.last_new;
+    const old_context = draw_frame(document.getElementById("oldCanvas"), old,
+        old === null ? null : (x, y) => is_white(live.config, old, x, y) !== is_white(live.config, plane_new, x, y));
+    draw_window(old_context, live.last_window);
+    render_priv();
+    render_ladder();
+}
+
+/* ---- Điều khiển ---- */
+
+const CONFIG_FIELDS = [
+    ["weights.1", "trọng số TEXT"], ["weights.2", "trọng số UI"], ["weights.3", "trọng số PAGE"], ["auto_ui_percent", "auto_ui_percent"],
+    ["debt_soft", "debt_soft"], ["debt_page", "debt_page"], ["debt_ceiling", "debt_ceiling"], ["debt_ceiling_max", "debt_ceiling_max"],
+    ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["power_off_ms", "(vỏ) power_off_ms"],
+];
+
+function config_value(key)
+{
+    if (key === "power_off_ms") { return live.power_off_ms; }
+    const [name, index] = key.split(".");
+    return index === undefined ? live.config[name] : live.config[name][Number(index)];
+}
+
+function render_config_form()
+{
+    const form = document.getElementById("configForm");
+    form.replaceChildren(...CONFIG_FIELDS.flatMap(([key, label]) => {
+        const name = document.createElement("label");
+        name.textContent = label;
+        name.htmlFor = `config-${key}`;
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = `config-${key}`;
+        input.value = String(config_value(key));
+        return [name, input];
+    }));
+}
+
+function apply_config()
+{
+    const config = copy_config(live.config);
+    for (const [key] of CONFIG_FIELDS) {
+        const value = Number(document.getElementById(`config-${key}`).value);
+        if (key === "power_off_ms") { live.power_off_ms = value; continue; }
+        const [name, index] = key.split(".");
+        if (index === undefined) { config[name] = value; } else { config[name][Number(index)] = value; }
+    }
+    if (ink_display_policy_set_config(live.state, config) !== INK_DISPLAY_POLICY_OK) {
+        shell_log("set_config: ERROR_ARGUMENT, giữ config cũ");
+        render_config_form();
+        return;
+    }
+    live.config = config;
+    shell_log("set_config: OK");
+    render();
+}
+
+function setup_painting()
+{
+    const canvas = document.getElementById("nextCanvas");
+    let painting = null;
+    const paint = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = Math.floor((event.clientX - rect.left) / rect.width * LIVE_WIDTH);
+        const y = Math.floor((event.clientY - rect.top) / rect.height * LIVE_HEIGHT);
+        if (x < 0 || y < 0 || x >= LIVE_WIDTH || y >= LIVE_HEIGHT) { return; }
+        const white = is_white(live.config, live.next, x, y);
+        if (white !== painting) { invert_pixel(live.config, live.next, x, y); }
+        render();
+    };
+    canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+    canvas.addEventListener("pointerdown", (event) => {
+        painting = event.button === 2; /* chuột phải: tô trắng */
+        canvas.setPointerCapture(event.pointerId);
+        paint(event);
+    });
+    canvas.addEventListener("pointermove", (event) => { if (painting !== null) { paint(event); } });
+    canvas.addEventListener("pointerup", () => { painting = null; });
+}
+
+function toggle_box()
+{
+    for (let y = 10; y < 14; y++) {
+        for (let x = 20; x < 26; x++) { invert_pixel(live.config, live.next, x, y); }
+    }
+    render();
+}
+
+function setup_controls()
+{
+    document.querySelectorAll(".tab").forEach((tab) => tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((other) => other.classList.toggle("active", other === tab));
+        document.querySelectorAll(".page").forEach((page) => page.classList.toggle("active", page.id === tab.dataset.page));
+    }));
+    document.getElementById("submitButton").addEventListener("click", shell_submit);
+    document.getElementById("boxButton").addEventListener("click", toggle_box);
+    document.getElementById("copyButton").addEventListener("click", () => {
+        if (live.shown !== null) { live.next.set(live.shown); }
+        render();
+    });
+    document.getElementById("wakeButton").addEventListener("click", () => {
+        /* ink_display_start() với màn nền: khung đang hiện có sẵn, trạng thái từng điểm về 0 */
+        ink_display_policy_init(live.state, live.config, live.pixels);
+        if (live.shown === null) { live.shown = live.shown_buffer; }
+        ink_display_policy_assume_shown(live.state);
+        shell_log("thức dậy: assume_shown, nợ và cờ về 0 (PSRAM mất khi ngủ)");
+        render();
+    });
+    document.getElementById("errorButton").addEventListener("click", () => {
+        ink_display_policy_invalidate(live.state);
+        shell_log("driver vẽ lỗi: invalidate");
+        render();
+    });
+    document.getElementById("applyConfigButton").addEventListener("click", apply_config);
+    document.getElementById("pauseButton").addEventListener("click", (event) => {
+        live.paused = !live.paused;
+        event.target.textContent = live.paused ? "Chạy" : "Tạm dừng";
+    });
+    document.getElementById("speedSelect").addEventListener("change", (event) => { live.speed = Number(event.target.value); });
+    document.getElementById("runTestsButton").addEventListener("click", run_tests);
+    setup_painting();
+}
+
+/* ---- Host test: chép từ test_ink_display_policy.c ---- */
+
+const WIDTH = 20;
+const HEIGHT = 8;
+const ROW_BYTES = 3;
+const SIZE = ROW_BYTES * HEIGHT;
+
+const t = {shown: new Uint8Array(SIZE), next: new Uint8Array(SIZE), old: new Uint8Array(SIZE), pixels: new Uint8Array(WIDTH * HEIGHT),
+    state: new_state(), now_ms: 0};
+
+class AssertError extends Error {}
+
+function expect_equal(expected, actual, what = "")
+{
+    if (expected !== actual) { throw new AssertError(`${what} Expected ${expected} Was ${actual}`); }
+}
+function expect_true(value, what = "") { if (!value) { throw new AssertError(`${what} Expected TRUE Was FALSE`); } }
+function expect_false(value, what = "") { if (value) { throw new AssertError(`${what} Expected FALSE Was TRUE`); } }
+function expect_greater(threshold, actual) { if (!(actual > threshold)) { throw new AssertError(`Expected > ${threshold} Was ${actual}`); } }
+function expect_less_or_equal(threshold, actual) { if (!(actual <= threshold)) { throw new AssertError(`Expected <= ${threshold} Was ${actual}`); } }
+
+function default_config()
+{
+    return {width: WIDTH, height: HEIGHT, x_align: 8, weights: [0, 1, 2, 1], auto_ui_percent: 10, debt_soft: 2, debt_page: 6,
+        debt_ceiling: 8, debt_ceiling_max: 15, edge_ms: 2000, light_ms: 10000, strong_ms: 60000};
+}
+
+function set_black(frame, x, y) { frame[y * ROW_BYTES + Math.floor(x / 8)] &= ~(0x80 >> (x % 8)) & 0xFF; }
+function set_white(frame, x, y) { frame[y * ROW_BYTES + Math.floor(x / 8)] |= 0x80 >> (x % 8); }
+function is_white_test(frame, x, y) { return (frame[y * ROW_BYTES + Math.floor(x / 8)] & (0x80 >> (x % 8))) !== 0; }
+function request(intent, flags) { return {intent, flags}; }
+
+function draw_next(intent, flags)
+{
+    const decision = {};
+    expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(t.state, t.shown, t.next, request(intent, flags), t.now_ms, decision));
+    t.shown.set(t.next);
+    return decision;
+}
+
+function start(config)
+{
+    expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, config, t.pixels));
+    const decision = {};
+    expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(t.state, null, t.shown, request(INK_DISPLAY_POLICY_INTENT_TEXT, 0), t.now_ms, decision));
+    expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+}
+
+function idle_at(now_ms)
+{
+    const idle = {};
+    expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_idle(t.state, u32(now_ms), idle));
+    return idle;
+}
+
+function black_box(x, y)
+{
+    t.next.fill(0xFF);
+    set_black(t.next, x, y);
+    set_black(t.next, x + 1, y);
+    set_black(t.next, x, y + 1);
+    set_black(t.next, x + 1, y + 1);
+}
+
+function setUp()
+{
+    t.shown.fill(0xFF);
+    t.next.fill(0xFF);
+    t.old.fill(0xAA);
+    t.pixels.fill(0xEE);
+    t.state = new_state();
+    t.now_ms = 1000;
+}
+
+const TESTS = {
+    test_init_rejects_bad_config() {
+        let config = default_config();
+        config.x_align = 0;
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(t.state, config, t.pixels));
+        config = default_config();
+        config.debt_ceiling = 9;
+        config.debt_ceiling_max = 8;
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(t.state, config, t.pixels));
+        config = default_config();
+        config.debt_ceiling_max = INK_DISPLAY_POLICY_MAX_DEBT + 1;
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(t.state, config, t.pixels));
+        config = default_config();
+        config.auto_ui_percent = 101;
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_init(t.state, config, t.pixels));
+    },
+    test_init_clears_pixels() {
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, default_config(), t.pixels));
+        for (let i = 0; i < t.pixels.length; i++) { expect_equal(0, t.pixels[i]); }
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
+    },
+    test_set_config_rejects_size_change() {
+        const config = default_config();
+        start(config);
+        let changed = copy_config(config);
+        changed.width = WIDTH - 1;
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_set_config(t.state, changed));
+        changed = copy_config(config);
+        changed.debt_soft = 3;
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_set_config(t.state, changed));
+    },
+    test_decide_rejects_bad_arguments() {
+        start(default_config());
+        const decision = {};
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_decide(t.state, null, t.next, request(INK_DISPLAY_POLICY_INTENT_TEXT, 0), 0, decision));
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_decide(t.state, t.shown, t.next, request(INK_DISPLAY_POLICY_INTENT_COUNT, 0), 0, decision));
+    },
+    test_first_decide_is_clean_strong_with_inverted_plane() {
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, default_config(), t.pixels));
+        const decision = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(t.state, null, t.next, request(INK_DISPLAY_POLICY_INTENT_UI, 0), 0, decision));
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+        expect_equal(WIDTH, decision.window.width);
+        expect_equal(HEIGHT, decision.window.height);
+    },
+    test_identical_frame_draws_nothing() {
+        start(default_config());
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, decision.action);
+        expect_equal(0, decision.window.width);
+    },
+    test_draw_uses_changed_window_and_shown_plane() {
+        start(default_config());
+        set_black(t.next, 10, 3);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_INTENT_TEXT, decision.intent);
+        expect_equal(INK_DISPLAY_POLICY_OLD_SHOWN, decision.old_plane);
+        expect_equal(8, decision.window.x);
+        expect_equal(8, decision.window.width);
+        expect_equal(3, decision.window.y);
+        expect_equal(1, decision.window.height);
+    },
+    test_window_is_clipped_to_screen_width() {
+        start(default_config());
+        set_black(t.next, 19, 0);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(16, decision.window.x);
+        expect_equal(4, decision.window.width);
+    },
+    test_auto_picks_ui_for_small_window_and_text_for_large() {
+        start(default_config());
+        set_black(t.next, 2, 2);
+        expect_equal(INK_DISPLAY_POLICY_INTENT_UI, draw_next(INK_DISPLAY_POLICY_INTENT_AUTO, 0).intent);
+        t.next.fill(0x00);
+        expect_equal(INK_DISPLAY_POLICY_INTENT_TEXT, draw_next(INK_DISPLAY_POLICY_INTENT_AUTO, 0).intent);
+    },
+    test_after_wake_draws_whole_screen_with_intent() {
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, default_config(), t.pixels));
+        ink_display_policy_assume_shown(t.state);
+        set_black(t.next, 1, 1);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_INTENT_PAGE, decision.intent);
+        expect_equal(INK_DISPLAY_POLICY_OLD_SHOWN, decision.old_plane);
+        expect_equal(WIDTH, decision.window.width);
+        expect_equal(HEIGHT, decision.window.height);
+        set_black(t.next, 12, 1);
+        expect_equal(8, draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0).window.width);
+    },
+    test_invalidate_forces_clean_strong() {
+        start(default_config());
+        ink_display_policy_invalidate(t.state);
+        const decision = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_decide(t.state, null, t.next, request(INK_DISPLAY_POLICY_INTENT_TEXT, 0), t.now_ms, decision));
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    },
+    test_debt_adds_weight_on_changed_pixels_only() {
+        start(default_config());
+        set_black(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(2, ink_display_policy_max_debt(t.state));
+        set_white(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        expect_equal(3, ink_display_policy_max_debt(t.state));
+        expect_equal(3 << 2, t.pixels[4 * WIDTH + 4] & 0x3C);
+        expect_equal(0, t.pixels[4 * WIDTH + 5] & 0x3C);
+    },
+    test_exceeding_ceiling_draws_clean_strong_and_clears_debt() {
+        start(default_config());
+        for (let i = 0; i < 4; i++) {
+            t.now_ms += 5000;
+            if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
+            expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
         }
-
-        function syncConfigInputs() {
-            document.getElementById("cfgWidth").value = g_config.width;
-            document.getElementById("cfgHeight").value = g_config.height;
-            document.getElementById("cfgAlign").value = g_config.x_align;
-            document.getElementById("cfgPartials").value = g_config.partials_before_full;
-            document.getElementById("cfgMaxPercent").value = g_config.max_partial_percent;
-            document.getElementById("cfgMargin").value = g_config.edge_margin;
+        expect_equal(8, ink_display_policy_max_debt(t.state));
+        t.now_ms += 5000;
+        set_black(t.next, 4, 4);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+    },
+    test_ceiling_grows_while_active_and_resets_after_rest() {
+        start(default_config());
+        for (let i = 0; i < 7; i++) {
+            t.now_ms += 100;
+            if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
+            expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
         }
-
-        function applySizePreset() {
-            const val = document.getElementById("presetSize").value;
-            if (val === "20x4") {
-                g_config.width = 20; g_config.height = 4; g_config.x_align = 8;
-            } else if (val === "40x16") {
-                g_config.width = 40; g_config.height = 16; g_config.x_align = 8;
-            } else if (val === "24x8") {
-                g_config.width = 24; g_config.height = 8; g_config.x_align = 8;
+        expect_equal(14, ink_display_policy_max_debt(t.state));
+        expect_equal(15, ink_display_policy_ceiling(t.state));
+        t.now_ms += 5000;
+        set_white(t.next, 4, 4);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
+        expect_equal(8, ink_display_policy_ceiling(t.state));
+    },
+    test_page_with_high_debt_draws_clean_fast() {
+        start(default_config());
+        for (let i = 0; i < 3; i++) {
+            t.now_ms += 100;
+            if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
+            draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        }
+        expect_equal(6, ink_display_policy_max_debt(t.state));
+        set_black(t.next, 15, 6);
+        const decision = draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+    },
+    test_before_sleep_cleans_only_when_dirty() {
+        start(default_config());
+        set_black(t.next, 2, 2);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_DRAW, draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
+        set_black(t.next, 12, 2);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
+    },
+    test_marks_dark_edge_around_box_that_turns_white() {
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(default_config());
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(1, t.pixels[2 * WIDTH + 4] & 0x03);
+        expect_equal(0, t.pixels[3 * WIDTH + 3] & 0x03);
+        expect_equal(1, t.pixels[3 * WIDTH + 6] & 0x03);
+        expect_equal(1, t.pixels[4 * WIDTH + 3] & 0x03);
+        expect_equal(1, t.pixels[5 * WIDTH + 5] & 0x03);
+        expect_equal(4, ink_display_policy_flagged_count(t.state));
+    },
+    test_marks_light_edge_next_to_pixel_that_turns_black() {
+        set_black(t.shown, 5, 5);
+        start(default_config());
+        t.next.set(t.shown);
+        set_black(t.next, 6, 5);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(2, t.pixels[5 * WIDTH + 5] & 0x03);
+    },
+    test_changed_pixel_loses_its_flag() {
+        set_black(t.shown, 5, 5);
+        start(default_config());
+        t.next.set(t.shown);
+        set_black(t.next, 6, 5);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        const flagged = ink_display_policy_flagged_count(t.state);
+        set_white(t.next, 5, 5);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(0, t.pixels[5 * WIDTH + 5] & 0x03);
+        expect_less_or_equal(flagged + 4, ink_display_policy_flagged_count(t.state));
+    },
+    test_idle_ladder_runs_edge_then_light_then_strong() {
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(default_config());
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        const drawn_ms = t.now_ms;
+        let idle = idle_at(drawn_ms + 500);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
+        expect_equal(1500, idle.wait_ms);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(drawn_ms + 2000).action);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER));
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR, idle_at(drawn_ms + 2100).action);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR));
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
+        idle = idle_at(drawn_ms + 2200);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
+        expect_equal(7800, idle.wait_ms);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(drawn_ms + 10000).action);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT));
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+        idle = idle_at(drawn_ms + 70000);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
+        expect_equal(INK_DISPLAY_POLICY_NO_WAIT, idle.wait_ms);
+    },
+    test_idle_strong_runs_when_debt_below_soft_remains() {
+        start(default_config());
+        set_black(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        const drawn_ms = t.now_ms;
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(drawn_ms + 30000).action);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, idle_at(drawn_ms + 60000).action);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG));
+        expect_equal(INK_DISPLAY_POLICY_NO_WAIT, idle_at(drawn_ms + 60001).wait_ms);
+    },
+    test_new_frame_restarts_ladder() {
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(default_config());
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER));
+        t.now_ms += 2100;
+        set_black(t.next, 15, 0);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(t.now_ms + 1000).action);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(t.now_ms + 2000).action);
+    },
+    test_defer_flag_blocks_ladder_until_next_frame() {
+        start(default_config());
+        set_black(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(t.now_ms + 100000).action);
+        expect_equal(INK_DISPLAY_POLICY_NO_WAIT, idle_at(t.now_ms + 100000).wait_ms);
+        set_white(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(t.now_ms + 2000).action);
+    },
+    test_zero_stage_time_skips_stage() {
+        const config = default_config();
+        config.edge_ms = 0;
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(config);
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(t.now_ms + 10000).action);
+    },
+    test_idle_handles_clock_wrap() {
+        t.now_ms = UINT32_MAX - 500;
+        start(default_config());
+        set_black(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        expect_equal(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(t.now_ms + 10000).action);
+    },
+    test_cleanup_plane_inverts_flagged_centers_only() {
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(default_config());
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, t.old, window));
+        let inverted = 0;
+        for (let y = 0; y < HEIGHT; y++) {
+            for (let x = 0; x < WIDTH; x++) {
+                const flipped = is_white_test(t.old, x, y) !== is_white_test(t.shown, x, y);
+                expect_equal((t.pixels[y * WIDTH + x] & 0x03) !== 0, flipped);
+                if (flipped) { inverted++; }
             }
-            syncConfigInputs();
-            initSimulator();
         }
-
-        /* ==========================================================================
-           PRESET MẪU VẼ X, Y
-           ========================================================================== */
-
-        function presetClearAll() {
-            g_shown.fill(0xFF);
-            g_next.fill(0xFF);
-            updateSimulation();
+        expect_equal(ink_display_policy_flagged_count(t.state), inverted);
+        expect_greater(0, window.width);
+        expect_equal(0, window.x % 8);
+    },
+    test_cleanup_plane_neighbor_inverts_cardinal_neighbors_of_centers() {
+        black_box(4, 3);
+        t.shown.set(t.next);
+        start(default_config());
+        t.next.fill(0xFF);
+        draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR, t.old, window));
+        expect_true(is_white_test(t.old, 3, 4));
+        expect_false(is_white_test(t.old, 3, 3));
+    },
+    test_cleanup_plane_light_inverts_pixels_with_soft_debt() {
+        start(default_config());
+        set_black(t.next, 4, 4);
+        set_black(t.next, 6, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        t.now_ms += 100;
+        set_white(t.next, 4, 4);
+        draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, t.old, window));
+        expect_false(is_white_test(t.old, 4, 4));
+        expect_false(is_white_test(t.old, 6, 4));
+        expect_equal(0, window.x);
+        expect_equal(8, window.width);
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT));
+        expect_equal(1, ink_display_policy_max_debt(t.state));
+    },
+    test_cleanup_plane_strong_inverts_whole_screen() {
+        start(default_config());
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, t.old, window));
+        for (let y = 0; y < HEIGHT; y++) {
+            for (let x = 0; x < WIDTH; x++) { expect_true(is_white_test(t.shown, x, y) !== is_white_test(t.old, x, y)); }
         }
+        expect_equal(WIDTH, window.width);
+        expect_equal(HEIGHT, window.height);
+    },
+    test_cleanup_rejects_non_cleanup_action() {
+        start(default_config());
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_POLICY_ACTION_DRAW, t.old, window));
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_POLICY_ACTION_CLEAN_FAST));
+    },
+    test_changed_window_helper() {
+        const config = default_config();
+        expect_equal(null, ink_display_policy_changed_window(config, t.shown, t.next));
+        set_black(t.next, 9, 2);
+        set_black(t.next, 17, 5);
+        const window = ink_display_policy_changed_window(config, t.shown, t.next);
+        expect_equal(8, window.x);
+        expect_equal(12, window.width);
+        expect_equal(2, window.y);
+        expect_equal(4, window.height);
+    },
+};
 
-        function presetSinglePixel() {
-            presetClearAll();
-            setPixelVal(g_next, 9, 1, 0); // Đen tại (9, 1)
-            g_config.edge_margin = 0;
-            syncConfigInputs();
-            ink_display_policy_set_edge_margin(g_state, 0);
-            updateSimulation();
+function run_tests()
+{
+    const results = Object.entries(TESTS).map(([name, test]) => {
+        setUp();
+        try {
+            test();
+            return {name, ok: true};
+        } catch (error) {
+            return {name, ok: false, message: error.message};
         }
+    });
+    const passed = results.filter((result) => result.ok).length;
+    const summary = document.getElementById("testSummary");
+    summary.textContent = `${passed}/${results.length} qua`;
+    summary.className = `summary ${passed === results.length ? "pass" : "fail"}`;
+    document.getElementById("testList").replaceChildren(...results.map((result) => {
+        const item = document.createElement("li");
+        item.className = result.ok ? "pass" : "fail";
+        item.textContent = `${result.name}: ${result.ok ? "PASS" : `FAIL: ${result.message}`}`;
+        return item;
+    }));
+}
 
-        function presetCrossByte() {
-            presetClearAll();
-            setPixelVal(g_next, 8, 1, 0); // Đen tại (8, 1) - mép trái byte 1
-            g_config.edge_margin = 1;
-            syncConfigInputs();
-            ink_display_policy_set_edge_margin(g_state, 1);
-            updateSimulation();
-        }
+/* ---- Khởi động ---- */
 
-        function presetScreenEdge() {
-            presetClearAll();
-            setPixelVal(g_next, g_config.width - 1, g_config.height - 1, 0);
-            updateSimulation();
-        }
+function setup_theme()
+{
+    const button = document.getElementById("themeButton");
+    let theme = null;
+    try { theme = localStorage.getItem("inkflash-sim-theme"); } catch { /* không đọc được thì theo hệ điều hành */ }
+    const apply = (value) => {
+        document.documentElement.dataset.theme = value;
+        button.textContent = value === "dark" ? "Sáng" : "Tối";
+        try { localStorage.setItem("inkflash-sim-theme", value); } catch { /* chỉ mất lựa chọn lần sau */ }
+        render();
+    };
+    apply(theme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+    button.addEventListener("click", () => apply(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
+}
 
-        function presetPaddingBits() {
-            presetClearAll();
-            const rb = row_bytes(g_config);
-            // Đảo 4 bit đệm cuối hàng 0
-            g_next[rb - 1] = 0xF0;
-            updateSimulation();
-        }
+function main()
+{
+    const bytes = row_bytes(live.config) * live.config.height;
+    live.pixels = new Uint8Array(LIVE_WIDTH * LIVE_HEIGHT);
+    live.shown_buffer = new Uint8Array(bytes).fill(0xFF);
+    live.next = new Uint8Array(bytes).fill(0xFF);
+    ink_display_policy_init(live.state, live.config, live.pixels);
+    render_config_form();
+    setup_controls();
+    setup_theme();
+    run_tests();
+    shell_log("khởi động nguội: lần giao đầu là dọn mạnh");
+    requestAnimationFrame(tick);
+}
 
-        function presetLetterT() {
-            presetClearAll();
-            // Vẽ chữ T tại (8..12, 1) và (10, 2..3)
-            for (let x = 7; x <= 11; x++) { setPixelVal(g_next, x, 1, 0); }
-            setPixelVal(g_next, 9, 2, 0);
-            if (g_config.height > 3) setPixelVal(g_next, 9, 3, 0);
-            g_config.edge_margin = 1;
-            syncConfigInputs();
-            ink_display_policy_set_edge_margin(g_state, 1);
-            updateSimulation();
-        }
-
-        function presetLargeArea() {
-            presetClearAll();
-            g_config.max_partial_percent = 50;
-            syncConfigInputs();
-            g_state.priv.config.max_partial_percent = 50;
-            // Đổi 80% màn hình
-            const limitX = Math.floor(g_config.width * 0.8);
-            for (let y = 0; y < g_config.height; y++) {
-                for (let x = 0; x < limitX; x++) {
-                    setPixelVal(g_next, x, y, 0);
-                }
-            }
-            updateSimulation();
-        }
-
-        function presetInvertNext() {
-            const size = row_bytes(g_config) * g_config.height;
-            for (let i = 0; i < size; i++) {
-                g_next[i] ^= 0xFF;
-            }
-            updateSimulation();
-        }
-
-        /* ==========================================================================
-           HOST TEST RUNNER (15 CA TỪ test_ink_display_policy.c)
-           ========================================================================== */
-
-        const HOST_TEST_CASES = [
-            {
-                name: "test_init_rejects_bad_config",
-                desc: "Từ chối nullptr, width/height=0, x_align=0, partials=0, max_percent>100, edge_margin>7",
-                fn: function () {
-                    const st = {};
-                    let cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    if (ink_display_policy_init(null, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    if (ink_display_policy_init(st, null) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    cfg.x_align = 0;
-                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 0, max_partial_percent: 100, edge_margin: 0 };
-                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    cfg.partials_before_full = 3; cfg.max_partial_percent = 101;
-                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    cfg.max_partial_percent = 100; cfg.edge_margin = INK_DISPLAY_POLICY_MAX_EDGE_MARGIN + 1;
-                    if (ink_display_policy_init(st, cfg) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    return true;
-                }
-            },
-            {
-                name: "test_first_decide_is_full_screen",
-                desc: "Khởi động nguội (lần đầu decide) luôn luôn là FULL quét cả màn hình",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const next = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    if (ink_display_policy_decide(st, null, next, dec) !== INK_DISPLAY_POLICY_OK) return false;
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL &&
-                        dec.window.x === 0 && dec.window.y === 0 &&
-                        dec.window.width === 20 && dec.window.height === 4;
-                }
-            },
-            {
-                name: "test_decide_rejects_missing_shown",
-                desc: "Từ chối con trỏ nullptr khi màn hình đang có khung hiện chuẩn",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    ink_display_policy_decide(st, null, buf, dec); // lần 1: set shown_valid = true
-                    if (ink_display_policy_decide(st, null, buf, dec) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    if (ink_display_policy_decide(st, buf, null, dec) !== INK_DISPLAY_POLICY_ERROR_ARGUMENT) return false;
-                    return true;
-                }
-            },
-            {
-                name: "test_same_frame_is_none",
-                desc: "Hai khung giống hệt nhau trả về mode NONE (không vẽ)",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    ink_display_policy_decide(st, null, buf, dec);
-                    ink_display_policy_decide(st, buf, buf, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_NONE;
-                }
-            },
-            {
-                name: "test_padding_bits_are_ignored",
-                desc: "Bỏ qua các bit đệm cuối hàng ngoài phạm vi width",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[row_bytes(cfg) - 1] = 0xF0; // đổi 4 bit đệm sau điểm x=19
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_NONE;
-                }
-            },
-            {
-                name: "test_partial_window_is_aligned_outward",
-                desc: "Căn mép X ra ngoài theo bội số của x_align (x 9..10 &rarr; x=8, w=8)",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
-                    next[2 * 3 + 1] &= ~(0x80 >> 2); // x=10, y=2
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
-                        dec.window.x === 8 && dec.window.y === 1 &&
-                        dec.window.width === 8 && dec.window.height === 2;
-                }
-            },
-            {
-                name: "test_aligned_window_stops_at_screen_edge",
-                desc: "Cửa sổ căn chỉnh không vượt quá chiều rộng màn hình (x=19 &rarr; x=16, w=4)",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[3 * 3 + 2] &= ~(0x80 >> 3); // x=19, y=3
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
-                        dec.window.x === 16 && dec.window.width === 4;
-                }
-            },
-            {
-                name: "test_full_after_partial_threshold",
-                desc: "Kích hoạt FULL sau khi vượt ngưỡng partials_before_full liên tiếp",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    for (let i = 0; i < 3; i++) {
-                        next[0] ^= 0x80;
-                        ink_display_policy_decide(st, shown, next, dec);
-                        if (dec.mode !== INK_DISPLAY_POLICY_MODE_PARTIAL) return false;
-                        shown.set(next);
-                    }
-                    next[0] ^= 0x80;
-                    ink_display_policy_decide(st, shown, next, dec);
-                    if (dec.mode !== INK_DISPLAY_POLICY_MODE_FULL) return false;
-                    shown.set(next);
-                    next[0] ^= 0x80;
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL;
-                }
-            },
-            {
-                name: "test_full_when_window_too_large",
-                desc: "Kích hoạt FULL khi diện tích cửa sổ đổi vượt max_partial_percent",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 50, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[0] &= ~0x80; // x=0, y=0
-                    next[3 * 3 + 1] &= ~0x80; // x=8, y=3 -> vùng 16x4 = 80% màn
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL;
-                }
-            },
-            {
-                name: "test_invalidate_forces_full",
-                desc: "invalidate() buộc lần vẽ tiếp theo phải là FULL",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const buf = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    ink_display_policy_decide(st, null, buf, dec);
-                    ink_display_policy_invalidate(st);
-                    ink_display_policy_decide(st, null, buf, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_FULL;
-                }
-            },
-            {
-                name: "test_after_wake_partial_full_screen_once",
-                desc: "assume_shown() sau wake-up vẽ partial cả màn hình đúng 1 lần",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    ink_display_policy_assume_shown(st);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
-                    ink_display_policy_decide(st, shown, next, dec);
-                    if (dec.mode !== INK_DISPLAY_POLICY_MODE_PARTIAL || dec.window.width !== 20 || dec.window.height !== 4) return false;
-                    shown.set(next);
-                    next[3 * 3 + 0] &= ~0x80; // x=0, y=3
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL && dec.window.height === 1;
-                }
-            },
-            {
-                name: "test_edge_margin_widens_window",
-                desc: "edge_margin nới rộng cửa sổ window sang các chiều",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
-                    ink_display_policy_decide(st, shown, next, dec);
-                    return dec.mode === INK_DISPLAY_POLICY_MODE_PARTIAL &&
-                        dec.window.x === 8 && dec.window.y === 0 &&
-                        dec.window.width === 8 && dec.window.height === 3;
-                }
-            },
-            {
-                name: "test_edge_plane_flips_neighbours",
-                desc: "Lật bit các điểm lân cận trong bán kính margin để tạo quầng viền Halo",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    const old = new Uint8Array(shown.length).fill(0xAA);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[1 * 3 + 1] &= ~(0x80 >> 1); // x=9, y=1
-                    ink_display_policy_decide(st, shown, next, dec);
-                    if (ink_display_policy_edge_plane(st, shown, next, dec.window, old) !== INK_DISPLAY_POLICY_OK) return false;
-                    return old[0 * 3 + 1] === 0x1F &&
-                        old[1 * 3 + 1] === 0x5F &&
-                        old[2 * 3 + 1] === 0x1F &&
-                        old[3 * 3 + 1] === 0xAA &&
-                        old[0] === 0xAA;
-                }
-            },
-            {
-                name: "test_edge_plane_crosses_byte",
-                desc: "Nới viền vượt qua biên giới byte (từ byte 1 lan sang byte 0)",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 1 };
-                    ink_display_policy_init(st, cfg);
-                    const dec = {};
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const next = new Uint8Array(shown);
-                    const old = new Uint8Array(shown.length).fill(0xAA);
-                    ink_display_policy_decide(st, null, shown, dec);
-                    next[1 * 3 + 1] &= ~0x80; // x=8, y=1 (điểm đầu byte 1)
-                    ink_display_policy_decide(st, shown, next, dec);
-                    if (dec.window.x !== 0) return false;
-                    if (ink_display_policy_edge_plane(st, shown, next, dec.window, old) !== INK_DISPLAY_POLICY_OK) return false;
-                    return old[1 * 3 + 0] === 0xFE; // bit 0 của byte 0 bị đảo thành 0
-                }
-            },
-            {
-                name: "test_edge_plane_rejects_window_outside",
-                desc: "Từ chối cửa sổ window vượt ra ngoài phạm vi màn hình",
-                fn: function () {
-                    const st = {};
-                    const cfg = { width: 20, height: 4, x_align: 8, partials_before_full: 3, max_partial_percent: 100, edge_margin: 0 };
-                    ink_display_policy_init(st, cfg);
-                    const shown = new Uint8Array(row_bytes(cfg) * cfg.height).fill(0xFF);
-                    const old = new Uint8Array(shown.length).fill(0xAA);
-                    const win = { x: 16, y: 0, width: 8, height: 1 }; // 16 + 8 = 24 > width 20
-                    return ink_display_policy_edge_plane(st, shown, shown, win, old) === INK_DISPLAY_POLICY_ERROR_ARGUMENT;
-                }
-            }
-        ];
-
-        function runAllHostTests() {
-            const tbody = document.getElementById("testTableBody");
-            tbody.innerHTML = "";
-            let passCount = 0;
-
-            HOST_TEST_CASES.forEach((tc, idx) => {
-                let ok = false;
-                try {
-                    ok = tc.fn();
-                } catch (e) {
-                    ok = false;
-                }
-                if (ok) passCount++;
-
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-            <td style="font-family: var(--font-mono); color: var(--text-dim);">${idx + 1}</td>
-            <td style="font-family: var(--font-mono); font-weight: 600;">${tc.name}</td>
-            <td style="color: var(--text-muted);">${tc.desc}</td>
-            <td class="${ok ? 'test-pass' : 'test-fail'}">${ok ? '✓ PASS' : '✗ FAIL'}</td>
-            <td style="text-align: right;">
-                <button class="btn-load-test" onclick="loadTestCaseIntoSim(${idx})">Nạp vào ma trận</button>
-            </td>
-        `;
-                tbody.appendChild(tr);
-            });
-
-            const badge = document.getElementById("testPassCount");
-            badge.textContent = `${passCount} / ${HOST_TEST_CASES.length} PASS`;
-            badge.style.color = passCount === HOST_TEST_CASES.length ? "var(--brand-teal)" : "var(--accent)";
-        }
-
-        function loadTestCaseIntoSim(idx) {
-            switchTab('live');
-            resetToDefaultConfig();
-
-            // Tùy theo index ca test, tái hiện trạng thái của ca test đó
-            if (idx === 5) { // test_partial_window_is_aligned_outward
-                setPixelVal(g_next, 9, 1, 0);
-                setPixelVal(g_next, 10, 2, 0);
-            } else if (idx === 6) { // test_aligned_window_stops_at_screen_edge
-                setPixelVal(g_next, 19, 3, 0);
-            } else if (idx === 8) { // test_full_when_window_too_large
-                presetLargeArea();
-                return;
-            } else if (idx === 10) { // test_after_wake_partial_full_screen_once
-                actionAssumeShown();
-                setPixelVal(g_next, 9, 1, 0);
-            } else if (idx === 11) { // test_edge_margin_widens_window
-                g_config.edge_margin = 1;
-                syncConfigInputs();
-                ink_display_policy_set_edge_margin(g_state, 1);
-                setPixelVal(g_next, 9, 1, 0);
-            } else if (idx === 12) { // test_edge_plane_flips_neighbours
-                g_config.edge_margin = 1;
-                syncConfigInputs();
-                ink_display_policy_set_edge_margin(g_state, 1);
-                setPixelVal(g_next, 9, 1, 0);
-            } else if (idx === 13) { // test_edge_plane_crosses_byte
-                g_config.edge_margin = 1;
-                syncConfigInputs();
-                ink_display_policy_set_edge_margin(g_state, 1);
-                setPixelVal(g_next, 8, 1, 0);
-            } else {
-                presetSinglePixel();
-                return;
-            }
-            updateSimulation();
-        }
-
-        /* ==========================================================================
-           GIAO DIỆN CHUNG & KHỞI CHẠY
-           ========================================================================== */
-
-        function switchTab(tabId) {
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-
-            if (tabId === 'live') {
-                document.querySelectorAll(".tab-btn")[0].classList.add("active");
-                document.getElementById("pageLive").classList.add("active");
-            } else if (tabId === 'tests') {
-                document.querySelectorAll(".tab-btn")[1].classList.add("active");
-                document.getElementById("pageTests").classList.add("active");
-                runAllHostTests();
-            } else if (tabId === 'theory') {
-                document.querySelectorAll(".tab-btn")[2].classList.add("active");
-                document.getElementById("pageTheory").classList.add("active");
-            }
-        }
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute("data-theme") || "light";
-            const nextTheme = currentTheme === "light" ? "dark" : "light";
-            html.setAttribute("data-theme", nextTheme);
-            document.getElementById("themeBtn").textContent = nextTheme === "light" ? "🌓 Light" : "🌔 Dark";
-        }
-
-        // Khởi chạy khi nạp trang
-        window.addEventListener("DOMContentLoaded", () => {
-            initSimulator();
-            runAllHostTests();
-        });
-    </script>
-
+main();
+</script>
 </body>
-
 </html>

@@ -184,7 +184,8 @@ nguồn. Trước khi ngủ luôn tắt nguồn.
 
 Nhiệt độ đổi độ nhớt của mực. Profile không mang nhiệt độ; mỗi preset có một bảng dải: nhiệt độ tối đa (°C) → id
 profile, xét từ trên xuống. `display` đọc cảm biến của controller trước mỗi lần dọn mạnh và dọn nhanh, rồi dùng nhiệt độ
-đó cho mọi preset tới lần đọc sau. Chưa đọc được lần nào thì dùng 25 °C. Nhiệt độ ghi vào báo cáo của lần vẽ có đọc.
+đó cho mọi preset tới lần đọc sau. Chưa đọc được lần nào thì dùng 25 °C; số đọc ngoài −10…60 °C thì bỏ, giữ nhiệt
+độ cũ (lệnh `0x40` khi REG = 1 chưa đo trên BB0). Nhiệt độ ghi vào báo cáo của lần vẽ có đọc.
 
 Bảng dải mặc định của dọn mạnh dùng 9 profile chép từ các dải TR0–TR8 của OTP, với đúng ngưỡng của OTP (5, 10, 15, 20,
 30, 80, 92, 100, 127 °C). Preset khác mặc định có một dải.

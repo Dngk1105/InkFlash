@@ -473,6 +473,9 @@ esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t 
     memcpy(driver->temporary_request_name, name, sizeof(name));
     driver->temporary_pending = true;
     taskEXIT_CRITICAL(&driver->temporary_lock);
+    /* Bảng khả năng thấy id và thời gian ngay (bench đọc lại INFO); tên đổi ở lần vẽ sau. */
+    driver->profile_info[TEMPORARY_PROFILE].id      = profile.id;
+    driver->profile_info[TEMPORARY_PROFILE].draw_ms = (uint32_t)profile.drf_ms * profile.scans;
     return ESP_OK;
 }
 
