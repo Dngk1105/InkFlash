@@ -24,8 +24,8 @@ Firmware test nạp đè vào cùng phân vùng app với firmware chính; test 
 build cả firmware test, nên component đổi API mà tool chưa sửa là build báo lỗi ngay.
 
 Firmware chính chỉ có hai chỗ nối dùng chung với tool, và cả hai đều là API của sản phẩm: `ink_display_set_options` (app
-Cài đặt cũng gọi) và callback `on_drawn` (luồng đi ngủ cũng chờ). Hàm duy nhất chỉ tool gọi là `ink_bsp_display_tune`,
-vì chỉnh tay LUT cần biết chip.
+Cài đặt cũng gọi) và callback `on_drawn` (luồng đi ngủ cũng chờ). Hai hàm chỉ tool gọi là nạp profile tạm và đọc OTP
+(qua `ink_bsp`, gọi hàm riêng của driver UC8253), vì cả hai cần biết chip.
 
 ### Hai đường vẽ
 
@@ -58,7 +58,8 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `06` | PLAY | ms giữa hai khung (2), số vòng (0 = mãi), kiểu, độ rộng viền, số slot, các slot |
 | `07` | STOP | trống |
 | `08` | SELECT_PROFILE | slot màn (0 full, 1 partial), index profile |
-| `09` | TUNE | slot màn, số khung, Hz (2), khung giữ, số lần quét, giữ nguồn |
+| `09` | PROFILE_LOAD | blob profile (`INKW`, đã qua script kiểm). Sai mã nhận dạng, phiên bản, độ dài hoặc CRC thì trả lỗi, giữ profile tạm cũ. Profile tạm có index bằng số profile trong INFO; gán cho slot bằng SELECT_PROFILE |
+| `0C` | OTP_DUMP | trống; trả OTP |
 | `0A` | SET_OPTIONS | profile full, profile partial, ngưỡng partial (2), độ rộng viền. Chỉ đường pipeline |
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần full) |
 
@@ -67,18 +68,19 @@ Gói máy gửi lên:
 | Loại | Tên | Payload |
 |---|---|---|
 | `80` | ACK | mã lỗi (4) |
-| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile, profile full mặc định, profile partial mặc định, bản firmware (độ dài + chữ), rồi mỗi profile: thời gian điển hình ms (2), tên (độ dài + chữ) |
+| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile, profile full mặc định, profile partial mặc định, bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian DRF ms (2), nguồn, tên (độ dài + chữ) |
 | `82` | DRAWN | slot, cách vẽ (0 không vẽ, 1 partial, 2 full), profile, nhiệt độ, nhiệt độ hợp lệ, 0, lỗi (4), x, y, rộng, cao (2 mỗi số), input ms, queue ms, diff ms, spi µs, panel µs, after µs (4 mỗi số) |
 | `83` | GESTURE | modifier, nút, loại cử chỉ, 0, thời điểm edge ms (4) |
 | `84` | TEMP | °C, 0, 0, 0, lỗi (4) |
 | `85` | LOG | một dòng chữ |
+| `86` | OTP | offset (2), dữ liệu đọc bằng lệnh `0xA2`; nhiều gói cho tới hết bank |
 
 Chuỗi ảnh: khung sau được giao sau khi khung trước vẽ xong cộng thêm số ms của PLAY, nên không khung nào bị bỏ.
 
 ### Kết quả chấm điểm
 
 Mỗi lần chấm là một dòng JSON trong `tools/display_bench/results/<ngày>.jsonl`, gồm: điểm 1–5 (độ đen, độ trắng, bóng mờ,
-viền, chớp, tổng thể), ghi chú, bài test, đường vẽ, profile và thông số chỉnh tay, độ rộng viền, nhiệt độ, bản firmware,
+viền, chớp, tổng thể), ghi chú, bài test, đường vẽ, profile (id, tên, CRC của profile tạm), độ rộng viền, nhiệt độ, bản firmware,
 và thời gian (trung bình, nhỏ nhất, lớn nhất của các gói DRAWN trong lần chạy). File này commit được, để so về sau.
 
 ### Chạy

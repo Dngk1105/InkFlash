@@ -23,9 +23,8 @@ Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một 
 | `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
 | `platform/` | Log, config, giờ, hẹn giờ, RTC memory | nơi gọi | | ESP-IDF |
 | `hal/` | Interface phần cứng | nơi gọi | | |
-| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal`; driver màn gọi `waveform` |
-| `waveform/` | Dựng bảng sóng (LUT) theo nhóm và pha, đếm khung, kiểm cân bằng điện tích | màn | Có | Chỉ thư viện C chuẩn |
-| `bsp/` | Bảng chân, chọn driver theo board, chỉnh tay bảng sóng của chip màn (chỉ firmware test gọi) | lúc khởi động | | `hal`, `drivers` |
+| `drivers/` | Mỗi chip một component | nơi gọi | | Làm theo interface `hal` |
+| `bsp/` | Bảng chân, chọn driver theo board, nạp profile tạm và đọc OTP của chip màn (chỉ firmware test gọi) | lúc khởi động | | `hal`, `drivers` |
 
 Khối không có trong cột "Được gọi" của một khối thì khối đó không được gọi tới.
 

@@ -3,9 +3,10 @@
 ## Vấn đề
 
 Lật thẻ phải nhanh (≤ 0,3 s rồi giảm dần), và muốn tối ưu thì phải biết thời gian đi vào đâu. Gần hết thời gian là
-lúc panel quét, nằm trong driver màn. Với bảng sóng trong OTP của controller UC8253, partial nhanh nhất mất 344 ms;
-bảng sóng nạp qua thanh ghi xuống được 31–283 ms nhưng dễ để lại màu xám hoặc bóng ảnh cũ. Chất lượng của từng bảng
-sóng phải nhìn bằng mắt, nên driver phải đổi được bảng sóng lúc máy đang chạy.
+lúc panel quét, nằm trong driver màn. Bảng sóng trong OTP của controller UC8253 do controller tự chọn theo nhiệt độ;
+dải nhanh nhất cho partial 344 ms. Bảng sóng nạp qua thanh ghi xuống được 31–283 ms nhưng dễ để lại màu xám hoặc bóng
+ảnh cũ. Chất lượng của từng bảng sóng phải nhìn bằng mắt, nên firmware phải biết chính xác bảng nào đang chạy và đổi
+được bảng lúc máy đang chạy.
 
 Controller có hai vùng RAM ảnh, ghi bằng lệnh `0x10` và `0x13`. Sau mỗi lần làm mới (DRF), hai vùng đổi vai "ảnh mới"
 và "ảnh cũ" cho nhau. Driver chỉ ghi một vùng trước DRF thì mọi lần DRF thứ chẵn kể từ reset không đổi hình.
@@ -90,8 +91,8 @@ nên mọi điểm đều được coi là đổi màu và panel kéo hết các
 
 | Việc                                                                                                                                  | Ai lo                                                                  |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Giữ ảnh đang hiện, so khung, bỏ khung giữa, chọn partial/full, đếm bóng mờ, chọn bảng sóng theo nhiệt độ              | `display`; phần quyết định viết bằng C thuần để test trên PC |
-| Ghi ảnh mới và ảnh cũ vào đúng vùng RAM theo lượt, chạy bảng sóng, nguồn analog, tốc độ SPI, đọc cảm biến nhiệt | Driver                                                                 |
+| Giữ ảnh đang hiện, so khung, bỏ khung giữa, chọn partial/full, đếm bóng mờ, chọn profile và cấu hình vẽ cho từng lần vẽ, chọn profile theo nhiệt độ | `display`; phần quyết định viết bằng C thuần để test trên PC |
+| Ghi ảnh mới và ảnh cũ vào đúng vùng RAM theo lượt, nạp profile được chỉ định, nguồn analog, tốc độ SPI, đọc cảm biến nhiệt | Driver                                                                 |
 
 Driver không hiểu "ảnh đang hiện". Nó chỉ nhận hai mặt phẳng bit cho mỗi điểm: bit mới và bit cũ. Controller dùng cặp
 bit (mới, cũ) của từng điểm để chọn một trong bốn bảng sóng: trắng → đen, đen → trắng, trắng giữ trắng, đen giữ đen.
@@ -100,7 +101,7 @@ Vì vậy `display` có thể truyền một cặp mặt phẳng không phải "
 
 ## Hợp đồng driver màn
 
-Ví dụ: `display` muốn đổi một ô chữ ở góc trên. Nó gọi hàm vẽ của driver với con trỏ tới khung mới, con trỏ tới khung đang hiện, vùng cần đổi (x 0–79, y 0–39) và slot bảng sóng `partial`. Driver cắt 40 hàng × 10 byte của vùng đó ở cả hai khung, ghi vào hai vùng RAM theo lượt, chạy bảng sóng, chờ BUSY lên cao rồi trả về thời gian.
+Ví dụ: `display` muốn đổi một ô chữ ở góc trên. Nó gọi hàm vẽ của driver với con trỏ tới khung mới, con trỏ tới khung đang hiện, vùng cần đổi (x 0–79, y 0–39), index profile và cấu hình vẽ partial. Driver cắt 40 hàng × 10 byte của vùng đó ở cả hai khung, ghi vào hai vùng RAM theo lượt, chạy bảng sóng, chờ BUSY lên cao rồi trả về thời gian.
 
 - **Đồng bộ:** hàm vẽ gửi ảnh rồi ngủ chờ ngắt BUSY, xong mới trả về. Chỉ task màn gọi nên không chặn ai khác.
 
@@ -112,17 +113,17 @@ Ví dụ: `display` muốn đổi một ô chữ ở góc trên. Nó gọi hàm 
 | Ảnh đưa vào     | Hai con trỏ tới cả khung (mặt phẳng mới, mặt phẳng cũ) kèm vùng cần vẽ; driver tự cắt vùng, `display` không phải chép ảnh.                                                       |
 | Lượt ghi          | Driver đếm số DRF từ lần reset. Số chẵn: mặt phẳng mới vào `0x13`, mặt phẳng cũ vào `0x10`; số lẻ thì ngược lại. Cả hai được ghi trước DRF; sau DRF không ghi gì thêm. |
 | Sau reset           | RAM ảnh của controller là rác. Lần vẽ đầu sau reset, driver tự nới vùng ra cả màn.                                                                                                      |
-| Slot bảng sóng    | `full` hoặc `partial`. Mỗi slot trỏ tới một profile (phần "Profile bảng sóng").                                                                                                              |
+| Profile           | Index trong danh sách profile của driver. Driver luôn nạp đúng profile đó qua thanh ghi, không để controller chọn bảng theo nhiệt độ. |
+| Cấu hình vẽ       | Đi kèm mỗi lần vẽ, tách khỏi profile để một bảng sóng dùng được cho cả full lẫn partial: cả màn hay window, `PT_SCAN`, byte CDI (màu viền), giữ nguồn analog sau khi quét. Vẽ cả màn thì luôn tắt nguồn sau khi quét. |
 | Mép vùng          | Driver làm tròn ra ngoài theo bước căn mép x mà nó khai báo trong bảng khả năng.                                                                                                        |
 | Thời gian trả về | Ba số: SPI trước khi quét (đoạn 5), panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét (tắt nguồn analog).                                                                   |
-| Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không ngủ sâu. Nguồn analog tắt hoặc giữ bật tuỳ profile.                                                                                           |
+| Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không ngủ sâu. Nguồn analog tắt hoặc giữ bật tuỳ cấu hình vẽ.                                                                                           |
 
 Ngoài hàm vẽ, interface của driver màn có:
 
 
 | Thao tác         | Việc                                                                          |
 | ------------------- | -------------------------------------------------------------------------------- |
-| Chọn profile     | Gán một profile trong danh sách của driver cho slot `full` hoặc `partial` |
 | Đọc nhiệt độ | Đọc cảm biến trong controller (lệnh `0x40`, sai số ±2 °C)              |
 
 Bảng khả năng của driver màn:
@@ -132,67 +133,65 @@ Bảng khả năng của driver màn:
 | --------------------- | ---------------------------------------------------------------------- |
 | Cỡ gốc            | Rộng và cao theo hướng gốc của panel                           |
 | Bước căn mép x  | Mép trái và mép phải vùng partial phải là bội của số này |
-| Danh sách profile  | Tên và thời gian quét điển hình của từng profile            |
-| Profile mặc định | Profile gán cho slot `full` và slot `partial` lúc khởi tạo      |
+| Danh sách profile  | Id, tên, nguồn (dải TR nào của OTP, hoặc vẽ tay) và thời gian DRF của từng profile |
+| Profile mặc định | Index profile mặc định cho full và cho partial |
 
 ## Profile bảng sóng
 
-Ví dụ: muốn partial nhanh hơn 344 ms. Gõ `display profile set partial lut6f50`. Từ lần vẽ sau, driver nạp bảng sóng
-6 khung ở 50 Hz qua thanh ghi, và DRF mất khoảng 163 ms. Màn hơi xám hơn, nhưng không còn bóng ô cờ cũ.
+Ví dụ: muốn partial nhanh hơn 344 ms. Dev vẽ bảng 6 khung ở 50 Hz bằng công cụ, script kiểm rồi sinh lại file C, build
+và nạp. Từ đó `display` truyền index của profile `lut6f50` khi vẽ partial; DRF mất khoảng 163 ms.
+
+Driver không dùng bảng sóng OTP nữa (REG = 1 trong lệnh `0x00` ở mọi lần vẽ, không gửi `E0`/`E5`). Lý do: controller
+tự chọn dải theo nhiệt độ thì firmware không biết bảng nào đang chạy; nạp lại bảng TR8 qua thanh ghi cho DRF 343,1 ms,
+gần như OTP (344,6 ms).
 
 Một profile gồm:
 
+| Mục | Nghĩa |
+|---|---|
+| Id | Số cố định, không đổi khi đổi tên hay đổi thứ tự. Cài đặt lưu id, không lưu index |
+| Tên, nguồn | Tên để log và bench; nguồn là dải TR0–TR8 của OTP hoặc vẽ tay |
+| 5 bảng LUT | LUTC, LUTWW, LUTKW, LUTWK, LUTKK, mỗi bảng 42 byte |
+| Điện áp | VG, VSH, VSL, VDHR, VCOM_DC, tần số khung (PLL), EOPT và XON của riêng profile |
+| Số lần quét | 1–4 lần DRF cho một lần vẽ, mỗi lần đẩy lại cùng cặp bit |
+| Thời gian DRF | Script tính từ bảng và PLL; driver dùng làm thời gian điển hình và để đặt timeout chờ BUSY |
 
-| Mục                                     | Nghĩa                                                                                                                         |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| Nguồn sóng                             | OTP ép nhiệt độ (`E0 02` + `E5`), OTP theo cảm biến (`E0 00`), hoặc LUT nạp qua thanh ghi (REG = 1 trong lệnh `0x00`) |
-| Mã nhiệt độ                          | Giá trị gửi kèm `E5` khi ép nhiệt độ; 110 trở lên chọn dải nóng nhất TR8                                         |
-| Số khung, tần số khung, số lần lặp | Chỉ dùng với LUT thanh ghi. Thời gian DRF = (số khung + 2) / tần số khung                                               |
-| Xung giữ                                | Số khung đẩy lại cùng màu cho điểm không đổi màu (bảng đen giữ đen, trắng giữ trắng)                        |
-| `PT_SCAN`, VBD                           | Cách quét partial, màu viền màn                                                                                           |
-| Giữ nguồn analog                       | Bỏ POF sau khi quét và PON ở lần sau, bớt khoảng 75 ms mỗi lần                                                        |
+Điện áp đi theo từng profile vì OTP mỗi dải có VCOM riêng: `0x13` (−2,0 V) ở TR0–TR7, `0x09` (−1,0 V) ở TR8
+(VCOM = −0,1 × (mã + 1) V, UC8253 tr.37). Chép sóng của TR0–TR7 mà giữ VCOM của TR8 thì lệch 1 V.
 
-Danh sách profile ban đầu lấy từ các bảng sóng đã đo trên BB0 (số đo của ô 80 × 40):
+Profile không mang nhiệt độ. Nhiệt độ vẫn đổi độ nhớt của mực, nên `display` chọn profile theo bảng dải nhiệt độ
+(phần "Hiện tượng vật lý"); driver chỉ đọc cảm biến.
 
+### Danh sách profile nằm ở đâu
 
-| Profile        | Bảng sóng                 | DRF            | Bóng mờ sau 100 lần đảo ô cờ |
-| ---------------- | ----------------------------- | ---------------- | ------------------------------------- |
-| `otp_std_full` | OTP theo cảm biến         | Khoảng 2,6 s  | Dùng cho full                      |
-| `otp90_full`   | OTP ép 90                  | 2 055 ms       | Dùng cho full                      |
-| `otp110`       | OTP ép 110 (TR8)           | 344 ms         | Sạch                               |
-| `lut15f50`     | TR8 nạp qua thanh ghi      | 343 ms         | Sạch                               |
-| `lut15f65`     | 15 khung, 65 Hz             | 266 ms         | Sạch                               |
-| `lut12f50`     | 12 khung, 50 Hz             | 283 ms         | Xám rất nhẹ                      |
-| `lut10f50`     | 10 khung, 50 Hz             | 243 ms         | Xám nhẹ                           |
-| `lut15f100`    | 15 khung, 100 Hz            | 172 ms         | Thấy bóng ô cờ khi soi kỹ      |
-| `lut6f50`      | 6 khung, 50 Hz              | 163 ms         | Xám rõ, không thấy ô cờ       |
-| `lut4f200`     | 4 khung, 200 Hz             | 31 ms          | Chưa đo                           |
-| `3x5f50`       | 3 lần quét 5 khung, 50 Hz | Khoảng 430 ms | Sạch                               |
+| Nơi | Nội dung | Ai tạo |
+|---|---|---|
+| Mảng C const trong flash, do script Python sinh | 9 profile chép nguyên TR0–TR8 từ bản dump OTP của panel, các profile vẽ tay, và profile mặc định cho full, cho partial | Dev, lúc build |
+| Một ô profile tạm trong RAM, chỉ có ở firmware test | Profile gửi từ PC để thử mà không phải nạp lại firmware; mất khi reset | Dev, qua bench |
 
-Đổi profile theo hai đường:
+Vẽ sóng chỉ phục vụ phát triển: thử bảng mới, đổi bảng khi đổi panel, hoặc thêm kiểu hiển thị riêng cho app. Người
+dùng chỉ chọn trong danh sách, nên firmware không đọc profile từ LittleFS.
 
+Driver không đọc OTP lúc chạy. Panel khác thì dùng lệnh đọc OTP của firmware test, rồi sinh lại file. Chưa có tấm
+panel thứ hai để biết VCOM trong OTP có khác giữa các tấm không.
 
-| Đường                                    | Hàm                                                     | Ai gọi                                         |
-| --------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
-| Chọn trong danh sách, qua interface chung | `ink_display_set_options` (profile của slot full và partial) | App Cài đặt ("nhanh / đẹp"); firmware test |
-| Chỉnh tay từng thông số của LUT        | `ink_bsp_display_tune`, gọi hàm riêng của driver UC8253   | Chỉ firmware test (`docs/design/display/bench.md`) |
+Driver nhớ profile đang nạp trong controller và chỉ gửi lại bảng khi index khác lần trước (khoảng 270 byte SPI, dưới
+1 ms ở 4 MHz). Reset controller hoặc nạp profile tạm thì quên profile đang nạp.
 
-Tốc độ SPI nằm trong config của driver, mặc định 4 MHz.
+### Kiểm tra profile
 
-Driver dựng bảng LUT bằng khối C thuần `waveform` (có host test): điểm đổi màu kéo đủ số khung, điểm giữ màu đứng yên
-rồi kéo lại số khung của xung giữ. Profile có số khung 0 thì driver chép nguyên bảng TR8 đọc từ OTP. Điện áp, VCOM và
-tuỳ chọn LUT luôn lấy từ dải TR8 trong OTP, đọc một lần ở lần đầu nạp LUT.
+Mọi profile đi qua script trước khi vào firmware, kể cả profile tạm của bench, nên firmware không kiểm nội dung. Script
+từ chối profile vi phạm:
 
-### Kiểm tra cân bằng điện tích
+| Luật | Lý do |
+|---|---|
+| Cân bằng điện tích: tổng (điện áp × số khung) của LUTWK và LUTKW bằng 0, tính theo điện áp của chính profile; bảng giữ màu lệch chỉ cảnh báo; profile chép từ OTP không kiểm; cờ `allow_unbalanced` cho bỏ qua | Một điểm đi trắng → đen → trắng chạy qua hai bảng; tổng khác 0 thì điện tích tích dần, hạt mực bị kẹt và để lại bóng lâu dài |
+| Số lần quét 1–4, số lặp nhóm và lặp trạng thái khác 0 | Nghĩa của lặp 0 chưa đo |
+| Điện áp trong dải thanh ghi của UC8253, VG khoá ±20 V, không dùng mức VDHR trong 4 bảng nguồn | Spec panel không ghi giới hạn riêng |
+| Id không trùng, không dùng lại id đã bỏ | Cài đặt cũ trỏ sai profile |
 
-Một điểm đi trắng → đen → trắng chạy qua bảng trắng → đen rồi bảng đen → trắng. Nếu tổng (mức điện áp × số khung) của
-hai bảng khác 0 (VSH tính +1, VSL tính −1, 0 V tính 0), điện tích tích dần trong lớp mực, hạt mực bị kẹt và để lại bóng
-lâu dài.
-
-- Driver tính tổng này mỗi khi dựng LUT từ profile hoặc từ bảng chỉnh tay. Tổng khác 0 thì bảng chỉnh tay bị từ chối, còn profile
-  chỉ được nạp khi có cờ `allow_unbalanced`.
-- Bảng giữ màu có tổng khác 0 thì driver chỉ cảnh báo. Bảng TR8 cũng vậy: bảng đen giữ đen có 1 khung VSH.
-- Bảng sóng OTP do hãng viết nên không kiểm.
+Firmware test chỉ kiểm khung gói profile tạm (mã nhận dạng, phiên bản, độ dài, CRC). Gói sai thì từ chối và giữ
+profile tạm cũ.
 
 ## Hiện tượng vật lý của mực và tầng xử lý
 
@@ -200,7 +199,7 @@ lâu dài.
 | Hiện tượng                                                                            | Tầng xử lý                                                                                |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
 | Điện trường của điểm đang đẩy lan sang điểm bên cạnh, để lại viền xám | `display_policy` đếm partial rồi full; profile có xung giữ; `display` đẩy lại viền  |
-| Mất cân bằng điện tích làm hạt mực bị kẹt                                     | Driver kiểm bảng sóng                                                                     |
+| Mất cân bằng điện tích làm hạt mực bị kẹt                                     | Script kiểm profile trước khi sinh file                                                 |
 | Hạt chưa tới đích, màu xám                                                        | Profile (số khung, tần số khung); `display_policy` full refresh                           |
 | Dòng rò transistor TFT làm sụt điện áp trong một khung                           | Phần cứng; phần mềm chỉ chỉnh tần số khung                                           |
 | Nhiệt độ đổi độ nhớt của mực                                                   | Driver đọc cảm biến; `display` chọn profile theo bảng dải nhiệt độ của từng slot |
@@ -221,7 +220,7 @@ vào `ink_display_start`; chưa có thì dùng `ink_display_default_options`.
 
 | Cài đặt | Nghĩa | Mặc định |
 |---|---|---|
-| `full_profile`, `partial_profile` | Profile của slot full và partial | Profile mặc định của driver |
+| `full_profile`, `partial_profile` | Id profile của slot full và partial; id không còn trong danh sách thì dùng mặc định | Profile mặc định của driver |
 | `partials_before_full` | Ngưỡng bóng mờ | 10 |
 | `edge_margin` | Độ rộng đẩy lại viền; 0 = tắt | 0 |
 
