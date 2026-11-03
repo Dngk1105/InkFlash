@@ -3,7 +3,7 @@
 
     python tools/build_all.py
 
-Các bước: tools/check.py → host test (gcc trên PC) → build templates/ → build firmware.
+Các bước: tools/check.py → host test (gcc trên PC) → build templates/ → build firmware → build firmware test màn.
 Dừng ở bước đầu tiên lỗi.
 """
 import os
@@ -42,6 +42,7 @@ def main():
         sys.exit(1)
     run("Build templates/", [idf, "-C", "templates", "build"], env)
     run("Build firmware", [idf, "build"], env)
+    run("Build firmware test màn", [idf, "-C", "tools/display_bench/firmware", "build"], env)
     print("\nTất cả đều qua.")
 
 

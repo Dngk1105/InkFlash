@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!-- Thiết kế: docs/design/display/display.md -->
 <!-- Sơ đồ khối của đường vẽ màn, vẽ từ display.md (phần "Chia việc giữa display và driver", "Hợp đồng driver màn",
-     "Danh sách profile nằm ở đâu"). Vẽ tay bằng SVG; đổi đường vẽ màn thì vẽ lại cùng commit. -->
+     "Danh sách profile nằm ở đâu") và bench.md. Vẽ tay bằng SVG; đổi đường vẽ màn thì vẽ lại cùng commit. -->
 <html lang="vi" data-preset="editorial" data-theme="light">
 <head>
 <meta charset="utf-8">
@@ -64,7 +64,7 @@
 </header>
 <main>
 <div class="card">
-<svg viewBox="0 0 1190 640" role="img" aria-label="Sơ đồ khối đường vẽ màn">
+<svg viewBox="0 0 1190 720" role="img" aria-label="Sơ đồ khối đường vẽ màn">
     <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z"/></marker>
     </defs>
@@ -121,7 +121,7 @@
     <text class="note" x="896" y="260">nạp lại bảng chỉ khi index đổi</text>
     <text class="note" x="896" y="276">ghi 0x10/0x13 theo chẵn lẻ DRF</text>
     <text class="note" x="896" y="292">không tự POF</text>
-    <text class="note" x="896" y="308">PSR byte 2 = 0x0A (TIEG 0)</text>
+    <text class="note" x="896" y="308">profile tạm (bench), đọc OTP</text>
     <rect class="hw" x="880" y="380" width="280" height="80" rx="4"/>
     <text class="name" x="896" y="404">UC8253 + panel 3,7"</text>
     <text class="note" x="896" y="424">cặp bit (mới, cũ) → LUTWW/KW/WK/KK</text>
@@ -132,17 +132,28 @@
     <text class="name" x="396" y="544">tools/profile_gen.py</text>
     <text class="note" x="396" y="564">nguồn: profiles.json + otp_bb0.hex</text>
     <text class="note" x="396" y="580">kiểm cân bằng điện tích, PLL, id</text>
-    <text class="note" x="396" y="596">sinh file C</text>
+    <text class="note" x="396" y="596">sinh file C; --blob → .inkw</text>
     <rect class="tool" x="720" y="520" width="300" height="100" rx="4"/>
     <text class="name" x="736" y="544">ink_drv_uc8253_profiles.c</text>
     <text class="note" x="736" y="564">mảng const trong flash, không sửa tay</text>
     <text class="note" x="736" y="580">tr0–tr8, lut10f50, clean_*</text>
     <text class="note" x="736" y="596">id cố định, cài đặt lưu id</text>
 
-    <!-- bsp -->
+    <!-- bsp, bench -->
     <rect class="box" x="40" y="300" width="260" height="70" rx="4"/>
     <text class="name" x="56" y="326">ink_bsp</text>
     <text class="note" x="56" y="346">bảng chân, tạo driver</text>
+    <text class="note" x="56" y="362">nạp profile tạm, đọc OTP</text>
+    <rect class="tool" x="40" y="430" width="300" height="190" rx="4"/>
+    <text class="name" x="56" y="454">tools/display_bench</text>
+    <text class="note" x="56" y="474">firmware test + trang web</text>
+    <text class="note" x="56" y="494">raw: profile, cfg, window, mặt phẳng</text>
+    <text class="note" x="56" y="510">cũ chọn tay; tự tắt nguồn sau 4 s</text>
+    <text class="note" x="56" y="530">pipeline: như app thật</text>
+    <text class="note" x="56" y="550">bài đo: bóng mờ, giữ màu 0 V, dọn viền,</text>
+    <text class="note" x="56" y="566">thang dọn, PT_SCAN, viền màn,</text>
+    <text class="note" x="56" y="582">nhiệt độ, giữ nguồn</text>
+    <text class="note" x="56" y="602">profile tạm .inkw, đọc OTP</text>
 
     <!-- edges -->
     <path class="edge call" d="M300,95 L400,95"/>
@@ -165,9 +176,15 @@
     <path class="edge data" d="M864,520 L864,300 L880,300"/>
     <rect class="label-bg" x="770" y="490" width="88" height="18"/><text class="label" x="774" y="503">nạp theo index</text>
     <path class="edge call" d="M300,335 L350,335 L350,480 L848,480 L848,262 L880,262"/>
-    <rect class="label-bg" x="420" y="471" width="32" height="18"/><text class="label" x="424" y="484">tạo</text>
+    <rect class="label-bg" x="420" y="471" width="76" height="18"/><text class="label" x="424" y="484">tạo, profile tạm</text>
+    <path class="edge call" d="M190,430 L190,370"/>
+    <rect class="label-bg" x="196" y="392" width="128" height="18"/><text class="label" x="200" y="405">nạp profile tạm, OTP</text>
+    <path class="edge call" d="M320,430 L320,410 L380,410"/>
+    <path class="edge call" d="M340,600 L360,600 L360,690 L1176,690 L1176,108 L1160,108"/>
+    <rect class="label-bg" x="560" y="681" width="200" height="18"/><text class="label" x="564" y="694">raw: gọi thẳng draw của driver</text>
+    <rect class="label-bg" x="330" y="396" width="44" height="12" style="opacity:0"/>
 </svg>
-<div class="legend"><span class="call">gọi hàm</span><span class="data">dữ liệu, báo cáo</span><span class="build">sinh lúc build</span></div>
+<div class="legend"><span class="call">gọi hàm (pipeline của bench đi vào ink_display như app)</span><span class="data">dữ liệu, báo cáo</span><span class="build">sinh lúc build</span></div>
 </div>
 </main>
 <script>

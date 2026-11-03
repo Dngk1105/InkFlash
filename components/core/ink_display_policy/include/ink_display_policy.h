@@ -22,7 +22,7 @@ typedef enum : uint8_t {
 
 /* ---- Kiểu ---- */
 
-/** Ý định vẽ của khung. Chỉ thêm vào cuối: app và firmware test gửi dạng số. */
+/** Ý định vẽ của khung. Chỉ thêm vào cuối: app và bench gửi dạng số. */
 typedef enum : uint8_t {
     INK_DISPLAY_POLICY_INTENT_AUTO,
     INK_DISPLAY_POLICY_INTENT_TEXT,
@@ -37,7 +37,7 @@ enum : uint8_t {
     INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP  = 1 << 1, /**< màn nền trước khi ngủ: còn nợ thì dọn mạnh */
 };
 
-/** Việc với màn. Chỉ thêm vào cuối: firmware test gửi dạng số. */
+/** Việc với màn. Chỉ thêm vào cuối: bench gửi dạng số. */
 typedef enum : uint8_t {
     INK_DISPLAY_POLICY_ACTION_NONE,
     INK_DISPLAY_POLICY_ACTION_DRAW, /**< preset của ý định, window vùng đổi */
@@ -192,7 +192,7 @@ uint8_t ink_display_policy_ceiling(const ink_display_policy_state_t *state);
 
 /**
  * Hình chữ nhật bao các điểm khác nhau giữa hai khung, mép x căn theo config.
- * Gọi từ: bất kỳ.
+ * Gọi từ: bất kỳ (firmware test dùng ở đường raw).
  * @return false nếu nullptr hoặc hai khung giống hệt
  */
 bool ink_display_policy_changed_window(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next,

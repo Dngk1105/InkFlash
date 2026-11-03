@@ -51,9 +51,9 @@ không chỉ trong `requestAnimationFrame`, vì tab bị ẩn thì `requestAnima
 
 ### Giao diện
 
-Mọi trang chạy trên trình duyệt trong repo (mô phỏng, sơ đồ, công cụ test ở nhánh `bench`) dùng preset Editorial của
-Archify, có cả sáng và tối. Ví dụ đang dùng: `components/core/ink_gesture/test/gesture_sim.html` và
-`components/core/ink_display_policy/test/display_policy_sim.html`.
+Mọi trang chạy trên trình duyệt trong repo (mô phỏng, sơ đồ, công cụ như `tools/display_bench/web/`) dùng preset
+Editorial của Archify, có cả sáng và tối. Ví dụ đang dùng: `tools/display_bench/web/style.css` và
+`components/core/ink_gesture/test/gesture_sim.html`.
 
 Thẻ `<html>` mang `data-preset="editorial"` và `data-theme="light"` hoặc `"dark"`. Màu khai báo một lần bằng biến CSS
 cho từng theme, mọi chỗ khác dùng biến, không viết mã màu rời. Canvas không tự đổi theo CSS: đọc biến bằng

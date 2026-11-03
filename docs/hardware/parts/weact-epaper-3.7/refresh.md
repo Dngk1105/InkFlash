@@ -125,10 +125,10 @@ Kết quả từ bản demo:
 - Deep clean: đảo cả màn đen rồi trắng trước khi vẽ. Mỗi vòng đen → trắng thêm khoảng 5,5 s. Bản demo xác nhận cách này xoá được chấm lốm đốm ở góc phải.
 - Partial refresh nhiều lần sẽ tích bóng mờ; cứ vài chục lần nên deep clean một lần.
 
-## Đo bằng firmware test (nhánh `bench`), 2026-11-04
+## Đo bằng display_bench, 2026-11-04
 
 Firmware test bản `9e5bf0a` (bảng sóng luôn nạp qua thanh ghi, REG = 1), 30 °C theo cảm biến, nhìn bằng mắt trên BB0.
-Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl` ở nhánh `bench`.
+Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl`.
 
 | Bài | Cấu hình | Kết quả |
 |---|---|---|
