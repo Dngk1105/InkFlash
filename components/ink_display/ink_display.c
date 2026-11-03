@@ -26,9 +26,11 @@ static const char *TAG = "ink_display";
 #define DEFAULT_STRONG_MS        60000
 #define DEFAULT_POWER_OFF_MS     2000
 
-#define DEFAULT_CELSIUS  25   /* chưa đọc được cảm biến lần nào */
-#define TASK_STACK_BYTES 4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
-#define TASK_PRIORITY    5
+#define DEFAULT_CELSIUS     25    /* chưa đọc được cảm biến lần nào */
+#define MIN_TRUSTED_CELSIUS (-10) /* ngoài khoảng này coi như cảm biến đọc sai */
+#define MAX_TRUSTED_CELSIUS 60
+#define TASK_STACK_BYTES    4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
+#define TASK_PRIORITY       5
 
 /* Thông báo cho task màn (bit của task notification). */
 #define NOTIFY_FRAME   (1U << 0)
