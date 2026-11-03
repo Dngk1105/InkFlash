@@ -150,6 +150,8 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl`.
 | Ô cờ đảo nhiều lần rồi về trắng | `tr8_kk0` (bảng đen giữ đen 0 V) | Vẫn xám như `tr8`: bảng KK không phải nguyên nhân |
 | Ô A, rồi vẽ ô B ở chỗ khác | TR8, `PT_SCAN` = 1 | Ô A không đổi |
 | Dọn nhanh `tr8` khi vượt trần nợ (cả màn, mặt phẳng cũ đảo bit) | Thử thay dọn mạnh | Vùng không đổi đậm dần sau mỗi lần dọn, nặng hơn nhiều so với hạt xám ở trên |
+| Bài "VCOM và vùng đứng yên" | `tr8`, VCOM_DC `0x13` (−2,0 V) so với `0x09` (−1,0 V) | −2,0 V tệ hơn. −1,0 V: trong lúc chạy ổn; sau khi chạy, nửa trắng đứng yên tối dần, nửa đen giữ nguyên |
+| Trang chữ cuộn, so ứng viên | `tr8` | `tr8` đủ tốt cho chữ |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
 ## Khuyến nghị của hãng panel

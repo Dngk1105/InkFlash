@@ -17,6 +17,16 @@ export const TEST_SLOT_COUNT = 16;
 export const OldSource = Object.freeze({SHOWN: 0, SLOT: 1, INVERTED: 2, SAME: 3});
 export const WindowKind = Object.freeze({GIVEN: 0, WHOLE: 1, CHANGED: 2});
 
+/* VCOM_DC: mã 0x00–0x13 là −0,1 tới −2,0 V (UC8253 tr.37); 255 = theo profile. */
+export const VCOM_OPTIONS = Object.freeze([
+    {value: 255, label: 'Theo profile (tr8, vẽ tay: 09; tr0–tr7: 13)'},
+    ...Array.from({length: 0x14}, (_, code) => ({
+        value: code,
+        label: `${code.toString(16).toUpperCase().padStart(2, '0')}: −${((code + 1) / 10).toFixed(1).replace('.', ',')} V`
+            + (code === 0x09 ? ' (TR8)' : code === 0x13 ? ' (TR0–TR7)' : ''),
+    })),
+]);
+
 /* ---- Hình dùng chung ---- */
 
 function centeredBox(orientation, boxWidth, boxHeight) {
@@ -256,11 +266,11 @@ export const TESTS = [
         id: 'vcom_still',
         name: 'VCOM và vùng đứng yên',
         path: 'raw',
-        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy hai lần cùng profile: VCOM_DC theo profile (tr8 và profile vẽ tay là 09) rồi 13 (như TR0–TR7). So vùng đứng yên: nửa trắng có tối dần, nửa đen có nhạt dần không.',
+        description: 'Nửa trái trắng, nửa phải đen, đứng yên; ô giữa màn lật N lần, window cả màn trong chế độ partial nên mọi điểm đứng yên đều bị quét. Chạy cùng profile với nhiều VCOM_DC (09 = −1,0 V như TR8; mã nhỏ hơn là ít âm hơn). So vùng đứng yên trong lúc chạy và vài phút sau: nửa trắng có tối dần, nửa đen có nhạt dần không.',
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
             {key: 'vcom', label: 'VCOM_DC', type: 'select', value: 255,
-                options: [{value: 255, label: 'Theo profile'}, {value: 0x13, label: '13: −2,0 V (TR0–TR7)'}, {value: 0x09, label: '09: −1,0 V (TR8)'}]},
+                options: VCOM_OPTIONS},
             {key: 'count', label: 'Số lần lật', value: 60, min: 1, max: 200},
             {key: 'interval', label: 'ms giữa hai lần', value: 200, min: 0, max: 10000, step: 50},
         ],
@@ -281,7 +291,7 @@ export const TESTS = [
                 repeat: 1,
                 vcomOverride: values.vcom,
                 raw: {profile: values.profile, windowKind: WindowKind.WHOLE, partialMode: true},
-                note: 'Chụp ảnh vùng đứng yên trước khi chạy và sau lần cuối, cùng góc, cùng đèn. Ô giữa: nửa trái đổi trắng → đen, nửa phải đen → trắng.',
+                note: 'Chụp ảnh vùng đứng yên trước khi chạy, sau lần cuối, và 2–3 phút sau, cùng góc, cùng đèn. Ô giữa: nửa trái đổi trắng → đen, nửa phải đen → trắng.',
             };
         },
     },
