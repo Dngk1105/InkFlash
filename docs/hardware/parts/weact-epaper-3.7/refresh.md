@@ -145,6 +145,7 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl`.
 | Dọn mạnh khi vượt trần nợ | `tr4` ở 30 °C | 2 553 ms mỗi lần, 3 lần trong 20 lần lật với ý định `UI` |
 | Đổi profile dọn tâm viền, sau lần đo trên | `clean_full50`, `clean_full100` thay `clean_full`; dọn quanh viền `clean_edge`, dọn nhẹ `clean_light` | Dọn tâm dài làm viền khó thấy hơn; `clean_full100` ổn nhất |
 | Nghỉ qua dọn nhẹ rồi tắt nguồn | PSR byte 2 `0x0D`, nhiều profile cho dọn nhẹ | Có lúc vài hạt khắp màn tự xám hẳn sau khi tắt nguồn, profile nào cũng gặp. Chưa rõ nguyên nhân |
+| Bài "PSR byte 2 và tắt nguồn" | PSR byte 2 `0x0D` (mặc định của UC8253) so với `0x0E` (mã mẫu hãng) | Không khác nhau |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
 ## Khuyến nghị của hãng panel
