@@ -10,9 +10,9 @@ Câu hỏi: "Gửi ảnh xong thì phải làm gì để màn đổi hình?" Tra
 
 | Câu hỏi | Mở file | Tài liệu gốc để đối chiếu (trong `source/`) |
 |---|---|---|
-| Module này là gì, panel và controller nào, thông số chính | `overview.md` | `panel-e037a75-a0-spec.pdf` tr.4–5 |
+| Module này là gì, panel và controller nào, thông số chính | `overview.md` | `gdey037t03-spec.pdf` tr.5, 27 |
 | Chân nào làm gì, nối với ESP32 thế nào, FPC 24 chân | `pins.md` | `module-schematic-4.2-3.7.pdf`, `module-board-shape-3.7.pdf` |
-| Cấp nguồn bao nhiêu V, dòng tiêu thụ, nhiệt độ, độ ẩm, giới hạn | `electrical.md` | `panel-e037a75-a0-spec.pdf` tr.11–12; `uc8253-datasheet.pdf` tr.58–59 |
+| Cấp nguồn bao nhiêu V, dòng tiêu thụ, nhiệt độ, độ ẩm, giới hạn | `electrical.md` | `gdey037t03-spec.pdf` tr.27, 33; `uc8253-datasheet.pdf` tr.58–59 |
 | Kích thước, lỗ bắt vít, đầu nối, lưu ý lắp | `mechanical.md` | `module-board-shape-3.7.pdf`; `panel-e037a75-a0-spec.pdf` tr.5–6, 14 |
 | SPI, mức logic, reset, chân BUSY, deep sleep | `interface.md` | `uc8253-datasheet.pdf` tr.6–7, 41–46, 53, 60–61 |
 | Dữ liệu ảnh nằm trong RAM thế nào, bit 1 là đen hay trắng, partial window, vì sao lần vẽ thứ hai không đổi hình (vai OLD/NEW đổi sau mỗi lần làm mới) | `image-memory.md` | `uc8253-datasheet.pdf` tr.20–21, 29, 32, 37; `gdey037t03-spec.pdf` tr.39 |

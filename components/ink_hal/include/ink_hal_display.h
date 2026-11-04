@@ -70,8 +70,8 @@ typedef struct {
 typedef struct {
     uint16_t                                 width; /**< Cỡ gốc panel */
     uint16_t                                 height;
-    uint8_t                                  x_align;  /**< Mép trái/phải là bội của x_align */
-    const ink_hal_display_profile_info_t    *profiles; /**< driver có thể đổi phần tử lúc chạy (profile tạm) */
+    uint8_t                                  x_align; /**< Mép trái/phải là bội của x_align */
+    const ink_hal_display_profile_info_t    *profiles;
     size_t                                   profile_count;
     const ink_hal_display_purpose_default_t *purpose_defaults; /**< INK_HAL_DISPLAY_PURPOSE_COUNT phần tử */
 } ink_hal_display_capabilities_t;
@@ -83,8 +83,8 @@ typedef struct {
      * Driver làm tròn mép x ra ngoài theo x_align, và tự nới ra cả màn ở lần vẽ đầu sau reset.
      * Gọi từ: task màn.
      * @param plane_new, plane_old con trỏ tới cả khung, nằm trong RAM nội
-     * @return ESP_ERR_INVALID_ARG nếu tham số sai hoặc profile ngoài danh sách; ESP_ERR_INVALID_STATE nếu profile chưa
-     *         nạp (profile tạm); ESP_ERR_TIMEOUT nếu BUSY không lên; lỗi SPI
+     * @return ESP_ERR_INVALID_ARG nếu tham số sai hoặc profile ngoài danh sách; ESP_ERR_TIMEOUT nếu BUSY không lên;
+     *         lỗi SPI
      */
     esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window, size_t profile,
                       const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing);

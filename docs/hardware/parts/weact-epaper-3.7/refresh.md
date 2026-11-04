@@ -64,9 +64,9 @@ Giữ nguồn analog bật giữa các lần partial (không POF sau khi quét, 
 | 80 × 40   | 50       | 346 ms từ lần thứ hai (lần đầu 420 ms vì còn PON); trung bình cả 50 lần 347,7 ms | 1,0 ms    | 344,7 ms | 1,0 ms        |
 | 240 × 416 | 10       | 384,8–389,2 ms                                                                             | 25,3 ms   | 344,7 ms | 25,2 ms       |
 
-Cách này bỏ được PON (75 ms) và POF (40 ms), nhưng DRF 344 ms vẫn còn, nên vẫn trên 0,3 s. Bóng mờ sau 50 lần với cách này chưa ghi nhận. Driver có tuỳ chọn `keep_power_on`, mặc định tắt.
+Cách này bỏ được PON (75 ms) và POF (40 ms), nhưng DRF 344 ms vẫn còn, nên vẫn trên 0,3 s. Bóng mờ sau 50 lần với cách này chưa ghi nhận. Driver hiện tại luôn giữ nguồn bật sau DRF; `ink_display` quyết định lúc tắt.
 
-Biến thể nhanh nhất mà không để lại bóng mờ rõ: ép 110, `PT_SCAN` = 1, đây là mặc định của driver.
+Trong các biến thể dùng bảng sóng OTP của phần này, nhanh nhất mà không để lại bóng mờ rõ là ép 110, `PT_SCAN` = 1. Driver hiện tại không ép nhiệt độ mà nạp bảng qua thanh ghi (phần dưới).
 
 ## Bảng sóng nạp qua thanh ghi
 
@@ -157,13 +157,14 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl` ở nhánh `ben
 | Bài "VCOM và vùng đứng yên", đổi PFS (`0x03`) 1–4 khung | `tr8`, PSR byte 2 `0x0A` | Không phân biệt được bằng mắt. Driver giữ 1 khung (mặc định) |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
-## Khuyến nghị của hãng panel
+## Khuyến nghị trong spec
 
 
-| Khuyến nghị                                                                                              | Nguồn      |
-| ------------------------------------------------------------------------------------------------------------ | ------------- |
-| Làm mới ít nhất một lần mỗi 24 giờ; trên 35 °C hiệu ứng điểm đơn không được đảm bảo | Panel tr.11 |
-| Độ ẩm 45–70 %RH để giữ chất lượng 5 năm; nên làm mới mỗi ngày                              | Panel tr.12 |
-| Bóng mờ (ΔE) tối đa 2                                                                                 | Panel tr.12 |
+| Khuyến nghị                                                                                              | Nguồn                |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Full 2 s, fast 1,5 s, partial 0,3 s ở 25 °C; thời gian cập nhật ảnh 3 s (bảng quang học)                | GDEY037T03 tr.27, 33 |
+| Làm mới ít nhất một lần mỗi 24 giờ; trên 35 °C hiệu ứng điểm đơn không được đảm bảo | E037A75-A0 tr.11 (panel khác, tham khảo) |
+| Độ ẩm 45–70 %RH để giữ chất lượng 5 năm; nên làm mới mỗi ngày                              | E037A75-A0 tr.12 (panel khác, tham khảo) |
+| Bóng mờ (ΔE) tối đa 2                                                                                 | E037A75-A0 tr.12 (panel khác, tham khảo) |
 
-Đối chiếu gốc: `source/panel-e037a75-a0-spec.pdf` tr.11–12; `source/uc8253-datasheet.pdf` tr.22–26, 43–45.
+Đối chiếu gốc: `source/gdey037t03-spec.pdf` tr.27, 33; `source/panel-e037a75-a0-spec.pdf` tr.11–12; `source/uc8253-datasheet.pdf` tr.22–26, 43–45.
