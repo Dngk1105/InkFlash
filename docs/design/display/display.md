@@ -22,8 +22,13 @@ Sơ đồ cùng thư mục, vẽ từ file này, mở bằng trình duyệt:
 | `architecture.html` | Các khối của đường vẽ màn và ai gọi ai |
 | `sequence.html` | Một lần lật thẻ rồi thang dọn khi nghỉ: giao khung kèm ý định, chọn preset, driver ghi hai vùng RAM theo lượt, DRF, dọn viền, tắt nguồn |
 | `dataflow.html` | Dữ liệu đổi dạng qua từng tầng: khung 1 bit và ý định → trạng thái từng điểm → window và hai mặt phẳng → profile → RAM → cặp bit chọn bảng sóng → điện áp |
+| `frame-lifecycle.html` | Một khung đổi chủ thế nào giữa task main, hàng chờ và task màn, và khi nào khung bị bỏ |
+| `draw-decision.html` | Thứ tự điều kiện để chọn cách vẽ một khung: dọn mạnh, không vẽ, dọn nhanh, hay vẽ theo preset |
+| `idle-cleanup.html` | Thang dọn khi nghỉ, cờ hoãn dọn và tắt nguồn analog |
+| `hal-contract.html` | Các kiểu dữ liệu ở ranh giới giữa `display` và driver màn |
+| `draw-timing.html` | Thời gian một lần đổi cả trang khi nguồn đang tắt, minh hoạ ghép từ các số đo và số tính riêng lẻ |
 
-Đổi đường vẽ màn thì vẽ lại ba sơ đồ trong cùng commit.
+Đổi đường vẽ màn thì vẽ lại các sơ đồ liên quan trong cùng commit.
 
 ## Một lần vẽ đi qua đâu
 
