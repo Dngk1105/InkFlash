@@ -1,48 +1,48 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 #pragma once
 
 /*
- * Chủ của 3 khung đệm của display. Chỉ giữ chủ của từng khung (theo index), không
- * giữ bộ nhớ ảnh. Không tự khoá: bên gọi giữ lock quanh mỗi hàm, vì task main và
- * task màn cùng gọi. C thuần (C23).
+ * Owner of the 3 display frames. Tracks only who owns each frame (by index), not the image memory.
+ * No internal lock: the caller holds a lock around every call, because the main task and the display
+ * task both call it. Pure C (C23).
  */
 #include <stdint.h>
 
 #define INK_FRAME_SLOTS_COUNT 3
-#define INK_FRAME_SLOTS_NONE  (-1) /**< không có khung */
+#define INK_FRAME_SLOTS_NONE  (-1) /**< no frame */
 
-/* ---- Lỗi ---- */
+/* ---- Errors ---- */
 
 typedef enum : uint8_t {
     INK_FRAME_SLOTS_OK = 0,
     INK_FRAME_SLOTS_ERROR_ARGUMENT,
-    INK_FRAME_SLOTS_ERROR_STATE, /**< gọi sai thứ tự: mượn hai lần, giao khung chưa mượn... */
+    INK_FRAME_SLOTS_ERROR_STATE, /**< wrong call order: acquire twice, submit without acquire... */
 } ink_frame_slots_error_t;
 
-/* ---- Kiểu ---- */
+/* ---- Types ---- */
 
-/** Bên mượn phải làm gì với ảnh trong khung vừa mượn. */
+/** What the caller must do with the image in the frame it just acquired. */
 typedef enum : uint8_t {
-    INK_FRAME_SLOTS_FILL_WHITE, /**< chưa giao khung nào: tô trắng */
-    INK_FRAME_SLOTS_FILL_COPY,  /**< chép ảnh từ khung `copy_from` */
-    INK_FRAME_SLOTS_FILL_KEEP,  /**< khung lấy lại từ hàng chờ, đã có ảnh mới nhất */
+    INK_FRAME_SLOTS_FILL_WHITE, /**< no frame submitted yet: fill white */
+    INK_FRAME_SLOTS_FILL_COPY,  /**< copy the image from frame `copy_from` */
+    INK_FRAME_SLOTS_FILL_KEEP,  /**< frame taken back from pending; already holds the latest image */
 } ink_frame_slots_fill_t;
 
-/** Kết quả của một lần mượn. */
+/** Result of one acquire. */
 typedef struct {
-    int8_t                 frame; /**< index khung vừa mượn */
+    int8_t                 frame; /**< index of the acquired frame */
     ink_frame_slots_fill_t fill;
-    int8_t                 copy_from; /**< khung giao gần nhất khi fill = COPY; NONE ở trường hợp khác */
+    int8_t                 copy_from; /**< latest submitted frame when fill = COPY; NONE otherwise */
 } ink_frame_slots_lease_t;
 
-/** Bên gọi giữ struct nhưng không đụng `priv`. */
+/** The caller owns the struct but must not touch `priv`. */
 typedef struct {
     struct {
         uint8_t  owner[INK_FRAME_SLOTS_COUNT];
-        int8_t   acquired; /* khung task main đang vẽ */
-        int8_t   pending;  /* khung đã giao, task màn chưa lấy */
-        int8_t   latest;   /* khung giao gần nhất; lần mượn sau chép ảnh từ đây */
-        int8_t   shown;    /* khung đang hiện trên màn */
+        int8_t   acquired; /* frame the main task is drawing */
+        int8_t   pending;  /* submitted, not yet taken by the display task */
+        int8_t   latest;   /* latest submitted frame; the next acquire copies from it */
+        int8_t   shown;    /* frame on the panel */
         uint32_t dropped;
     } priv;
 } ink_frame_slots_state_t;
@@ -50,64 +50,88 @@ typedef struct {
 /* ---- API ---- */
 
 /**
- * Mọi khung trống, chưa có khung đang hiện.
- * Gọi từ: lúc khởi động, trước khi tạo task màn.
- * @return INK_FRAME_SLOTS_ERROR_ARGUMENT nếu state nullptr
+ * @brief Mark every frame free; no shown frame.
+ * @par Called from
+ * Boot, before the display task starts.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT state is NULL.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_init(ink_frame_slots_state_t *state);
 
 /**
- * Khung `frame` thành khung đang hiện và khung giao gần nhất (màn nền khi thức dậy).
- * Gọi từ: lúc khởi động, sau init.
- * @return INK_FRAME_SLOTS_ERROR_ARGUMENT nếu state nullptr hoặc frame ngoài 0..COUNT-1;
- *         INK_FRAME_SLOTS_ERROR_STATE nếu khung đó không trống
+ * @brief Make `frame` the shown frame and the latest frame (background frame after wake).
+ * @par Called from
+ * Boot, after init.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT state is NULL, or frame is outside 0..COUNT-1.
+ * @retval INK_FRAME_SLOTS_ERROR_STATE frame is not free.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_assume_shown(ink_frame_slots_state_t *state, int8_t frame);
 
 /**
- * Mượn một khung để vẽ. Không còn khung trống (task màn đang giữ hai khung) thì lấy lại
- * khung trong hàng chờ, khung đó tính là bị bỏ.
- * Gọi từ: task main.
- * @return INK_FRAME_SLOTS_ERROR_ARGUMENT nếu có con trỏ nullptr;
- *         INK_FRAME_SLOTS_ERROR_STATE nếu khung mượn trước chưa giao
+ * @brief Acquire a frame to draw into.
+ *
+ * No free frame (the display task holds two): take back the pending frame; it counts as dropped.
+ * @par Called from
+ * Main task.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT a pointer is NULL.
+ * @retval INK_FRAME_SLOTS_ERROR_STATE the previous frame is acquired and not submitted.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, ink_frame_slots_lease_t *out_lease);
 
-/** Khung task main đang mượn, hoặc INK_FRAME_SLOTS_NONE. */
+/**
+ * @brief Frame the main task has acquired.
+ * @par Called from
+ * Main task.
+ * @return Frame index, or INK_FRAME_SLOTS_NONE.
+ */
 int8_t ink_frame_slots_acquired(const ink_frame_slots_state_t *state);
 
 /**
- * Giao khung đang mượn vào hàng chờ. Hàng chờ đã có khung thì khung cũ đó bị bỏ.
- * Gọi từ: task main.
- * @return INK_FRAME_SLOTS_ERROR_ARGUMENT nếu state nullptr;
- *         INK_FRAME_SLOTS_ERROR_STATE nếu chưa mượn khung
+ * @brief Submit the acquired frame as pending. A frame already pending is dropped.
+ * @par Called from
+ * Main task.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT state is NULL.
+ * @retval INK_FRAME_SLOTS_ERROR_STATE no frame is acquired.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_submit(ink_frame_slots_state_t *state);
 
 /**
- * Lấy khung trong hàng chờ ra để vẽ.
- * Gọi từ: task màn.
- * @return index khung, hoặc INK_FRAME_SLOTS_NONE nếu hàng chờ trống hay state nullptr
+ * @brief Take the pending frame to draw it.
+ * @par Called from
+ * Display task.
+ * @return Frame index, or INK_FRAME_SLOTS_NONE if nothing is pending or state is NULL.
  */
 int8_t ink_frame_slots_take(ink_frame_slots_state_t *state);
 
 /**
- * Khung vừa lấy ra thành khung đang hiện; khung đang hiện cũ được trả về trống.
- * Gọi từ: task màn, sau khi vẽ xong (kể cả vẽ lỗi) hoặc khi không cần vẽ.
- * @return INK_FRAME_SLOTS_ERROR_ARGUMENT nếu state nullptr hoặc frame ngoài 0..COUNT-1;
- *         INK_FRAME_SLOTS_ERROR_STATE nếu frame không phải khung đã lấy ra
+ * @brief Make the taken frame the shown frame; the old shown frame becomes free.
+ * @par Called from
+ * Display task, after the draw finishes (also after a failed draw) or when no draw is needed.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT state is NULL, or frame is outside 0..COUNT-1.
+ * @retval INK_FRAME_SLOTS_ERROR_STATE frame is not the taken frame.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_show(ink_frame_slots_state_t *state, int8_t frame);
 
 /**
- * Trả khung vừa lấy ra về trống mà không hiện (policy lỗi).
- * Gọi từ: task màn.
- * @return như ink_frame_slots_show()
+ * @brief Free the taken frame without showing it (policy error).
+ * @par Called from
+ * Display task.
+ * @retval INK_FRAME_SLOTS_ERROR_ARGUMENT state is NULL, or frame is outside 0..COUNT-1.
+ * @retval INK_FRAME_SLOTS_ERROR_STATE frame is not the taken frame.
  */
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_release(ink_frame_slots_state_t *state, int8_t frame);
 
-/** Khung đang hiện, hoặc INK_FRAME_SLOTS_NONE. */
+/**
+ * @brief Shown frame.
+ * @par Called from
+ * Any task, under the caller's lock.
+ * @return Frame index, or INK_FRAME_SLOTS_NONE.
+ */
 int8_t ink_frame_slots_shown(const ink_frame_slots_state_t *state);
 
-/** Số khung bị bỏ từ lúc init (giao đè, hoặc bị lấy lại khi mượn). */
+/**
+ * @brief Frames dropped since init (overwritten while pending, or taken back by acquire).
+ * @par Called from
+ * Any task, under the caller's lock.
+ * @return Drop count; 0 if state is NULL.
+ */
 uint32_t ink_frame_slots_dropped(const ink_frame_slots_state_t *state);

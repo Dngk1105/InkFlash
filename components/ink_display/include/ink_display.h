@@ -1,10 +1,10 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 #pragma once
 
 /*
- * Chủ duy nhất của màn. Task main mượn khung, vẽ, giao khung kèm ý định vẽ; task màn luôn vẽ khung mới nhất, bỏ
- * khung giữa, chọn preset và profile, dọn màn khi nghỉ, tắt nguồn màn. Khung theo bố cục của interface màn
- * (ink_hal_display.h), cỡ lấy từ bảng khả năng của driver.
+ * Sole owner of the panel. The main task acquires a frame, draws, and submits it with an intent; the display task
+ * always draws the latest frame (pending frames in between are dropped), picks preset and profile, runs cleanup
+ * while idle, and turns analog power off. Frame layout as in ink_hal_display.h; size from driver capabilities.
  */
 #include "esp_err.h"
 #include "ink_display_policy.h"
@@ -12,30 +12,30 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* ---- Ý định và cờ của khung (giá trị của ink_display_policy) ---- */
+/* ---- Intent and flags of a frame (values from ink_display_policy) ---- */
 
 typedef ink_display_policy_intent_t ink_display_intent_t;
 
 #define INK_DISPLAY_INTENT_AUTO INK_DISPLAY_POLICY_INTENT_AUTO
-#define INK_DISPLAY_INTENT_TEXT INK_DISPLAY_POLICY_INTENT_TEXT /**< trang chữ người dùng sẽ đọc */
-#define INK_DISPLAY_INTENT_UI   INK_DISPLAY_POLICY_INTENT_UI   /**< con trỏ, nút: nhanh, chịu xám nhẹ */
-#define INK_DISPLAY_INTENT_PAGE INK_DISPLAY_POLICY_INTENT_PAGE /**< đổi cả màn */
+#define INK_DISPLAY_INTENT_TEXT INK_DISPLAY_POLICY_INTENT_TEXT /**< text page the user will read */
+#define INK_DISPLAY_INTENT_UI   INK_DISPLAY_POLICY_INTENT_UI   /**< cursor, buttons: fast, accepts light ghosting */
+#define INK_DISPLAY_INTENT_PAGE INK_DISPLAY_POLICY_INTENT_PAGE /**< whole-panel change */
 
 #define INK_DISPLAY_FLAG_DEFER_CLEANUP INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP
 #define INK_DISPLAY_FLAG_BEFORE_SLEEP  INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP
 
-/* ---- Cài đặt ---- */
+/* ---- Options ---- */
 
-/** Preset của một mục đích vẽ. */
+/** Preset of one purpose. */
 typedef struct {
-    ink_hal_display_band_t        bands[INK_HAL_DISPLAY_MAX_BANDS]; /**< xét từ đầu; id không có thì dùng mặc định của driver */
+    ink_hal_display_band_t        bands[INK_HAL_DISPLAY_MAX_BANDS]; /**< checked in order; unknown profile id -> driver default */
     uint8_t                       band_count;
     ink_hal_display_draw_config_t config;
-    uint8_t                       debt_weight; /**< chỉ TEXT, UI, PAGE dùng */
-    bool                          marks_edges; /**< chỉ TEXT, UI, PAGE dùng: khung vẽ bằng preset này đánh dấu cờ viền */
+    uint8_t                       debt_weight; /**< used by TEXT, UI, PAGE only */
+    bool                          marks_edges; /**< TEXT, UI, PAGE only: frames drawn with this preset set edge flags */
 } ink_display_preset_t;
 
-/** Cài đặt đổi được lúc chạy. */
+/** Options changeable at run time. */
 typedef struct {
     ink_display_preset_t presets[INK_HAL_DISPLAY_PURPOSE_COUNT];
     uint8_t              auto_ui_percent;
@@ -47,12 +47,12 @@ typedef struct {
     uint32_t             edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
     uint32_t             light_ms;
     uint32_t             strong_ms;
-    uint32_t             power_off_ms; /**< không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ */
+    uint32_t             power_off_ms; /**< no DRF for this long -> analog power off; 0 = only before sleep */
 } ink_display_options_t;
 
-/* ---- Báo cáo ---- */
+/* ---- Report ---- */
 
-/** Việc task màn vừa làm; trùng giá trị ink_display_policy_action_t, thêm tắt nguồn. */
+/** What the display task just did; same values as ink_display_policy_action_t, plus POWER_OFF. */
 typedef enum : uint8_t {
     INK_DISPLAY_ACTION_NONE                  = INK_DISPLAY_POLICY_ACTION_NONE,
     INK_DISPLAY_ACTION_DRAW                  = INK_DISPLAY_POLICY_ACTION_DRAW,
@@ -64,75 +64,84 @@ typedef enum : uint8_t {
     INK_DISPLAY_ACTION_POWER_OFF,
 } ink_display_action_t;
 
-/** Một lần task màn làm việc với màn; mốc thời gian theo esp_timer (µs). */
+/** One piece of work by the display task; timestamps from esp_timer, µs. */
 typedef struct {
-    esp_err_t                 error; /**< ESP_OK, hoặc lỗi của policy hay driver */
+    esp_err_t                 error; /**< ESP_OK, or the policy or driver error */
     ink_display_action_t      action;
-    bool                      is_frame; /**< lần vẽ một khung đã giao; false = lượt dọn hoặc tắt nguồn */
-    ink_hal_display_purpose_t purpose;  /**< INK_HAL_DISPLAY_PURPOSE_COUNT khi không vẽ */
+    bool                      is_frame; /**< draw of a submitted frame; false = cleanup or power off */
+    ink_hal_display_purpose_t purpose;  /**< INK_HAL_DISPLAY_PURPOSE_COUNT when nothing is drawn */
     uint16_t                  profile_id;
     ink_hal_display_rect_t    window;
-    int8_t                    temperature_celsius; /**< chỉ đúng khi temperature_valid */
-    bool                      temperature_valid;   /**< vừa đọc cảm biến (trước lần dọn mạnh, dọn nhanh) */
-    uint8_t                   max_debt;            /**< sau lần này */
+    int8_t                    temperature_celsius; /**< valid only when temperature_valid */
+    bool                      temperature_valid;   /**< sensor just read (before cleanup strong, cleanup fast) */
+    uint8_t                   max_debt;            /**< after this work */
     uint8_t                   ceiling;
     uint32_t                  flagged_count;
-    uint32_t                  input_ms;   /**< thời điểm bấm bên gọi đưa vào lúc giao, theo ink_platform_now_ms() */
-    int64_t                   acquire_us; /**< mượn khung */
-    int64_t                   submit_us;  /**< giao khung */
-    int64_t                   take_us;    /**< task màn lấy khung, hoặc bắt đầu lượt dọn */
-    int64_t                   decide_us;  /**< policy và mặt phẳng cũ xong */
-    ink_hal_display_timing_t  driver;     /**< thời gian driver trả về */
+    uint32_t                  input_ms;   /**< input time passed to submit, from ink_platform_now_ms() */
+    int64_t                   acquire_us; /**< frame acquired */
+    int64_t                   submit_us;  /**< frame submitted */
+    int64_t                   take_us;    /**< display task took the frame, or the cleanup started */
+    int64_t                   decide_us;  /**< decide and old plane done */
+    ink_hal_display_timing_t  driver;     /**< timing returned by the driver */
 } ink_display_report_t;
 
-/** Chạy trên task màn, ngay sau mỗi lần làm việc với màn; không chặn lâu. */
+/** Runs on the display task right after each piece of work; must not block. */
 typedef void (*ink_display_report_callback_t)(const ink_display_report_t *report, void *user_data);
 
 typedef struct {
-    const ink_hal_display_device_t *device;     /**< được chép */
-    const uint8_t                  *background; /**< màn nền vẽ trước khi ngủ sâu; nullptr khi khởi động nguội */
+    const ink_hal_display_device_t *device;     /**< copied */
+    const uint8_t                  *background; /**< background frame drawn before deep sleep; NULL on cold boot */
     const ink_display_options_t    *options;    /**< nullptr = ink_display_default_options() */
-    ink_display_report_callback_t   on_report;  /**< có thể là nullptr */
+    ink_display_report_callback_t   on_report;  /**< may be NULL */
     void                           *user_data;
 } ink_display_config_t;
 
 /* ---- API ---- */
 
 /**
- * Cài đặt mặc định: preset lấy từ mặc định theo mục đích của driver; trọng số, ngưỡng và thời gian là hằng số của display.
- * @return cài đặt mặc định; preset trống nếu capabilities là nullptr
+ * @brief Default options: presets from the driver's purpose defaults; weights, thresholds and times are display
+ *        constants.
+ * @par Called from
+ * Any task.
+ * @return Default options; empty presets if capabilities is NULL.
  */
 ink_display_options_t ink_display_default_options(const ink_hal_display_capabilities_t *capabilities);
 
 /**
- * Cấp khung trong RAM nội và trạng thái từng điểm trong PSRAM, tạo task màn. Màn nền (nếu có) coi là khung đang hiện.
- * Gọi từ: task main, một lần lúc khởi động.
- * @return ESP_ERR_INVALID_STATE nếu đã chạy; ESP_ERR_INVALID_ARG nếu config nullptr, device thiếu bảng hàm, bảng khả
- *         năng sai hoặc options sai; ESP_ERR_NO_MEM nếu không cấp được bộ nhớ hoặc task
+ * @brief Allocate frames in internal RAM and pixel_state in PSRAM, create the display task. The background frame
+ *        (if any) becomes the shown frame.
+ * @par Called from
+ * Main task, once at boot.
+ * @retval ESP_ERR_INVALID_STATE already started.
+ * @retval ESP_ERR_INVALID_ARG config is NULL, device has no operations, or capabilities or options are invalid.
+ * @retval ESP_ERR_NO_MEM memory or task allocation failed.
  */
 esp_err_t ink_display_start(const ink_display_config_t *config);
 
 /**
- * Đổi cài đặt; task màn áp dụng trước khung sau.
- * Gọi từ: task main.
- * @return ESP_ERR_INVALID_STATE nếu chưa start; ESP_ERR_INVALID_ARG nếu options nullptr hoặc sai (số dải, trọng số,
- *         ngưỡng nợ)
+ * @brief Change options; the display task applies them before the next frame.
+ * @par Called from
+ * Main task.
+ * @retval ESP_ERR_INVALID_STATE not started.
+ * @retval ESP_ERR_INVALID_ARG options is NULL or invalid (band count, weights, debt thresholds).
  */
 esp_err_t ink_display_set_options(const ink_display_options_t *options);
 
 /**
- * Mượn một khung để vẽ. Khung đã có sẵn ảnh của lần giao gần nhất (trắng nếu chưa giao lần nào).
- * Gọi từ: task main.
- * @return nullptr nếu chưa start hoặc khung mượn trước chưa giao
+ * @brief Acquire a frame to draw into. It already holds the latest submitted image (white if none yet).
+ * @par Called from
+ * Main task.
+ * @return Frame, or NULL if not started or the previous frame is acquired and not submitted.
  */
 uint8_t *ink_display_acquire(void);
 
 /**
- * Giao khung đã mượn kèm ý định vẽ và cờ, không chờ.
- * Gọi từ: task main.
- * @param input_ms thời điểm bấm theo ink_platform_now_ms(), ghi vào report
- * @param flags INK_DISPLAY_FLAG_*
- * @return ESP_ERR_INVALID_STATE nếu chưa start hoặc chưa mượn khung; ESP_ERR_INVALID_ARG nếu `frame` không phải khung
- *         đã mượn hoặc ý định ngoài enum
+ * @brief Submit the acquired frame with its intent and flags; does not wait.
+ * @par Called from
+ * Main task.
+ * @param input_ms Input time from ink_platform_now_ms(); copied into the report.
+ * @param flags INK_DISPLAY_FLAG_*.
+ * @retval ESP_ERR_INVALID_STATE not started, or no frame acquired.
+ * @retval ESP_ERR_INVALID_ARG `frame` is not the acquired frame, or intent is out of range.
  */
 esp_err_t ink_display_submit(uint8_t *frame, uint32_t input_ms, ink_display_intent_t intent, uint8_t flags);

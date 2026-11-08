@@ -1,17 +1,17 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 #include "ink_display_policy.h"
 
 #include <string.h>
 
-/* Byte trạng thái của một điểm. */
+/* pixel_state byte of one pixel. */
 #define FLAG_MASK  0x03U
 #define FLAG_NONE  0x00U
-#define FLAG_DARK  0x01U /* viền tối: điểm trắng đứng yên cạnh điểm vừa thôi đen */
-#define FLAG_LIGHT 0x02U /* viền sáng: điểm đen đứng yên cạnh điểm vừa thành đen */
+#define FLAG_DARK  0x01U /* dark edge: unchanged white pixel next to a pixel that just left black */
+#define FLAG_LIGHT 0x02U /* light edge: unchanged black pixel next to a pixel that just turned black */
 #define DEBT_SHIFT 2
 #define DEBT_MASK  (0x0FU << DEBT_SHIFT)
 
-/* Bit của stages_done. */
+/* Bits of stages_done. */
 #define STAGE_EDGE   (1U << 0)
 #define STAGE_LIGHT  (1U << 1)
 #define STAGE_STRONG (1U << 2)
@@ -34,7 +34,7 @@ static size_t pixel_count(const ink_display_policy_config_t *config) {
     return (size_t)config->width * config->height;
 }
 
-/* Mọi điểm nợ 0, không cờ; bắt đầu lại thang dọn. */
+/* Every pixel: debt 0, no edge flag; restart the cleanup stages. */
 static void clear_pixels(ink_display_policy_state_t *state) {
     memset(state->priv.pixel_state, 0, pixel_count(&state->priv.config));
     state->priv.flagged_count = 0;
@@ -90,13 +90,13 @@ uint8_t ink_display_policy_ceiling(const ink_display_policy_state_t *state) {
     return state == nullptr ? 0 : state->priv.ceiling;
 }
 
-/* ---- Khung 1 bit ---- */
+/* ---- 1-bit frames ---- */
 
 static size_t row_bytes(const ink_display_policy_config_t *config) {
     return ((size_t)config->width + 7) / 8;
 }
 
-/* Bit của điểm thứ `pixel` (0..7) trong byte; điểm trái nhất ở bit cao nhất. */
+/* Bit of pixel `pixel` (0..7) in its byte; leftmost pixel in the most significant bit. */
 static uint8_t pixel_bit(uint32_t pixel) {
     return (uint8_t)(0x80U >> pixel);
 }
@@ -109,7 +109,7 @@ static void invert_pixel(const ink_display_policy_config_t *config, uint8_t *fra
     frame[y * row_bytes(config) + x / 8] ^= pixel_bit(x % 8);
 }
 
-/* Byte khác nhau giữa hai khung; bỏ bit đệm cuối hàng. */
+/* Differing bits of a byte between two frames; padding bits at row end masked out. */
 static uint8_t diff_byte(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next, uint32_t y, size_t i) {
     const size_t offset = y * row_bytes(config) + i;
     uint8_t      diff   = shown[offset] ^ next[offset];
@@ -118,7 +118,7 @@ static uint8_t diff_byte(const ink_display_policy_config_t *config, const uint8_
 }
 
 typedef struct {
-    uint32_t left; /* các mép đều tính cả điểm ở mép */
+    uint32_t left; /* all edges inclusive */
     uint32_t right;
     uint32_t top;
     uint32_t bottom;
@@ -139,7 +139,7 @@ static bool bounds_empty(const bounds_t *bounds) {
     return bounds->top == UINT32_MAX;
 }
 
-/* Khung bao các điểm khác nhau; false nếu hai khung giống hệt. */
+/* Bounds of the differing pixels; false if the frames are identical. */
 static bool find_changed_bounds(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next,
                                 bounds_t *out_bounds) {
     bounds_t bounds = empty_bounds();
@@ -157,11 +157,11 @@ static bool find_changed_bounds(const ink_display_policy_config_t *config, const
     return true;
 }
 
-/* Khung bao → window, căn mép x theo x_align. */
+/* Bounds -> window, x edges aligned to x_align. */
 static ink_display_policy_rect_t make_window(const ink_display_policy_config_t *config, bounds_t bounds) {
     const uint32_t align        = config->x_align;
     const uint32_t aligned_left = bounds.left / align * align;
-    uint32_t       right        = (bounds.right + 1 + align - 1) / align * align; /* mép phải, không gồm */
+    uint32_t       right        = (bounds.right + 1 + align - 1) / align * align; /* right edge, exclusive */
     if (right > config->width) { right = config->width; }
     return (ink_display_policy_rect_t){
         .x      = (uint16_t)aligned_left,
@@ -184,7 +184,7 @@ bool ink_display_policy_changed_window(const ink_display_policy_config_t *config
     return true;
 }
 
-/* ---- Trạng thái từng điểm ---- */
+/* ---- Per-pixel state ---- */
 
 static uint8_t *pixel_state(const ink_display_policy_state_t *state, uint32_t x, uint32_t y) {
     return &state->priv.pixel_state[(size_t)y * state->priv.config.width + x];
@@ -219,9 +219,9 @@ static void recompute_max_debt(ink_display_policy_state_t *state) {
     state->priv.max_debt = max_debt;
 }
 
-/* Các điểm đổi màu duyệt theo byte: byte không đổi thì bỏ cả 8 điểm (PSRAM chậm, không đọc trạng thái của chúng). */
+/* Changed pixels are walked per byte: an unchanged byte skips all 8 pixels (PSRAM is slow; their state is not read). */
 
-/* Có điểm đổi màu trong window mà nợ cộng `weight` sẽ vượt `ceiling`. */
+/* Some changed pixel in window would exceed `ceiling` after adding `weight`. */
 static bool would_exceed(const ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds,
                          uint32_t weight, uint32_t ceiling) {
     const ink_display_policy_config_t *config = &state->priv.config;
@@ -238,7 +238,7 @@ static bool would_exceed(const ink_display_policy_state_t *state, const uint8_t 
     return false;
 }
 
-/* Điểm đổi màu: cộng nợ, bỏ cờ cũ (bảng sóng vừa kéo lại điểm đó). */
+/* Changed pixel: add debt, clear its old edge flag (the waveform just drove it again). */
 static void add_debt(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds, uint32_t weight) {
     const ink_display_policy_config_t *config = &state->priv.config;
     for (uint32_t y = bounds.top; y <= bounds.bottom; y++) {
@@ -255,7 +255,7 @@ static void add_debt(ink_display_policy_state_t *state, const uint8_t *shown, co
     }
 }
 
-/* ---- Cờ viền (US 11,568,827, cột 11) ---- */
+/* ---- Edge flags (US 11,568,827, col. 11) ---- */
 
 static const int32_t s_cardinal[4][2] = {
     {0,  -1},
@@ -264,7 +264,7 @@ static const int32_t s_cardinal[4][2] = {
     {0,  1 }
 };
 
-/* Điểm (x + dx, y + dy) nằm trong màn. */
+/* Pixel (x + dx, y + dy) is on the panel. */
 static bool neighbor(const ink_display_policy_config_t *config, uint32_t x, uint32_t y, int32_t dx, int32_t dy, uint32_t *out_x,
                      uint32_t *out_y) {
     const int64_t nx = (int64_t)x + dx;
@@ -275,7 +275,7 @@ static bool neighbor(const ink_display_policy_config_t *config, uint32_t x, uint
     return true;
 }
 
-/* 8 điểm xung quanh, cắt theo màn; đọc thẳng 3 hàng của priv.pixel_state. */
+/* The 8 neighbours, clipped to the panel; reads 3 rows of priv.pixel_state directly. */
 static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x, uint32_t y) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint32_t                     left   = x > 0 ? x - 1 : 0;
@@ -291,7 +291,7 @@ static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x,
     return false;
 }
 
-/* Cờ cho điểm đứng yên (x, y), hoặc FLAG_NONE. */
+/* Edge flag for the unchanged pixel (x, y), or FLAG_NONE. */
 static uint8_t edge_flag(const ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, uint32_t x, uint32_t y) {
     const ink_display_policy_config_t *config         = &state->priv.config;
     const bool                         white          = is_white(config, next, x, y);
@@ -310,18 +310,18 @@ static uint8_t edge_flag(const ink_display_policy_state_t *state, const uint8_t 
     return FLAG_NONE;
 }
 
-/* Byte khác nhau của hàng y, byte i; 0 ngoài màn. */
+/* Differing bits of row y, byte i; 0 outside the panel. */
 static uint8_t diff_at(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next, int64_t y, int64_t i) {
     if (y < 0 || y >= config->height || i < 0 || i >= (int64_t)row_bytes(config)) { return 0; }
     return diff_byte(config, shown, next, (uint32_t)y, (size_t)i);
 }
 
-/* Điểm của byte có ít nhất một điểm kề cạnh đổi màu: hàng trên, hàng dưới, bên trái, bên phải. */
+/* Pixels of the byte with at least one changed 4-neighbour: row above, row below, left, right. */
 static uint8_t near_change(const ink_display_policy_config_t *config, const uint8_t *shown, const uint8_t *next, uint32_t y, size_t i) {
     const uint8_t here  = diff_at(config, shown, next, y, (int64_t)i);
     const uint8_t left  = diff_at(config, shown, next, y, (int64_t)i - 1);
     const uint8_t right = diff_at(config, shown, next, y, (int64_t)i + 1);
-    /* điểm x + 1 về vị trí x, và điểm x - 1 về vị trí x */
+    /* pixel x + 1 shifted to x, and pixel x - 1 shifted to x */
     const uint8_t sideways = (uint8_t)((here << 1) | (right >> 7)) | (uint8_t)((here >> 1) | (left << 7));
     return (uint8_t)(diff_at(config, shown, next, (int64_t)y - 1, (int64_t)i)
                      | diff_at(config, shown, next, (int64_t)y + 1, (int64_t)i)
@@ -329,8 +329,8 @@ static uint8_t near_change(const ink_display_policy_config_t *config, const uint
 }
 
 /*
- * Đánh dấu theo thứ tự hàng trong vùng đổi nới 1 điểm; chỉ điểm đứng yên, chưa có cờ, không có cờ xung quanh.
- * Cả hai luật cờ cần một điểm kề cạnh đổi màu, nên chỉ xét điểm đứng yên kề cạnh điểm đổi.
+ * Mark row by row inside the changed window grown by 1 px; only unchanged pixels with no flag and no flagged
+ * neighbour. Both flag rules need a changed 4-neighbour, so only unchanged pixels next to a changed one are checked.
  */
 static void mark_edges(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, bounds_t bounds) {
     const ink_display_policy_config_t *config = &state->priv.config;
@@ -353,7 +353,7 @@ static void mark_edges(ink_display_policy_state_t *state, const uint8_t *shown, 
     }
 }
 
-/* ---- Chọn cách vẽ ---- */
+/* ---- Decide ---- */
 
 static uint32_t elapsed_ms(uint32_t from_ms, uint32_t to_ms) {
     return (uint32_t)(to_ms - from_ms);
@@ -363,7 +363,7 @@ static bool request_valid(ink_display_policy_request_t request) {
     return request.intent < INK_DISPLAY_POLICY_INTENT_COUNT;
 }
 
-/* Khung mới: bắt đầu lại thang dọn; khung tới khi đang thao tác thì nâng trần. Trả true nếu đang thao tác. */
+/* New frame: restart the cleanup stages; a frame in the active period raises the ceiling. Returns true when active. */
 static bool start_idle_period(ink_display_policy_state_t *state, ink_display_policy_request_t request, uint32_t now_ms) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const bool active = state->priv.has_frame && config->active_ms > 0 && elapsed_ms(state->priv.last_frame_ms, now_ms) < config->active_ms;
@@ -388,7 +388,7 @@ static ink_display_policy_intent_t resolve_intent(const ink_display_policy_confi
     return area * 100 < screen * config->auto_ui_percent ? INK_DISPLAY_POLICY_INTENT_UI : INK_DISPLAY_POLICY_INTENT_TEXT;
 }
 
-/* Dọn cả màn, mặt phẳng cũ đảo bit; mọi nợ và cờ về 0. */
+/* Whole-panel cleanup with an inverted old plane; all debt and edge flags back to 0. */
 static void decide_clean(ink_display_policy_state_t *state, ink_display_policy_action_t action,
                          ink_display_policy_decision_t *out_decision) {
     clear_pixels(state);
@@ -456,14 +456,14 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     return INK_DISPLAY_POLICY_OK;
 }
 
-/* ---- Thang dọn khi nghỉ ---- */
+/* ---- Idle cleanup stages ---- */
 
 typedef struct {
     ink_display_policy_action_t action;
     uint32_t                    after_ms;
 } stage_t;
 
-/* Bậc chưa chạy và còn việc, theo thứ tự; trả số bậc. */
+/* Stages not yet run that still have work, in order; returns the count. */
 static size_t pending_stages(const ink_display_policy_state_t *state, stage_t out_stages[3]) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint8_t                      done   = state->priv.stages_done;
@@ -509,7 +509,7 @@ static bool cleanup_action(ink_display_policy_action_t action) {
         || action == INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG;
 }
 
-/* Điểm trắng cạnh tâm viền tối, điểm đen cạnh tâm viền sáng (US 11,568,827, cột 12). */
+/* White pixels next to a dark-edge center, black pixels next to a light-edge center (US 11,568,827, col. 12). */
 static bool near_matching_center(const ink_display_policy_state_t *state, const uint8_t *shown, uint32_t x, uint32_t y) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint8_t                      want   = is_white(config, shown, x, y) ? FLAG_DARK : FLAG_LIGHT;

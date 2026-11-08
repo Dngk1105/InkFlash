@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 #include "ink_display.h"
 
 #include "esp_check.h"
@@ -12,7 +12,8 @@
 
 static const char *TAG = "ink_display";
 
-/* Mặc định của cài đặt (display.md, "Cài đặt và báo cáo"); chưa đo, chỉnh bằng firmware test. */
+/* Default options (display.md, options and report section).
+ * REVIEW(display): defaults are not measured yet; tune them with the bench firmware. */
 #define DEFAULT_WEIGHT_TEXT      1
 #define DEFAULT_WEIGHT_UI        2
 #define DEFAULT_WEIGHT_PAGE      1
@@ -27,17 +28,17 @@ static const char *TAG = "ink_display";
 #define DEFAULT_STRONG_MS        60000
 #define DEFAULT_POWER_OFF_MS     4000
 
-#define DEFAULT_CELSIUS     25    /* chưa đọc được cảm biến lần nào */
-#define MIN_TRUSTED_CELSIUS (-10) /* ngoài khoảng này coi như cảm biến đọc sai */
+#define DEFAULT_CELSIUS     25    /* sensor not read yet */
+#define MIN_TRUSTED_CELSIUS (-10) /* readings outside this range are treated as sensor errors */
 #define MAX_TRUSTED_CELSIUS 60
-#define TASK_STACK_BYTES    4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
+#define TASK_STACK_BYTES    4096 /* stack in internal RAM (xTaskCreatePinnedToCore default) */
 #define TASK_PRIORITY       5
 
-/* Thông báo cho task màn (bit của task notification). */
+/* Notifications to the display task (task notification bits). */
 #define NOTIFY_FRAME   (1U << 0)
 #define NOTIFY_OPTIONS (1U << 1)
 
-/* ---- Trạng thái ---- */
+/* ---- State ---- */
 
 typedef struct {
     uint8_t             *buffer;
@@ -55,19 +56,19 @@ static TaskHandle_t                  s_task;
 static size_t                        s_frame_bytes;
 static frame_t                       s_frames[INK_FRAME_SLOTS_COUNT];
 
-/* s_lock giữ s_slots và s_requested_options: task main và task màn cùng đụng. */
+/* s_lock guards s_slots and s_requested_options: both the main task and the display task touch them. */
 static portMUX_TYPE            s_lock = portMUX_INITIALIZER_UNLOCKED;
 static ink_frame_slots_state_t s_slots;
 static ink_display_options_t   s_requested_options;
 
-/* Chỉ task màn đụng. */
+/* Display task only. */
 static ink_display_policy_state_t s_policy;
-static ink_display_options_t      s_options;   /* cài đặt đang dùng */
-static uint8_t                   *s_old_plane; /* mặt phẳng cũ dựng riêng (dọn) */
-static uint8_t                   *s_pixels;    /* trạng thái từng điểm của policy, PSRAM */
+static ink_display_options_t      s_options;   /* options in effect */
+static uint8_t                   *s_old_plane; /* separate old plane (cleanup) */
+static uint8_t                   *s_pixels;    /* policy pixel_state, PSRAM */
 static int8_t                     s_celsius = DEFAULT_CELSIUS;
-static bool                       s_power_on;      /* đã vẽ từ lần tắt nguồn gần nhất */
-static uint32_t                   s_last_drive_ms; /* DRF gần nhất */
+static bool                       s_power_on;      /* drawn since the last analog power off */
+static uint32_t                   s_last_drive_ms; /* latest DRF */
 
 static void lock(void) {
     taskENTER_CRITICAL(&s_lock);
@@ -81,7 +82,7 @@ static uint32_t now_ms(void) {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-/* ---- Cài đặt ---- */
+/* ---- Options ---- */
 
 static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight, bool marks_edges) {
     ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight, .marks_edges = marks_edges};
@@ -110,7 +111,7 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
         [INK_HAL_DISPLAY_PURPOSE_PAGE] = DEFAULT_WEIGHT_PAGE,
     };
     for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        /* Chỉ UI: trang chữ đánh dấu hàng nghìn cờ, lượt dọn tâm viền làm cả trang chớp lấm tấm */
+        /* UI only: a text page sets thousands of edge flags, and the edge center cleanup then speckles the whole page */
         const bool marks_edges   = purpose == INK_HAL_DISPLAY_PURPOSE_UI;
         options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], debt_weights[purpose], marks_edges);
     }
@@ -146,7 +147,7 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
     };
 }
 
-/* Thử config của policy trên một state tạm: cùng luật kiểm với lúc áp dụng. */
+/* Try the policy config on a scratch state: same checks as when it is applied. */
 static bool options_valid(const ink_display_options_t *options, const ink_hal_display_capabilities_t *capabilities) {
     for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
         const uint8_t count = options->presets[purpose].band_count;
@@ -171,7 +172,7 @@ esp_err_t ink_display_set_options(const ink_display_options_t *options) {
     return ESP_OK;
 }
 
-/* ---- Mượn và giao khung (task main) ---- */
+/* ---- Acquire and submit (main task) ---- */
 
 uint8_t *ink_display_acquire(void) {
     if (s_task == nullptr) { return nullptr; }
@@ -183,7 +184,7 @@ uint8_t *ink_display_acquire(void) {
 
     frame_t *frame    = &s_frames[lease.frame];
     frame->acquire_us = esp_timer_get_time();
-    /* Chép ngoài lock: khung copy_from chỉ được trả về trống khi đã có khung mới hơn được giao. */
+    /* Copy outside the lock: frame copy_from becomes free only after a newer frame is submitted. */
     if (lease.fill == INK_FRAME_SLOTS_FILL_WHITE) {
         memset(frame->buffer, 0xFF, s_frame_bytes);
     } else if (lease.fill == INK_FRAME_SLOTS_FILL_COPY) {
@@ -214,7 +215,7 @@ esp_err_t ink_display_submit(uint8_t *buffer, uint32_t input_ms, ink_display_int
     return ESP_OK;
 }
 
-/* ---- Profile theo preset và nhiệt độ (task màn) ---- */
+/* ---- Profile from preset and temperature (display task) ---- */
 
 static bool band_profile(const ink_hal_display_band_t *bands, uint8_t count, int8_t celsius, uint16_t *out_id) {
     if (count == 0) { return false; }
@@ -224,7 +225,7 @@ static bool band_profile(const ink_hal_display_band_t *bands, uint8_t count, int
             return true;
         }
     }
-    *out_id = bands[count - 1].profile_id; /* nóng hơn dải cuối: dùng dải cuối */
+    *out_id = bands[count - 1].profile_id; /* above the last band: use the last band */
     return true;
 }
 
@@ -239,7 +240,7 @@ static bool index_of(uint16_t id, size_t *out_index) {
     return false;
 }
 
-/* Index profile của mục đích ở nhiệt độ hiện tại; id không còn trong danh sách thì dùng mặc định của driver. */
+/* Profile index for the purpose at the current temperature; unknown profile id -> driver default. */
 static size_t profile_for(ink_hal_display_purpose_t purpose, uint16_t *out_id) {
     const ink_display_preset_t *preset = &s_options.presets[purpose];
     size_t                      index  = 0;
@@ -257,7 +258,7 @@ static void read_temperature(ink_display_report_t *report) {
         ESP_LOGW(TAG, "read_temperature: %s", esp_err_to_name(error));
         return;
     }
-    /* số ngoài dải hoạt động của panel coi là đọc sai, không dùng để chọn profile */
+    /* a value outside the panel operating range is a bad reading; not used to pick a profile */
     if (report->temperature_celsius < MIN_TRUSTED_CELSIUS || report->temperature_celsius > MAX_TRUSTED_CELSIUS) {
         ESP_LOGW(TAG, "nhiệt độ %d °C ngoài dải tin được, giữ %d °C", report->temperature_celsius, s_celsius);
         return;
@@ -265,12 +266,12 @@ static void read_temperature(ink_display_report_t *report) {
     s_celsius = report->temperature_celsius;
 }
 
-/* ---- Áp dụng cài đặt (task màn) ---- */
+/* ---- Apply options (display task) ---- */
 
 static void apply_options(const ink_display_options_t *options) {
     s_options                                = *options;
     const ink_display_policy_config_t config = policy_config(&s_device.capabilities, options);
-    /* options đã kiểm ở ink_display_set_options() */
+    /* options already checked in ink_display_set_options() */
     if (ink_display_policy_set_config(&s_policy, &config) != INK_DISPLAY_POLICY_OK) { ESP_LOGE(TAG, "policy config"); }
 }
 
@@ -281,9 +282,9 @@ static void apply_requested_options(void) {
     apply_options(&options);
 }
 
-/* ---- Khung (task màn) ---- */
+/* ---- Frames (display task) ---- */
 
-/* Ảnh đang hiện trên màn, hoặc nullptr khi chưa biết. */
+/* Image on the panel, or NULL when unknown. */
 static const uint8_t *shown_buffer(void) {
     lock();
     const int8_t shown = ink_frame_slots_shown(&s_slots);
@@ -298,7 +299,7 @@ static int8_t take_frame(void) {
     return frame;
 }
 
-/* Khung vừa lấy ra thành khung đang hiện (`show`), hoặc trả về trống. */
+/* The taken frame becomes the shown frame (`show`), or is released. */
 static void finish_frame(int8_t frame, bool show) {
     lock();
     const ink_frame_slots_error_t error = show ? ink_frame_slots_show(&s_slots, frame) : ink_frame_slots_release(&s_slots, frame);
@@ -346,7 +347,7 @@ static void notify_drawn(ink_display_report_t *report) {
     if (s_on_drawn != nullptr) { s_on_drawn(report, s_user_data); }
 }
 
-/* Đọc nhiệt độ nếu cần, chọn profile theo preset của mục đích, gọi driver. */
+/* Read the temperature if needed, pick the profile from the purpose preset, call the driver. */
 static esp_err_t drive(ink_hal_display_purpose_t purpose, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
                        ink_display_report_t *report) {
     const bool whole_clean = purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG || purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST;
@@ -370,7 +371,7 @@ static void power_off(ink_display_report_t *report) {
     if (report->error != ESP_OK) { ESP_LOGE(TAG, "power_off: %s", esp_err_to_name(report->error)); }
 }
 
-/* Policy chọn cách vẽ, rồi driver vẽ; report ghi lại kết quả. Trả false nếu policy lỗi (khung không vẽ). */
+/* Policy decides, then the driver draws; the report records the result. Returns false on a policy error (frame not drawn). */
 static bool draw_frame(const frame_t *frame, ink_display_report_t *report) {
     const uint8_t                     *shown   = shown_buffer();
     const ink_display_policy_request_t request = {.intent = frame->intent, .flags = frame->flags};
@@ -408,7 +409,7 @@ static void draw_latest(void) {
         ESP_LOGE(TAG, "policy decide");
         finish_frame(index, false);
     } else {
-        /* Vẽ xong hay lỗi, khung mới đều là khung đang hiện; lỗi thì lần sau dọn mạnh. */
+        /* Drawn or failed, the new frame becomes the shown frame; on failure the next decide is cleanup strong. */
         finish_frame(index, true);
         if (report.error != ESP_OK) {
             ESP_LOGE(TAG, "draw: %s", esp_err_to_name(report.error));
@@ -423,9 +424,9 @@ static void draw_latest(void) {
     }
 }
 
-/* ---- Thang dọn và tắt nguồn khi nghỉ (task màn) ---- */
+/* ---- Idle cleanup stages and power off (display task) ---- */
 
-/* Một lượt dọn: mặt phẳng mới là khung đang hiện, mặt phẳng cũ đảo bit ở các điểm được dọn. */
+/* One cleanup: new plane = shown frame, old plane = shown frame with the cleaned pixels inverted. */
 static void run_cleanup(ink_display_policy_action_t action) {
     const uint8_t *shown = shown_buffer();
     if (shown == nullptr) { return; }
@@ -453,7 +454,7 @@ static uint32_t power_off_wait_ms(uint32_t now) {
     return idle_ms >= s_options.power_off_ms ? 0 : s_options.power_off_ms - idle_ms;
 }
 
-/* Làm một bậc đã tới hạn (dọn hoặc tắt nguồn); trả số ms tới bậc sau. */
+/* Run one due stage (cleanup or power off); returns ms until the next stage. */
 static uint32_t run_idle(void) {
     const uint32_t            now = now_ms();
     ink_display_policy_idle_t idle;
@@ -476,7 +477,7 @@ static TickType_t ticks_for(uint32_t wait_ms) {
     return wait_ms == INK_DISPLAY_POLICY_WAIT_FOREVER ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms) + 1;
 }
 
-/* Khung mới luôn được ưu tiên: mỗi vòng chỉ làm tối đa một lượt dọn, rồi xem lại thông báo. */
+/* New frames always win: at most one cleanup per loop, then check notifications again. */
 static void task_main(void *user_data) {
     (void)user_data;
     uint32_t wait_ms = INK_DISPLAY_POLICY_WAIT_FOREVER;
@@ -489,7 +490,7 @@ static void task_main(void *user_data) {
     }
 }
 
-/* ---- Khởi động ---- */
+/* ---- Start ---- */
 
 static esp_err_t check_config(const ink_display_config_t *config) {
     ESP_RETURN_ON_FALSE(config != nullptr && config->device != nullptr && config->device->operations != nullptr, ESP_ERR_INVALID_ARG, TAG,
@@ -516,7 +517,7 @@ static void free_buffers(void) {
     s_pixels    = nullptr;
 }
 
-/* 3 khung và mặt phẳng cũ trong RAM nội (driver gửi qua SPI DMA); trạng thái từng điểm trong PSRAM (chỉ CPU đọc). */
+/* WARN: the 3 frames and the old plane stay in internal RAM (the driver sends them by SPI DMA); pixel_state in PSRAM (CPU only). */
 static esp_err_t allocate_buffers(size_t pixel_count) {
     for (int i = 0; i < INK_FRAME_SLOTS_COUNT; i++) {
         s_frames[i] = (frame_t){.buffer = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT)};
@@ -537,7 +538,7 @@ static esp_err_t allocate_buffers(size_t pixel_count) {
     return ESP_OK;
 }
 
-/* Màn nền đã vẽ trước khi ngủ thành khung 0, coi là khung đang hiện. */
+/* The background frame drawn before sleep becomes frame 0, the shown frame. */
 static void restore_background(const uint8_t *background) {
     memcpy(s_frames[0].buffer, background, s_frame_bytes);
     if (ink_frame_slots_assume_shown(&s_slots, 0) != INK_FRAME_SLOTS_OK) { ESP_LOGE(TAG, "frame_slots assume_shown"); }
