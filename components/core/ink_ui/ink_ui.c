@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/ui-canvas.md */
+/* Design: docs/design/ui-canvas.md */
 #include "ink_ui.h"
 
 #define REPLACEMENT_CODEPOINT 0x3F /* '?' */
@@ -19,7 +19,7 @@ void ink_ui_clear(ink_ui_canvas_t *canvas, ink_ui_color_t color) {
     for (size_t i = 0; i < INK_UI_BUFFER_SIZE; i++) { canvas->priv.buffer[i] = fill; }
 }
 
-/* Toạ độ đã nằm trong màn. */
+/* Coordinates already inside the canvas. */
 static void put_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_color_t color) {
     int32_t column;
     int32_t row;
@@ -44,6 +44,8 @@ void ink_ui_set_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_colo
     put_pixel(canvas, x, y, color);
 }
 
+/* PERF(ui): one put_pixel() per pixel, rotation branch included; not measured. A full clear goes through
+ * ink_ui_clear() instead. */
 void ink_ui_fill_rect(ink_ui_canvas_t *canvas, int32_t x, int32_t y, int32_t width, int32_t height, ink_ui_color_t color) {
     if (canvas == nullptr || width <= 0 || height <= 0) { return; }
     const int64_t left   = x < 0 ? 0 : x;
@@ -63,15 +65,15 @@ void ink_ui_draw_rect(ink_ui_canvas_t *canvas, int32_t x, int32_t y, int32_t wid
     ink_ui_fill_rect(canvas, x + width - 1, y + 1, 1, height - 2, color);
 }
 
-/* ---- Giải mã UTF-8 ---- */
+/* ---- UTF-8 decoding ---- */
 
 static bool is_continuation(uint8_t byte) {
     return (byte & 0xC0) == 0x80;
 }
 
 /*
- * Trả mã Unicode tại *text và đẩy *text qua đoạn đã đọc. Đoạn lỗi trả '?' và
- * nuốt cả các byte tiếp theo nó, để một ký tự hỏng chỉ ra một '?'.
+ * Return the codepoint at *text and advance *text past it. An invalid sequence returns '?' and also consumes the
+ * continuation bytes after it, so one broken character gives exactly one '?'.
  */
 static uint32_t decode_next(const char **text) {
     const uint8_t *p     = (const uint8_t *)*text;
@@ -95,7 +97,7 @@ static uint32_t decode_next(const char **text) {
         codepoint = lead & 0x07u;
         minimum   = 0x10000;
     } else {
-        extra     = 0; /* byte tiếp lẻ hoặc byte đầu không dùng trong UTF-8 */
+        extra     = 0; /* lone continuation byte, or a lead byte UTF-8 never uses */
         codepoint = 0;
         minimum   = 0;
     }
@@ -111,7 +113,7 @@ static uint32_t decode_next(const char **text) {
     return codepoint;
 }
 
-/* ---- Chữ ---- */
+/* ---- Text ---- */
 
 static const ink_ui_glyph_t *find_glyph(const ink_ui_font_t *font, uint32_t codepoint) {
     if (codepoint > UINT16_MAX) { return nullptr; }

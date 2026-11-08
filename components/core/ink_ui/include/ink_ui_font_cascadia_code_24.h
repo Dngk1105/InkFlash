@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/ui-canvas.md */
+/* Design: docs/design/ui-canvas.md */
 #pragma once
 
 #include "ink_ui.h"
