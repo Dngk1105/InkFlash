@@ -16,7 +16,8 @@ SCAN_DIRS = ["main", "components", "templates", "cmake", "tools", "test/host"]
 SKIP_DIRS = {"build", "managed_components", ".git", "__pycache__"}
 CODE_EXT = (".c", ".h")
 DESIGN_EXT = (".c", ".h", ".cmake", ".py")
-DESIGN_RE = re.compile(r"Thiết kế: (docs/[\w/.-]+\.md)")
+# "Design:" là mẫu mới (comment tiếng Anh); "Thiết kế:" còn ở các khối chưa chuyển.
+DESIGN_RE = re.compile(r"(?:Design|Thiết kế): (docs/[\w/.-]+\.md)")
 
 # API cấm (docs/design/esp-idf-api.md): (regex, gợi ý)
 BANNED = [
@@ -218,6 +219,16 @@ def check_format(files):
             err(path, 0, f"sai định dạng; sửa bằng: clang-format -i {os.path.relpath(path, ROOT)}")
 
 
+def check_terms():
+    """Thuật ngữ, comment tiếng Anh, tag, Doxygen trong scope của docs/glossary.yaml (tools/terms.py)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import terms
+        errors.extend(terms.run_check())
+    except SystemExit as e:  # thiếu PyYAML hoặc glossary hỏng
+        errors.append(f"tools/terms.py: {e}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -235,6 +246,7 @@ def main():
     for comp in component_dirs():
         check_component(comp)
     check_format(code_files)
+    check_terms()
 
     if errors:
         print("\n".join(errors))
