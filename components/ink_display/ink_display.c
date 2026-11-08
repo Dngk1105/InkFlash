@@ -8,6 +8,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "ink_frame_slots.h"
+#include "ink_platform.h"
 #include <string.h>
 
 static const char *TAG = "ink_display";
@@ -50,7 +51,7 @@ typedef struct {
 } frame_t;
 
 static ink_hal_display_device_t      s_device;
-static ink_display_report_callback_t s_on_drawn;
+static ink_display_report_callback_t s_on_report;
 static void                         *s_user_data;
 static TaskHandle_t                  s_task;
 static size_t                        s_frame_bytes;
@@ -76,10 +77,6 @@ static void lock(void) {
 
 static void unlock(void) {
     taskEXIT_CRITICAL(&s_lock);
-}
-
-static uint32_t now_ms(void) {
-    return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
 /* ---- Options ---- */
@@ -342,9 +339,9 @@ static void fill_policy_stats(ink_display_report_t *report) {
     report->flagged_count = ink_display_policy_flagged_count(&s_policy);
 }
 
-static void notify_drawn(ink_display_report_t *report) {
+static void notify_report(ink_display_report_t *report) {
     fill_policy_stats(report);
-    if (s_on_drawn != nullptr) { s_on_drawn(report, s_user_data); }
+    if (s_on_report != nullptr) { s_on_report(report, s_user_data); }
 }
 
 /* Read the temperature if needed, pick the profile from the purpose preset, call the driver. */
@@ -359,7 +356,7 @@ static esp_err_t drive(ink_hal_display_purpose_t purpose, const uint8_t *plane_n
     const esp_err_t error = s_device.operations->draw(s_device.context, plane_new, plane_old, window, index,
                                                       &s_options.presets[purpose].config, &report->driver);
     s_power_on            = true;
-    s_last_drive_ms       = now_ms();
+    s_last_drive_ms       = ink_platform_now_ms();
     return error;
 }
 
@@ -376,7 +373,7 @@ static bool draw_frame(const frame_t *frame, ink_display_report_t *report) {
     const uint8_t                     *shown   = shown_buffer();
     const ink_display_policy_request_t request = {.intent = frame->intent, .flags = frame->flags};
     ink_display_policy_decision_t      decision;
-    if (ink_display_policy_decide(&s_policy, shown, frame->buffer, request, now_ms(), &decision) != INK_DISPLAY_POLICY_OK) {
+    if (ink_display_policy_decide(&s_policy, shown, frame->buffer, request, ink_platform_now_ms(), &decision) != INK_DISPLAY_POLICY_OK) {
         report->error = ESP_ERR_INVALID_STATE;
         return false;
     }
@@ -416,11 +413,11 @@ static void draw_latest(void) {
             ink_display_policy_invalidate(&s_policy);
         }
     }
-    notify_drawn(&report);
+    notify_report(&report);
     if ((frame->flags & INK_DISPLAY_FLAG_BEFORE_SLEEP) != 0) {
         ink_display_report_t off = {.take_us = esp_timer_get_time()};
         power_off(&off);
-        notify_drawn(&off);
+        notify_report(&off);
     }
 }
 
@@ -445,7 +442,7 @@ static void run_cleanup(ink_display_policy_action_t action) {
     } else if (ink_display_policy_cleanup_done(&s_policy, action) != INK_DISPLAY_POLICY_OK) {
         ESP_LOGE(TAG, "cleanup done");
     }
-    if (window.width > 0) { notify_drawn(&report); }
+    if (window.width > 0) { notify_report(&report); }
 }
 
 static uint32_t power_off_wait_ms(uint32_t now) {
@@ -456,7 +453,7 @@ static uint32_t power_off_wait_ms(uint32_t now) {
 
 /* Run one due stage (cleanup or power off); returns ms until the next stage. */
 static uint32_t run_idle(void) {
-    const uint32_t            now = now_ms();
+    const uint32_t            now = ink_platform_now_ms();
     ink_display_policy_idle_t idle;
     if (ink_display_policy_idle(&s_policy, now, &idle) != INK_DISPLAY_POLICY_OK) { return INK_DISPLAY_POLICY_WAIT_FOREVER; }
     if (idle.action != INK_DISPLAY_POLICY_ACTION_NONE) {
@@ -467,7 +464,7 @@ static uint32_t run_idle(void) {
     if (power_wait == 0) {
         ink_display_report_t report = {.take_us = esp_timer_get_time()};
         power_off(&report);
-        notify_drawn(&report);
+        notify_report(&report);
         return idle.wait_ms;
     }
     return idle.wait_ms < power_wait ? idle.wait_ms : power_wait;
@@ -550,7 +547,7 @@ esp_err_t ink_display_start(const ink_display_config_t *config) {
     ESP_RETURN_ON_ERROR(check_config(config), TAG, "config");
     const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
     s_device                                           = *config->device;
-    s_on_drawn                                         = config->on_report;
+    s_on_report                                         = config->on_report;
     s_user_data                                        = config->user_data;
     s_options     = config->options != nullptr ? *config->options : ink_display_default_options(capabilities);
     s_frame_bytes = ((size_t)capabilities->width + 7) / 8 * capabilities->height;
