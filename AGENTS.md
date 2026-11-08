@@ -29,7 +29,7 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 
 | Việc | Đọc trước |
 |---|---|
-| Comment trong code (tiếng Anh, Doxygen, tag `TODO`/`FIXME`/`REVIEW`/`EXTEND`/`WARN`) | `docs/writing-comments.md` |
+| Comment trong code (tiếng Anh, Doxygen, tag `TODO`/`FIXME`/`BUG`/`HACK`/`PERF`/`REVIEW`/`EXTEND`/`WARN`/`NOTE`) | `docs/writing-comments.md` |
 | Docs (tiếng Việt, thuật ngữ tiếng Anh, 5C) | `docs/writing-docs.md` |
 | Thuật ngữ, đổi tên identifier | `docs/glossary.yaml` |
 | Visualize, file mô phỏng (`*_sim.html`) | `docs/writing-visualizations.md` |
@@ -37,3 +37,5 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Chat với người làm: tiếng Việt, câu ngắn, thuật ngữ viết đúng `term` trong `docs/glossary.yaml`. Không dịch `frame`, `display task`, `debt`... sang tiếng Việt.
 - Trước khi báo xong: `python tools/terms.py check` (thuật ngữ, comment, tag, Doxygen) và `python tools/check.py` phải qua. Cả hai cần PyYAML, có sẵn trong terminal ESP-IDF.
 - Đổi tên identifier: sửa `docs/glossary.yaml`, rồi `python tools/terms.py rename` (xem diff), `--apply` (ghi). Không đổi tên bằng tay.
+- Thấy việc còn thiếu, lỗi, chỗ tạm, chỗ chậm, chỗ cần người làm duyệt khi đang sửa code: gắn tag ngay tại dòng đó
+  (bảng "Tag việc dở" trong `docs/writing-comments.md`), không cần hỏi trước.

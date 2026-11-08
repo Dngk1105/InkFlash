@@ -31,7 +31,7 @@
   "doxdocgen.generic.returnTemplate": "@retval {type} ",
   "doxdocgen.generic.includeTypeAtReturn": false,
   "doxdocgen.generic.boolReturnsTrueFalse": true,
-  "todo-tree.general.tags": ["TODO", "FIXME", "REVIEW", "EXTEND", "WARN"],
+  "todo-tree.general.tags": ["TODO", "FIXME", "BUG", "HACK", "PERF", "REVIEW", "EXTEND", "WARN", "NOTE"],
   "todo-tree.regex.regex": "((//|#|<!--|;|/\\*|^\\s*\\*|^)\\s*($TAGS))",
   "todo-tree.filtering.includeGlobs": ["**/main/**", "**/components/**", "**/templates/**", "**/tools/*.py", "**/test/**"],
   "todo-tree.filtering.excludeGlobs": ["**/build/**", "**/build-host/**", "**/managed_components/**"],
@@ -40,10 +40,14 @@
   "todo-tree.highlights.defaultHighlight": { "type": "tag", "gutterIcon": true },
   "todo-tree.highlights.customHighlight": {
     "TODO": { "icon": "checklist", "foreground": "#268BD2", "iconColour": "#268BD2" },
-    "FIXME": { "icon": "bug", "foreground": "#DC322F", "iconColour": "#DC322F" },
+    "FIXME": { "icon": "tools", "foreground": "#DC322F", "iconColour": "#DC322F" },
+    "BUG": { "icon": "bug", "foreground": "#D33682", "iconColour": "#D33682" },
+    "HACK": { "icon": "flame", "foreground": "#B58900", "iconColour": "#B58900" },
+    "PERF": { "icon": "zap", "foreground": "#2AA198", "iconColour": "#2AA198" },
     "REVIEW": { "icon": "eye", "foreground": "#6C71C4", "iconColour": "#6C71C4" },
     "EXTEND": { "icon": "plug", "foreground": "#859900", "iconColour": "#859900" },
-    "WARN": { "icon": "alert", "foreground": "#CB4B16", "iconColour": "#CB4B16" }
+    "WARN": { "icon": "alert", "foreground": "#CB4B16", "iconColour": "#CB4B16" },
+    "NOTE": { "icon": "info", "foreground": "#93A1A1", "iconColour": "#93A1A1" }
   },
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"

@@ -104,27 +104,46 @@ clangd (`esp-clangd 21.1.3`) hiện comment `/** */` khi hover vào hàm, struct
 
 ## Tag việc dở
 
-Docs chỉ mô tả kiến trúc hiện tại. Việc còn thiếu, lỗi đã biết, chỗ cần duyệt, điểm mở rộng ghi bằng comment có tag, ngay tại dòng code liên quan.
+Docs chỉ mô tả kiến trúc hiện tại. Việc còn thiếu, lỗi, chỗ cần duyệt, điểm mở rộng ghi bằng comment có tag, ngay tại
+dòng code liên quan. Người và agent cứ gắn tag khi thấy cần; thừa một tag còn hơn quên một việc.
 
-| Tag | Nghĩa | Ví dụ |
+| Tag | Dùng khi | Ví dụ |
 |---|---|---|
-| `TODO` | Thiếu chức năng | `/* TODO(display): partial draw for windows narrower than 8 px. */` |
-| `FIXME` | Lỗi đã biết, chưa sửa | `/* FIXME(drv_uc8253): needs_reset not cleared after a timeout in power_off. */` |
-| `REVIEW` | Cần người làm duyệt hoặc tối ưu | `/* REVIEW(frame_slots): lock held across 2 calls; measure wait time. */` |
-| `EXTEND` | Chỗ nối khi mở rộng | `/* EXTEND(input): add IMU source to this switch. */` |
-| `WARN` | Ràng buộc nguy hiểm, giữ lâu dài | `/* WARN: DMA reads this buffer; keep it in internal RAM. */` |
+| `TODO` | Chức năng còn thiếu, đã biết cần làm gì | `/* TODO(display): partial draw for windows narrower than 8 px. */` |
+| `FIXME` | Lỗi đã biết nguyên nhân, chưa sửa | `/* FIXME(input): edge lost when both buttons change in the same tick. */` |
+| `BUG` | Lỗi đã thấy, chưa rõ nguyên nhân | `/* BUG(drv_uc8253): BUSY stays low ~1/200 draws at 5 °C; cause unknown. */` |
+| `HACK` | Cách làm tạm, chạy được nhưng không đúng; ghi cách đúng | `/* HACK(display): fixed 20 ms delay; should wait for the BUSY edge. */` |
+| `PERF` | Chỗ chậm hoặc tốn bộ nhớ, có số đo | `/* PERF(display_policy): 11 ms per full page; PSRAM reads dominate. */` |
+| `REVIEW` | Cần người làm duyệt quyết định, hoặc chọn giữa các cách | `/* REVIEW(display): defaults not measured; tune with the bench firmware. */` |
+| `EXTEND` | Chỗ nối khi mở rộng sau này | `/* EXTEND(input): add the IMU source to this switch. */` |
+| `WARN` | Ràng buộc nguy hiểm, giữ lâu dài; sửa sai là hỏng | `/* WARN: DMA reads this buffer; keep it in internal RAM. */` |
+| `NOTE` | Điều không hiển nhiên người sửa phải biết, nhưng không nguy hiểm | `/* NOTE: UC8253 swaps the two RAM areas after every DRF. */` |
 
 Ví dụ trong bảng chỉ minh hoạ mẫu viết, không phải việc có thật trong code.
 
-- Mẫu bắt buộc: `TAG(scope): <việc>.` `scope` là `id` của module trong glossary (`display`, `frame_slots`, `drv_uc8253`...). `WARN` được bỏ `scope`.
-- Nội dung phải kiểm được: có số, điều kiện, hoặc tên hàm. Viết "fix later" là sai.
-- Tag khác (`XXX`, `HACK`, `BUG`, `NOTE`) bị `terms.py check` báo lỗi.
-- Làm xong việc thì xoá tag trong cùng commit.
+### Chọn tag khi phân vân
+
+| Phân vân giữa | Chọn |
+|---|---|
+| `FIXME` hay `BUG` | Biết nguyên nhân: `FIXME`. Chưa biết: `BUG`, tìm ra nguyên nhân thì đổi sang `FIXME` |
+| `TODO` hay `EXTEND` | Phải làm để chức năng hiện tại đủ: `TODO`. Chỉ cần khi thêm tính năng mới: `EXTEND` |
+| `HACK` hay `FIXME` | Code chạy đúng nhưng cách làm xấu: `HACK`. Code chạy sai: `FIXME` |
+| `WARN` hay `NOTE` | Sửa sai thì hỏng (dữ liệu, phần cứng, giao thức): `WARN`. Chỉ để hiểu nhanh hơn: `NOTE` |
+| `REVIEW` hay `TODO` | Chưa biết nên làm gì, cần người làm quyết: `REVIEW`. Đã biết làm gì: `TODO` |
+
+### Cách viết
+
+- Mẫu: `TAG(scope): <việc>.` hoặc `TAG: <việc>.` `scope` nên có, là `id` của module trong glossary (`display`,
+  `frame_slots`, `drv_uc8253`...), để lọc trong TODO Tree. `terms.py check` chỉ bắt buộc dấu `:` sau tag.
+- Nội dung kiểm được: có số, điều kiện, hoặc tên hàm. "fix later" không đủ.
+- Làm xong việc thì xoá tag trong cùng commit. `WARN` và `NOTE` giữ lâu dài.
+- Cần tag mới: thêm vào bảng trên, vào `TAGS` trong `tools/terms.py`, và vào `todo-tree.general.tags` trong
+  `.vscode/settings.json`, trong cùng commit. Tag không có trong TODO Tree sẽ không hiện ở sidebar.
 
 ### Theo dõi tag bằng TODO Tree
 
 Cài extension `Gruntfuggly.todo-tree`. Cấu hình đã có trong `.vscode/settings.json`.
 
-- Sidebar TODO Tree liệt kê tag theo nhóm `TODO`, `FIXME`, `REVIEW`, `EXTEND`, `WARN`, kèm số lượng.
+- Sidebar TODO Tree liệt kê tag theo nhóm 9 tag ở bảng trên, kèm số lượng.
 - Chỉ quét `main/`, `components/`, `templates/`, `tools/*.py`, `test/`. Docs không bị quét, vì docs có ví dụ tag.
 - Tag nằm trong comment Doxygen nhiều dòng (` * TODO(...)`) cũng được nhận.

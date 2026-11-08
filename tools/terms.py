@@ -19,9 +19,9 @@ GLOSSARY = "docs/glossary.yaml"
 TEXT_EXT = (".c", ".h", ".md", ".py", ".txt", ".cmake", ".yaml", ".yml", ".json", ".html", ".js")
 CODE_EXT = (".c", ".h")
 
-TAGS_ALLOWED = ("TODO", "FIXME", "REVIEW", "EXTEND", "WARN")
-TAGS_BANNED = ("XXX", "HACK", "BUG", "NOTE", "NOTICE", "OPTIMIZE")
-TAG_RE = re.compile(r"(?<![@\w])(" + "|".join(TAGS_ALLOWED + TAGS_BANNED) + r")\b(\([\w./-]+\))?(:)?")
+# Tags listed in docs/writing-comments.md and in TODO Tree (.vscode/settings.json). Keep the three lists in sync.
+TAGS = ("TODO", "FIXME", "BUG", "HACK", "PERF", "REVIEW", "EXTEND", "WARN", "NOTE")
+TAG_RE = re.compile(r"(?<![@\w])(" + "|".join(TAGS) + r")\b(\([\w./-]+\))?(:)?")
 # Vietnamese letters; × (U+00D7) and ÷ (U+00F7) are math, allowed.
 VIET_RE = re.compile(r"[À-ÖØ-öø-ɏḀ-ỿ]")
 IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -146,12 +146,10 @@ def check_comment_language(rel, text, errors):
 def check_tags(rel, text, errors):
     for start, end in comment_spans(text):
         for m in TAG_RE.finditer(text, start, end):
-            tag, scope, colon = m.groups()
+            tag, _scope, colon = m.groups()
             where = f"{rel}:{line_of(text, m.start())}"
-            if tag in TAGS_BANNED:
-                errors.append(f"{where}: tag {tag} không dùng; chọn {', '.join(TAGS_ALLOWED)}")
-            elif not colon or (tag != "WARN" and not scope):
-                errors.append(f"{where}: tag sai mẫu; viết '{tag}(scope): ...'")
+            if not colon:  # without ':' TODO Tree still lists it, but the text reads as a plain word
+                errors.append(f"{where}: tag thiếu ':'; viết '{tag}: ...' hoặc '{tag}(scope): ...'")
 
 
 DECL_RE = re.compile(r"^[A-Za-z_\[][^;{}()#]*?\b([A-Za-z_]\w*)\s*\([^;{}]*\)\s*;", re.M)
