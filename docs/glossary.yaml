@@ -18,14 +18,24 @@
 # Ví dụ: term `take` -> `dequeue` thì `ink_frame_slots_take` -> `ink_frame_slots_dequeue`, chữ "take" trong docs
 # cũng đổi. Field `take_us` không nằm trong `symbols` nên giữ nguyên.
 
-# Thư mục/file được kiểm tra. Giai đoạn mẫu: khối display.
+# Thư mục/file được kiểm tra.
 scope:
   - components/core/ink_frame_slots
   - components/core/ink_display_policy
   - components/ink_display
-  - components/ink_hal/include/ink_hal_display.h
+  - components/core/ink_gesture
+  - components/core/ink_keymap
+  - components/core/ink_ui
+  - components/ink_input
+  - components/ink_hal
   - components/drivers/ink_drv_uc8253
-  - docs/design/display/display.md
+  - components/drivers/ink_drv_gpio_button
+  - components/ink_bsp
+  - components/ink_platform
+  - components/ink_system
+  - main
+  - docs/architecture.md
+  - docs/design
   - templates
 
 # Prefix của từng component. Viết chữ thường; script tự đổi cả dạng CHỮ HOA (INK_FRAME_SLOTS_*).
@@ -384,6 +394,10 @@ terms:
     term: scene
     meaning: 'một màn của app, có cùng bộ hàm như app.'
     avoid: []
+  - id: settings_app
+    term: Settings
+    meaning: 'app Cài đặt trên máy: đổi options, gesture config, keymap table; đọc ghi qua API của system.'
+    avoid: [app Cài đặt]
   - id: scene_stack
     term: scene stack
     meaning: 'stack scene của app, tối đa 4 tầng; BACK pop về scene trước.'

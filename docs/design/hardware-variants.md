@@ -20,7 +20,7 @@ không biết một máy đang chạy bản nào.
 | Bản firmware | Lấy từ `git describe`, ví dụ `v0.3-12-g8dbe279` | ESP-IDF tự gắn lúc build |
 | Board | `BB0` (breadboard), `PCB1`, `PCB2`... | In trên mặt PCB |
 
-Lúc khởi động, firmware in một dòng: bản firmware, board, các chip dò được.
+Lúc boot, firmware in một dòng: bản firmware, board, các chip dò được.
 
 ### 2. Ba mức tách phần cứng
 
@@ -29,16 +29,16 @@ Lúc khởi động, firmware in một dòng: bản firmware, board, các chip d
 | Chọn board lúc nào | Lúc build | Lúc build | Lúc chạy |
 | Số file firmware | Mỗi board một file | Mỗi board một file | Một file cho mọi board |
 | Code phân biệt board (`#if BOARD`) nằm ở | Khắp nơi | Chỉ trong `bsp/` | Không có |
-| Tầng trên biết phần cứng làm được gì nhờ | `#if` | Bảng khả năng do driver khai báo | Bảng khả năng do driver khai báo |
+| Tầng trên biết phần cứng làm được gì nhờ | `#if` | Capabilities do driver khai báo | Capabilities do driver khai báo |
 | Code của board ít dùng hỏng âm thầm | Dễ | Ít | Không |
 
-Bảng khả năng: driver tự khai báo nó làm được gì, ví dụ IMU có tự nhận cú gõ không, màn có partial refresh không,
-cỡ màn bao nhiêu. Tầng trên đọc bảng này để tự điều chỉnh, không hỏi tên chip.
+Capabilities: struct driver tự khai báo nó làm được gì, ví dụ IMU có tự nhận cú gõ không, panel có partial refresh
+không, cỡ panel bao nhiêu. Tầng trên đọc capabilities để tự điều chỉnh, không hỏi tên chip.
 
 ### 3. Đang áp dụng: mức 2, chuẩn bị sẵn cho mức 3
 
 - `#if BOARD` chỉ được viết trong `bsp/`.
-- Bảng chân GPIO là dữ liệu (một bảng cho mỗi board), không dùng `#define`.
+- Pin map là dữ liệu (một pin map cho mỗi board), không dùng `#define`.
 - Driver nhận chân qua tham số lúc khởi tạo, không tự biết chân.
 - Trước khi commit, build cho mọi board.
 
@@ -48,7 +48,7 @@ Khi có từ hai board cùng được dùng. Lúc đó:
 
 - Firmware biết board nhờ điện trở chia áp nối vào một chân ADC trên PCB. Không có điện trở thì là breadboard.
 - IMU được dò bằng chip ID trên I2C.
-- Chỉ dò ở lần khởi động nguội (cấp điện lần đầu), kết quả lưu vào RTC memory để các lần thức sau không phải dò lại.
+- Chỉ dò ở cold boot (cấp điện lần đầu), kết quả lưu vào RTC memory để các lần wake sau không phải dò lại.
 
 Vì vậy mọi bản PCB phải có điện trở chia áp ngay từ bản đầu tiên.
 

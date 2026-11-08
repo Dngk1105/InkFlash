@@ -260,7 +260,7 @@ static void read_temperature(ink_display_report_t *report) {
     }
     /* a value outside the panel operating range is a bad reading; not used to pick a profile */
     if (report->temperature_celsius < MIN_TRUSTED_CELSIUS || report->temperature_celsius > MAX_TRUSTED_CELSIUS) {
-        ESP_LOGW(TAG, "nhiệt độ %d °C ngoài dải tin được, giữ %d °C", report->temperature_celsius, s_celsius);
+        ESP_LOGW(TAG, "temperature %d °C out of trusted range, keeping %d °C", report->temperature_celsius, s_celsius);
         return;
     }
     s_celsius = report->temperature_celsius;
@@ -525,7 +525,7 @@ static esp_err_t allocate_buffers(size_t pixel_count) {
     s_old_plane = heap_caps_malloc(s_frame_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     s_pixels    = heap_caps_malloc(pixel_count, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (s_pixels == nullptr) {
-        ESP_LOGW(TAG, "không có PSRAM: trạng thái từng điểm nằm trong RAM nội");
+        ESP_LOGW(TAG, "no PSRAM: pixel_state goes to internal RAM");
         s_pixels = heap_caps_malloc(pixel_count, MALLOC_CAP_8BIT);
     }
 

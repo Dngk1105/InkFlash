@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/hardware-variants.md */
+/* Design: docs/design/hardware-variants.md */
 #include "ink_bsp.h"
 
 #include "esp_check.h"
@@ -9,12 +9,11 @@ static const char *TAG = "ink_bsp";
 
 static bool s_initialized;
 
-/* ---- Nút ---- */
+/* ---- Buttons ---- */
 
 #define BUTTON_COUNT 2
 
-/* BB0 (docs/hardware/boards/bb0.md). GPIO46 là chân strapping: chỉ dùng kéo lên
- * trong. */
+/* BB0 (docs/hardware/boards/bb0.md). WARN: GPIO46 is a strapping pin; use the internal pull-up only. */
 static const ink_drv_gpio_button_config_t s_button_pins[BUTTON_COUNT] = {
     {.pin = GPIO_NUM_8,  .active_low = true, .pull_up = true},
     {.pin = GPIO_NUM_46, .active_low = true, .pull_up = true},
@@ -39,11 +38,11 @@ esp_err_t ink_bsp_buttons(const ink_hal_button_device_t **out_devices, size_t *o
     return ESP_OK;
 }
 
-/* ---- Màn ---- */
+/* ---- Display ---- */
 
 #define DISPLAY_SPI_HOST SPI2_HOST
 
-/* BB0 (docs/hardware/boards/bb0.md). Màn chỉ ghi, không có MISO. */
+/* BB0 (docs/hardware/boards/bb0.md). The panel is write only: no MISO. */
 static const gpio_num_t s_display_sclk = GPIO_NUM_4;
 static const gpio_num_t s_display_mosi = GPIO_NUM_5;
 
@@ -78,12 +77,13 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
     return ESP_OK;
 }
 
-/* ---- Khởi tạo board ---- */
+/* ---- Board init ---- */
 
 esp_err_t ink_bsp_init(void) {
     ESP_RETURN_ON_FALSE(!s_initialized, ESP_ERR_INVALID_STATE, TAG, "already init");
     ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "gpio_install_isr_service");
     ESP_RETURN_ON_ERROR(init_buttons(), TAG, "buttons");
+    /* FIXME(bsp): a failure here leaves the ISR service, buttons or SPI bus installed; ink_bsp_init() cannot be retried. */
     ESP_RETURN_ON_ERROR(init_display(), TAG, "display");
     s_initialized = true;
     ESP_LOGI(TAG, "board BB0");

@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/tasks.md */
 #include "ink_platform.h"
 
 #include "esp_attr.h"
@@ -7,14 +7,14 @@
 
 static const char *TAG = "ink_platform";
 
-/* ---- Giờ ---- */
+/* ---- Time ---- */
 
 uint32_t IRAM_ATTR ink_platform_now_ms(void) {
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-/* ---- Timer một lần ---- */
-/* ink_platform_timer_t chính là esp_timer_handle_t, ép kiểu qua lại. */
+/* ---- One-shot timer ---- */
+/* ink_platform_timer_t is an esp_timer_handle_t, cast both ways. */
 
 esp_err_t ink_platform_timer_create(ink_platform_timer_callback_t callback, void *user_data, const char *name,
                                     ink_platform_timer_t *out_timer) {
@@ -40,6 +40,6 @@ esp_err_t ink_platform_timer_start(ink_platform_timer_t timer, uint32_t delay_ms
 esp_err_t ink_platform_timer_stop(ink_platform_timer_t timer) {
     ESP_RETURN_ON_FALSE(timer, ESP_ERR_INVALID_ARG, TAG, "null timer");
     const esp_err_t error = esp_timer_stop((esp_timer_handle_t)timer);
-    /* ESP_ERR_INVALID_STATE: timer không chạy */
+    /* ESP_ERR_INVALID_STATE: the timer is not running */
     return error == ESP_ERR_INVALID_STATE ? ESP_OK : error;
 }
