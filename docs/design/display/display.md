@@ -98,12 +98,19 @@ và old plane đảo bit:
 | Profile | Waveform, điện áp, LUT frame rate |
 | Draw config | Có vào partial mode (PTL) không, `scan_outside_window` (bit PT_SCAN), có drive border không |
 
-Mỗi purpose có một **preset**: profile theo band nhiệt độ, draw config, debt weight, và có đặt edge flag không. Preset
-nằm ở display, không nằm trong profile, nên một waveform dùng được cho nhiều purpose.
+Mỗi lần vẽ dùng một **preset**: profile theo band nhiệt độ và draw config. Vẽ frame dùng draw preset của intent
+(`TEXT`, `UI`, `PAGE`); draw preset có thêm debt weight và có đặt edge flag không. Cleanup dùng cleanup preset của
+loại cleanup (`ink_display_cleanup_t`); cleanup không cộng debt nên cleanup preset không có hai field này. Preset nằm ở
+display, không nằm trong profile, nên một waveform dùng được cho nhiều preset.
 
-| Purpose | Dùng cho | Old plane | Window |
+Intent, loại cleanup và rect nằm trong `ink_display_types.h`, header chỉ có kiểu; policy, display và HAL cùng dùng,
+không chép qua lại. Decision có `action` (`NONE`, `DRAW`, `CLEANUP`), kèm `intent` khi `DRAW` hoặc `cleanup` khi
+`CLEANUP`. Giá trị 0 của `action` và của `cleanup` là `INVALID`, nên decision quên điền bị policy và display từ chối.
+Policy tạo decision bằng hàm riêng cho từng action, không điền struct tay.
+
+| Preset | Dùng cho | Old plane | Window |
 |---|---|---|---|
-| `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
+| Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
 | `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
 | `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới đảo bit | Cả panel |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
@@ -116,6 +123,9 @@ ngay trong lần đó. Panel chớp một lần, nhưng nhanh hơn cleanup stron
 
 Drive border bật ở cleanup strong, cleanup fast và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả
 trong partial mode. `TEXT`, `UI` và các cleanup stage để border nổi.
+
+Cleanup strong và cleanup fast đọc lại nhiệt độ trước khi vẽ; bảng `READS_TEMPERATURE` trong `ink_display.c` giữ
+điều này theo loại cleanup.
 
 Old plane của mọi cleanup cả panel là frame mới đảo bit, không bao giờ là shown frame. Khi đó mọi pixel được coi là
 đổi màu, nên panel kéo hết pixel về đúng màu. Dùng shown frame thì waveform chỉ kéo pixel đổi màu, và ảnh vẫn mờ sau
@@ -265,7 +275,7 @@ Capabilities của driver:
 | `width`, `height` | Cỡ theo hướng gốc của panel, px |
 | `x_align` | Mép trái và mép phải window là bội của số này |
 | `profiles` | Id, tên, source (band TR nào của OTP, hoặc `SOURCE_CUSTOM`) và thời gian một lần vẽ của từng profile |
-| `purpose_defaults` | Với mỗi purpose: danh sách band → id profile, và draw config. Display dựng preset mặc định từ đây |
+| `draw_defaults`, `cleanup_defaults` | Với mỗi intent (bỏ `AUTO`) và mỗi loại cleanup (bỏ `INVALID`): danh sách band → id profile, và draw config. Display dựng preset mặc định từ đây |
 
 ## Profile waveform
 
@@ -311,7 +321,7 @@ edge center dài (`clean_full100`) cho viền khó thấy nhất; `tr8` đủ r�
 
 | Nơi | Nội dung | Ai tạo |
 |---|---|---|
-| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép band nào, profile custom viết bằng các pha (mức điện áp, số LUT frame), mặc định theo purpose. `waveform_view.html` cùng thư mục vẽ các band của bản dump | Dev |
+| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép band nào, profile custom viết bằng các pha (mức điện áp, số LUT frame), mặc định theo intent và loại cleanup. `waveform_view.html` cùng thư mục vẽ các band của bản dump | Dev |
 | `ink_drv_uc8253_profiles.c`: mảng C const trong flash | Sinh bằng `tools/profile_gen.py` từ nguồn trên; không sửa tay | Script, lúc dev chạy |
 
 Vẽ waveform chỉ phục vụ phát triển: thử waveform mới, đổi waveform khi đổi panel, hoặc thêm kiểu hiển thị riêng cho
@@ -359,7 +369,7 @@ sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_s
 
 | Option | Nghĩa | Mặc định |
 |---|---|---|
-| Preset của từng purpose | Danh sách band → id profile; draw config; `debt_weight` và `marks_edges` (chỉ preset của `TEXT`, `UI`, `PAGE`). Id không còn trong danh sách thì dùng mặc định của driver cho purpose đó | Mặc định theo purpose của driver; debt weight `TEXT` 1, `UI` 2, `PAGE` 1; `marks_edges` chỉ `UI` |
+| `draw_presets[intent]`, `cleanup_presets[cleanup]` | Danh sách band → id profile; draw config. Draw preset có thêm `debt_weight` và `marks_edges`. Id không còn trong danh sách thì dùng mặc định của driver cho intent hoặc cleanup đó | Mặc định của driver; debt weight `TEXT` 1, `UI` 2, `PAGE` 1; `marks_edges` chỉ `UI` |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
 | `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Debt ceiling sau idle, và debt ceiling lớn nhất trong active period | 8, 15 |
@@ -370,7 +380,7 @@ sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_s
 Các mặc định về debt và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
 
 Sau mỗi lần display task làm việc với panel (vẽ frame, một cleanup, tắt analog power), nó gọi callback `on_report`
-(nếu có) với một report gồm: action, purpose, id profile, window, nhiệt độ nếu vừa đọc, lỗi, debt lớn nhất, số pixel
+(nếu có) với một report gồm: action (thêm `POWER_OFF`), intent hoặc loại cleanup, id profile, window, nhiệt độ nếu vừa đọc, lỗi, debt lớn nhất, số pixel
 có edge flag, debt ceiling, và 6 mốc thời gian theo bảng "Một lần vẽ đi qua đâu". `input_ms` do main task đưa vào lúc
 submit; các mốc khác display tự ghi. Report là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo của bench.
 Firmware chính không in log hay giữ thống kê thời gian.

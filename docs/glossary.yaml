@@ -174,8 +174,9 @@ terms:
     avoid: [vùng đổi]
   - id: cleanup
     term: cleanup
-    meaning: 'lần vẽ không đổi ảnh, chỉ để xoá ghosting (CLEANUP_STRONG, CLEANUP_FAST, CLEAN_EDGE_*, CLEANUP_LIGHT).'
-    avoid: [dọn màn, lượt dọn, dọn]
+    meaning: 'lần vẽ không đổi ảnh, chỉ để xoá ghosting. Loại cleanup: ink_display_cleanup_t (STRONG, FAST, EDGE_CENTER, EDGE_NEIGHBOR, LIGHT).'
+    avoid: [dọn màn, lượt dọn, dọn, mục đích vẽ]
+    symbols: [ink_display_cleanup_t]
   - id: cleanup_stage
     term: cleanup stage
     meaning: 'một bậc cleanup khi idle (edge_ms, light_ms, strong_ms).'
@@ -195,18 +196,13 @@ terms:
     avoid: [mặt phẳng cũ, mặt phẳng mới, mặt phẳng]
   - id: decision
     term: decision
-    meaning: 'kết quả policy cho 1 frame: action, intent, window, old_plane.'
+    meaning: 'kết quả policy cho 1 frame: action (NONE, DRAW, CLEANUP), intent khi DRAW, cleanup khi CLEANUP, window, old_plane.'
     avoid: [cách vẽ]
 
   # ---- HAL và driver ----
-  - id: purpose
-    term: purpose
-    meaning: 'mục đích một lần vẽ (TEXT, UI, PAGE, CLEAN_*); display giữ 1 preset cho mỗi purpose.'
-    avoid: [mục đích vẽ]
-    symbols: [ink_hal_display_purpose_t]
   - id: preset
     term: preset
-    meaning: 'cấu hình vẽ của 1 purpose: bands, draw config, debt_weight, marks_edges.'
+    meaning: 'cấu hình một lần vẽ: bands, draw config. Draw preset (theo intent) có thêm debt_weight, marks_edges; cleanup preset (theo ink_display_cleanup_t) thì không.'
     avoid: []
   - id: options
     term: options
@@ -215,7 +211,7 @@ terms:
     symbols: [ink_display_options_t]
   - id: capabilities
     term: capabilities
-    meaning: 'struct driver khai báo nó làm được gì. Display: cỡ panel, x_align, profiles, purpose defaults. Button: has_interrupt.'
+    meaning: 'struct driver khai báo nó làm được gì. Display: cỡ panel, x_align, profiles, draw_defaults, cleanup_defaults. Button: has_interrupt.'
     avoid: [bảng khả năng]
     symbols: [ink_hal_display_capabilities_t]
   - id: profile
