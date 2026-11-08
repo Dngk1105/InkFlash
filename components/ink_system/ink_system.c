@@ -108,8 +108,8 @@ static esp_err_t create_queue_task(void) {
 esp_err_t ink_system_start(const ink_system_config_t *config) {
     if (config == nullptr || config->display == nullptr) { return ESP_ERR_INVALID_ARG; }
     if (s_queue != nullptr) { return ESP_ERR_INVALID_STATE; }
-    /* FIXME(system): a failure after create_queue_task() leaves the queue and task alive; a retry returns
-     * ESP_ERR_INVALID_STATE. */
+    /* NOTE: a failure after create_queue_task() leaves the queue and task alive; no retry, because a boot error is
+     * fatal (app_main aborts through ESP_ERROR_CHECK). */
     esp_err_t error = create_queue_task();
     if (error == ESP_OK) { error = ink_input_start(config->buttons, config->button_count, post_input, post_input_from_isr); }
     /* TODO(system): no snapshot yet; every boot is a cold boot (no background frame). */

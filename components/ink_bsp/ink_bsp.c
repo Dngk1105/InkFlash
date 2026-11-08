@@ -83,9 +83,13 @@ esp_err_t ink_bsp_init(void) {
     ESP_RETURN_ON_FALSE(!s_initialized, ESP_ERR_INVALID_STATE, TAG, "already init");
     ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "gpio_install_isr_service");
     ESP_RETURN_ON_ERROR(init_buttons(), TAG, "buttons");
-    /* FIXME(bsp): a failure here leaves the ISR service, buttons or SPI bus installed; ink_bsp_init() cannot be retried. */
+    /* NOTE: a failure here leaves the ISR service, buttons or SPI bus installed; no retry, because a boot error is fatal
+     * (app_main aborts through ESP_ERROR_CHECK). */
     ESP_RETURN_ON_ERROR(init_display(), TAG, "display");
     s_initialized = true;
-    ESP_LOGI(TAG, "board BB0");
     return ESP_OK;
+}
+
+const char *ink_bsp_board_name(void) {
+    return "BB0";
 }

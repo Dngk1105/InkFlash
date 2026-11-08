@@ -12,9 +12,18 @@
  * @par Called from
  * app_main, once, before any other ink_bsp function.
  * @retval ESP_ERR_INVALID_STATE already initialized.
- * @return Other codes come from the drivers, spi_bus_initialize() or gpio_install_isr_service().
+ * @return Other codes come from the drivers, spi_bus_initialize() or gpio_install_isr_service(). Any error is fatal:
+ *         nothing is rolled back, so the call cannot be retried.
  */
 esp_err_t ink_bsp_init(void);
+
+/**
+ * @brief Get the board code printed on the PCB (docs/design/hardware-variants.md), e.g. "BB0".
+ * @par Called from
+ * app_main, for the boot log line.
+ * @return Board code; never NULL.
+ */
+const char *ink_bsp_board_name(void);
 
 /**
  * @brief Get the button devices of the board; index 0 = A, 1 = B.

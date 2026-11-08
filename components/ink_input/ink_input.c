@@ -204,7 +204,7 @@ esp_err_t ink_input_start(const ink_hal_button_device_t *buttons, size_t count, 
     esp_err_t error = ink_platform_timer_create(on_timer_expired, nullptr, "gesture", &s_gesture_timer);
     if (error != ESP_OK) { return error; }
     s_buttons = buttons;
-    /* FIXME(input): a connect_buttons() failure leaves s_buttons set and the timer allocated; a retry returns
-     * ESP_ERR_INVALID_STATE. */
+    /* NOTE: a connect_buttons() failure leaves s_buttons set and the timer allocated; no retry, because a boot error
+     * is fatal (app_main aborts through ESP_ERROR_CHECK). */
     return connect_buttons(buttons);
 }
