@@ -76,4 +76,4 @@ esp_err_t ink_input_set_gesture_config(const ink_gesture_config_t *config);
  * @retval ESP_ERR_INVALID_STATE not started.
  * @retval ESP_ERR_INVALID_ARG button is not A or B, or the mask has unknown bits.
  */
-esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask);
+esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, ink_gesture_wait_mask_t wait_mask);

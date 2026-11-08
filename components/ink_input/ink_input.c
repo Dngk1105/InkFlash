@@ -104,8 +104,7 @@ static void feed_edge(const ink_gesture_event_t *event, ink_gesture_output_t *ou
         ESP_LOGE(TAG, "feed button %u", event->button);
         return;
     }
-    /* NOTE: buttons are bit codes in gesture but indexes here; see refactor-plan "button index vs bit". */
-    s_last_pressed[event->button == INK_GESTURE_BUTTON_A ? 0 : 1] = event->level == INK_GESTURE_LEVEL_PRESSED;
+    s_last_pressed[ink_gesture_index_of_button(event->button)] = event->level == INK_GESTURE_LEVEL_PRESSED;
     input_log_gestures(&gestures);
     append_gestures(out, &gestures);
 }
@@ -123,7 +122,7 @@ static bool resync_buttons(ink_gesture_output_t *out) {
         if (s_buttons[i].operations->read(s_buttons[i].context, &pressed) != ESP_OK) { continue; }
         if (pressed == s_last_pressed[i]) { continue; }
         const ink_gesture_event_t event = {
-            .button  = (ink_gesture_button_t)(1u << i),
+            .button  = ink_gesture_button_of_index((uint8_t)i),
             .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
             .time_ms = ink_platform_now_ms(),
         };
@@ -161,9 +160,9 @@ esp_err_t ink_input_set_gesture_config(const ink_gesture_config_t *config) {
     return ESP_OK;
 }
 
-esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask) {
+esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, ink_gesture_wait_mask_t wait_mask) {
     if (s_buttons == nullptr) { return ESP_ERR_INVALID_STATE; }
-    if (ink_gesture_set_enabled(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
+    if (ink_gesture_set_wait_mask(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
     update_gesture_timer(false);
     return ESP_OK;
 }
@@ -177,10 +176,9 @@ void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_g
 
 /* ---- Boot ---- */
 
-/* Button index i has bit code 1 << i (A = 1, B = 2). */
 static esp_err_t connect_buttons(const ink_hal_button_device_t *buttons) {
     for (size_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
-        const ink_gesture_button_t button = (ink_gesture_button_t)(1u << i);
+        const ink_gesture_button_t button = ink_gesture_button_of_index((uint8_t)i);
         const esp_err_t error = buttons[i].operations->set_callback(buttons[i].context, on_button_edge, (void *)(uintptr_t)button);
         if (error != ESP_OK) {
             ESP_LOGE(TAG, "button %s: %s", input_button_name(button), esp_err_to_name(error));

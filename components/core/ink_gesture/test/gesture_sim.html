@@ -799,7 +799,7 @@ function gesture_set_config(state, config)
     return "OK";
 }
 
-function gesture_set_enabled(state, button, wait_mask)
+function gesture_set_wait_mask(state, button, wait_mask)
 {
     const button_index = button_index_of(button);
     if (button_index < 0 || (wait_mask & ~(WAIT_DOUBLE | WAIT_MODIFIER)) !== 0) { return "ERROR_ARGUMENT"; }
@@ -1453,7 +1453,7 @@ function apply_masks()
     ];
     masks.forEach((wait_mask, i) => {
         if (live.state.buttons[i].wait_mask === wait_mask) { return; }
-        gesture_set_enabled(live.state, button_bit(i), wait_mask);
+        gesture_set_wait_mask(live.state, button_bit(i), wait_mask);
         log_line(`mask ${button_name(button_bit(i))} = ${wait_mask}`, "timer");
     });
     live_update_gesture_timer();
@@ -1559,7 +1559,7 @@ function create_harness(recorder)
         down(button, time_ms) { harness.edge(button, LEVEL_PRESSED, time_ms); },
         up(button, time_ms) { harness.edge(button, LEVEL_RELEASED, time_ms); },
         enable(button, wait_mask) {
-            check(gesture_set_enabled(state, button, wait_mask) === "OK", `set_enabled(${button_name(button)}, ${wait_mask}) == OK`);
+            check(gesture_set_wait_mask(state, button, wait_mask) === "OK", `set_wait_mask(${button_name(button)}, ${wait_mask}) == OK`);
         },
         set_config(changes, expected) {
             const result = gesture_set_config(state, {...state.config, ...changes});
@@ -1889,7 +1889,7 @@ const TEST_CASES = [
          test.expect_count(1);
      }},
     {group: "Đổi mask giữa chừng", name: "test_same_mask_keeps_pending", title: "Đặt lại mask cũ: giữ gesture dở",
-     description: "Gọi set_enabled với mask không đổi thì không bỏ gì.",
+     description: "Gọi set_wait_mask với mask không đổi thì không bỏ gì.",
      run(test) {
          test.enable(A, WAIT_DOUBLE);
          test.down(A, 0);

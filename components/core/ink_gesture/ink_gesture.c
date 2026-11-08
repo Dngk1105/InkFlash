@@ -41,7 +41,6 @@ static uint8_t button_bit(uint8_t button_index) {
     return (uint8_t)(1u << button_index);
 }
 
-/* Button code -> index (A = 1 -> 0); -1 unless exactly one known button. */
 static int button_index_of(ink_gesture_button_t button) {
     for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         if (button == button_bit(i)) { return i; }
@@ -63,6 +62,9 @@ static void emit(ink_gesture_output_t *out, uint8_t modifier, uint8_t button, in
 }
 
 /* ---- State machine: press, release ---- */
+
+/* The other button is `1 - index`: rule of three before generalizing to more buttons. */
+static_assert(INK_GESTURE_BUTTON_COUNT == 2, "press/release pair buttons as 1 - index");
 
 static void clear_gesture(ink_gesture_button_state_t *button) {
     button->phase            = button->stable ? PHASE_WAIT_RELEASE : PHASE_IDLE;
@@ -256,7 +258,7 @@ ink_gesture_error_t ink_gesture_get_config(const ink_gesture_state_t *state, ink
     return INK_GESTURE_OK;
 }
 
-ink_gesture_error_t ink_gesture_set_enabled(ink_gesture_state_t *state, ink_gesture_button_t button, uint8_t wait_mask) {
+ink_gesture_error_t ink_gesture_set_wait_mask(ink_gesture_state_t *state, ink_gesture_button_t button, ink_gesture_wait_mask_t wait_mask) {
     const int button_index = button_index_of(button);
     if (state == nullptr || button_index < 0 || (wait_mask & ~(INK_GESTURE_WAIT_DOUBLE | INK_GESTURE_WAIT_MODIFIER)) != 0) {
         return INK_GESTURE_ERROR_ARGUMENT;
@@ -306,6 +308,16 @@ bool ink_gesture_next_deadline(const ink_gesture_state_t *state, uint32_t *out_m
     const deadline_t deadline = earliest_deadline(state);
     if (deadline.found) { *out_ms = deadline.time_ms; }
     return deadline.found;
+}
+
+/* ---- API: button index <-> code ---- */
+
+ink_gesture_button_t ink_gesture_button_of_index(uint8_t index) {
+    return index < INK_GESTURE_BUTTON_COUNT ? (ink_gesture_button_t)button_bit(index) : (ink_gesture_button_t)0;
+}
+
+int8_t ink_gesture_index_of_button(ink_gesture_button_t button) {
+    return (int8_t)button_index_of(button);
 }
 
 /* ---- API: progress ---- */

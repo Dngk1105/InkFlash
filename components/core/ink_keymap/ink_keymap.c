@@ -79,8 +79,8 @@ ink_keymap_error_t ink_keymap_reset(ink_keymap_table_t *table, const ink_keymap_
 
 /* ---- Wait mask ---- */
 
-static uint8_t table_wait_mask(const ink_keymap_table_t *table, ink_gesture_button_t button) {
-    uint8_t mask = INK_GESTURE_WAIT_NONE;
+static ink_gesture_wait_mask_t table_wait_mask(const ink_keymap_table_t *table, ink_gesture_button_t button) {
+    ink_gesture_wait_mask_t mask = INK_GESTURE_WAIT_NONE;
     if (table == nullptr) { return mask; }
     for (uint8_t i = 0; i < table->count && i < INK_KEYMAP_ENTRY_MAX; i++) {
         const ink_gesture_t *g = &table->entries[i].gesture;
@@ -91,8 +91,7 @@ static uint8_t table_wait_mask(const ink_keymap_table_t *table, ink_gesture_butt
     return mask;
 }
 
-uint8_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button) {
-    /* EXTEND(keymap): a third button needs this check and INK_GESTURE_BUTTON_COUNT changed together. */
-    if (button != INK_GESTURE_BUTTON_A && button != INK_GESTURE_BUTTON_B) { return INK_GESTURE_WAIT_NONE; }
-    return table_wait_mask(scene, button) | table_wait_mask(app, button);
+ink_gesture_wait_mask_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button) {
+    if (ink_gesture_index_of_button(button) < 0) { return INK_GESTURE_WAIT_NONE; }
+    return (ink_gesture_wait_mask_t)(table_wait_mask(scene, button) | table_wait_mask(app, button));
 }

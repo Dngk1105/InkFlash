@@ -90,4 +90,4 @@ bool ink_keymap_lookup(const ink_keymap_table_t *scene, const ink_keymap_table_t
  * Main task (system), to pass to ink_input_set_wait_mask() when an app opens or the scene changes.
  * @return INK_GESTURE_WAIT_* bits; INK_GESTURE_WAIT_NONE if button is not A or B.
  */
-uint8_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button);
+ink_gesture_wait_mask_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button);

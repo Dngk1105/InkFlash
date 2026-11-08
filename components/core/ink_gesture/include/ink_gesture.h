@@ -27,7 +27,7 @@ typedef enum : uint8_t {
 } ink_gesture_button_t;
 
 /* Number of buttons gesture handles; the button codes above use exactly this many bits.
- * WARN: ink_gesture.c pairs buttons as `1 - index`; a third button needs that code rewritten, not just this number. */
+ * WARN: ink_gesture.c pairs buttons as `1 - index` (static_assert there); a third button needs that code rewritten. */
 #define INK_GESTURE_BUTTON_COUNT 2
 
 typedef enum : uint8_t {
@@ -107,7 +107,7 @@ typedef struct {
     uint32_t ab_long_ms;
 } ink_gesture_config_t;
 
-/** Wait mask bits for ink_gesture_set_enabled(): gesture types that make a button wait. All off by default. */
+/** Wait mask bits for ink_gesture_set_wait_mask(): gesture types that make a button wait. All off by default. */
 typedef enum : uint8_t {
     INK_GESTURE_WAIT_NONE     = 0,
     INK_GESTURE_WAIT_DOUBLE   = 1 << 0, /**< PRESS waits double_ms after release for a second press */
@@ -177,7 +177,8 @@ typedef struct {
  * @param wait_mask INK_GESTURE_WAIT_* bits.
  * @retval INK_GESTURE_ERROR_ARGUMENT state is NULL, button is not A or B, or wait_mask has unknown bits.
  */
-[[nodiscard]] ink_gesture_error_t ink_gesture_set_enabled(ink_gesture_state_t *state, ink_gesture_button_t button, uint8_t wait_mask);
+[[nodiscard]] ink_gesture_error_t ink_gesture_set_wait_mask(ink_gesture_state_t *state, ink_gesture_button_t button,
+                                                            ink_gesture_wait_mask_t wait_mask);
 
 /**
  * @brief Feed one edge.
@@ -205,6 +206,22 @@ typedef struct {
  * @return false if no deadline is pending (no timer needed), or a pointer is NULL.
  */
 bool ink_gesture_next_deadline(const ink_gesture_state_t *state, uint32_t *out_ms);
+
+/**
+ * @brief Convert a button index (0 = A, 1 = B; the order bsp lists buttons in) to its button code.
+ * @par Called from
+ * Main task (input).
+ * @return Button code; 0 if index >= INK_GESTURE_BUTTON_COUNT.
+ */
+ink_gesture_button_t ink_gesture_button_of_index(uint8_t index);
+
+/**
+ * @brief Convert a button code to its index (A -> 0, B -> 1).
+ * @par Called from
+ * Main task (input, keymap).
+ * @return Index; -1 unless button is exactly one known button.
+ */
+int8_t ink_gesture_index_of_button(ink_gesture_button_t button);
 
 /**
  * @brief Report the gesture being held at now_ms. Read only; emits nothing.

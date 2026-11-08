@@ -81,14 +81,23 @@ static void test_codes_are_stable(void) {
     TEST_ASSERT_EQUAL(4, INK_GESTURE_TYPE_HOLD_AB_LONG);
 }
 
+static void test_button_index_and_code_convert(void) {
+    TEST_ASSERT_EQUAL(INK_GESTURE_BUTTON_A, ink_gesture_button_of_index(0));
+    TEST_ASSERT_EQUAL(INK_GESTURE_BUTTON_B, ink_gesture_button_of_index(1));
+    TEST_ASSERT_EQUAL(0, ink_gesture_button_of_index(INK_GESTURE_BUTTON_COUNT));
+    TEST_ASSERT_EQUAL(0, ink_gesture_index_of_button(INK_GESTURE_BUTTON_A));
+    TEST_ASSERT_EQUAL(1, ink_gesture_index_of_button(INK_GESTURE_BUTTON_B));
+    TEST_ASSERT_EQUAL(-1, ink_gesture_index_of_button(INK_GESTURE_BUTTON_AB));
+}
+
 static void test_rejects_null_and_bad_button(void) {
     ink_gesture_output_t out;
     TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_init(nullptr, &TEST_CONFIG));
     TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_feed(&s_state, nullptr, &out));
     const ink_gesture_event_t ab_event = {.button = INK_GESTURE_BUTTON_AB, .level = INK_GESTURE_LEVEL_PRESSED, .time_ms = 0};
     TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_feed(&s_state, &ab_event, &out));
-    TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_AB, 0));
-    TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, 0x80));
+    TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_AB, 0));
+    TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_ARGUMENT, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, 0x80));
 }
 
 static void test_bad_config_rejected_and_old_kept(void) {
@@ -198,7 +207,7 @@ static void test_double_off_gives_two_presses(void) {
 }
 
 static void test_double_on_single_press_waits_window(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
     advance(349);
@@ -209,7 +218,7 @@ static void test_double_on_single_press_waits_window(void) {
 }
 
 static void test_double_emitted_on_second_down(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
     down(INK_GESTURE_BUTTON_A, 150);
@@ -221,7 +230,7 @@ static void test_double_emitted_on_second_down(void) {
 }
 
 static void test_double_on_other_button_unaffected(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_B, 0);
     up(INK_GESTURE_BUTTON_B, 50);
     TEST_ASSERT_EQUAL(1, s_count);
@@ -278,7 +287,7 @@ static void test_late_second_button_without_mod_ignored(void) {
 }
 
 static void test_pending_press_flushed_before_combo(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
     down(INK_GESTURE_BUTTON_B, 100);
@@ -294,7 +303,7 @@ static void test_pending_press_flushed_before_combo(void) {
 /* ---- Modifier ---- */
 
 static void test_modifier_press(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
     down(INK_GESTURE_BUTTON_B, 300);
     up(INK_GESTURE_BUTTON_B, 400);
@@ -311,8 +320,8 @@ static void test_modifier_press(void) {
 }
 
 static void test_modifier_kept_when_released_first(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_B, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_B, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     down(INK_GESTURE_BUTTON_B, 300);
     up(INK_GESTURE_BUTTON_B, 350);
@@ -323,7 +332,7 @@ static void test_modifier_kept_when_released_first(void) {
 }
 
 static void test_modifier_enabled_hold_waits_release(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
     advance(700);
     TEST_ASSERT_EQUAL(0, s_count);
@@ -333,7 +342,7 @@ static void test_modifier_enabled_hold_waits_release(void) {
 }
 
 static void test_modifier_enabled_short_press_still_press(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 200);
     TEST_ASSERT_EQUAL(1, s_count);
@@ -344,11 +353,11 @@ static void test_modifier_enabled_short_press_still_press(void) {
 
 static void test_mask_change_drops_pending_after_release(void) {
     /* Example from input.md: A waits for a double press, then the scene changes and turns WAIT_DOUBLE off. */
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
     advance(100);
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_NONE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_NONE));
     advance(5000);
     TEST_ASSERT_EQUAL(0, s_count);
 }
@@ -356,7 +365,7 @@ static void test_mask_change_drops_pending_after_release(void) {
 static void test_mask_change_drops_pending_while_held(void) {
     down(INK_GESTURE_BUTTON_A, 0);
     advance(100);
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     advance(1000);
     up(INK_GESTURE_BUTTON_A, 1100);
     advance(5000);
@@ -368,10 +377,10 @@ static void test_mask_change_drops_pending_while_held(void) {
 }
 
 static void test_same_mask_keeps_pending(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     advance(5000);
     TEST_ASSERT_EQUAL(1, s_count);
 }
@@ -412,7 +421,7 @@ static void test_progress_hold(void) {
 }
 
 static void test_progress_modifier_hold_waits_release(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
     const ink_gesture_progress_t progress = progress_at(700);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.on_release);
@@ -436,7 +445,7 @@ static void test_progress_ab_short_then_long(void) {
 }
 
 static void test_progress_modifier_target(void) {
-    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
+    TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
     down(INK_GESTURE_BUTTON_B, 300);
     const ink_gesture_progress_t progress = progress_at(400);
@@ -456,6 +465,7 @@ static void test_progress_none_when_blocked(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_codes_are_stable);
+    RUN_TEST(test_button_index_and_code_convert);
     RUN_TEST(test_rejects_null_and_bad_button);
     RUN_TEST(test_bad_config_rejected_and_old_kept);
     RUN_TEST(test_set_config_applies_new_threshold);

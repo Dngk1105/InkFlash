@@ -337,7 +337,7 @@ terms:
     term: wait mask
     meaning: 'bit các gesture type bắt một nút phải chờ: WAIT_DOUBLE (chờ double_ms sau nhả), WAIT_MODIFIER (HOLD chờ tới lúc nhả). Mặc định tắt.'
     avoid: [kiểu phải chờ, kiểu bắt phải chờ]
-    symbols: [ink_gesture_wait_mask_t, ink_gesture_set_enabled]
+    symbols: [ink_gesture_wait_mask_t, ink_gesture_set_wait_mask]
   - id: deadline
     term: deadline
     meaning: 'thời điểm gesture cần được tick tiếp: hết debounce, đủ hold_ms, hết double_ms, đủ ab_long_ms.'
