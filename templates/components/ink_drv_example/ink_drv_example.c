@@ -1,11 +1,11 @@
-/* Thiết kế: docs/design/hardware-variants.md */
+/* Design: docs/design/hardware-variants.md */
 #include "ink_drv_example.h"
 
 #include "esp_check.h"
 
 static const char *TAG = "ink_drv_example";
 
-/* ---- Bảng hàm ink_hal_example ---- */
+/* ---- ink_hal_example operations ---- */
 
 static esp_err_t read_active(void *context, bool *out_active) {
     const ink_drv_example_t *driver     = context;
@@ -18,7 +18,7 @@ static const ink_hal_example_operations_t s_operations = {
     .read = read_active,
 };
 
-/* ---- Khởi tạo ---- */
+/* ---- Init ---- */
 
 esp_err_t ink_drv_example_init(ink_drv_example_t *driver, const ink_drv_example_config_t *config, ink_hal_example_device_t *out_device) {
     ESP_RETURN_ON_FALSE(driver && config && out_device, ESP_ERR_INVALID_ARG, TAG, "null arg");

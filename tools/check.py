@@ -1,4 +1,4 @@
-# Thiết kế: docs/design/code-structure.md
+# Design: docs/design/code-structure.md
 """Kiểm tra code có khớp quy ước và docs không. Chạy trước mỗi commit:
 
     python tools/check.py
@@ -16,7 +16,8 @@ SCAN_DIRS = ["main", "components", "templates", "cmake", "tools", "test/host"]
 SKIP_DIRS = {"build", "managed_components", ".git", "__pycache__"}
 CODE_EXT = (".c", ".h")
 DESIGN_EXT = (".c", ".h", ".cmake", ".py")
-DESIGN_RE = re.compile(r"Thiết kế: (docs/[\w/.-]+\.md)")
+# "Design:" là mẫu mới (comment tiếng Anh); "Thiết kế:" còn ở các khối chưa chuyển.
+DESIGN_RE = re.compile(r"(?:Design|Thiết kế): (docs/[\w/.-]+\.md)")
 
 # API cấm (docs/design/esp-idf-api.md): (regex, gợi ý)
 BANNED = [
@@ -77,9 +78,9 @@ def check_design_line(path, text):
     head = "\n".join(text.splitlines()[:3])
     m = DESIGN_RE.search(head)
     if not m:
-        err(path, 1, "thiếu dòng 'Thiết kế: docs/design/<file>.md' ở đầu file")
+        err(path, 1, "thiếu dòng 'Design: docs/design/<file>.md' ở đầu file")
     elif not os.path.isfile(os.path.join(ROOT, m.group(1))):
-        err(path, 1, f"dòng Thiết kế trỏ tới {m.group(1)} không tồn tại")
+        err(path, 1, f"dòng Design trỏ tới {m.group(1)} không tồn tại")
 
 
 def strip_comments(text):
@@ -160,7 +161,12 @@ def check_component(comp):
 
 
 def check_public_names(path, comp, hint):
-    if not os.path.basename(path).startswith(comp):
+    base = os.path.basename(path)
+    # Header chỉ có kiểu dùng chung giữa nhiều tầng: <tiền tố>_types.h, tiền tố là phần đầu tên component
+    # (ink_display_types.h trong ink_display_policy). Tên bên trong theo tiền tố đó (docs/design/code-structure.md).
+    if base.endswith("_types.h") and comp.startswith(base[: -len("_types.h")]):
+        comp = base[: -len("_types.h")]
+    elif not base.startswith(comp):
         err(path, 0, f"tên header phải bắt đầu bằng {comp} (mẫu: {hint})")
     code = strip_comments(read(path))
     upper = comp.upper()
@@ -218,6 +224,16 @@ def check_format(files):
             err(path, 0, f"sai định dạng; sửa bằng: clang-format -i {os.path.relpath(path, ROOT)}")
 
 
+def check_terms():
+    """Thuật ngữ, comment tiếng Anh, tag, Doxygen trong scope của docs/glossary.yaml (tools/terms.py)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    try:
+        import terms
+        errors.extend(terms.run_check())
+    except SystemExit as e:  # thiếu PyYAML hoặc glossary hỏng
+        errors.append(f"tools/terms.py: {e}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -235,6 +251,7 @@ def main():
     for comp in component_dirs():
         check_component(comp)
     check_format(code_files)
+    check_terms()
 
     if errors:
         print("\n".join(errors))

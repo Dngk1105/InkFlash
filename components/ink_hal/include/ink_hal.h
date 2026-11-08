@@ -1,7 +1,6 @@
-/* Thiết kế: docs/design/hardware-variants.md */
+/* Design: docs/design/hardware-variants.md */
 #pragma once
 
-/* Interface phần cứng. Tầng trên chỉ thấy bảng hàm và bảng khả năng, không biết
- * tên chip. */
+/* Hardware interfaces. Upper layers see only operations and capabilities, never chip names. */
 #include "ink_hal_button.h"
 #include "ink_hal_display.h"

@@ -2,7 +2,7 @@
 
 ## Vấn đề
 
-Code do cả người làm và AI viết. Không có khung chung thì mỗi lần viết một kiểu: tên lộn xộn, khối gọi chéo nhau,
+Code do cả người làm và AI viết. Không có cấu trúc chung thì mỗi lần viết một kiểu: tên lộn xộn, module gọi chéo nhau,
 logic dính FreeRTOS nên không test được trên PC, và code dần lệch khỏi thiết kế mà không ai biết.
 
 ## Cách xử lý
@@ -18,15 +18,15 @@ components/
     ink_session/ ink_gesture/ ink_keymap/ ink_scene/ ink_study/ ink_fsrs/ ink_record/ ink_ui/ ink_display_policy/
   ink_system/ ink_display/ ink_storage/ ink_platform/
   ink_hal/             interface phần cứng
-  ink_bsp/             bảng chân theo board
+  ink_bsp/             pin map theo board
   drivers/ink_drv_<chip>/
   apps/ink_app_<tên>/
 templates/             project ESP-IDF riêng chứa khối mẫu, build được
 test/
   host/                project CMake build khối C thuần bằng gcc trên PC
   vectors/             test vector dùng chung mọi nền tảng
-tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile bảng sóng)
-  display_bench/       công cụ test màn: firmware test riêng và trang web (design/display/bench.md)
+tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile waveform)
+  display_bench/       công cụ test panel: firmware bench riêng và trang web (design/display/bench.md)
 ```
 
 Tên thư mục của component chính là tên component (luật của ESP-IDF), nên thư mục cũng mang tiền tố `ink_`.
@@ -40,12 +40,13 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 | Hàm, biến nội bộ | `static`, không tiền tố; biến bắt đầu `s_` | `choose_mode`, `s_state` |
 | Hàm dùng chung giữa các file trong một component | `<khối>_<động từ>`, không có `ink_`; khai báo trong `<component>_internal.h` đặt cạnh file `.c`, không đặt trong `include/` nên khối khác không include được | `input_log_gestures` trong `ink_input_internal.h` |
 | Kiểu dữ liệu | `ink_<khối>_<tên>_t` | `ink_gesture_event_t` |
+| Header chỉ có kiểu dùng chung giữa nhiều tầng | `<tiền tố>_types.h` trong core module thấp nhất dùng nó; tiền tố là phần đầu tên component, mọi tên bên trong theo tiền tố đó. Không có hàm, không include ESP-IDF | `ink_display_types.h` trong `ink_display_policy`: `ink_display_cleanup_t` dùng chung cho policy, display, HAL |
 | Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`, `mv`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`, `u32`), tên chân và tín hiệu theo datasheet (`sda`, `scl`, `mosi`, `cs`, `bclk`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
 
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
 
-Component dài thì tách file theo nơi code chạy, không theo kích thước. Ví dụ `ink_input`: `ink_input.c` giữ trạng thái
-và chạy trên task main, `ink_input_log.c` là hàm thuần không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
+Component dài thì tách file theo nơi code chạy, không theo kích thước. Ví dụ `ink_input`: `ink_input.c` giữ state
+và chạy trên main task, `ink_input_log.c` là hàm thuần không giữ trạng thái. Biến trạng thái vẫn `static` trong một file, file khác muốn đọc hay đổi thì gọi hàm.
 
 ### Viết code dễ đọc
 
@@ -55,7 +56,7 @@ Ví dụ: `refresh` trong `ink_drv_uc8253.c` đọc như danh sách bước: và
 | Luật | Áp dụng |
 |---|---|
 | Hàm cấp trên đọc như danh sách bước; mỗi hàm khoảng 30 dòng trở xuống, không cứng | Code mới và `ink_display`; code cũ sửa khi đụng tới |
-| Trạng thái và quyết định nằm trong khối lõi C thuần có host test; khối vỏ chỉ giữ lock, task, hàng đợi | Mọi khối |
+| State và quyết định nằm trong core module có host test; shell module chỉ giữ lock, task, queue | Mọi module |
 | Điều kiện dài thì đặt tên bằng biến `bool` (ví dụ `other_fresh`, `held` trong `ink_gesture.c`) | Mọi khối |
 | Driver không viết byte lệnh trần trong luồng chính: mỗi chuỗi lệnh gửi controller là một hàm hoặc hằng có tên theo datasheet, comment ghi mã lệnh | Driver |
 | `if (...) { return ...; }` một dòng dùng cho điều kiện thoát sớm ở đầu hàm; giữa hàm viết khối nhiều dòng | Hướng dẫn, không kiểm |
@@ -72,8 +73,8 @@ Ví dụ: `refresh` trong `ink_drv_uc8253.c` đọc như danh sách bước: và
 |---|---|
 | Khối trong `core/` không dùng ESP-IDF | Host test biên dịch chúng bằng gcc trên PC; include header IDF là lỗi build |
 | App không gọi `storage` hay `hal` | CMake của app không khai báo hai khối này; include là lỗi build |
-| Chỉ `bsp` biết chân GPIO | Bảng chân nằm trong component `bsp`, không công khai |
-| Bên giữ trạng thái của khối lõi không đụng trường bên trong | Trường nội bộ gom trong struct con `priv`; `tools/check.py` báo lỗi khi `.priv` hoặc `->priv` xuất hiện ngoài thư mục khối lõi |
+| Chỉ `bsp` biết chân GPIO | Pin map nằm trong component `bsp`, không công khai |
+| Caller giữ struct state của core module nhưng không đụng field bên trong | Field nội bộ gom trong struct con `priv`; `tools/check.py` báo lỗi khi `.priv` hoặc `->priv` xuất hiện ngoài thư mục của core module |
 | Định dạng code | `.clang-format` |
 
 Mỗi luật viết một lần trong hàm CMake chung (ví dụ `ink_core_component(...)` tự chặn IDF và tự đưa khối vào host
@@ -83,15 +84,15 @@ test). CMake của từng khối chỉ gọi hàm đó, không chép lại luậ
 
 | Giữa | Kiểu | Ví dụ |
 |---|---|---|
-| Vỏ ↔ lõi C thuần | Sự kiện vào, hành động ra (struct) | `session` nhận "hết giờ chờ", trả "lưu snapshot", "ngủ" |
-| `study` ↔ storage, đồng hồ | Cổng: struct con trỏ hàm, cắm lúc khởi tạo | Trên PC cắm file thử, đồng hồ giả |
-| `display`, `system` ↔ driver | Bảng hàm (operations) + bảng khả năng (capabilities) | Driver màn điền `draw`, `power_off`, `read_temperature` |
-| Ngắt, task phụ → task main | Hàng đợi của task main | Ngắt nút đẩy "nút B nhả lúc t" |
+| Shell module ↔ core module | Event vào, action ra (struct) | `session` nhận "hết giờ chờ", trả "lưu snapshot", "ngủ" |
+| `study` ↔ storage, đồng hồ | Port: struct con trỏ hàm, cắm lúc init | Trên PC cắm file thử, đồng hồ giả |
+| `display`, `input` ↔ driver | Operations + capabilities | Driver màn điền `draw`, `power_off`, `read_temperature` |
+| ISR, helper task → main task | Main queue | ISR của nút post edge "nút B nhả lúc t" |
 
 ### Chuẩn C
 
 Mọi khối viết theo C23. Trên máy, ESP-IDF v6.1 biên dịch bằng `gnu23` (mặc định). Host test biên dịch khối trong
-`core/` bằng `-std=c23 -pedantic`, nên khối lõi không dùng phần mở rộng GNU.
+`core/` bằng `-std=c23 -pedantic`, nên core module không dùng phần mở rộng GNU.
 
 App điện thoại và Kindle tự viết lại logic và chạy chung bộ test vector, không biên dịch lại code C của máy, nên
 không cần giữ chuẩn C cũ hơn.
@@ -101,8 +102,8 @@ enum có kiểu nền (`enum : uint8_t`) cho dữ liệu lưu xuống flash hay 
 
 ### Mã lỗi
 
-Khối trong `core/` không include `esp_err.h`. Mỗi khối lõi có enum lỗi riêng, chỉ gồm lỗi nó thật sự trả về.
-Khối vỏ đổi sang `esp_err_t` khi trả lên trên.
+Core module không include `esp_err.h`. Mỗi core module có enum lỗi riêng, chỉ gồm lỗi nó thật sự trả về.
+Shell module đổi sang `esp_err_t` khi trả lên trên.
 
 ### Template
 
@@ -111,8 +112,8 @@ Khối vỏ đổi sang `esp_err_t` khi trả lên trên.
 | Template | Dùng khi tạo | Nằm ở |
 |---|---|---|
 | `core` | Khối C thuần: header, `.c`, CMake, host test | `templates/components/ink_example/` |
-| `shell` | Khối vỏ có task và hàng đợi | `templates/components/ink_example_shell/` |
-| `driver` | Driver chip: bảng hàm, bảng khả năng, khởi tạo nhận chân qua tham số | `templates/components/ink_drv_example/` (làm theo interface mẫu `ink_hal_example`) |
+| `shell` | Shell module có task và queue | `templates/components/ink_example_shell/` |
+| `driver` | Driver chip: operations, capabilities, init nhận chân qua tham số | `templates/components/ink_drv_example/` (làm theo interface mẫu `ink_hal_example`) |
 | `host_test` | Test trên PC bằng Unity (lấy mã nguồn Unity có sẵn trong ESP-IDF) | `templates/components/ink_example/test/` |
 | `app` | App 5 hàm, một scene, snapshot | Tạo cùng lúc với `ink_system`, vì app cần interface app của `ink_system` |
 
@@ -122,12 +123,12 @@ Khối vỏ đổi sang `esp_err_t` khi trả lên trên.
 `templates/` và host test, nên template hỏng là biết ngay.
 
 - Tạo khối mới: `tools/new.py <loại> <tên>` (loại: `core`, `shell`, `driver`). Script chép template và đổi tên theo quy tắc ở trên. AI luôn bắt đầu
-  từ lệnh này, không tự viết khung.
+  từ lệnh này, không tự viết từ đầu.
 - Docs chỉ ghi tên template, không chép code template vào docs.
 
 ### Mỗi file code trỏ về thiết kế
 
-Dòng đầu mỗi file: `Thiết kế: docs/design/<file>.md`. Đổi một file thiết kế thì grep ra những file code cần xem lại.
+Dòng đầu mỗi file: `/* Design: docs/design/<file>.md */`. Đổi một file thiết kế thì grep ra những file code cần xem lại.
 
 ### Script kiểm tra
 
@@ -136,9 +137,9 @@ Dòng đầu mỗi file: `Thiết kế: docs/design/<file>.md`. Đổi một fil
 | Kiểm tra | |
 |---|---|
 | Tên hàm, tên file | Đúng quy tắc đặt tên |
-| File bắt buộc | Khối có đủ file như template của nó (ví dụ khối lõi phải có host test) |
+| File bắt buộc | Module có đủ file như template của nó (ví dụ core module phải có host test) |
 | `#if BOARD` | Chỉ nằm trong `bsp/` |
 | Định dạng | Đúng `.clang-format` |
-| Dòng `Thiết kế:` | Có, và file docs đó tồn tại |
+| Dòng `Design:` | Có, và file docs đó tồn tại |
 | API cấm | Không dùng API ESP-IDF cũ hay API Arduino |
-| `priv` | Truy cập `priv` chỉ nằm trong thư mục khối lõi |
+| `priv` | Truy cập `priv` chỉ nằm trong thư mục của core module |

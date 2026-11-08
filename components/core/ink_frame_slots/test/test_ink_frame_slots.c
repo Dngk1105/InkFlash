@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 
-/* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
+/* Host test: runs on the PC with gcc and the Unity copy from ESP-IDF. One test_* function per case. */
 #include "ink_frame_slots.h"
 #include "unity.h"
 
@@ -12,14 +12,14 @@ static ink_frame_slots_lease_t acquire(void) {
     return lease;
 }
 
-/* Mượn rồi giao; trả khung đã giao. */
+/* Acquire, then submit; return the submitted frame. */
 static int8_t acquire_and_submit(void) {
     const int8_t frame = acquire().frame;
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_OK, ink_frame_slots_submit(&s_state));
     return frame;
 }
 
-/* Task màn lấy khung chờ ra rồi hiện nó. */
+/* Display task takes the pending frame and shows it. */
 static int8_t take_and_show(void) {
     const int8_t frame = ink_frame_slots_take(&s_state);
     TEST_ASSERT_NOT_EQUAL(INK_FRAME_SLOTS_NONE, frame);
@@ -48,10 +48,10 @@ static void test_first_acquire_is_white(void) {
     const ink_frame_slots_lease_t lease = acquire();
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_FILL_WHITE, lease.fill);
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_NONE, lease.copy_from);
-    TEST_ASSERT_EQUAL(lease.frame, ink_frame_slots_borrowed(&s_state));
+    TEST_ASSERT_EQUAL(lease.frame, ink_frame_slots_acquired(&s_state));
 }
 
-static void test_acquire_twice_or_submit_unborrowed_is_state_error(void) {
+static void test_acquire_twice_or_submit_unacquired_is_state_error(void) {
     ink_frame_slots_lease_t lease;
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_ERROR_STATE, ink_frame_slots_submit(&s_state));
     acquire();
@@ -74,7 +74,7 @@ static void test_take_then_show_frees_previous_shown(void) {
     const int8_t second = acquire_and_submit();
     TEST_ASSERT_EQUAL(second, take_and_show());
     TEST_ASSERT_EQUAL(second, ink_frame_slots_shown(&s_state));
-    /* first đã trống: hai lần mượn tiếp theo không phải lấy lại khung chờ */
+    /* first is free: the next two acquires do not take back the pending frame */
     acquire_and_submit();
     TEST_ASSERT_EQUAL(0, ink_frame_slots_dropped(&s_state));
 }
@@ -88,7 +88,7 @@ static void test_submit_over_pending_drops_old(void) {
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_NONE, ink_frame_slots_take(&s_state));
 }
 
-/* Task màn giữ khung đang hiện và khung đang vẽ: task main lấy lại khung chờ. */
+/* Display task holds the shown frame and the frame being drawn: the main task takes back the pending frame. */
 static void test_acquire_reclaims_pending_when_display_holds_two(void) {
     acquire_and_submit();
     take_and_show();
@@ -137,7 +137,7 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_rejects_null);
     RUN_TEST(test_first_acquire_is_white);
-    RUN_TEST(test_acquire_twice_or_submit_unborrowed_is_state_error);
+    RUN_TEST(test_acquire_twice_or_submit_unacquired_is_state_error);
     RUN_TEST(test_acquire_copies_latest_submitted);
     RUN_TEST(test_take_then_show_frees_previous_shown);
     RUN_TEST(test_submit_over_pending_drops_old);

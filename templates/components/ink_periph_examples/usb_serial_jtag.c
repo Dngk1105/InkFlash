@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
-/* Dựa theo: examples/peripherals/usb_serial_jtag/usb_serial_jtag_echo */
+/* Based on: examples/peripherals/usb_serial_jtag/usb_serial_jtag_echo */
 #include "ink_periph_examples.h"
 
 #include "driver/usb_serial_jtag.h"
@@ -26,13 +26,13 @@ size_t ink_periph_examples_usb_serial_jtag_read(uint8_t *buffer, size_t length, 
 }
 
 esp_err_t ink_periph_examples_usb_serial_jtag_write(const uint8_t *data, size_t length, uint32_t timeout_ms) {
-    /* Trả số byte đã chép vào ring buffer TX; ít hơn length là hết thời gian chờ. */
+    /* Returns the bytes copied to the TX ring buffer; fewer than length means the wait timed out. */
     const int written = usb_serial_jtag_write_bytes(data, length, pdMS_TO_TICKS(timeout_ms));
     ESP_RETURN_ON_FALSE(written == (int)length, ESP_ERR_TIMEOUT, TAG, "write %d/%u", written, (unsigned)length);
     return ESP_OK;
 }
 
-/* Log của ESP-IDF đi qua hàm này thay cho in thẳng ra stdout; trả số ký tự như vprintf. */
+/* ESP-IDF logs go through this function instead of stdout; returns the character count like vprintf. */
 static int forward_log(const char *format, va_list arguments) {
     char      line[128];
     const int length = vsnprintf(line, sizeof(line), format, arguments);

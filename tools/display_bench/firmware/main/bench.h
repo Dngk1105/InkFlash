@@ -121,8 +121,8 @@ typedef struct {
     uint8_t                  max_debt;
     uint8_t                  ceiling;
     uint32_t                 flagged_count;
-    uint32_t                 input_ms; /**< bấm nút → acquire khung; 0 nếu không do nút */
-    uint32_t                 queue_ms; /**< giao khung → bắt đầu vẽ */
+    uint32_t                 input_ms;  /**< bấm nút → acquire khung; 0 nếu không do nút */
+    uint32_t                 queue_ms;  /**< giao khung → bắt đầu vẽ */
     uint32_t                 decide_ms; /**< decide và mặt phẳng cũ */
     ink_hal_display_timing_t driver;
 } bench_drawn_t;

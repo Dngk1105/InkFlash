@@ -1,9 +1,9 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
 /*
- * Dựa theo: examples/peripherals/adc/oneshot_read. Không dùng driver/adc.h,
- * esp_adc_cal.h (đã xoá trong v6.1). Đo pin phải dùng ADC1, vì ADC2 tranh với
- * WiFi.
+ * Based on: examples/peripherals/adc/oneshot_read. Not driver/adc.h or
+ * esp_adc_cal.h (removed in v6.1). Battery measurement must use ADC1: ADC2 is
+ * shared with WiFi.
  */
 #include "ink_periph_examples.h"
 

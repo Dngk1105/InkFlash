@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 
-/* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
+/* Host test: runs on the PC with gcc and the Unity copy from ESP-IDF. One test_* function per case. */
 #include "ink_keymap.h"
 #include "unity.h"
 
@@ -10,10 +10,10 @@ void setUp(void) {
 void tearDown(void) {
 }
 
-/* ---- Bảng mẫu ---- */
+/* ---- Sample keymap tables ---- */
 
 enum {
-    INTENT_GRADE_GOOD = INK_KEYMAP_INTENT_APP_BASE,
+    INTENT_GRADE_GOOD = INK_KEYMAP_COMMAND_APP_BASE,
     INTENT_GRADE_AGAIN
 };
 
@@ -26,69 +26,69 @@ static const ink_gesture_t A_HOLD   = G(INK_GESTURE_MODIFIER_NONE, INK_GESTURE_B
 static const ink_gesture_t B_DOUBLE = G(INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_DOUBLE_PRESS);
 static const ink_gesture_t A_THEN_B = G(INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_PRESS);
 
-/* App Flashcard mẫu */
+/* Sample Flashcard app */
 static ink_keymap_table_t make_app(void) {
     return (ink_keymap_table_t){
         .count   = 4,
-        .entries = {{B_PRESS, INK_KEYMAP_INTENT_NEXT},
-                    {A_PRESS, INK_KEYMAP_INTENT_PREV},
-                    {B_HOLD, INK_KEYMAP_INTENT_SELECT},
-                    {A_HOLD, INK_KEYMAP_INTENT_BACK}}
+        .entries = {{B_PRESS, INK_KEYMAP_COMMAND_NEXT},
+                    {A_PRESS, INK_KEYMAP_COMMAND_PREV},
+                    {B_HOLD, INK_KEYMAP_COMMAND_SELECT},
+                    {A_HOLD, INK_KEYMAP_COMMAND_BACK}}
     };
 }
 
-static ink_keymap_intent_t lookup_ok(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_t gesture) {
-    ink_keymap_intent_t intent;
-    TEST_ASSERT_TRUE(ink_keymap_lookup(scene, app, &gesture, &intent));
-    return intent;
+static ink_keymap_command_t lookup_ok(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_t gesture) {
+    ink_keymap_command_t command;
+    TEST_ASSERT_TRUE(ink_keymap_lookup(scene, app, &gesture, &command));
+    return command;
 }
 
-/* ---- Mã cố định ---- */
+/* ---- Fixed codes ---- */
 
-static void test_intent_codes_are_fixed(void) {
-    TEST_ASSERT_EQUAL(0, INK_KEYMAP_INTENT_NEXT);
-    TEST_ASSERT_EQUAL(1, INK_KEYMAP_INTENT_PREV);
-    TEST_ASSERT_EQUAL(2, INK_KEYMAP_INTENT_SELECT);
-    TEST_ASSERT_EQUAL(3, INK_KEYMAP_INTENT_BACK);
-    TEST_ASSERT_EQUAL(16, INK_KEYMAP_INTENT_APP_BASE);
+static void test_command_codes_are_fixed(void) {
+    TEST_ASSERT_EQUAL(0, INK_KEYMAP_COMMAND_NEXT);
+    TEST_ASSERT_EQUAL(1, INK_KEYMAP_COMMAND_PREV);
+    TEST_ASSERT_EQUAL(2, INK_KEYMAP_COMMAND_SELECT);
+    TEST_ASSERT_EQUAL(3, INK_KEYMAP_COMMAND_BACK);
+    TEST_ASSERT_EQUAL(16, INK_KEYMAP_COMMAND_APP_BASE);
 }
 
 /* ---- Tra ---- */
 
 static void test_lookup_app_table(void) {
     ink_keymap_table_t app = make_app();
-    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_NEXT, lookup_ok(nullptr, &app, B_PRESS));
-    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_BACK, lookup_ok(nullptr, &app, A_HOLD));
+    TEST_ASSERT_EQUAL(INK_KEYMAP_COMMAND_NEXT, lookup_ok(nullptr, &app, B_PRESS));
+    TEST_ASSERT_EQUAL(INK_KEYMAP_COMMAND_BACK, lookup_ok(nullptr, &app, A_HOLD));
 }
 
 static void test_lookup_unassigned_gesture_is_dropped(void) {
-    ink_keymap_table_t  app = make_app();
-    ink_keymap_intent_t intent;
-    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &B_DOUBLE, &intent));
+    ink_keymap_table_t   app = make_app();
+    ink_keymap_command_t command;
+    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &B_DOUBLE, &command));
 }
 
 static void test_lookup_scene_overrides_app(void) {
     ink_keymap_table_t app   = make_app();
-    ink_keymap_table_t scene = {.count = 1, .entries = {{B_PRESS, (ink_keymap_intent_t)INTENT_GRADE_GOOD}}};
+    ink_keymap_table_t scene = {.count = 1, .entries = {{B_PRESS, (ink_keymap_command_t)INTENT_GRADE_GOOD}}};
     TEST_ASSERT_EQUAL(INTENT_GRADE_GOOD, lookup_ok(&scene, &app, B_PRESS));
-    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_PREV, lookup_ok(&scene, &app, A_PRESS)); /* không có trong scene: rơi về app */
+    TEST_ASSERT_EQUAL(INK_KEYMAP_COMMAND_PREV, lookup_ok(&scene, &app, A_PRESS)); /* not in the scene table: falls back to the app table */
 }
 
 static void test_lookup_modifier_is_part_of_gesture(void) {
-    ink_keymap_table_t  app = make_app();
-    ink_keymap_intent_t intent;
-    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &A_THEN_B, &intent)); /* B nhấn có modifier A khác B nhấn */
+    ink_keymap_table_t   app = make_app();
+    ink_keymap_command_t command;
+    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &A_THEN_B, &command)); /* B PRESS with modifier A differs from B PRESS */
 }
 
 static void test_lookup_rejects_null(void) {
-    ink_keymap_table_t  app = make_app();
-    ink_keymap_intent_t intent;
-    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, nullptr, &intent));
+    ink_keymap_table_t   app = make_app();
+    ink_keymap_command_t command;
+    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, nullptr, &command));
     TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &B_PRESS, nullptr));
-    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, nullptr, &B_PRESS, &intent));
+    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, nullptr, &B_PRESS, &command));
 }
 
-/* ---- Kiểm tra ---- */
+/* ---- Validate ---- */
 
 static void test_validate_accepts_sample(void) {
     ink_keymap_table_t app = make_app();
@@ -101,13 +101,13 @@ static void test_validate_rejects_null_app(void) {
 
 static void test_validate_rejects_duplicate_gesture(void) {
     ink_keymap_table_t app   = make_app();
-    app.entries[app.count++] = (ink_keymap_entry_t){B_PRESS, INK_KEYMAP_INTENT_SELECT};
+    app.entries[app.count++] = (ink_keymap_entry_t){B_PRESS, INK_KEYMAP_COMMAND_SELECT};
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_DUPLICATE, ink_keymap_validate(nullptr, &app));
 }
 
-static void test_validate_allows_many_gestures_for_one_intent(void) {
+static void test_validate_allows_many_gestures_for_one_command(void) {
     ink_keymap_table_t app   = make_app();
-    app.entries[app.count++] = (ink_keymap_entry_t){B_DOUBLE, INK_KEYMAP_INTENT_NEXT};
+    app.entries[app.count++] = (ink_keymap_entry_t){B_DOUBLE, INK_KEYMAP_COMMAND_NEXT};
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_validate(nullptr, &app));
 }
 
@@ -116,7 +116,7 @@ static void test_validate_rejects_system_gestures(void) {
     for (size_t i = 0; i < sizeof(types) / sizeof(types[0]); i++) {
         ink_keymap_table_t  app      = make_app();
         const ink_gesture_t reserved = G(INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_AB, types[i]);
-        app.entries[app.count++]     = (ink_keymap_entry_t){reserved, INK_KEYMAP_INTENT_SELECT};
+        app.entries[app.count++]     = (ink_keymap_entry_t){reserved, INK_KEYMAP_COMMAND_SELECT};
         TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_RESERVED, ink_keymap_validate(nullptr, &app));
     }
 }
@@ -129,13 +129,13 @@ static void test_validate_rejects_count_over_max(void) {
 
 static void test_validate_requires_back(void) {
     ink_keymap_table_t app = make_app();
-    app.entries[3].intent  = INK_KEYMAP_INTENT_SELECT; /* A giữ không còn là BACK */
+    app.entries[3].command = INK_KEYMAP_COMMAND_SELECT; /* A HOLD is no longer BACK */
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_NO_BACK, ink_keymap_validate(nullptr, &app));
 }
 
 static void test_validate_rejects_scene_that_shadows_back(void) {
     ink_keymap_table_t app   = make_app();
-    ink_keymap_table_t scene = {.count = 1, .entries = {{A_HOLD, (ink_keymap_intent_t)INTENT_GRADE_AGAIN}}};
+    ink_keymap_table_t scene = {.count = 1, .entries = {{A_HOLD, (ink_keymap_command_t)INTENT_GRADE_AGAIN}}};
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_validate(nullptr, &app));
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_NO_BACK, ink_keymap_validate(&scene, &app));
 }
@@ -143,32 +143,32 @@ static void test_validate_rejects_scene_that_shadows_back(void) {
 static void test_validate_accepts_scene_that_moves_back(void) {
     ink_keymap_table_t app   = make_app();
     ink_keymap_table_t scene = {
-        .count = 2, .entries = {{A_HOLD, (ink_keymap_intent_t)INTENT_GRADE_AGAIN}, {B_DOUBLE, INK_KEYMAP_INTENT_BACK}}
+        .count = 2, .entries = {{A_HOLD, (ink_keymap_command_t)INTENT_GRADE_AGAIN}, {B_DOUBLE, INK_KEYMAP_COMMAND_BACK}}
     };
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_validate(&scene, &app));
 }
 
 static void test_validate_allows_scene_to_reuse_app_gesture(void) {
     ink_keymap_table_t app   = make_app();
-    ink_keymap_table_t scene = {.count = 1, .entries = {{B_PRESS, (ink_keymap_intent_t)INTENT_GRADE_GOOD}}};
+    ink_keymap_table_t scene = {.count = 1, .entries = {{B_PRESS, (ink_keymap_command_t)INTENT_GRADE_GOOD}}};
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_validate(&scene, &app));
 }
 
-/* ---- Khôi phục mặc định ---- */
+/* ---- Reset to defaults ---- */
 
 static void test_reset_restores_defaults(void) {
     const ink_keymap_table_t defaults = make_app();
     ink_keymap_table_t       table    = make_app();
-    table.entries[0].intent           = INK_KEYMAP_INTENT_BACK;
+    table.entries[0].command          = INK_KEYMAP_COMMAND_BACK;
     table.count                       = 2;
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_reset(&table, &defaults));
     TEST_ASSERT_EQUAL(defaults.count, table.count);
-    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_NEXT, lookup_ok(nullptr, &table, B_PRESS));
+    TEST_ASSERT_EQUAL(INK_KEYMAP_COMMAND_NEXT, lookup_ok(nullptr, &table, B_PRESS));
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_ARGUMENT, ink_keymap_reset(nullptr, &defaults));
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_ARGUMENT, ink_keymap_reset(&table, nullptr));
 }
 
-/* ---- Mask kiểu phải chờ ---- */
+/* ---- Wait mask ---- */
 
 static void test_wait_mask_defaults_to_none(void) {
     ink_keymap_table_t app = make_app();
@@ -178,22 +178,22 @@ static void test_wait_mask_defaults_to_none(void) {
 
 static void test_wait_mask_double_only_on_that_button(void) {
     ink_keymap_table_t app   = make_app();
-    app.entries[app.count++] = (ink_keymap_entry_t){B_DOUBLE, INK_KEYMAP_INTENT_NEXT};
+    app.entries[app.count++] = (ink_keymap_entry_t){B_DOUBLE, INK_KEYMAP_COMMAND_NEXT};
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_DOUBLE, ink_keymap_wait_mask(nullptr, &app, INK_GESTURE_BUTTON_B));
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_NONE, ink_keymap_wait_mask(nullptr, &app, INK_GESTURE_BUTTON_A));
 }
 
 static void test_wait_mask_modifier_on_held_button(void) {
     ink_keymap_table_t app   = make_app();
-    app.entries[app.count++] = (ink_keymap_entry_t){A_THEN_B, (ink_keymap_intent_t)INTENT_GRADE_GOOD};
+    app.entries[app.count++] = (ink_keymap_entry_t){A_THEN_B, (ink_keymap_command_t)INTENT_GRADE_GOOD};
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_MODIFIER, ink_keymap_wait_mask(nullptr, &app, INK_GESTURE_BUTTON_A));
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_NONE, ink_keymap_wait_mask(nullptr, &app, INK_GESTURE_BUTTON_B));
 }
 
 static void test_wait_mask_merges_scene_and_app(void) {
     ink_keymap_table_t app   = make_app();
-    ink_keymap_table_t scene = {.count = 1, .entries = {{B_DOUBLE, INK_KEYMAP_INTENT_NEXT}}};
-    app.entries[app.count++] = (ink_keymap_entry_t){A_THEN_B, (ink_keymap_intent_t)INTENT_GRADE_GOOD};
+    ink_keymap_table_t scene = {.count = 1, .entries = {{B_DOUBLE, INK_KEYMAP_COMMAND_NEXT}}};
+    app.entries[app.count++] = (ink_keymap_entry_t){A_THEN_B, (ink_keymap_command_t)INTENT_GRADE_GOOD};
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_DOUBLE, ink_keymap_wait_mask(&scene, &app, INK_GESTURE_BUTTON_B));
     TEST_ASSERT_EQUAL(INK_GESTURE_WAIT_MODIFIER, ink_keymap_wait_mask(&scene, &app, INK_GESTURE_BUTTON_A));
 }
@@ -205,7 +205,7 @@ static void test_wait_mask_ignores_non_button_trigger(void) {
 
 int main(void) {
     UNITY_BEGIN();
-    RUN_TEST(test_intent_codes_are_fixed);
+    RUN_TEST(test_command_codes_are_fixed);
     RUN_TEST(test_lookup_app_table);
     RUN_TEST(test_lookup_unassigned_gesture_is_dropped);
     RUN_TEST(test_lookup_scene_overrides_app);
@@ -214,7 +214,7 @@ int main(void) {
     RUN_TEST(test_validate_accepts_sample);
     RUN_TEST(test_validate_rejects_null_app);
     RUN_TEST(test_validate_rejects_duplicate_gesture);
-    RUN_TEST(test_validate_allows_many_gestures_for_one_intent);
+    RUN_TEST(test_validate_allows_many_gestures_for_one_command);
     RUN_TEST(test_validate_rejects_system_gestures);
     RUN_TEST(test_validate_rejects_count_over_max);
     RUN_TEST(test_validate_requires_back);

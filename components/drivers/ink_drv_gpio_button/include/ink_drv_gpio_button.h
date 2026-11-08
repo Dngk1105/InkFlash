@@ -1,10 +1,9 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #pragma once
 
 /*
- * Driver nút nối thẳng vào một chân GPIO, làm theo interface ink_hal_button.
- * Báo edge bằng ngắt. BSP truyền chân qua config. Bộ nhớ do bên gọi cấp, phải
- * nằm trong RAM nội vì ISR đọc nó.
+ * Driver for a button wired straight to one GPIO pin; implements ink_hal_button and reports edges by interrupt.
+ * bsp passes the pin in config. WARN: the caller allocates the driver struct in internal RAM; the ISR reads it.
  */
 #include "driver/gpio.h"
 #include "esp_err.h"
@@ -13,8 +12,8 @@
 
 typedef struct {
     gpio_num_t pin;
-    bool       active_low; /**< true: mức 0 là đang bấm (nút nối GND) */
-    bool       pull_up;    /**< bật kéo lên trong */
+    bool       active_low; /**< true: level 0 = pressed (button to GND) */
+    bool       pull_up;    /**< enable the internal pull-up */
 } ink_drv_gpio_button_config_t;
 
 typedef struct {
@@ -24,9 +23,13 @@ typedef struct {
 } ink_drv_gpio_button_t;
 
 /**
- * Cấu hình chân (chưa bật ngắt) và điền `out_device`.
- * Gọi từ: bsp, lúc khởi động. Bên gọi cài gpio_install_isr_service() trước khi gọi set_callback.
- * @return ESP_ERR_INVALID_ARG nếu có con trỏ nullptr; lỗi của gpio_config()
+ * @brief Configure the pin (interrupt still off) and fill `out_device`.
+ *
+ * The caller installs gpio_install_isr_service() before calling set_callback.
+ * @par Called from
+ * bsp, at boot.
+ * @retval ESP_ERR_INVALID_ARG a pointer is NULL.
+ * @return Other codes come from gpio_config().
  */
 esp_err_t ink_drv_gpio_button_init(ink_drv_gpio_button_t *driver, const ink_drv_gpio_button_config_t *config,
                                    ink_hal_button_device_t *out_device);

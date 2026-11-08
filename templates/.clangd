@@ -1,4 +1,4 @@
-# templates/ là project ESP-IDF riêng, có build/ riêng. File */test/*.c là host test, dùng .clangd ở gốc.
+# templates/ is a separate ESP-IDF project with its own build/. */test/*.c files are host tests and use the root .clangd.
 If:
   PathExclude: .*/test/.*\.c
 CompileFlags:

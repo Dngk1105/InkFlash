@@ -1,69 +1,74 @@
 # Kiến trúc tổng thể
 
-Máy ngủ sâu gần như cả ngày. Mỗi lần thức trên ESP32 là một lần khởi động lại từ đầu, nên firmware chạy theo
-**phiên thức**: khởi động → khôi phục trạng thái → dùng → lưu → ngủ sâu.
+Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake là một lần boot lại từ đầu, nên firmware chạy theo
+**wake session**: boot → restore state → dùng → save → deep sleep.
 
-## Các khối
+## Các module
 
-| Khối | Việc | Task | C thuần | Được gọi |
-|---|---|---|---|---|
-| `apps/` | Flashcard, Cài đặt, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Lấy sự kiện từ hàng đợi, đưa cho `session` và app, chạy ngăn xếp scene, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
-| `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua cổng |
-| `display/` | Chủ duy nhất của màn: nhận khung kèm ý định vẽ, chọn preset và profile, dọn khi nghỉ, tắt nguồn màn, gọi driver, đo thời gian | màn | | `display_policy`, `frame_slots`, `hal`, `platform` |
-| `display_policy/` | Phần quyết định của `display`: so khung, tìm vùng đổi, giữ nợ và cờ viền của từng điểm, chọn cách vẽ, thang dọn khi nghỉ, dựng mặt phẳng cũ | màn | Có | Chỉ thư viện C chuẩn |
-| `frame_slots/` | Chủ của 3 khung đệm của `display`: mượn, giao, lấy ra vẽ, thành khung đang hiện, đếm khung bị bỏ | main, màn (bên gọi giữ lock) | Có | Chỉ thư viện C chuẩn |
-| `session/` | Máy trạng thái phiên thức | main | Có | Chỉ thư viện C chuẩn |
-| `input/` | Vỏ của input: ngắt nút, đóng dấu giờ, hẹn giờ theo deadline của `gesture`, đọc lại chân, lệnh `gesture` | main | | `gesture`, `hal`, `platform` |
-| `gesture/` | Nút, IMU → cử chỉ | main | Có | Chỉ thư viện C chuẩn |
-| `keymap/` | Cử chỉ → intent theo bảng gán của app; kiểm tra bảng gán | main | Có | `gesture` (chỉ dùng kiểu cử chỉ) |
-| `scene/` | Ngăn xếp scene trong app | main | Có | Chỉ thư viện C chuẩn |
-| `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chỉ thư viện C chuẩn |
-| `ui/` | Canvas, font | main | Có | Chỉ thư viện C chuẩn |
-| `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
-| `platform/` | Log, config, giờ, hẹn giờ, RTC memory | nơi gọi | | ESP-IDF |
-| `hal/` | Interface phần cứng | nơi gọi | | |
-| `drivers/` | Mỗi chip một component; driver màn mang danh sách profile bảng sóng do `tools/profile_gen.py` sinh | nơi gọi | | Làm theo interface `hal` |
-| `bsp/` | Bảng chân, chọn driver theo board, nạp profile tạm và đọc OTP của chip màn (chỉ firmware test gọi) | lúc khởi động | | `hal`, `drivers` |
+| Module | Việc | Task | Core module | Có code | Được gọi |
+|---|---|---|---|---|---|
+| `apps/` | Flashcard, Settings, menu: màn hình và luồng thao tác | main | | Chưa | `system`, `study`, `display`, `ui` |
+| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
+| `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
+| `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
+| `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Có | Chỉ thư viện C chuẩn |
+| `frame_slots/` | Owner của 3 frame của `display`: acquire, submit, take, shown frame, đếm frame bị drop | main, display (caller giữ lock) | Có | Có | Chỉ thư viện C chuẩn |
+| `session/` | State machine của wake session | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | Có | `gesture`, `hal`, `platform` |
+| `gesture/` | Edge của nút, IMU → gesture | main | Có | Có | Chỉ thư viện C chuẩn |
+| `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
+| `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `ui/` | Canvas, font | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
+| `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
+| `hal/` | Interface phần cứng | caller | | Có | |
+| `drivers/` | Mỗi chip một component; driver panel mang danh sách profile waveform do `tools/profile_gen.py` sinh | caller | | Có | Làm theo interface `hal` |
+| `bsp/` | Pin map, chọn driver theo board, nạp profile tạm và đọc OTP của chip panel (chỉ firmware bench gọi) | boot | | Có | `hal`, `drivers` |
 
-Khối không có trong cột "Được gọi" của một khối thì khối đó không được gọi tới.
+Module không có trong cột "Được gọi" của một module thì module đó không được gọi tới. Cột "Có code" = "Chưa": kiến
+trúc đã chốt, chưa có component trong `components/`. `system/` có code nhưng mới gồm main queue, main task và khởi động
+`input`, `display`.
 
 ## Task
 
 | Task | Việc |
 |---|---|
-| main | Giữ toàn bộ trạng thái |
-| màn | Chủ duy nhất của màn, chỉ vẽ khung mới nhất |
-| Task phụ khác | Chỉ tạo cho việc chặn lâu |
+| Main task | Giữ toàn bộ state |
+| Display task | Owner duy nhất của panel; chỉ vẽ frame mới nhất |
+| Helper task | Chỉ tạo cho việc chặn lâu |
 
 ## Hai luồng chính
 
-**Lật thẻ:** ngắt nút → hàng đợi main → `input` gọi `gesture` ra cử chỉ → `keymap` ra intent → app đổi scene, vẽ canvas → giao khung cho task màn →
-`display` chọn preset theo ý định của khung → driver vẽ. Nghỉ thì `display` dọn viền, dọn xám, rồi tắt nguồn màn.
+**Lật thẻ:** interrupt nút → main queue → `input` gọi `gesture` ra gesture → `keymap` ra command → app đổi
+scene, vẽ canvas → submit frame cho display task → `display` chọn preset theo intent của frame → driver vẽ. Khi idle,
+`display` chạy cleanup edge, cleanup light, rồi tắt analog power.
 
-**Ngủ và thức:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh lưu → mỗi khối ghi snapshot vào ô RTC của mình →
-vẽ màn nền (còn nợ thì dọn mạnh luôn), tắt nguồn màn → ngủ sâu. Bấm nút → khởi động → đọc snapshot → `display` coi màn nền là khung đang hiện → vẽ cả màn ra đúng màn trước bằng preset của ý định, không chớp.
+**Ngủ và wake:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh save → mỗi module ghi snapshot vào RTC slot
+của mình → vẽ background frame (còn debt thì cleanup strong luôn), tắt analog power → deep sleep. Bấm nút → boot → đọc
+snapshot → `display` coi background frame là shown frame → vẽ cả panel ra đúng màn trước bằng preset của intent, không
+chớp.
 
 ## Gặp vấn đề thì đọc file nào
 
-Mỗi file tự đứng được, chỉ mở file khớp với vấn đề.
+Mỗi file tự đứng được; chỉ mở file khớp với vấn đề.
 
 | Gặp vấn đề | Đọc |
 |---|---|
 | Sản phẩm cần làm gì, tính năng có trong phạm vi không | [requirements.md](requirements.md) |
-| Khối này có được gọi khối kia không; logic dính FreeRTOS nên khó test; muốn thêm biến toàn cục; một thông tin nằm hai nơi; định làm sẵn cho tính năng chưa có | [design/principles.md](design/principles.md) |
-| Task main bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
-| Nút, cử chỉ, A+B, nhấn kép, IMU, lần bấm đánh thức, gán cử chỉ → chức năng | [design/input/input.md](design/input/input.md) |
-| Đi ngủ, thức dậy không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
-| Màn vẽ chậm, chớp, bóng mờ, viền xám, ý định vẽ của app, dọn màn khi nghỉ, đổi bảng sóng (profile, LUT), viết hoặc sửa driver màn, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
-| Thử màn khi chưa có app: gửi ảnh, chạy chuỗi ảnh, chấm điểm bảng sóng, kiểm thang dọn, đo tốc độ lật bằng firmware test | [design/display/bench.md](design/display/bench.md) |
-| Thêm app, scene, mục menu, BACK, Cài đặt | [design/app-framework.md](design/app-framework.md) |
+| Module này có được gọi module kia không; logic dính FreeRTOS nên khó test; muốn thêm biến toàn cục; một thông tin nằm hai nơi; định làm sẵn cho tính năng chưa có | [design/principles.md](design/principles.md) |
+| Main task bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
+| Nút, gesture, A+B, double press, IMU, lần bấm đánh thức, gán gesture → chức năng | [design/input/input.md](design/input/input.md) |
+| Đi ngủ, wake không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
+| Panel vẽ chậm, chớp, ghosting, viền xám, intent của app, cleanup khi idle, đổi waveform (profile, LUT), viết hoặc sửa driver panel, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
+| Thử panel khi chưa có app: gửi ảnh, chạy chuỗi ảnh, chấm điểm waveform, kiểm thang cleanup, đo tốc độ lật bằng firmware bench | [design/display/bench.md](design/display/bench.md) |
+| Thêm app, scene, mục menu, `BACK`, Settings | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |
-| Tạo khối mới, đặt tên, repo xếp thế nào, mã lỗi, template, `tools/check.py` báo lỗi | [design/code-structure.md](design/code-structure.md) |
-| Vẽ chữ hoặc hình lên canvas, chữ Việt ra `?`, màn ngang bị xoay sai, thêm hoặc đổi font | [design/ui-canvas.md](design/ui-canvas.md) |
+| Tạo module mới, đặt tên, repo xếp thế nào, mã lỗi, template, `tools/check.py` báo lỗi | [design/code-structure.md](design/code-structure.md) |
 | Viết code gọi ESP-IDF, không chắc API còn dùng được ở v6.1, build báo deprecated | [design/esp-idf-api.md](design/esp-idf-api.md) |
 | Thông số, chân, lệnh của một linh kiện; board dùng linh kiện nào, đấu chân nào | [hardware/index.md](hardware/index.md), rồi chỉ mở file cần |
+| Thuật ngữ, đổi tên identifier | [glossary.yaml](glossary.yaml) |
 | Viết hoặc sửa docs | [writing-docs.md](writing-docs.md) |
 | Viết comment trong code, comment có cần không, comment lệch code | [writing-comments.md](writing-comments.md) |
 | Làm visualize, file mô phỏng chạy trên trình duyệt, mô phỏng lệch code C | [writing-visualizations.md](writing-visualizations.md) |

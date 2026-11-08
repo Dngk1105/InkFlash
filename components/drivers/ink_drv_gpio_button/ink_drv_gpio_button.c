@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #include "ink_drv_gpio_button.h"
 
 #include "esp_attr.h"
@@ -6,7 +6,7 @@
 
 static const char *TAG = "ink_drv_gpio_button";
 
-/* ---- Chân GPIO ---- */
+/* ---- GPIO pin ---- */
 
 static esp_err_t configure_pin(const ink_drv_gpio_button_config_t *config, gpio_int_type_t interrupt_type) {
     const gpio_config_t pin_config = {
@@ -24,14 +24,14 @@ static bool IRAM_ATTR is_pressed(const ink_drv_gpio_button_t *driver) {
     return driver->config.active_low ? !level_high : level_high;
 }
 
-/* ---- Ngắt ---- */
+/* ---- Interrupt ---- */
 
 static void IRAM_ATTR on_pin_edge(void *user_data) {
     const ink_drv_gpio_button_t *driver = user_data;
     driver->callback(driver->callback_user_data, is_pressed(driver));
 }
 
-/* ---- Bảng hàm ink_hal_button ---- */
+/* ---- ink_hal_button operations ---- */
 
 static esp_err_t read_pressed(void *context, bool *out_pressed) {
     *out_pressed = is_pressed(context);
@@ -53,7 +53,7 @@ static const ink_hal_button_operations_t s_operations = {
     .set_callback = set_callback,
 };
 
-/* ---- Khởi tạo ---- */
+/* ---- Init ---- */
 
 esp_err_t ink_drv_gpio_button_init(ink_drv_gpio_button_t *driver, const ink_drv_gpio_button_config_t *config,
                                    ink_hal_button_device_t *out_device) {

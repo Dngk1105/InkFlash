@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/code-structure.md */
+/* Design: docs/design/code-structure.md */
 #include "ink_example_shell.h"
 
 #include "esp_attr.h"
@@ -10,7 +10,7 @@
 
 static const char *TAG = "ink_example_shell";
 
-/* ---- Hàng đợi ---- */
+/* ---- Queue ---- */
 
 #define QUEUE_LENGTH 8
 
@@ -31,10 +31,10 @@ bool IRAM_ATTR ink_example_shell_post_from_isr(const ink_example_shell_message_t
 
 /* ---- Task ---- */
 
-#define TASK_STACK_BYTES 3072 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
+#define TASK_STACK_BYTES 3072 /* stack in internal RAM (xTaskCreatePinnedToCore default) */
 #define TASK_PRIORITY    5
 
-static uint32_t s_total; /* trạng thái của khối: chỉ task bên dưới sửa */
+static uint32_t s_total; /* block state: only the task below changes it */
 
 static void task_main(void *user_data) {
     (void)user_data;
@@ -47,7 +47,7 @@ static void task_main(void *user_data) {
     }
 }
 
-/* ---- Khởi động ---- */
+/* ---- Start ---- */
 
 esp_err_t ink_example_shell_start(void) {
     if (s_queue != nullptr) { return ESP_ERR_INVALID_STATE; }

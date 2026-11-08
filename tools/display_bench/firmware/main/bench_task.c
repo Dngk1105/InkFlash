@@ -89,14 +89,15 @@ static const uint8_t *read_preset(const uint8_t *cursor, ink_display_preset_t *p
         preset->bands[band] = (ink_hal_display_band_t){.max_celsius = (int8_t)cursor[0], .profile_id = read_u16(&cursor[1])};
         cursor += 3;
     }
-    preset->config =
-        (ink_hal_display_draw_config_t){.partial_mode = cursor[0] != 0, .scan_outside_window = cursor[1] != 0, .drive_border = cursor[2] != 0};
+    preset->config = (ink_hal_display_draw_config_t){
+        .partial_mode = cursor[0] != 0, .scan_outside_window = cursor[1] != 0, .drive_border = cursor[2] != 0};
     if (debt_weight != nullptr) { *debt_weight = cursor[3]; }
     if (marks_edges != nullptr) { *marks_edges = cursor[4] != 0; }
     return cursor + 5;
 }
 
-/* Index bản ghi = giá trị enum: draw theo ink_display_intent_t (AUTO không dùng), cleanup theo ink_display_cleanup_t (INVALID không dùng). */
+/* Index bản ghi = giá trị enum: draw theo ink_display_intent_t (AUTO không dùng), cleanup theo ink_display_cleanup_t (INVALID không dùng).
+ */
 static void put_options(writer_t *writer, const ink_display_options_t *options) {
     for (int intent = 0; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
         const ink_display_draw_preset_t *draw = &options->draw_presets[intent];
@@ -122,7 +123,7 @@ static esp_err_t read_options(const uint8_t *payload, size_t length, ink_display
     const uint8_t *cursor = payload;
     for (int intent = 0; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
         ink_display_draw_preset_t *draw = &out_options->draw_presets[intent];
-        cursor = read_preset(cursor, &draw->preset, &draw->debt_weight, &draw->marks_edges);
+        cursor                          = read_preset(cursor, &draw->preset, &draw->debt_weight, &draw->marks_edges);
     }
     for (int cleanup = 0; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
         cursor = read_preset(cursor, &out_options->cleanup_presets[cleanup], nullptr, nullptr);

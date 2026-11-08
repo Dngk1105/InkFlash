@@ -14,7 +14,7 @@ Số trang là số trang PDF, cũng là số in ở chân trang.
 |---|---|---|---|---|
 | `uc8253-datasheet.pdf` | Datasheet controller UC8253 (75 trang), bản c_A, revision 0.6, 2020-10-13, "for TFT_module_Use_Only" | UltraChip | tr.3 tính năng; tr.6–7 chân; tr.8–13 bảng lệnh; tr.14–40 mô tả lệnh; tr.41–46 giao tiếp và nguồn; tr.47–52 OTP và nhiệt độ; tr.58–61 điện | Có text; bảng lệnh bị bể cột khi trích text |
 | `gdey037t03-spec.pdf` | Spec panel GDEY037T03 (45 trang), bản có front-light và cảm ứng, revision 1.1 | Dalian Good Display | tr.5 tổng quan; tr.9–26 bảng lệnh (chép từ datasheet UC8253); tr.13 bảng điện áp VSH, VSL, VDHR; tr.29–31 giao tiếp, đọc qua SDA; tr.39 luồng hoạt động chuẩn | tr.9–26 là ảnh scan, không trích được text |
-| `panel-e037a75-a0-spec.pdf` | Spec panel E037A75-A0 (20 trang), phát hành 2025-06-30 | Shenzhen Yingruida Optoelectronics (英瑞达) | tr.4–5 mô tả và cơ khí; tr.6–8 chân FPC; tr.9–10 mạch tham khảo; tr.11–12 điện và quang | Một số trang là hình |
+| `panel-e037a75-a0-spec.pdf` | Spec panel E037A75-A0 (20 trang), phát hành 2025-06-30. Panel khác cùng cỡ, chỉ dùng tham khảo khi GDEY037T03 không ghi | Shenzhen Yingruida Optoelectronics (英瑞达) | tr.4–5 mô tả và cơ khí; tr.6–8 chân FPC; tr.9–10 mạch tham khảo; tr.11–12 điện và quang | Một số trang là hình |
 | `module-schematic-4.2-3.7.pdf` | Sơ đồ nguyên lý bo module, v1.0, 2024-03-06 (1 trang, hình vector) | WeAct Studio | tr.1 | Dùng chung cho 4,2" và 3,7" |
 | `module-board-shape-3.7.pdf` | Bản vẽ hình dạng và nhãn chân bo module (3 trang, nội dung ở tr.1) | WeAct Studio | tr.1 | |
 | `ldo-me6231a33m3g-datasheet.pdf` | LDO 3,3 V trên module (11 trang) | Microne | tr.1–3 | |

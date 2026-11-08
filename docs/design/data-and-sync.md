@@ -60,8 +60,8 @@ Bản ghi tạo lúc giờ chưa đáng tin (RTC mất giờ sau ship mode hoặ
 
 ### Khi nào một lần chấm là chắc chắn
 
-Ghi xuống flash ngay sau mỗi lần chấm, không gom trong RAM. Ghi sau khi đã giao khung cho task màn, vì lúc ghi flash
-mọi task chạy code từ flash phải chờ (thường vài ms, lúc xoá khối 4 KB khoảng 30–50 ms).
+Ghi xuống flash ngay sau mỗi lần chấm, không gom trong RAM. Ghi sau khi đã submit frame cho display task, vì lúc ghi flash
+mọi task chạy code từ flash phải chờ (vài ms; lúc xoá khối 4 KB khoảng 30–50 ms).
 
 Định dạng bản ghi chính xác do bộ test vector quyết định. Mọi bản code đọc ghi log (máy, điện thoại, Kindle) phải
 chạy qua cùng bộ test vector.

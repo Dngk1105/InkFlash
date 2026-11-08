@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/display/display.md */
+/* Design: docs/design/display/display.md */
 #include "ink_frame_slots.h"
 
 typedef enum : uint8_t {
@@ -19,12 +19,12 @@ static int8_t find_free(const ink_frame_slots_state_t *state) {
     return INK_FRAME_SLOTS_NONE;
 }
 
-/* ---- Khởi động ---- */
+/* ---- Boot ---- */
 
 ink_frame_slots_error_t ink_frame_slots_init(ink_frame_slots_state_t *state) {
     if (state == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
     *state = (ink_frame_slots_state_t){
-        .priv = {.borrowed = INK_FRAME_SLOTS_NONE,
+        .priv = {.acquired = INK_FRAME_SLOTS_NONE,
                  .pending  = INK_FRAME_SLOTS_NONE,
                  .latest   = INK_FRAME_SLOTS_NONE,
                  .shown    = INK_FRAME_SLOTS_NONE},
@@ -41,16 +41,16 @@ ink_frame_slots_error_t ink_frame_slots_assume_shown(ink_frame_slots_state_t *st
     return INK_FRAME_SLOTS_OK;
 }
 
-/* ---- Task main ---- */
+/* ---- Main task ---- */
 
 ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, ink_frame_slots_lease_t *out_lease) {
     if (state == nullptr || out_lease == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
-    if (state->priv.borrowed != INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
+    if (state->priv.acquired != INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
 
     int8_t frame = find_free(state);
     if (frame != INK_FRAME_SLOTS_NONE) {
         const int8_t latest = state->priv.latest;
-        /* Khung trống vẫn là `latest` khi task màn trả nó về sau policy lỗi: ảnh còn nguyên. */
+        /* A free frame can still be `latest` after the display task releases it on a policy error: its image is intact. */
         ink_frame_slots_fill_t fill = INK_FRAME_SLOTS_FILL_COPY;
         if (latest == INK_FRAME_SLOTS_NONE) {
             fill = INK_FRAME_SLOTS_FILL_WHITE;
@@ -64,24 +64,24 @@ ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, 
             .copy_from = fill == INK_FRAME_SLOTS_FILL_COPY ? latest : INK_FRAME_SLOTS_NONE,
         };
     } else {
-        /* Luôn có khung chờ: task màn giữ tối đa hai khung. */
+        /* A frame is always pending here: the display task holds at most two frames. */
         frame               = state->priv.pending;
         state->priv.pending = INK_FRAME_SLOTS_NONE;
         state->priv.dropped += 1;
         *out_lease = (ink_frame_slots_lease_t){.frame = frame, .fill = INK_FRAME_SLOTS_FILL_KEEP, .copy_from = INK_FRAME_SLOTS_NONE};
     }
     state->priv.owner[frame] = OWNER_MAIN;
-    state->priv.borrowed     = frame;
+    state->priv.acquired     = frame;
     return INK_FRAME_SLOTS_OK;
 }
 
-int8_t ink_frame_slots_borrowed(const ink_frame_slots_state_t *state) {
-    return state == nullptr ? INK_FRAME_SLOTS_NONE : state->priv.borrowed;
+int8_t ink_frame_slots_acquired(const ink_frame_slots_state_t *state) {
+    return state == nullptr ? INK_FRAME_SLOTS_NONE : state->priv.acquired;
 }
 
 ink_frame_slots_error_t ink_frame_slots_submit(ink_frame_slots_state_t *state) {
     if (state == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
-    const int8_t frame = state->priv.borrowed;
+    const int8_t frame = state->priv.acquired;
     if (frame == INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
 
     if (state->priv.pending != INK_FRAME_SLOTS_NONE) {
@@ -91,11 +91,11 @@ ink_frame_slots_error_t ink_frame_slots_submit(ink_frame_slots_state_t *state) {
     state->priv.owner[frame] = OWNER_PENDING;
     state->priv.pending      = frame;
     state->priv.latest       = frame;
-    state->priv.borrowed     = INK_FRAME_SLOTS_NONE;
+    state->priv.acquired     = INK_FRAME_SLOTS_NONE;
     return INK_FRAME_SLOTS_OK;
 }
 
-/* ---- Task màn ---- */
+/* ---- Display task ---- */
 
 int8_t ink_frame_slots_take(ink_frame_slots_state_t *state) {
     if (state == nullptr) { return INK_FRAME_SLOTS_NONE; }
@@ -106,7 +106,7 @@ int8_t ink_frame_slots_take(ink_frame_slots_state_t *state) {
     return frame;
 }
 
-/* Khung đã lấy ra: task màn giữ, và không phải khung đang hiện. */
+/* Taken frame: owned by the display task and not the shown frame. */
 static ink_frame_slots_error_t check_taken(const ink_frame_slots_state_t *state, int8_t frame) {
     if (state == nullptr || !valid_frame(frame)) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
     const bool taken = state->priv.owner[frame] == OWNER_DISPLAY && frame != state->priv.shown;

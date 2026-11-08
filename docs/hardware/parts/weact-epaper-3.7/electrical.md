@@ -4,7 +4,7 @@ Nguồn cấp, mức logic, dòng tiêu thụ và các giới hạn môi trườ
 
 ## Ví dụ
 
-Cấp 3,3 V từ DevKit vào chân VCC và để module ở cấu hình 3,3 V. Mỗi lần làm mới màn tốn khoảng 200 mA·s, tức khoảng 0,056 mAh (200 chia 3600). Màn nằm yên giữa hai lần làm mới thì gần như không tốn điện; controller ở deep sleep tốn tối đa 3 µA.
+Cấp 3,3 V từ DevKit vào chân VCC và để module ở cấu hình 3,3 V. Theo spec, dòng điển hình lúc làm mới là 6 mA và full refresh mất khoảng 2 s, nên một lần tốn khoảng 12 mA·s, tức khoảng 0,003 mAh (12 chia 3600). Đây là số tính từ spec, chưa đo trên máy. Màn nằm yên giữa hai lần làm mới thì gần như không tốn điện; controller ở deep sleep tốn điển hình 1 µA, tối đa 5 µA.
 
 ## Nguồn cấp module
 
@@ -33,15 +33,17 @@ Cấp 3,3 V từ DevKit vào chân VCC và để module ở cấu hình 3,3 V. M
 
 | Thông số                        | Giá trị                                                             | Nguồn       | Trạng thái    |
 | ----------------------------------- | ----------------------------------------------------------------------- | -------------- | ----------------- |
-| VCC panel                         | 2,4 / 3,0 / 3,6 V (nhỏ nhất / điển hình / lớn nhất)            | Panel tr.11  | Đã xác nhận |
+| VCI của panel                     | 2,3 / 3,0 / 3,6 V (nhỏ nhất / điển hình / lớn nhất)            | GDEY037T03 tr.27  | Đã xác nhận |
 | VDD, VDDIO của UC8253            | 2,3 / 3,3 / 3,6 V                                                     | UC8253 tr.59 | Đã xác nhận |
-| Dòng khi đang làm mới         | Tối đa 8 mA                                                         | Panel tr.11  | Đã xác nhận |
-| Dòng deep sleep                  | Tối đa 3 µA tại VCC = 3,0 V                                       | Panel tr.11  | Đã xác nhận |
-| Năng lượng một lần làm mới | 200 mA·s điển hình ở 25 °C (dòng trung bình nhân thời gian) | Panel tr.11  | Đã xác nhận |
-| Mức vào cao tối thiểu         | 0,8 × VDDIO                                                          | Panel tr.11  | Đã xác nhận |
-| Mức vào thấp tối đa          | 0,2 × VDDIO                                                          | Panel tr.11  | Đã xác nhận |
+| Dòng khi đang làm mới         | Điển hình 6 mA tại VCI = 3,0 V; spec không ghi tối đa              | GDEY037T03 tr.27  | Đã xác nhận |
+| Dòng deep sleep (mất RAM)        | Điển hình 1 µA, tối đa 5 µA                                       | GDEY037T03 tr.27  | Đã xác nhận |
+| Dòng sleep (giữ RAM)              | Điển hình 25 µA                                                  | GDEY037T03 tr.27  | Đã xác nhận |
+| Công suất điển hình               | 18 mW tại VCI = 3,0 V                                            | GDEY037T03 tr.27  | Đã xác nhận |
+| Thời gian làm mới theo spec       | Full 2 s, fast 1,5 s, partial 0,3 s ở 25 °C                       | GDEY037T03 tr.27  | Đã xác nhận |
+| Mức vào cao tối thiểu         | 0,8 × VCI                                                          | GDEY037T03 tr.27  | Đã xác nhận |
+| Mức vào thấp tối đa          | 0,2 × VCI                                                          | GDEY037T03 tr.27  | Đã xác nhận |
 
-Chân BUSY ra mức cao tối thiểu 0,9 × VDDIO và mức thấp tối đa 0,1 × VDDIO ở dòng 100 µA (Panel tr.11).
+Mức ra (gồm chân BUSY): cao tối thiểu 0,8 × VCI, thấp tối đa 0,2 × VCI ở dòng 400 µA (GDEY037T03 tr.27).
 
 ## Điện áp cao do module tạo
 
@@ -63,18 +65,27 @@ Các mức này còn được chương trình sóng (LUT) lưu trong OTP đặt 
 
 | Thông số                             | Giá trị                                                                          | Nguồn                    |
 | ---------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------- |
-| Điện áp logic tuyệt đối tối đa | −0,5 tới 6,0 V (panel); −0,3 tới 6,0 V (UC8253)                                | Panel tr.11; UC8253 tr.58 |
-| Nhiệt độ hoạt động               | 0–40 °C                                                                          | Panel tr.11               |
-| Nhiệt độ lưu kho và vận chuyển  | −25–60 °C                                                                       | Panel tr.11               |
-| Độ ẩm khuyến nghị                 | 45–70 %RH; ngoài khoảng này không đảm bảo chất lượng 5 năm             | Panel tr.11–12           |
-| Trên 35 °C                           | Hiệu ứng điểm đơn không được đảm bảo; nên làm mới mỗi 24 giờ     | Panel tr.11               |
-| Cất kho quá 10 ngày ở 40–60 °C   | Chất lượng hiển thị có thể giảm                                            | Panel tr.11               |
+| Điện áp logic tuyệt đối tối đa | −0,3 tới 6,0 V                                                                 | GDEY037T03 tr.27; UC8253 tr.58 |
+| Nhiệt độ hoạt động               | 0–50 °C                                                                          | GDEY037T03 tr.27               |
+| Nhiệt độ lưu kho                 | −25–70 °C                                                                       | GDEY037T03 tr.27               |
+| Độ ẩm lưu kho tốt nhất            | 55 ± 10 %RH                                                                      | GDEY037T03 tr.27               |
 | Cảm biến nhiệt trong controller     | −25–50 °C, sai số ±2 °C                                                      | UC8253 tr.3               |
-| Tuổi thọ thiết kế                  | 5 năm ở 25 °C/60 %RH                                                            | Panel tr.16               |
-| ESD (machine model)                    | ±250 V                                                                            | Panel tr.16               |
-| Bảo hành                             | 12 tháng cộng 1 tháng giao hàng                                                | Panel tr.16               |
-| Độ tương phản                     | Trạng thái đen L* ≤ 20, trạng thái trắng L* ≥ 66, ΔE bóng mờ tối đa 2 | Panel tr.12               |
+| Tuổi thọ                           | 1 000 000 lần làm mới hoặc 5 năm                                                  | GDEY037T03 tr.33               |
+| Hệ số phản xạ, độ tương phản      | Trắng 30–35 %; tỉ lệ tương phản 8:1 trong nhà                                     | GDEY037T03 tr.33               |
 
-Panel tr.12 còn dặn: nên làm mới ít nhất một lần mỗi ngày; điều này khớp với lời khuyên làm mới định kỳ ở `refresh.md`.
+## Chỉ có trong spec của panel khác
 
-Đối chiếu gốc: `source/panel-e037a75-a0-spec.pdf` tr.10–12, 16; `source/uc8253-datasheet.pdf` tr.3, 16–18, 58–59; `source/ldo-me6231a33m3g-datasheet.pdf` tr.1–2.
+Spec GDEY037T03 không ghi các mục dưới đây. Chúng đến từ spec E037A75-A0, một panel khác cùng cỡ, nên chỉ dùng để tham khảo, không phải cam kết cho panel đang dùng.
+
+| Mục | Giá trị trong E037A75-A0 | Trang |
+|---|---|---|
+| Năng lượng một lần làm mới | 200 mA·s điển hình ở 25 °C | tr.11 |
+| Trên 35 °C | Hiệu ứng điểm đơn không được đảm bảo; nên làm mới mỗi 24 giờ | tr.11 |
+| Cất kho quá 10 ngày ở 40–60 °C | Chất lượng hiển thị có thể giảm | tr.11 |
+| Độ ẩm | 45–70 %RH để giữ chất lượng 5 năm | tr.11–12 |
+| Độ tương phản | Đen L* ≤ 20, trắng L* ≥ 66, ΔE bóng mờ tối đa 2 | tr.12 |
+| Làm mới định kỳ | Ít nhất một lần mỗi ngày | tr.12 |
+| ESD (machine model) | ±250 V | tr.16 |
+| Bảo hành | 12 tháng cộng 1 tháng giao hàng | tr.16 |
+
+Đối chiếu gốc: `source/gdey037t03-spec.pdf` tr.27, 33; `source/panel-e037a75-a0-spec.pdf` tr.11–12, 16 (mục tham khảo); `source/uc8253-datasheet.pdf` tr.3, 16–18, 58–59; `source/ldo-me6231a33m3g-datasheet.pdf` tr.1–2.

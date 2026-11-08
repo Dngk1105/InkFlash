@@ -1,7 +1,7 @@
-/* Thiết kế: docs/design/code-structure.md */
+/* Design: docs/design/code-structure.md */
 
-/* Chạy thử các template: lõi xử lý sự kiện, vỏ nhận message. Mẫu ngoại vi chỉ
- * cần build được. */
+/* Smoke test of the templates: the core handles events, the shell receives messages.
+ * Peripheral templates only need to build. */
 #include "esp_err.h"
 #include "esp_log.h"
 #include "ink_example.h"

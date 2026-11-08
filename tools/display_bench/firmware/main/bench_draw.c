@@ -112,7 +112,7 @@ esp_err_t bench_draw_raw(uint8_t slot, const bench_raw_settings_t *settings, ben
     *out                   = (bench_drawn_t){.slot = slot, .action = INK_DISPLAY_ACTION_NONE, .is_frame = true, .intent = RAW_INTENT};
     memcpy(s_new, s_slots[slot], s_frame_bytes);
 
-    const uint8_t         *plane_old = prepare_old_plane(settings);
+    const uint8_t     *plane_old = prepare_old_plane(settings);
     ink_display_rect_t window;
     if (!choose_window(settings, plane_old, &window)) { return ESP_OK; }
     out->action     = INK_DISPLAY_ACTION_DRAW;
@@ -187,8 +187,8 @@ void bench_draw_from_report(const ink_display_report_t *report, bench_drawn_t *o
 
 static esp_err_t init_pipeline(void) {
     const ink_display_config_t config = {
-        .device   = &s_device,
-        .options  = &s_options,
+        .device    = &s_device,
+        .options   = &s_options,
         .on_report = on_report,
     };
     return ink_display_start(&config);

@@ -1,26 +1,26 @@
-/* Thiết kế: docs/design/code-structure.md */
+/* Design: docs/design/code-structure.md */
 #pragma once
 
 /*
- * Mẫu khối C thuần (C23): nhận sự kiện, trả về hành động. Không include gì của
- * ESP-IDF hay FreeRTOS. Trạng thái nằm trong struct do bên gọi giữ (vỏ giữ nó
- * dạng biến static), nên test trên PC tạo được nhiều bản. Ví dụ này đếm sự kiện
- * TICK; đủ `limit` lần thì trả hành động NOTIFY rồi đếm lại.
+ * Template of a pure C block (C23): takes events, returns actions. Includes nothing from
+ * ESP-IDF or FreeRTOS. State lives in a struct owned by the caller (the shell keeps it as a
+ * static variable), so host tests can create many instances. This example counts TICK events;
+ * after `limit` ticks it returns NOTIFY and starts counting again.
  */
 #include <stdint.h>
 
-/* ---- Lỗi ---- */
+/* ---- Errors ---- */
 
-/* Lỗi riêng của khối. Chỉ gồm lỗi khối thật sự trả về. */
+/** Errors of this block. List only errors the block really returns. */
 typedef enum : uint8_t {
     INK_EXAMPLE_OK = 0,
     INK_EXAMPLE_ERROR_ARGUMENT,
 } ink_example_error_t;
 
-/* ---- Sự kiện vào, hành động ra ---- */
+/* ---- Events in, actions out ---- */
 
-/* Enum có kiểu nền cố định 1 byte: kích thước không đổi khi lưu xuống flash hay
- * RTC memory. */
+/** Event type.
+ * NOTE: fixed 1-byte underlying type, so the size stays the same when stored in flash or RTC memory. */
 typedef enum : uint8_t {
     INK_EXAMPLE_EVENT_TICK,
     INK_EXAMPLE_EVENT_RESET,
@@ -28,7 +28,7 @@ typedef enum : uint8_t {
 
 typedef struct {
     ink_example_event_type_t type;
-    uint32_t                 time_ms; /* thời điểm do bên gọi truyền vào; khối không tự đọc đồng hồ */
+    uint32_t                 time_ms; /**< passed in by the caller; the block never reads a clock */
 } ink_example_event_t;
 
 typedef enum : uint8_t {
@@ -36,10 +36,10 @@ typedef enum : uint8_t {
     INK_EXAMPLE_ACTION_NOTIFY,
 } ink_example_action_t;
 
-/* ---- Trạng thái ---- */
+/* ---- State ---- */
 
-/* Bên gọi giữ struct nhưng không đụng trường bên trong: mọi trường nằm trong
- * `priv`, tools/check.py chặn truy cập `priv` ngoài thư mục khối lõi. */
+/** The caller owns the struct but must not touch its fields: all of them are in `priv`, and
+ * tools/check.py rejects `priv` access outside the core block's folder. */
 typedef struct {
     struct {
         uint32_t count;
@@ -49,16 +49,19 @@ typedef struct {
 
 /* ---- API ---- */
 
-/*
- * Khởi tạo trạng thái.
- * Trả INK_EXAMPLE_ERROR_ARGUMENT nếu `state` là nullptr hoặc `limit` bằng 0.
+/**
+ * @brief Reset the state.
+ * @par Called from
+ * Shell, once at boot.
+ * @retval INK_EXAMPLE_ERROR_ARGUMENT state is NULL or limit is 0.
  */
 [[nodiscard]] ink_example_error_t ink_example_init(ink_example_state_t *state, uint32_t limit);
 
-/*
- * Xử lý một sự kiện, ghi hành động cần làm vào `out_action`.
- * Trả INK_EXAMPLE_ERROR_ARGUMENT nếu có con trỏ nullptr hoặc loại sự kiện không
- * hợp lệ.
+/**
+ * @brief Handle one event; write the action to take into `out_action`.
+ * @par Called from
+ * Shell task, once per event.
+ * @retval INK_EXAMPLE_ERROR_ARGUMENT a pointer is NULL or the event type is invalid.
  */
 [[nodiscard]] ink_example_error_t ink_example_handle(ink_example_state_t *state, const ink_example_event_t *event,
                                                      ink_example_action_t *out_action);

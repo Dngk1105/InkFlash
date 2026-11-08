@@ -1,7 +1,7 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
-/* Dựa theo: examples/peripherals/i2c/i2c_basic. Không dùng driver/i2c.h (driver
- * cũ). */
+/* Based on: examples/peripherals/i2c/i2c_basic. Not driver/i2c.h (legacy
+ * driver). */
 #include "ink_periph_examples.h"
 
 #include "esp_check.h"
@@ -13,7 +13,7 @@ static const char *TAG = "periph_i2c";
 esp_err_t ink_periph_examples_i2c_init(gpio_num_t sda, gpio_num_t scl, uint16_t address, uint32_t clock_hz,
                                        i2c_master_bus_handle_t *out_bus, i2c_master_dev_handle_t *out_device) {
     const i2c_master_bus_config_t bus_config = {
-        .i2c_port                     = -1, /* tự chọn cổng */
+        .i2c_port                     = -1, /* pick any free port */
         .sda_io_num                   = sda,
         .scl_io_num                   = scl,
         .clk_source                   = I2C_CLK_SRC_DEFAULT,

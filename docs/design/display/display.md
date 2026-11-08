@@ -2,379 +2,402 @@
 
 ## Vấn đề
 
-Lật thẻ phải nhanh (≤ 0,3 s rồi giảm dần), chữ phải rõ, và màn không được hỏng dần vì bóng mờ hay lệch điện tích. Gần
-hết thời gian vẽ là lúc panel quét, nằm trong driver màn. Bảng sóng nạp qua thanh ghi của controller UC8253 cho DRF
-31–343 ms, nhưng bảng càng ngắn càng dễ để lại màu xám, viền hoặc bóng ảnh cũ. Không bảng sóng nào vừa nhanh vừa sạch,
-nên phải chọn bảng theo nội dung đang vẽ và dọn màn vào lúc người dùng không để ý.
+Lật thẻ phải nhanh (≤ 0,3 s, rồi giảm dần), chữ phải rõ, và panel không được hỏng dần vì ghosting hay lệch điện tích.
+Gần hết thời gian vẽ là lúc panel quét, nằm trong driver. Waveform nạp qua thanh ghi của controller UC8253 cho DRF
+31–343 ms. Waveform càng ngắn thì càng dễ để lại màu xám, viền hoặc bóng ảnh cũ. Không waveform nào vừa nhanh vừa
+sạch, nên display chọn waveform theo nội dung đang vẽ và chạy cleanup lúc người dùng không để ý.
 
-App không biết màn vẽ thế nào; nó chỉ biết mình đang vẽ gì (một trang chữ, một con trỏ menu, một màn mới). `display` cần
-đúng thông tin đó để chọn bảng sóng.
+App không biết panel vẽ thế nào; app chỉ biết mình đang vẽ gì (một trang chữ, một con trỏ menu, một màn mới). Display
+cần đúng thông tin đó (intent) để chọn waveform.
 
-Controller có hai vùng RAM ảnh, ghi bằng lệnh `0x10` và `0x13`. Sau mỗi lần làm mới (DRF), hai vùng đổi vai "ảnh mới"
-và "ảnh cũ" cho nhau. Driver chỉ ghi một vùng trước DRF thì mọi lần DRF thứ chẵn kể từ reset không đổi hình.
+Controller có hai vùng RAM ảnh, ghi bằng lệnh `0x10` và `0x13`. Sau mỗi DRF, hai vùng hoán đổi vai "ảnh mới" và "ảnh cũ".
+Driver chỉ ghi một vùng trước DRF thì mọi DRF thứ chẵn kể từ reset không đổi hình.
 
 ## Sơ đồ
 
-Sơ đồ cùng thư mục, vẽ từ file này, mở bằng trình duyệt:
+Các sơ đồ nằm cùng thư mục, vẽ từ file này, mở bằng trình duyệt:
 
 | File | Cho thấy |
 |---|---|
 | `architecture.html` | Các khối của đường vẽ màn và ai gọi ai |
-| `sequence.html` | Một lần lật thẻ rồi thang dọn khi nghỉ: giao khung kèm ý định, chọn preset, driver ghi hai vùng RAM theo lượt, DRF, dọn viền, tắt nguồn |
-| `dataflow.html` | Dữ liệu đổi dạng qua từng tầng: khung 1 bit và ý định → trạng thái từng điểm → window và hai mặt phẳng → profile → RAM → cặp bit chọn bảng sóng → điện áp |
+| `sequence.html` | Một lần lật thẻ rồi các cleanup stage khi idle: submit frame kèm intent, chọn preset, driver ghi hai vùng RAM theo lượt, DRF, cleanup edge, tắt analog power |
+| `dataflow.html` | Dữ liệu đổi dạng qua từng tầng: frame 1 bit và intent → pixel_state → window và hai plane → profile → RAM → cặp bit chọn waveform → điện áp |
+| `frame-lifecycle.html` | Một frame đổi owner thế nào giữa main task, pending và display task, và khi nào frame bị drop |
+| `draw-decision.html` | Thứ tự điều kiện để chọn decision cho một frame: cleanup strong, không vẽ, cleanup fast, hay vẽ theo preset |
+| `idle-cleanup.html` | Các cleanup stage khi idle, flag `DEFER_CLEANUP` và tắt analog power |
+| `hal-contract.html` | Các kiểu dữ liệu ở ranh giới giữa display và driver |
+| `draw-timing.html` | Thời gian một lần đổi cả trang khi analog power đang tắt, ghép từ các số đo và số tính riêng lẻ |
 
-Đổi đường vẽ màn thì vẽ lại ba sơ đồ trong cùng commit.
+Đổi đường vẽ màn thì vẽ lại các sơ đồ liên quan trong cùng commit.
 
 ## Một lần vẽ đi qua đâu
 
 | # | Đoạn | Ai làm | Task |
 |---|---|---|---|
-| 1 | Bấm → cử chỉ → intent | `gesture`, `keymap` | main |
-| 2 | App vẽ vào khung (ảnh 1 bit cả màn) | app + `ui` | main |
-| 3 | Giao khung kèm ý định vẽ cho task màn qua vùng đệm "khung mới nhất" (3 khung, RAM nội) | `display` | main → màn |
-| 4 | So với khung đang hiện, tìm vùng đổi, cập nhật trạng thái từng điểm, chọn preset và mặt phẳng cũ | `display` | màn |
-| 5 | Gửi profile (nếu khác lần trước), mặt phẳng mới và mặt phẳng cũ của window qua SPI | driver | màn |
-| 6 | Panel quét, chờ chân BUSY | driver | màn |
+| 1 | Bấm nút → gesture → lệnh của keymap | `gesture`, `keymap` | main |
+| 2 | App vẽ vào frame (ảnh 1 bit cả màn) | app + `ui` | main |
+| 3 | Submit frame kèm intent cho display task (3 frame trong RAM nội) | `display` | main → display |
+| 4 | So với shown frame, tìm changed window, cập nhật pixel_state, chọn preset và old plane | `display` | display |
+| 5 | Gửi profile (nếu khác lần trước), new plane và old plane của window qua SPI | driver | display |
+| 6 | Panel quét; driver chờ chân BUSY | driver | display |
 
-Bấm nhanh hơn tốc độ màn thì các khung giữa bị bỏ, chỉ khung mới nhất được vẽ. Giữa hai lần bấm, task màn chạy thang
-dọn khi nghỉ (phần "Dọn khi nghỉ").
+Người dùng bấm nhanh hơn tốc độ panel thì các frame pending ở giữa bị drop; chỉ frame mới nhất được vẽ. Giữa hai lần
+bấm, display task chạy các cleanup stage (mục "Cleanup khi idle").
 
-## Giao khung giữa task main và task màn
+## Chuyển frame giữa main task và display task
 
-Ví dụ: app lật thẻ. Task main mượn một khung, khung này đã có sẵn ảnh của lần giao gần nhất, nên app chỉ cần vẽ phần
-đổi. Vẽ xong, task main giao khung kèm thời điểm bấm nút, ý định `TEXT` và cờ. Task màn thức dậy, lấy khung đó ra vẽ.
+Ví dụ: app lật thẻ. Main task acquire một frame. Frame này đã có sẵn ảnh của lần submit gần nhất, nên app chỉ vẽ phần
+đổi. Vẽ xong, main task submit frame kèm `input_ms`, intent `TEXT` và flag. Display task thức dậy, take frame đó để vẽ.
 
-Vùng đệm có 3 khung trong RAM nội. Lúc nào mỗi khung cũng có đúng một chủ:
+Có 3 frame trong RAM nội. Mỗi frame luôn có đúng một owner:
 
-| Chủ | Khung |
+| Owner | Frame |
 |---|---|
-| Task main | Khung đang vẽ (đã mượn, chưa giao) |
-| Hàng chờ | Khung mới nhất đã giao, task màn chưa lấy |
-| Task màn | Khung đang hiện, và khung đang vẽ ra màn trong lúc vẽ |
+| Main task | Frame đang vẽ (đã acquire, chưa submit) |
+| Pending | Frame mới nhất đã submit, display task chưa take |
+| Display task | Shown frame, và frame đang được vẽ ra panel |
 
-- Task màn giữ khung đang hiện, vì driver cần nó làm ảnh cũ ở mỗi lần vẽ. Vẽ xong, khung vừa vẽ thành khung đang
-  hiện và khung đang hiện cũ được trả về.
-- Trong lúc task màn giữ hai khung, task main mượn thì lấy lại khung trong hàng chờ; khung đó tính là bị bỏ.
-- Giao khung khi hàng chờ đã có khung thì khung cũ trong hàng chờ bị bỏ và được đếm. Ý định và cờ đi theo khung mới.
-- Mượn lần hai khi chưa giao khung đã mượn là lỗi của bên gọi.
+- Display task giữ shown frame, vì driver cần nó làm old plane ở mỗi lần vẽ. Vẽ xong, frame vừa vẽ thành shown frame
+  và shown frame cũ được free.
+- Display task đang giữ hai frame mà main task acquire: main task lấy lại frame pending; frame đó tính là drop.
+- Submit khi đã có frame pending: frame pending cũ bị drop và được đếm. Intent và flag đi theo frame mới.
+- Acquire lần hai khi frame đã acquire chưa submit là lỗi của caller.
 
-Việc đổi chủ nằm trong khối C thuần `frame_slots`, có host test. Khối này chỉ giữ chủ của từng khung, không giữ bộ
-nhớ ảnh. `display` gọi nó trong lock, rồi chép ảnh vào khung vừa mượn ở ngoài lock: khung giao gần nhất chỉ được trả
-về khi đã có khung mới hơn, nên đọc nó ngoài lock vẫn an toàn.
+Việc đổi owner nằm trong khối C thuần `frame_slots`, có host test. Khối này chỉ giữ owner của từng frame, không giữ
+bộ nhớ ảnh. Display gọi nó trong lock, rồi chép ảnh vào frame vừa acquire ở ngoài lock. Đọc ngoài lock vẫn an toàn,
+vì frame submit gần nhất chỉ được free khi đã có frame mới hơn.
 
-## Ý định vẽ
+## Intent
 
-Mỗi khung mang đúng một ý định. Một DRF chỉ chạy một bộ bảng sóng trên một window, nên khung có cả chữ lẫn nút thì app
-chọn ý định của phần quan trọng hơn.
+Mỗi frame mang đúng một intent. Một DRF chỉ chạy một bộ waveform trên một window, nên frame có cả chữ lẫn nút thì app
+chọn intent của phần quan trọng hơn.
 
-| Ý định | App dùng khi | `display` ưu tiên |
+| Intent | App dùng khi | Display ưu tiên |
 |---|---|---|
-| `AUTO` | Không muốn chọn | Window nhỏ hơn `auto_ui_percent` % diện tích màn thì coi là `UI`, còn lại là `TEXT` |
-| `TEXT` | Trang chữ người dùng sẽ đọc (mặt thẻ) | Độ rõ của chữ; 0,3–0,4 s chấp nhận được |
-| `UI` | Con trỏ, mục chọn, nút, thành phần nhỏ người dùng không nhìn kỹ | Nhanh; chịu xám nhẹ, thang dọn khi nghỉ làm sạch dần |
-| `PAGE` | Đổi cả màn (sang scene khác) | Như `TEXT`; nợ đã cao thì dọn luôn trong lần vẽ này |
+| `AUTO` | Không muốn chọn | Window nhỏ hơn `auto_ui_percent` % diện tích panel thì là `UI`, còn lại là `TEXT` |
+| `TEXT` | Trang chữ người dùng sẽ đọc (mặt thẻ) | Chữ rõ; 0,3–0,4 s chấp nhận được |
+| `UI` | Con trỏ, mục chọn, nút: thành phần nhỏ người dùng không nhìn kỹ | Nhanh; chịu xám nhẹ, các cleanup stage làm sạch dần |
+| `PAGE` | Đổi cả màn (sang scene khác) | Như `TEXT`; debt đã cao thì cleanup strong ngay trong lần vẽ này |
 
-Cờ đi kèm khung:
+Flag đi kèm frame:
 
-| Cờ | Nghĩa |
+| Flag | Nghĩa |
 |---|---|
-| Hoãn dọn | Không chạy thang dọn khi nghỉ cho tới khung sau không có cờ này. Trần nợ vẫn bắt buộc, tắt nguồn vẫn chạy |
-| Trước khi ngủ | Khung là màn nền. Còn nợ thì vẽ bằng dọn mạnh; vẽ xong thì tắt nguồn analog |
+| `DEFER_CLEANUP` | Không chạy cleanup stage nào cho tới frame sau không có flag này. Debt ceiling vẫn áp dụng; tắt analog power vẫn chạy |
+| `BEFORE_SLEEP` | Frame là background frame. Còn debt thì vẽ bằng cleanup strong; vẽ xong thì tắt analog power |
 
-## Một thao tác vẽ
+## Một lần gọi driver
 
-`display` không phân biệt full và partial. Mỗi lần gọi driver gồm bốn thứ, và "full" chỉ là một preset dọn có window cả
-màn, mặt phẳng cũ đảo bit:
+Display không phân biệt full và partial. Mỗi lần gọi driver gồm bốn thứ; "full" chỉ là một cleanup có window cả panel
+và old plane đảo bit:
 
 | Thứ | Nghĩa |
 |---|---|
-| Window | Hình chữ nhật cần vẽ; mép x căn theo bước căn của driver |
-| Mặt phẳng cũ | Bit cũ cho từng điểm, chọn bảng sóng của điểm đó (phần "Chia việc giữa display và driver") |
-| Profile | Bảng sóng, điện áp, tần số khung |
-| Cấu hình vẽ | Vào chế độ partial (PTL) hay không, `PT_SCAN`, có kéo viền màn không |
+| Window | Hình chữ nhật cần vẽ; mép x căn theo `x_align` của driver |
+| Old plane | Bit cũ của từng pixel, chọn waveform của pixel đó (mục "Chia việc giữa display và driver") |
+| Profile | Waveform, điện áp, LUT frame rate |
+| Draw config | Có vào partial mode (PTL) không, `scan_outside_window` (bit PT_SCAN), có drive border không |
 
-Mỗi mục đích vẽ có một **preset**: profile theo dải nhiệt độ, cấu hình vẽ, trọng số nợ, có đánh dấu cờ viền không. Preset nằm ở `display`, không
-nằm trong profile, nên cùng một bảng sóng dùng được cho nhiều mục đích.
+Mỗi lần vẽ dùng một **preset**: profile theo band nhiệt độ và draw config. Vẽ frame dùng draw preset của intent
+(`TEXT`, `UI`, `PAGE`); draw preset có thêm debt weight và có đặt edge flag không. Cleanup dùng cleanup preset của
+loại cleanup (`ink_display_cleanup_t`); cleanup không cộng debt nên cleanup preset không có hai field này. Preset nằm ở
+display, không nằm trong profile, nên một waveform dùng được cho nhiều preset.
 
-| Mục đích | Dùng cho | Mặt phẳng cũ | Window |
+Intent, loại cleanup và rect nằm trong `ink_display_types.h`, header chỉ có kiểu; policy, display và HAL cùng dùng,
+không chép qua lại. Decision có `action` (`NONE`, `DRAW`, `CLEANUP`), kèm `intent` khi `DRAW` hoặc `cleanup` khi
+`CLEANUP`. Giá trị 0 của `action` và của `cleanup` là `INVALID`, nên decision quên điền bị policy và display từ chối.
+Policy tạo decision bằng hàm riêng cho từng action, không điền struct tay.
+
+| Preset | Dùng cho | Old plane | Window |
 |---|---|---|---|
-| `TEXT`, `UI`, `PAGE` | Vẽ khung theo ý định | Khung đang hiện | Vùng đổi |
-| Dọn mạnh | Khởi động nguội, sau lỗi, vượt trần nợ sau khi đã nghỉ, `PAGE` khi nợ đã quá ngưỡng, cuối thang dọn, trước khi ngủ | Khung mới đảo bit | Cả màn |
-| Dọn nhanh | Vượt trần nợ khi đang thao tác liên tục | Khung mới đảo bit | Cả màn |
-| Dọn tâm viền | Bậc 1 của thang dọn | Khung đang hiện, đảo bit ở điểm có cờ viền | Bao các điểm có cờ |
-| Dọn quanh viền | Bậc 1 của thang dọn, ngay sau dọn tâm | Khung đang hiện, đảo bit ở điểm kề cạnh điểm có cờ | Bao các điểm đó |
-| Dọn nhẹ | Bậc 2 của thang dọn | Khung đang hiện, đảo bit ở điểm có nợ xám | Bao các điểm đó |
+| Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
+| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
+| `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới đảo bit | Cả panel |
+| `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
+| `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
+| `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
 
-Dọn nhanh dùng `clean_full100` (320 ms): mọi điểm lắc về màu ngược rồi về màu của nó, cân bằng điện tích ngay trong
-lần đó. Màn chớp một lần nhưng nhanh hơn dọn mạnh gần 8 lần ở 30 °C. Đo trên BB0, `tr8` cả màn (kéo một chiều) làm vùng
-không đổi đậm dần sau mỗi lần dọn, nên không dùng làm dọn nhanh.
+Cleanup fast dùng profile `clean_full100` (320 ms): mọi pixel lắc về màu ngược rồi về màu của nó, cân bằng điện tích
+ngay trong lần đó. Panel chớp một lần, nhưng nhanh hơn cleanup strong gần 8 lần ở 30 °C. Đo trên BB0: `tr8` cả panel
+(kéo một chiều) làm vùng không đổi đậm dần sau mỗi lần cleanup, nên không dùng làm cleanup fast.
 
-Kéo viền màn bật ở dọn mạnh, dọn nhanh và `PAGE`: đo trên BB0, không kéo thì viền màn xám dần, kể cả trong chế độ
-partial. `TEXT`, `UI` và các lượt dọn khi nghỉ để viền nổi.
+Drive border bật ở cleanup strong, cleanup fast và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả
+trong partial mode. `TEXT`, `UI` và các cleanup stage để border nổi.
 
-Mặt phẳng cũ của mọi lần dọn cả màn là khung mới đảo bit, không bao giờ là khung đang hiện: mọi điểm được coi là đổi
-màu, nên panel kéo hết các điểm về đúng màu. Dùng khung đang hiện thì bảng sóng chỉ kéo những điểm đổi màu, và ảnh vẫn
-mờ sau lần dọn (đã gặp trên BB0 với bảng TR6).
+Cleanup strong và cleanup fast đọc lại nhiệt độ trước khi vẽ; bảng `READS_TEMPERATURE` trong `ink_display.c` giữ
+điều này theo loại cleanup.
 
-## Chọn cách vẽ
+Old plane của mọi cleanup cả panel là frame mới đảo bit, không bao giờ là shown frame. Khi đó mọi pixel được coi là
+đổi màu, nên panel kéo hết pixel về đúng màu. Dùng shown frame thì waveform chỉ kéo pixel đổi màu, và ảnh vẫn mờ sau
+cleanup (đã gặp trên BB0 với band TR6).
 
-Phần quyết định nằm trong khối C thuần `display_policy`, có host test. Nó so khung mới với khung đang hiện, lấy hình
-chữ nhật bao vùng đổi (mép x căn theo bước căn của driver), rồi chọn theo thứ tự, gặp điều kiện nào trước thì dừng:
+## Decide
 
-| # | Điều kiện | Cách vẽ |
+Phần quyết định nằm trong khối C thuần `display_policy`, có host test. Policy so frame mới với shown frame, lấy changed
+window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ tự. Gặp điều kiện nào đúng trước thì dừng:
+
+| # | Điều kiện | Decision |
 |---|---|---|
-| 1 | Chưa biết màn đang hiện gì (khởi động nguội), hoặc lần vẽ trước bị lỗi | Dọn mạnh |
-| 2 | Cờ trước khi ngủ, và còn nợ hoặc còn cờ viền | Dọn mạnh |
-| 3 | Khung giống hệt khung đang hiện | Không vẽ |
-| 4 | Lần vẽ đầu sau khi thức dậy, khung đang hiện là màn nền đã vẽ trước khi ngủ | Preset của ý định, window cả màn |
-| 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Khung tới trong vòng `edge_ms` sau khung trước (đang thao tác liên tục): dọn nhanh; còn lại: dọn mạnh. Cả hai vẽ luôn khung này (không dọn trước rồi mới vẽ) |
-| 6 | Ý định `PAGE` và nợ lớn nhất đã tới `debt_page` | Dọn mạnh |
-| 7 | Còn lại | Preset của ý định, chỉ vùng đổi |
+| 1 | Chưa biết panel đang hiện gì (cold boot), hoặc lần vẽ trước lỗi | Cleanup strong |
+| 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
+| 3 | Frame giống hệt shown frame | Không vẽ |
+| 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
+| 5 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast; ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
+| 6 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
+| 7 | Còn lại | Preset của intent, chỉ changed window |
 
-Khi thức dậy, `display` coi màn nền là khung đang hiện, vì máy đã vẽ nó ngay trước khi ngủ sâu và màn e-ink giữ hình
-khi mất nguồn. Driver nhận màn nền làm ảnh cũ ở lần vẽ đó, nên màn không chớp.
+Sau wake, display coi background frame là shown frame: máy đã vẽ nó ngay trước deep sleep, và panel e-ink giữ hình khi
+mất nguồn. Driver nhận background frame làm old plane ở lần vẽ đó, nên panel không chớp.
 
-## Trạng thái của từng điểm
+## pixel_state
 
-Mỗi điểm có một byte trong PSRAM (240 × 416 điểm, khoảng 100 KB), do `display` cấp và `display_policy` giữ. Chỉ CPU
-đọc byte này; hai mặt phẳng gửi cho driver vẫn nằm trong RAM nội.
+Mỗi pixel có một byte trong PSRAM (240 × 416 pixel, khoảng 100 KB), do display cấp và `display_policy` giữ. Chỉ CPU
+đọc byte này; hai plane gửi cho driver nằm trong RAM nội.
 
 | Trường | Nghĩa |
 |---|---|
-| Cờ viền (2 bit) | Không có, viền tối, viền sáng |
-| Nợ xám (4 bit) | Mỗi lần điểm đổi màu bằng preset của ý định, nợ của nó cộng trọng số của preset; tối đa 15 |
+| Edge flag (2 bit) | Không có, dark edge, light edge |
+| Debt (4 bit) | Mỗi lần pixel đổi màu bằng preset của intent, debt cộng debt weight của preset; tối đa 15 |
 
-**Cờ viền.** Điểm đứng yên nằm cạnh điểm vừa đổi màu bị điện trường lan sang, đổi màu một phần và để lại viền. Luật
-đánh dấu theo bằng sáng chế US 11,568,827 của E Ink, chạy trong mỗi lần vẽ theo ý định có bật cờ viền ở preset. Mặc định chỉ
-`UI` bật: đổi một trang chữ đánh dấu hàng nghìn cờ (đo trên BB0: 7 929), và lượt dọn tâm viền chạy lắc qua lại ở từng điểm
-có cờ nên cả trang chớp lấm tấm. Viền của `TEXT`, `PAGE` để lượt dọn mạnh xoá:
+**Edge flag.** Pixel không đổi nằm cạnh pixel vừa đổi màu bị điện trường lan sang, đổi màu một phần và để lại viền.
+Luật đánh dấu theo bằng sáng chế US 11,568,827 của E Ink, chạy ở mỗi lần vẽ có preset bật `marks_edges`. Mặc định chỉ
+`UI` bật. Lý do: đổi một trang chữ đặt hàng nghìn edge flag (đo trên BB0: 7 929), và cleanup edge center lắc từng pixel
+có flag nên cả trang chớp lấm tấm. Viền của `TEXT`, `PAGE` để cleanup strong xoá.
 
-| Cờ | Điều kiện |
+| Flag | Điều kiện |
 |---|---|
-| Viền tối | Điểm đi trắng → trắng; cả 4 điểm kề cạnh (trên, dưới, trái, phải) trong khung mới đều trắng; ít nhất 1 điểm kề cạnh trong khung đang hiện không trắng |
-| Viền sáng | Điểm đi đen → đen; ít nhất 1 điểm kề cạnh đi trắng → đen |
-| Chung | Không điểm nào trong 8 điểm xung quanh đã có cờ |
+| Dark edge | Pixel đi trắng → trắng; cả 4 pixel kề cạnh (trên, dưới, trái, phải) trong frame mới đều trắng; ít nhất 1 pixel kề cạnh trong shown frame không trắng |
+| Light edge | Pixel đi đen → đen; ít nhất 1 pixel kề cạnh đi trắng → đen |
+| Chung | Không pixel nào trong 8 pixel xung quanh đã có flag |
 
-Luật cuối làm cờ thưa (dọc một cạnh thẳng cứ một điểm có cờ thì điểm bên cạnh không có): điểm có cờ là tâm, các điểm
-kề cạnh của tâm được dọn ở lượt dọn quanh viền.
+Luật "Chung" làm flag thưa: dọc một cạnh thẳng, cứ một pixel có flag thì pixel bên cạnh không có. Pixel có flag là
+tâm (center); các pixel kề cạnh tâm được xử lý ở cleanup edge neighbor.
 
-**Nợ và trần co giãn.** Nợ không tự giảm theo thời gian, chỉ dọn mới hết. Trần nợ bắt đầu ở `debt_ceiling`. Khung tới
-trong vòng `edge_ms` sau khung trước (người dùng đang thao tác liên tục) thì trần tăng 1, tối đa `debt_ceiling_max`, để
-ít bị ngắt giữa chừng, và vượt trần lúc đó thì dọn nhanh thay dọn mạnh; nghỉ quá `edge_ms` thì trần về `debt_ceiling`.
+**Debt và debt ceiling co giãn.** Debt không tự giảm theo thời gian; chỉ cleanup mới xoá. Debt ceiling bắt đầu ở
+`debt_ceiling`. Frame tới trong vòng `active_ms` sau frame trước là active period: debt ceiling tăng 1, tối đa
+`debt_ceiling_max`, để người dùng ít bị ngắt giữa chừng; vượt ceiling trong active period thì cleanup fast thay cho
+cleanup strong. Idle quá `active_ms` thì debt ceiling về `debt_ceiling`.
 
-Ngủ sâu làm mất PSRAM, và RTC memory (16 KB) không chứa nổi 100 KB. Vì vậy trước khi ngủ màn phải sạch (cờ trước khi
-ngủ), và khi thức mọi điểm bắt đầu với nợ bằng 0, đúng với màn thật.
+Deep sleep làm mất PSRAM, và RTC memory (8 KB slow + 8 KB fast) không chứa nổi 100 KB. Vì vậy panel phải sạch trước khi ngủ (flag
+`BEFORE_SLEEP`), và sau wake mọi pixel bắt đầu với debt 0, đúng với panel thật.
 
-Đo trên BB0 (CPU 240 MHz, `-O2`, PSRAM 80 MHz): đổi cả một trang chữ, phần so khung, cập nhật trạng thái từng điểm và
-dựng mặt phẳng cũ mất 11 ms.
+Đo trên BB0 (CPU 240 MHz, `-O2`, PSRAM 80 MHz): đổi cả một trang chữ thì so frame, cập nhật pixel_state và dựng old
+plane mất 11 ms.
 
-Lúc task khác ghi flash, cache tắt nên PSRAM không đọc được: task màn dừng tới khi ghi xong. Lần vẽ trùng lúc đó chậm
-thêm đúng thời gian ghi.
+Lúc task khác ghi flash, cache tắt nên PSRAM không đọc được: display task dừng tới khi ghi xong. Lần vẽ trùng lúc đó
+chậm thêm đúng thời gian ghi.
 
-## Dọn khi nghỉ
+## Cleanup khi idle
 
-Không có khung mới thì task màn chạy một thang dọn, tính từ lần vẽ khung gần nhất. Có khung mới thì thang bắt đầu lại.
-Nghỉ càng lâu thì dọn càng mạnh, vì người dùng càng có khả năng đã rời mắt, và điện áp dư trong mực đã rã.
+Không có frame mới thì display task chạy các cleanup stage, tính từ lần vẽ frame gần nhất. Có frame mới thì các stage
+bắt đầu lại. Idle càng lâu thì cleanup càng mạnh, vì người dùng càng có khả năng đã rời mắt, và điện áp dư trong mực
+đã rã.
 
-| Bậc | Khi | Làm gì | Profile |
+| Stage | Khi | Làm gì | Profile |
 |---|---|---|---|
-| 1 | Nghỉ `edge_ms`, còn cờ viền | Dọn tâm viền, rồi dọn quanh viền; xoá cờ | Tâm: DRF 320 ms; quanh: DRF dưới 100 ms |
-| 2 | Nghỉ `light_ms`, nợ lớn nhất ≥ `debt_soft` | Dọn nhẹ các điểm có nợ ≥ `debt_soft`; nợ của chúng về 0 | DRF dưới 100 ms |
-| 3 | Nghỉ `strong_ms`, còn nợ hoặc còn cờ | Dọn mạnh một lần; mọi nợ và cờ về 0 | Theo dải nhiệt độ |
+| 1 | Idle `edge_ms`, còn edge flag | Cleanup edge center, rồi cleanup edge neighbor; xoá edge flag | Center: DRF 320 ms; neighbor: DRF dưới 100 ms |
+| 2 | Idle `light_ms`, debt lớn nhất ≥ `debt_light` | Cleanup light các pixel có debt ≥ `debt_light`; debt của chúng về 0 | DRF dưới 100 ms |
+| 3 | Idle `strong_ms`, còn debt hoặc còn edge flag | Cleanup strong một lần; mọi debt và edge flag về 0 | Theo band nhiệt độ |
 
-- Mỗi bậc chạy tối đa một lần trong một lần nghỉ. Bậc có thời gian 0 thì bỏ.
-- DRF không ngắt được. Khung mới tới giữa hai lượt dọn thì dừng thang và vẽ khung đó; lần lật trùng lúc đang dọn chậm
-  thêm tối đa một DRF dọn, nên profile dọn quanh viền và dọn nhẹ phải có DRF dưới 100 ms. Dọn tâm viền là ngoại lệ:
-  khảo sát trên BB0 cho thấy dọn tâm dài (`clean_full100`, 320 ms) làm viền khó thấy hơn hẳn, đổi lại lần lật trùng
-  lượt này chậm thêm tối đa 320 ms. Lượt này chỉ chạm các điểm có cờ, thưa, nên ít khi trùng.
-- Dọn tâm xong mà chưa kịp dọn quanh thì cờ giữ nguyên, lần nghỉ sau dọn lại cả hai.
-- Cờ hoãn dọn của khung gần nhất chặn cả ba bậc.
+- Mỗi stage chạy tối đa một lần trong một idle period. Stage có thời gian 0 thì bỏ.
+- DRF không ngắt được. Frame mới tới giữa hai cleanup thì dừng các stage và vẽ frame đó. Lần lật trùng lúc cleanup
+  chậm thêm tối đa một DRF cleanup, nên profile của cleanup edge neighbor và cleanup light phải có DRF dưới 100 ms.
+  Cleanup edge center là ngoại lệ: khảo sát trên BB0 cho thấy center dài (`clean_full100`, 320 ms) làm viền khó thấy
+  hơn hẳn, đổi lại lần lật trùng cleanup này chậm thêm tối đa 320 ms. Cleanup này chỉ chạm pixel có flag (thưa), nên
+  ít khi trùng.
+- Cleanup edge center xong mà chưa kịp cleanup edge neighbor thì edge flag giữ nguyên; idle period sau chạy lại cả hai.
+- Flag `DEFER_CLEANUP` của frame gần nhất chặn cả ba stage.
 
-**Tắt nguồn analog.** Driver không tự tắt nguồn sau DRF. Sau `power_off_ms` không có DRF nào, `display` gọi tắt nguồn;
-lần vẽ sau driver tự bật lại (khoảng 75 ms). Đang thao tác liên tục thì nguồn giữ bật, mỗi lần lật bớt được đoạn bật
-nguồn. Trước khi ngủ luôn tắt nguồn.
+**Tắt analog power.** Driver không tự tắt analog power sau DRF. Sau `power_off_ms` không có DRF, display gọi
+`power_off`; lần vẽ sau driver tự bật lại (khoảng 75 ms). Trong active period analog power giữ bật, nên mỗi lần lật
+bớt được đoạn bật nguồn. Trước khi ngủ luôn tắt analog power.
 
 ## Nhiệt độ
 
-Nhiệt độ đổi độ nhớt của mực. Profile không mang nhiệt độ; mỗi preset có một bảng dải: nhiệt độ tối đa (°C) → id
-profile, xét từ trên xuống. `display` đọc cảm biến của controller trước mỗi lần dọn mạnh và dọn nhanh, rồi dùng nhiệt độ
-đó cho mọi preset tới lần đọc sau. Chưa đọc được lần nào thì dùng 25 °C; số đọc ngoài −10…60 °C thì bỏ, giữ nhiệt
-độ cũ. Lệnh `0x40` khi REG = 1 đọc được trên BB0, lệch nhiệt độ phòng khoảng 2–3 °C (2026-11-04). Nhiệt độ ghi vào báo cáo của lần vẽ có đọc.
+Nhiệt độ đổi độ nhớt của mực. Profile không mang nhiệt độ; mỗi preset có một danh sách band: nhiệt độ tối đa (°C) →
+id profile, xét từ trên xuống. Display đọc cảm biến của controller trước mỗi cleanup strong và cleanup fast, rồi dùng
+nhiệt độ đó cho mọi preset tới lần đọc sau.
 
-Bảng dải mặc định của dọn mạnh dùng 9 profile chép từ các dải TR0–TR8 của OTP, với đúng ngưỡng của OTP (5, 10, 15, 20,
-30, 80, 92, 100, 127 °C). Preset khác mặc định có một dải.
+- Chưa đọc được lần nào thì dùng 25 °C.
+- Số đọc ngoài −10…60 °C thì bỏ, giữ nhiệt độ cũ.
+- Lệnh `0x40` khi REG = 1 đọc được trên BB0, lệch nhiệt độ phòng khoảng 2–3 °C (2026-11-04).
+- Nhiệt độ được ghi vào report của lần vẽ có đọc.
+
+Band mặc định của cleanup strong dùng 9 profile chép từ band TR0–TR8 của OTP, với đúng ngưỡng của OTP (5, 10, 15, 20,
+30, 80, 92, 100, 127 °C). Các preset khác mặc định có một band.
 
 ## Chia việc giữa display và driver
 
-| Việc | Ai lo |
+| Việc | Ai làm |
 |---|---|
-| Giữ ảnh đang hiện, so khung, bỏ khung giữa, trạng thái từng điểm, chọn preset, dựng mặt phẳng cũ, thang dọn, tắt nguồn khi nghỉ, chọn profile theo nhiệt độ | `display`; phần quyết định viết bằng C thuần để test trên PC |
-| Ghi ảnh mới và ảnh cũ vào đúng vùng RAM theo lượt, nạp profile được chỉ định, bật nguồn analog, tốc độ SPI, đọc cảm biến nhiệt | Driver |
+| Giữ shown frame, so frame, drop frame pending ở giữa, pixel_state, chọn preset, dựng old plane, cleanup stage, tắt analog power khi idle, chọn profile theo nhiệt độ | Display; phần quyết định viết bằng C thuần để test trên PC |
+| Ghi new plane và old plane vào đúng vùng RAM theo lượt, nạp profile được chỉ định, bật analog power, tốc độ SPI, đọc cảm biến nhiệt | Driver |
 
-Driver không hiểu "ảnh đang hiện". Nó chỉ nhận hai mặt phẳng bit cho mỗi điểm: bit mới và bit cũ. Controller dùng cặp
-bit (mới, cũ) của từng điểm để chọn một trong bốn bảng sóng: trắng → đen, đen → trắng, trắng giữ trắng, đen giữ đen.
-Vì vậy `display` truyền những cặp mặt phẳng không phải "ảnh mới, ảnh cũ" để ra lệnh riêng cho từng điểm: mới = cũ thì
-điểm chạy bảng giữ màu, mới = cũ đảo bit thì điểm bị kéo về màu của bit mới.
+Driver không biết shown frame là gì. Nó chỉ nhận hai plane bit cho mỗi pixel: bit mới và bit cũ. Controller dùng cặp
+bit (mới, cũ) của từng pixel để chọn một trong bốn LUT: trắng → đen, đen → trắng, trắng giữ trắng, đen giữ đen. Vì vậy
+display truyền những cặp plane không phải "ảnh mới, ảnh cũ" để ra lệnh riêng cho từng pixel: mới = cũ thì pixel chạy
+LUT giữ màu; mới = cũ đảo bit thì pixel bị kéo về màu của bit mới.
 
 ## Hợp đồng driver màn
 
-Ví dụ: `display` muốn đổi một ô chữ ở góc trên. Nó gọi hàm vẽ của driver với con trỏ tới khung mới, con trỏ tới khung
-đang hiện, vùng cần đổi (x 0–79, y 0–39), index profile và cấu hình vẽ. Driver nạp profile nếu khác lần trước, cắt
-40 hàng × 10 byte của vùng đó ở cả hai khung, ghi vào hai vùng RAM theo lượt, chạy bảng sóng, chờ BUSY lên cao rồi trả
-về thời gian.
+Ví dụ: display muốn đổi một ô chữ ở góc trên. Nó gọi `draw` của driver với con trỏ tới frame mới, con trỏ tới shown
+frame, window (x 0–79, y 0–39), `profile_index` và draw config. Driver nạp profile nếu khác lần trước, cắt 40 hàng ×
+10 byte của window ở cả hai frame, ghi vào hai vùng RAM theo lượt, chạy DRF, chờ BUSY lên cao, rồi trả về timing.
 
-- **Đồng bộ:** hàm vẽ gửi ảnh rồi ngủ chờ ngắt BUSY, xong mới trả về. Chỉ task màn gọi nên không chặn ai khác.
+`draw` chạy đồng bộ: gửi ảnh, ngủ chờ ngắt BUSY, xong mới trả về. Chỉ display task gọi, nên không chặn task khác.
 
 | Điều khoản | Quy định |
 |---|---|
-| Toạ độ | Theo hướng gốc của panel (với màn 3,7" là 240 × 416, dọc). Xoay màn do tầng trên lo. |
-| Khung ảnh | 1 bit mỗi điểm, bit 1 = trắng, bit 0 = đen. Gói theo hàng, điểm trái nhất ở bit cao nhất của byte. |
-| Ảnh đưa vào | Hai con trỏ tới cả khung (mặt phẳng mới, mặt phẳng cũ) kèm vùng cần vẽ; driver tự cắt vùng, `display` không phải chép ảnh. |
-| Lượt ghi | Driver đếm số DRF từ lần reset. Số chẵn: mặt phẳng mới vào `0x13`, mặt phẳng cũ vào `0x10`; số lẻ thì ngược lại. Cả hai được ghi trước DRF; sau DRF không ghi gì thêm. |
-| Sau reset | RAM ảnh của controller là rác. Lần vẽ đầu sau reset, driver tự nới vùng ra cả màn. |
-| Profile | Index trong danh sách profile của driver. Driver luôn nạp đúng profile đó qua thanh ghi (REG = 1), không để controller chọn bảng theo nhiệt độ. |
-| Cấu hình vẽ | Đi kèm mỗi lần vẽ: vào chế độ partial (PTL) hay vẽ cả màn ngoài chế độ partial; `PT_SCAN`; kéo viền màn hay để viền nổi. Ngoài chế độ partial thì driver vẽ cả màn, bỏ qua window. |
-| Mép vùng | Driver làm tròn ra ngoài theo bước căn mép x mà nó khai báo trong bảng khả năng. |
-| Nguồn analog | Driver bật nguồn trước DRF nếu đang tắt và để nguồn bật sau DRF. Tắt bằng thao tác tắt nguồn. Byte 2 của lệnh `0x00` là `0x0A` (TIEG 0, NORG 1, VC_LUTZ 0): đo trên BB0, mặc định `0x0D` của UC8253 (TIEG 1, VGL nối đất sau POF) làm vùng trắng tối dần ngay lúc tắt nguồn. Lệnh `0x03` (PFS) giữ mặc định 1 khung; 1–4 khung không khác nhau. |
-| Thời gian chờ BUSY | Thời gian DRF của profile × 1,5 + 100 ms cho mỗi lần quét. |
-| Thời gian trả về | Bốn số: SPI trước khi quét (đoạn 5), bật nguồn analog nếu đang tắt, panel quét tới khi BUSY lên cao (đoạn 6), việc sau khi quét. |
-| Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không ngủ sâu. |
+| Toạ độ | Theo hướng gốc của panel (panel 3,7" là 240 × 416 px, dọc). Xoay màn do tầng trên lo |
+| Frame | 1 bit mỗi pixel, bit 1 = trắng, bit 0 = đen. Gói theo hàng, pixel trái nhất ở bit cao nhất của byte |
+| Ảnh đưa vào | Hai con trỏ tới cả frame (new plane, old plane) kèm window; driver tự cắt window, display không chép ảnh |
+| Lượt ghi | Driver đếm số DRF từ lần reset. Số chẵn: new plane vào `0x13`, old plane vào `0x10`; số lẻ thì ngược lại. Ghi cả hai trước DRF; sau DRF không ghi thêm |
+| Sau reset | RAM ảnh của controller là rác. Lần vẽ đầu sau reset, driver tự nới window ra cả panel |
+| Profile | `profile_index` là index trong `capabilities.profiles` (không phải id). Driver luôn nạp đúng profile đó qua thanh ghi (REG = 1), không để controller chọn waveform theo nhiệt độ |
+| Draw config | Đi kèm mỗi lần vẽ: `partial_mode` (PTL) hay vẽ cả panel; `scan_outside_window`; `drive_border`. Ngoài partial mode thì driver vẽ cả panel, bỏ qua window |
+| Mép window | Driver làm tròn ra ngoài theo `x_align` khai báo trong capabilities |
+| Analog power | Driver bật trước DRF nếu đang tắt, và để bật sau DRF. Tắt bằng `power_off`. Byte 2 của lệnh `0x00` là `0x0A` (TIEG 0, NORG 1, VC_LUTZ 0). Đo trên BB0: mặc định `0x0D` của UC8253 (TIEG 1, VGL nối đất sau POF) làm vùng trắng tối dần ngay lúc tắt nguồn. Lệnh `0x03` (PFS) giữ mặc định 1 LUT frame; 1–4 LUT frame không khác nhau |
+| Timeout chờ BUSY | `drf_ms` của profile × 1,5 + 100 ms cho mỗi lần quét |
+| Timing trả về | Bốn số: `spi_us` (đoạn 5), `power_us` (bật analog power nếu đang tắt), `panel_us` (quét tới khi BUSY lên cao, đoạn 6), `post_scan_us` |
+| Giữa các lần vẽ | Controller giữ thanh ghi và RAM ảnh, không deep sleep |
 
-Ngoài hàm vẽ, interface của driver màn có:
+Ngoài `draw`, interface của driver có:
 
 | Thao tác | Việc |
 |---|---|
-| Tắt nguồn | Gửi POF nếu nguồn đang bật |
-| Đọc nhiệt độ | Đọc cảm biến trong controller (lệnh `0x40`, sai số ±2 °C) |
+| `power_off` | Gửi POF nếu analog power đang bật |
+| `read_temperature` | Đọc cảm biến trong controller (lệnh `0x40`, sai số ±2 °C) |
 
-Bảng khả năng của driver màn:
+Capabilities của driver:
 
 | Mục | Nghĩa |
 |---|---|
-| Cỡ gốc | Rộng và cao theo hướng gốc của panel |
-| Bước căn mép x | Mép trái và mép phải window phải là bội của số này |
-| Danh sách profile | Id, tên, nguồn (dải TR nào của OTP, hoặc vẽ tay) và thời gian một lần vẽ của từng profile |
-| Mặc định theo mục đích | Với mỗi mục đích vẽ: bảng dải nhiệt độ → id profile, và cấu hình vẽ. `display` dựng preset mặc định từ đây |
+| `width`, `height` | Cỡ theo hướng gốc của panel, px |
+| `x_align` | Mép trái và mép phải window là bội của số này |
+| `profiles` | Id, tên, source (band TR nào của OTP, hoặc `SOURCE_CUSTOM`) và thời gian một lần vẽ của từng profile |
+| `draw_defaults`, `cleanup_defaults` | Với mỗi intent (bỏ `AUTO`) và mỗi loại cleanup (bỏ `INVALID`): danh sách band → id profile, và draw config. Display dựng preset mặc định từ đây |
 
-## Profile bảng sóng
+## Profile waveform
 
-Ví dụ: muốn partial nhanh hơn 343 ms. Dev thêm một profile vào `profiles.json` của driver, chạy `tools/profile_gen.py`
-để kiểm và sinh lại file C, build và nạp. Từ đó gán id của profile đó cho preset `UI` trong cài đặt.
+Ví dụ: cần partial nhanh hơn 343 ms. Dev thêm một profile vào `profiles.json` của driver, chạy `tools/profile_gen.py`
+để kiểm và sinh lại file C, build và nạp. Sau đó gán id của profile đó cho preset `UI` trong options.
 
-Driver không dùng bảng sóng OTP lúc chạy (REG = 1 trong lệnh `0x00` ở mọi lần vẽ, không gửi `E0`/`E5`). Lý do:
-controller tự chọn dải theo nhiệt độ thì firmware không biết bảng nào đang chạy; nạp lại bảng TR8 qua thanh ghi cho DRF
-343,1 ms, gần như OTP (344,6 ms).
+Driver không dùng waveform OTP lúc chạy: REG = 1 trong lệnh `0x00` ở mọi lần vẽ, không gửi `E0`/`E5`. Lý do:
+controller tự chọn band theo nhiệt độ thì firmware không biết waveform nào đang chạy. Nạp lại band TR8 qua thanh ghi
+cho DRF 343,1 ms, gần như OTP (344,6 ms).
 
 Một profile gồm:
 
 | Mục | Nghĩa |
 |---|---|
-| Id | Số cố định, không đổi khi đổi tên hay đổi thứ tự. Cài đặt lưu id, không lưu index |
-| Tên, nguồn | Tên để log và bench; nguồn là dải TR0–TR8 của OTP hoặc vẽ tay |
-| 5 bảng LUT | LUTC, LUTWW, LUTKW, LUTWK, LUTKK, mỗi bảng 42 byte |
-| Điện áp | VG, VSH, VSL, VDHR, VCOM_DC, tần số khung (PLL), EOPT và XON của riêng profile |
-| Số lần quét | 1–4 lần DRF cho một lần vẽ, mỗi lần đẩy lại cùng cặp bit |
-| Thời gian DRF | Script tính từ bảng và PLL; driver dùng làm thời gian điển hình và để đặt timeout chờ BUSY |
+| Id | Số cố định, không đổi khi đổi tên hay đổi thứ tự. Options lưu id, không lưu index |
+| Tên, source | Tên để log và cho bench; source là band TR0–TR8 của OTP hoặc `SOURCE_CUSTOM` |
+| 5 LUT | LUTC, LUTWW, LUTKW, LUTWK, LUTKK, mỗi LUT 42 byte |
+| Điện áp | VG, VSH, VSL, VDHR, VCOM_DC, LUT frame rate (PLL), EOPT và XON của riêng profile |
+| Số lần quét | 1–4 DRF cho một lần vẽ, mỗi DRF đẩy lại cùng cặp bit |
+| `drf_ms` | Script tính từ LUT và PLL; driver dùng làm thời gian điển hình và để đặt timeout chờ BUSY |
 
-Điện áp đi theo từng profile vì OTP mỗi dải có VCOM riêng: `0x13` (−2,0 V) ở TR0–TR7, `0x09` (−1,0 V) ở TR8
-(VCOM = −0,1 × (mã + 1) V, UC8253 tr.37). Chép sóng của TR0–TR7 mà giữ VCOM của TR8 thì lệch 1 V. Profile vẽ tay lấy
-điện áp của một dải làm gốc.
+Điện áp đi theo từng profile, vì OTP mỗi band có VCOM riêng: `0x13` (−2,0 V) ở TR0–TR7, `0x09` (−1,0 V) ở TR8
+(VCOM = −0,1 × (mã + 1) V, UC8253 tr.37). Chép waveform của TR0–TR7 mà giữ VCOM của TR8 thì lệch 1 V. Profile custom lấy
+điện áp của một band làm gốc.
 
 Danh sách profile:
 
-| Id | Profile | Bảng sóng | Một lần vẽ | Dùng cho |
+| Id | Profile | Waveform | Một lần vẽ | Dùng cho |
 |---|---|---|---|---|
-| 1–9 | `tr0`–`tr8` | Chép nguyên dải TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Dọn mạnh theo dải nhiệt độ; `tr8` cho `TEXT`, `PAGE` |
-| 13 | `lut10f50` | Điểm đổi màu kéo 10 khung, 50 Hz; giữ màu 0 V | 240 ms | `UI` |
-| 21 | `clean_edge` | Điểm được chọn: lắc 2–1–1–1–1–2 khung, kết thúc về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn quanh viền |
-| 22 | `clean_light` | Điểm được chọn: 4 khung về màu ngược rồi 4 khung về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Dọn nhẹ |
-| 24 | `clean_full100` | Điểm được chọn: 15 khung về màu ngược rồi 15 khung về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Dọn tâm viền, dọn nhanh |
+| 1–9 | `tr0`–`tr8` | Chép nguyên band TR0–TR8 của OTP | 340 ms (TR8) tới 6,8 s (TR0) | Cleanup strong theo band nhiệt độ; `tr8` cho `TEXT`, `PAGE` |
+| 13 | `lut10f50` | Pixel đổi màu kéo 10 LUT frame, 50 Hz; giữ màu 0 V | 240 ms | `UI` |
+| 21 | `clean_edge` | Pixel được chọn lắc 2–1–1–1–1–2 LUT frame, kết thúc ở màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup edge neighbor |
+| 22 | `clean_light` | Pixel được chọn: 4 LUT frame về màu ngược, rồi 4 LUT frame về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup light |
+| 24 | `clean_full100` | Pixel được chọn: 15 LUT frame về màu ngược, rồi 15 LUT frame về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Cleanup edge center, cleanup fast |
 
-Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử trên bench rồi bỏ; kết quả đo ở
+Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử bằng bench rồi bỏ; kết quả đo ở
 `docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong
-khoảng 10 ms, chưa gồm khoảng 70 ms bật nguồn khi nguồn đã tắt. Bảng chép từ OTP và `lut10f50` có điểm chuyển màu kéo
-một chiều; bảng dọn lắc qua lại để tổng điện tích bằng 0. Chọn theo khảo sát trên BB0: dọn tâm viền dài
-(`clean_full100`) cho viền khó thấy nhất; `tr8` đủ rõ cho chữ.
+khoảng 10 ms, chưa gồm khoảng 70 ms bật analog power khi nguồn đang tắt. Profile chép từ OTP và `lut10f50` kéo pixel
+đổi màu theo một chiều; profile cleanup lắc qua lại để tổng điện tích bằng 0. Chọn theo khảo sát trên BB0: cleanup
+edge center dài (`clean_full100`) cho viền khó thấy nhất; `tr8` đủ rõ cho chữ.
 
 ### Danh sách profile nằm ở đâu
 
 | Nơi | Nội dung | Ai tạo |
 |---|---|---|
-| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép dải nào, profile vẽ tay viết bằng các pha (mức điện áp, số khung), mặc định theo mục đích. `waveform_view.html` cùng thư mục vẽ các dải của bản dump | Dev |
-| `ink_drv_uc8253_profiles.c`, mảng C const trong flash | Sinh bằng `tools/profile_gen.py` từ nguồn trên; không sửa tay | Script, lúc dev chạy |
+| `components/drivers/ink_drv_uc8253/profiles/`: bản dump OTP của BB0 và `profiles.json` | Nguồn của danh sách: profile nào chép band nào, profile custom viết bằng các pha (mức điện áp, số LUT frame), mặc định theo intent và loại cleanup. `waveform_view.html` cùng thư mục vẽ các band của bản dump | Dev |
+| `ink_drv_uc8253_profiles.c`: mảng C const trong flash | Sinh bằng `tools/profile_gen.py` từ nguồn trên; không sửa tay | Script, lúc dev chạy |
 | Một ô profile tạm trong RAM của driver | Profile gửi từ PC để thử mà không phải nạp lại firmware (gói `.inkw` do script sinh); mất khi reset. Index bằng số profile cố định | Dev, qua bench |
 
-Vẽ sóng chỉ phục vụ phát triển: thử bảng mới, đổi bảng khi đổi panel, hoặc thêm kiểu hiển thị riêng cho app. Người
-dùng chỉ chọn trong danh sách, nên firmware không đọc profile từ LittleFS.
+Vẽ waveform chỉ phục vụ phát triển: thử waveform mới, đổi waveform khi đổi panel, hoặc thêm kiểu hiển thị riêng cho
+app. Người dùng chỉ chọn trong danh sách, nên firmware không đọc profile từ LittleFS.
 
-Driver không đọc OTP lúc chạy. Panel khác thì dùng lệnh đọc OTP của firmware test, lưu bản dump mới rồi sinh lại file.
-Chưa có tấm panel thứ hai để biết VCOM trong OTP có khác giữa các tấm không.
+Driver không đọc OTP lúc chạy. Panel khác thì dùng lệnh đọc OTP của bench, lưu bản dump mới, rồi sinh
+lại file. Chưa có tấm panel thứ hai để biết VCOM trong OTP có khác giữa các tấm không.
 
-Driver nhớ profile đang nạp trong controller và chỉ gửi lại bảng khi index khác lần trước (khoảng 270 byte SPI, dưới
-1 ms ở 4 MHz). Reset controller hoặc nạp profile tạm thì quên profile đang nạp.
+Driver nhớ profile đang nạp trong controller, và chỉ gửi lại LUT khi `profile_index` khác lần trước (khoảng 270 byte
+SPI, dưới 1 ms ở 4 MHz). Reset controller hoặc nạp profile tạm thì quên profile đang nạp.
 
 ### Kiểm tra profile
 
-Mọi profile đi qua script trước khi vào firmware, kể cả profile tạm của bench, nên firmware không kiểm nội dung. Script
-từ chối profile vi phạm:
+Mọi profile đi qua `profile_gen.py` trước khi vào firmware, kể cả profile tạm của bench, nên firmware không kiểm nội dung. Script từ chối profile
+vi phạm:
 
 | Luật | Lý do |
 |---|---|
-| Cân bằng điện tích: tổng (điện áp × số khung) của LUTWK cộng LUTKW bằng 0 (VSH tính +1, VSL tính −1); bảng giữ màu lệch chỉ cảnh báo; profile chép từ OTP không kiểm; cờ `allow_unbalanced` cho bỏ qua | Một điểm đi trắng → đen → trắng chạy qua hai bảng; tổng khác 0 thì điện tích tích dần, hạt mực bị kẹt và để lại bóng lâu dài |
-| Mọi profile vẽ tay, kể cả profile dọn, phải cân bằng | `display` không theo dõi điện tích lúc chạy |
-| Số lần quét 1–4, số lặp nhóm và lặp trạng thái khác 0, mỗi pha tối đa 63 khung, tối đa 6 nhóm | Nghĩa của lặp 0 chưa đo; giới hạn của định dạng LUT |
-| Tần số khung có trong bảng PLL của UC8253 | Lệnh `0x30` chỉ nhận các mức trong bảng |
-| Điện áp trong dải thanh ghi của UC8253, VG khoá ±20 V, không dùng mức VDHR trong 4 bảng nguồn | Spec panel không ghi giới hạn riêng |
-| Id không trùng, không dùng lại id đã bỏ | Cài đặt cũ trỏ sai profile |
+| Cân bằng điện tích: tổng (điện áp × số LUT frame) của LUTWK cộng LUTKW bằng 0 (VSH tính +1, VSL tính −1). LUT giữ màu lệch thì chỉ cảnh báo; profile chép từ OTP không kiểm; cờ `allow_unbalanced` cho bỏ qua | Một pixel đi trắng → đen → trắng chạy qua hai LUT; tổng khác 0 thì điện tích tích dần, hạt mực bị kẹt và để lại bóng lâu dài |
+| Mọi profile custom, kể cả profile cleanup, phải cân bằng | Display không theo dõi điện tích lúc chạy |
+| Số lần quét 1–4; số lặp nhóm và lặp trạng thái khác 0; mỗi pha tối đa 63 LUT frame; tối đa 6 nhóm | Nghĩa của lặp 0 chưa đo; giới hạn của định dạng LUT |
+| LUT frame rate có trong bảng PLL của UC8253 | Lệnh `0x30` chỉ nhận các mức trong bảng |
+| Điện áp nằm trong khoảng thanh ghi của UC8253; VG khoá ±20 V; không dùng mức VDHR trong 4 LUT nguồn | Spec panel không ghi giới hạn riêng |
+| Id không trùng, không dùng lại id đã bỏ | Options cũ sẽ trỏ sai profile |
 
-Firmware test chỉ kiểm khung gói profile tạm (mã nhận dạng, phiên bản, độ dài, CRC). Gói sai thì từ chối và giữ
-profile tạm cũ.
+Firmware bench chỉ kiểm cấu trúc gói profile tạm (mã nhận dạng, phiên bản, độ dài, CRC). Gói sai thì bị từ chối và profile tạm cũ được giữ.
 
 ## Hiện tượng vật lý của mực và tầng xử lý
 
 | Hiện tượng | Tầng xử lý |
 |---|---|
-| Điện trường của điểm đang đẩy lan sang điểm bên cạnh, để lại viền xám | `display_policy` đánh dấu cờ viền; thang dọn dọn tâm và quanh viền |
-| Mất cân bằng điện tích làm hạt mực bị kẹt | Script kiểm profile trước khi sinh file; mọi profile vẽ tay cân bằng |
-| Hạt chưa tới đích, màu xám | Profile (số khung, tần số khung); nợ xám theo điểm, dọn nhẹ và dọn mạnh |
-| Điểm đứng yên bị bảng giữ màu kéo thêm | Profile vẽ tay có bảng giữ màu 0 V |
-| Lúc tắt nguồn, điện áp dư đẩy vùng trắng tối đi | Driver đặt TIEG = 0 (byte 2 của lệnh `0x00`) |
-| Dòng rò transistor TFT làm sụt điện áp trong một khung | Phần cứng; phần mềm chỉ chỉnh tần số khung. Tần số càng cao thì mỗi khung càng yếu |
-| Nhiệt độ đổi độ nhớt của mực | Driver đọc cảm biến; `display` chọn profile theo bảng dải nhiệt độ của từng preset |
-| Điện áp dư sau xung rã trong vài phút | Thang dọn để dọn mạnh ở bậc cuối, khi đã nghỉ lâu |
+| Điện trường của pixel đang đẩy lan sang pixel bên cạnh, để lại viền xám | `display_policy` đặt edge flag; cleanup stage 1 xử lý center và neighbor |
+| Mất cân bằng điện tích làm hạt mực bị kẹt | `profile_gen.py` kiểm profile trước khi sinh file; mọi profile custom cân bằng |
+| Hạt chưa tới đích, màu xám | Profile (số LUT frame, LUT frame rate); debt theo pixel, cleanup light và cleanup strong |
+| Pixel không đổi bị LUT giữ màu kéo thêm | Profile custom có LUT giữ màu 0 V |
+| Lúc tắt nguồn, điện áp dư làm vùng trắng tối đi | Driver đặt TIEG = 0 (byte 2 của lệnh `0x00`) |
+| Dòng rò transistor TFT làm sụt điện áp trong một LUT frame | Phần cứng; phần mềm chỉ chỉnh LUT frame rate. Tần số càng cao thì mỗi LUT frame càng yếu |
+| Nhiệt độ đổi độ nhớt của mực | Driver đọc cảm biến; display chọn profile theo band nhiệt độ của từng preset |
+| Điện áp dư sau xung rã trong vài phút | Cleanup strong đặt ở stage cuối, khi đã idle lâu |
 
-## Cài đặt và báo cáo
+## Options và report
 
-Ví dụ: người dùng chọn "lật nhanh" trong app Cài đặt. App gọi `ink_display_set_options` trên task main với preset `UI`
-trỏ tới profile nhanh hơn; `display` ghi cài đặt trong lock và báo cho task màn, task màn áp dụng trước khung sau. Khi
-khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`; chưa có thì dùng `ink_display_default_options`.
+Ví dụ: người dùng chọn "lật nhanh" trong app Settings. App gọi `ink_display_set_options()` trên main task với preset
+`UI` trỏ tới profile nhanh hơn. Display ghi options trong lock và báo cho display task; display task áp dụng trước frame
+sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_start()`; chưa có thì dùng
+`ink_display_default_options()`.
 
-| Cài đặt | Nghĩa | Mặc định |
+| Option | Nghĩa | Mặc định |
 |---|---|---|
-| Preset của từng mục đích | Bảng dải nhiệt độ → id profile; cấu hình vẽ; trọng số nợ và đánh dấu cờ viền (chỉ preset của ý định). Id không còn trong danh sách thì dùng mặc định của driver cho mục đích đó | Mặc định theo mục đích của driver; trọng số `TEXT` 1, `UI` 2, `PAGE` 1; cờ viền chỉ `UI` |
+| `draw_presets[intent]`, `cleanup_presets[cleanup]` | Danh sách band → id profile; draw config. Draw preset có thêm `debt_weight` và `marks_edges`. Id không còn trong danh sách thì dùng mặc định của driver cho intent hoặc cleanup đó | Mặc định của driver; debt weight `TEXT` 1, `UI` 2, `PAGE` 1; `marks_edges` chỉ `UI` |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
-| `debt_soft`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn mạnh khi `PAGE` | 2, 6 |
-| `debt_ceiling`, `debt_ceiling_max` | Trần nợ lúc nghỉ và trần lớn nhất khi đang thao tác | 8, 15 |
-| `edge_ms`, `light_ms`, `strong_ms` | Thời gian nghỉ của ba bậc thang dọn; 0 = bỏ bậc đó | 2 s, 10 s, 60 s |
-| `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 4 s |
+| `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` | 2, 6 |
+| `debt_ceiling`, `debt_ceiling_max` | Debt ceiling sau idle, và debt ceiling lớn nhất trong active period | 8, 15 |
+| `active_ms` | Frame tới trong khoảng này sau frame trước là active period: debt ceiling tăng 1, vượt ceiling thì cleanup fast; 0 = tắt | 2 s |
+| `edge_ms`, `light_ms`, `strong_ms` | Thời gian idle của ba cleanup stage; 0 = bỏ stage đó | 2 s, 10 s, 60 s |
+| `power_off_ms` | Không có DRF trong khoảng này thì tắt analog power; 0 = chỉ tắt trước khi ngủ | 4 s |
 
-Các mặc định về nợ và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
+Các mặc định về debt và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
 
-Sau mỗi lần task màn làm việc với màn (vẽ khung, một lượt dọn, tắt nguồn), nó gọi callback `on_drawn` (nếu có) với một
-báo cáo: việc đã làm, mục đích, id profile, window, nhiệt độ nếu vừa đọc, lỗi, nợ lớn nhất, số điểm có cờ viền, trần
-nợ, và 6 mốc thời gian ở bảng "Một lần vẽ đi qua đâu". Thời điểm bấm do task main đưa vào lúc giao khung; các mốc khác
-`display` tự ghi. Báo cáo này là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo của firmware test. Firmware
-chính không in log hay giữ thống kê thời gian.
+Sau mỗi lần display task làm việc với panel (vẽ frame, một cleanup, tắt analog power), nó gọi callback `on_report`
+(nếu có) với một report gồm: action (thêm `POWER_OFF`), intent hoặc loại cleanup, id profile, window, nhiệt độ nếu vừa đọc, lỗi, debt lớn nhất, số pixel
+có edge flag, debt ceiling, và 6 mốc thời gian theo bảng "Một lần vẽ đi qua đâu". `input_ms` do main task đưa vào lúc
+submit; các mốc khác display tự ghi. Report là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo của bench.
+Firmware chính không in log hay giữ thống kê thời gian.
 
 ## Khi nào xem lại
 
-- Nếu đoạn 2 vượt 50 ms (ví dụ dựng chữ, ảnh, dithering nặng) thì bàn chuyển sang gửi danh sách lệnh vẽ để task màn dựng ảnh.
-- Nếu có app cần vẽ chuyển động liên tục (cuộn mượt, animation) thì bàn chế độ ngân sách xung theo từng điểm: profile
-  là một xung ngắn, mỗi điểm đếm số xung còn phải kéo, task màn quét lặp và đổi đích giữa chừng.
-- Nếu app cần ý định khác nhau cho từng vùng trong cùng một khung thì bàn gắn ý định theo vùng.
-- Nếu điểm vừa đổi về trắng đậm dần khi để yên (đo trên BB0 với `tr8`, nhẹ sau khi đặt TIEG = 0) gây khó chịu trước
-  khi thang dọn kịp chạy, thì so `tr8` với bảng cân bằng trong từng lần đổi màu (như `clean_full100`) bằng bài "VCOM và
-  vùng đứng yên" của bench.
-- Nếu `UI` cần profile nhanh hơn mà xám nhiều, hoặc trộn `UI` (10 khung) với `TEXT` (15 khung) làm lệch điện tích thấy
-  được, thì bàn đẩy bù: sau khi vẽ nhanh, đẩy thêm một chiều về màu của điểm, kèm bộ đếm điện tích từng điểm. Thử tay trên
-  BB0 (`lut10f50` rồi 5 khung đẩy): sạch, không chớp, nhưng ô được đẩy đậm hơn xung quanh.
+- Đoạn 2 vượt 50 ms (ví dụ dựng chữ, ảnh, dithering nặng): bàn chuyển sang gửi danh sách lệnh vẽ để display task dựng
+  ảnh.
+- Có app cần vẽ chuyển động liên tục (cuộn mượt, animation): bàn chế độ ngân sách xung theo từng pixel. Profile là
+  một xung ngắn, mỗi pixel đếm số xung còn phải kéo, display task quét lặp và đổi đích giữa chừng.
+- App cần intent khác nhau cho từng vùng trong cùng một frame: bàn gắn intent theo vùng.
+- Pixel vừa đổi về trắng đậm dần khi để yên (đo trên BB0 với `tr8`, nhẹ hơn sau khi đặt TIEG = 0) gây khó chịu trước
+  khi cleanup stage kịp chạy: so `tr8` với LUT cân bằng trong từng lần đổi màu (như `clean_full100`) bằng bài "VCOM
+  và vùng đứng yên" của bench.
+- `UI` cần profile nhanh hơn mà xám nhiều, hoặc trộn `UI` (10 LUT frame) với `TEXT` (15 LUT frame) làm lệch điện tích thấy
+  được: bàn đẩy bù. Sau khi vẽ nhanh, đẩy thêm một chiều về màu của pixel, kèm bộ đếm điện tích từng pixel. Thử tay
+  trên BB0 (`lut10f50` rồi 5 LUT frame đẩy): sạch, không chớp, nhưng ô được đẩy đậm hơn xung quanh.

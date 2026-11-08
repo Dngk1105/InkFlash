@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/tasks.md */
+/* Design: docs/design/tasks.md */
 #include "ink_system.h"
 
 #include "esp_attr.h"
@@ -15,11 +15,12 @@
 
 static const char *TAG = "ink_system";
 
-/* ---- Message vào task main ---- */
-/* ISR và timer của các khối chỉ tạo message; mọi việc làm trên task main (docs/design/tasks.md). */
+/* ---- Messages to the main task ---- */
+/* ISRs and timers of every module only build messages; all work happens on the main task. */
 
 typedef enum : uint8_t {
     MESSAGE_SOURCE_INPUT = 0,
+    /* EXTEND(system): one source per module that posts messages (session, storage...). */
 } message_source_t;
 
 typedef struct {
@@ -30,14 +31,14 @@ typedef struct {
     };
 } message_t;
 
-/* ---- Hàng đợi task main ---- */
+/* ---- Main queue ---- */
 
-#define QUEUE_LENGTH 32 /* đủ cho một chùm edge rung của cả hai nút */
+#define QUEUE_LENGTH 32 /* REVIEW(system): sized for one bounce on both buttons; not measured */
 
 static QueueHandle_t s_queue;
-static atomic_uint   s_dropped_count; /* message rơi vì hàng đợi đầy; ISR và task phụ cộng, task main đọc */
+static atomic_uint   s_dropped_count; /* messages dropped on a full queue; the ISR and helper tasks add, the main task reads */
 
-/* Gọi từ task phụ (timer), không chờ. */
+/* Called from helper tasks (timer); never waits. */
 static void post_message(const message_t *message) {
     if (xQueueSend(s_queue, message, 0) != pdTRUE) { atomic_fetch_add(&s_dropped_count, 1); }
 }
@@ -48,7 +49,7 @@ static void IRAM_ATTR post_message_from_isr(const message_t *message) {
     portYIELD_FROM_ISR(higher_priority_task_woken);
 }
 
-/* ---- Hàm post giao cho từng khối ---- */
+/* ---- Post functions given to each module ---- */
 
 static void post_input(const ink_input_message_t *input) {
     const message_t message = {.source = MESSAGE_SOURCE_INPUT, .input = *input};
@@ -60,25 +61,27 @@ static void IRAM_ATTR post_input_from_isr(const ink_input_message_t *input) {
     post_message_from_isr(&message);
 }
 
-/* ---- Task main ---- */
+/* ---- Main task ---- */
 
-#define TASK_STACK_BYTES 4096 /* stack nằm trong RAM nội (mặc định của xTaskCreatePinnedToCore) */
-#define TASK_PRIORITY    5
+#define TASK_STACK_BYTES \
+    4096 /* WARN: stack must stay in internal RAM (xTaskCreatePinnedToCore default); deep sleep is called from this task */
+#define TASK_PRIORITY 5
 
 static void task_main(void *user_data) {
     (void)user_data;
     message_t            message;
     ink_gesture_output_t gestures;
-    bool                 messages_dropped = false; /* có message rơi, chưa báo cho input */
+    bool                 messages_dropped = false; /* messages dropped, input not told yet */
     for (;;) {
         if (xQueueReceive(s_queue, &message, portMAX_DELAY) != pdTRUE) { continue; }
         const unsigned dropped_count = atomic_exchange(&s_dropped_count, 0);
         if (dropped_count) {
-            ESP_LOGW(TAG, "hàng đợi đầy, rơi %u message", dropped_count);
+            ESP_LOGW(TAG, "main queue full: dropped %u messages", dropped_count);
             messages_dropped = true;
         }
         switch (message.source) {
             case MESSAGE_SOURCE_INPUT:
+                /* TODO(system): pass gestures to keymap and the open app; they are only logged for now. */
                 ink_input_handle(&message.input, &gestures);
                 break;
         }
@@ -89,7 +92,7 @@ static void task_main(void *user_data) {
     }
 }
 
-/* ---- Khởi động ---- */
+/* ---- Boot ---- */
 
 static esp_err_t create_queue_task(void) {
     s_queue = xQueueCreate(QUEUE_LENGTH, sizeof(message_t));
@@ -105,9 +108,11 @@ static esp_err_t create_queue_task(void) {
 esp_err_t ink_system_start(const ink_system_config_t *config) {
     if (config == nullptr || config->display == nullptr) { return ESP_ERR_INVALID_ARG; }
     if (s_queue != nullptr) { return ESP_ERR_INVALID_STATE; }
+    /* NOTE: a failure after create_queue_task() leaves the queue and task alive; no retry, because a boot error is
+     * fatal (app_main aborts through ESP_ERROR_CHECK). */
     esp_err_t error = create_queue_task();
     if (error == ESP_OK) { error = ink_input_start(config->buttons, config->button_count, post_input, post_input_from_isr); }
-    /* Chưa có snapshot: luôn khởi động như cấp điện lần đầu (không có màn nền). */
+    /* TODO(system): no snapshot yet; every boot is a cold boot (no background frame). */
     if (error == ESP_OK) {
         const ink_display_config_t display_config = {
             .device  = config->display,

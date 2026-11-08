@@ -1,45 +1,51 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #pragma once
 
-/* Edge nút → gesture. Không đọc đồng hồ: bên gọi tick theo
- * ink_gesture_next_deadline(). */
+/*
+ * Button edges -> gestures. Never reads the clock: the caller passes time in every call and ticks at
+ * ink_gesture_next_deadline(). Pure C (C23).
+ */
 #include <stdint.h>
 
-/* ---- Mã gesture ---- */
-/* Enum chỉ thêm giá trị vào cuối: keymap đã lưu dạng số, đổi thứ tự là trỏ sai
- * gesture. Mã nút và modifier là bitmask: mỗi nút một bit, tổ hợp là OR các
- * bit, thêm nút là thêm bit. */
+/* ---- Gesture codes ---- */
+/*
+ * WARN: append only to every enum below; keymap tables store gestures as numbers, so reordering silently
+ * points stored entries at other gestures.
+ * Button and modifier codes are bit masks: one bit per button, a combination is the OR of the bits.
+ */
 
 typedef enum : uint8_t {
     INK_GESTURE_SOURCE_BUTTON = 0,
+    /* EXTEND(gesture): add IMU here; see the IMU section of input.md. */
 } ink_gesture_source_t;
 
-/** Edge đầu vào chỉ một nút; tổ hợp chỉ có ở gesture đầu ra. */
+/** Button code. An input edge names one button; only output gestures use combinations. */
 typedef enum : uint8_t {
     INK_GESTURE_BUTTON_A  = 1 << 0,
     INK_GESTURE_BUTTON_B  = 1 << 1,
     INK_GESTURE_BUTTON_AB = INK_GESTURE_BUTTON_A | INK_GESTURE_BUTTON_B,
 } ink_gesture_button_t;
 
-/* Số nút gesture hiểu được: mã nút ở trên có đúng chừng này bit. Thêm nút là thêm bit và tăng số này. */
+/* Number of buttons gesture handles; the button codes above use exactly this many bits.
+ * WARN: ink_gesture.c pairs buttons as `1 - index` (static_assert there); a third button needs that code rewritten. */
 #define INK_GESTURE_BUTTON_COUNT 2
 
 typedef enum : uint8_t {
     INK_GESTURE_TYPE_PRESS = 0,
     INK_GESTURE_TYPE_DOUBLE_PRESS,
     INK_GESTURE_TYPE_HOLD,
-    INK_GESTURE_TYPE_HOLD_AB_SHORT,
-    INK_GESTURE_TYPE_HOLD_AB_LONG,
+    INK_GESTURE_TYPE_HOLD_AB_SHORT, /**< reserved for system: back to menu */
+    INK_GESTURE_TYPE_HOLD_AB_LONG,  /**< reserved for system: power off */
 } ink_gesture_type_t;
 
-/** Nút đang giữ khi trigger bắt đầu. */
+/** Button held when the trigger started. */
 typedef enum : uint8_t {
     INK_GESTURE_MODIFIER_NONE = 0,
     INK_GESTURE_MODIFIER_A    = INK_GESTURE_BUTTON_A,
     INK_GESTURE_MODIFIER_B    = INK_GESTURE_BUTTON_B,
 } ink_gesture_modifier_t;
 
-/** (modifier, trigger); trigger = source, button, type. */
+/** One gesture: (modifier, trigger); the trigger is (source, button, type). */
 typedef struct {
     ink_gesture_modifier_t modifier;
     ink_gesture_source_t   source;
@@ -47,30 +53,29 @@ typedef struct {
     ink_gesture_type_t     type;
 } ink_gesture_t;
 
-/* ---- Lỗi ---- */
+/* ---- Errors ---- */
 
-/** Chỉ gồm lỗi thật sự trả về. */
 typedef enum : uint8_t {
     INK_GESTURE_OK = 0,
     INK_GESTURE_ERROR_ARGUMENT,
-    INK_GESTURE_ERROR_CONFIG, /**< ngưỡng sai */
+    INK_GESTURE_ERROR_CONFIG, /**< thresholds violate the rules in config_valid() */
 } ink_gesture_error_t;
 
-/* ---- Đầu vào: edge nút ---- */
+/* ---- Input: button edges ---- */
 
 typedef enum : uint8_t {
     INK_GESTURE_LEVEL_RELEASED = 0,
     INK_GESTURE_LEVEL_PRESSED,
 } ink_gesture_level_t;
 
-/** Một edge: level sau edge, time do bên gọi đóng dấu. */
+/** One edge. */
 typedef struct {
-    ink_gesture_button_t button;
-    ink_gesture_level_t  level;
-    uint32_t             time_ms;
+    ink_gesture_button_t button;  /**< exactly one button: A or B */
+    ink_gesture_level_t  level;   /**< level after the edge */
+    uint32_t             time_ms; /**< timestamp taken by the caller */
 } ink_gesture_event_t;
 
-/* ---- Đầu ra ---- */
+/* ---- Output ---- */
 
 #define INK_GESTURE_OUTPUT_MAX 4
 
@@ -79,110 +84,149 @@ typedef struct {
     ink_gesture_t items[INK_GESTURE_OUTPUT_MAX];
 } ink_gesture_output_t;
 
-/** Gesture đang dở, để system vẽ tiến độ. */
+/** Gesture being held, so system can draw a countdown. */
 typedef struct {
     ink_gesture_modifier_t modifier;
     ink_gesture_button_t   button;
-    ink_gesture_type_t     on_release; /**< gesture sẽ ra nếu nhả lúc này */
+    ink_gesture_type_t     on_release; /**< gesture emitted if released now */
     bool                   has_next;
-    ink_gesture_type_t     next; /**< gesture có được nếu giữ tới next_ms */
+    ink_gesture_type_t     next; /**< gesture reached by holding until next_ms */
     uint32_t               start_ms;
     uint32_t               next_ms;
 } ink_gesture_progress_t;
 
-/* ---- Cấu hình ---- */
+/* ---- Config ---- */
 
+/** Time thresholds, ms. */
 typedef struct {
     uint32_t debounce_ms;
     uint32_t double_ms;
     uint32_t hold_ms;
-    uint32_t combo_ms;
+    uint32_t combo_ms; /**< second button within this time after the first: A+B */
     uint32_t ab_short_ms;
     uint32_t ab_long_ms;
 } ink_gesture_config_t;
 
-/** Bit mask cho ink_gesture_set_enabled(): kiểu phải chờ, mặc định tắt. */
+/** Wait mask bits for ink_gesture_set_wait_mask(): gesture types that make a button wait. All off by default. */
 typedef enum : uint8_t {
     INK_GESTURE_WAIT_NONE     = 0,
-    INK_GESTURE_WAIT_DOUBLE   = 1 << 0,
-    INK_GESTURE_WAIT_MODIFIER = 1 << 1,
+    INK_GESTURE_WAIT_DOUBLE   = 1 << 0, /**< PRESS waits double_ms after release for a second press */
+    INK_GESTURE_WAIT_MODIFIER = 1 << 1, /**< HOLD waits for release: the button may become a modifier */
 } ink_gesture_wait_mask_t;
 
-/* ---- Trạng thái ---- */
+/* ---- State ---- */
 
-/** Trạng thái một nút, chỉ dùng trong ink_gesture_state_t. */
+/** State of one button; used only inside ink_gesture_state_t. */
 typedef struct {
     uint8_t  phase;
     uint8_t  wait_mask;
-    uint8_t  modifier;         /**< modifier chốt lúc bấm */
-    bool     stable;           /**< level sau debounce; true = bấm */
-    bool     raw;              /**< level của edge mới nhất */
-    bool     locked;           /**< trong debounce_ms sau edge đã nhận */
-    bool     used_as_modifier; /**< đang làm modifier cho nút kia */
+    uint8_t  modifier;         /**< modifier latched at press */
+    bool     stable;           /**< level after debounce; true = pressed */
+    bool     raw;              /**< level of the latest edge */
+    bool     locked;           /**< within debounce_ms after an accepted edge */
+    bool     used_as_modifier; /**< acting as modifier for the other button */
     uint32_t lock_until_ms;
     uint32_t pressed_at_ms;
     uint32_t released_at_ms;
 } ink_gesture_button_state_t;
 
-/** Bên gọi giữ struct, không đụng trường: check.py chặn truy cập `priv` ngoài
- * khối lõi. */
+/** The caller owns the struct but must not touch `priv`; tools/check.py rejects `priv` outside the core module. */
 typedef struct {
     struct {
         ink_gesture_config_t       config;
         ink_gesture_button_state_t buttons[INK_GESTURE_BUTTON_COUNT];
         uint8_t                    mode;
-        uint32_t                   ab_pressed_at_ms; /**< lúc bấm nút thứ hai của A+B */
+        uint32_t                   ab_pressed_at_ms; /**< press time of the second button of A+B */
     } priv;
 } ink_gesture_state_t;
 
 /* ---- API ---- */
 
 /**
- * Khởi tạo state với config.
- * Gọi từ: input, lúc khởi động.
- * @return ERROR_ARGUMENT nếu nullptr; ERROR_CONFIG nếu config sai
+ * @brief Reset state and set the gesture config.
+ * @par Called from
+ * Input, at boot.
+ * @retval INK_GESTURE_ERROR_ARGUMENT a pointer is NULL.
+ * @retval INK_GESTURE_ERROR_CONFIG config is invalid.
  */
 [[nodiscard]] ink_gesture_error_t ink_gesture_init(ink_gesture_state_t *state, const ink_gesture_config_t *config);
 
 /**
- * Đổi ngưỡng lúc chạy; gesture dở dùng ngưỡng mới ngay.
- * Gọi từ: task main (lệnh `gesture set`).
- * @return ERROR_CONFIG nếu config sai, giữ config cũ
+ * @brief Change thresholds at run time; gestures in progress use the new values at once.
+ * @par Called from
+ * Main task (input, from the Settings app).
+ * @retval INK_GESTURE_ERROR_ARGUMENT a pointer is NULL.
+ * @retval INK_GESTURE_ERROR_CONFIG config is invalid; the old config stays.
  */
 [[nodiscard]] ink_gesture_error_t ink_gesture_set_config(ink_gesture_state_t *state, const ink_gesture_config_t *config);
 
+/**
+ * @brief Copy the current gesture config.
+ * @par Called from
+ * Main task.
+ * @retval INK_GESTURE_ERROR_ARGUMENT a pointer is NULL.
+ */
 [[nodiscard]] ink_gesture_error_t ink_gesture_get_config(const ink_gesture_state_t *state, ink_gesture_config_t *out_config);
 
 /**
- * Bật kiểu phải chờ cho một nút.
- * Gọi từ: system, khi mở app hoặc đổi scene.
- * @param wait_mask bit INK_GESTURE_WAIT_*
- * @return ERROR_ARGUMENT nếu button không phải A, B hoặc wait_mask có bit lạ
+ * @brief Set the wait mask of one button.
+ *
+ * A changed mask drops the gesture in progress on that button; the button must be released before the next gesture.
+ * @par Called from
+ * Main task (system, when an app opens or the scene changes).
+ * @param wait_mask INK_GESTURE_WAIT_* bits.
+ * @retval INK_GESTURE_ERROR_ARGUMENT state is NULL, button is not A or B, or wait_mask has unknown bits.
  */
-[[nodiscard]] ink_gesture_error_t ink_gesture_set_enabled(ink_gesture_state_t *state, ink_gesture_button_t button, uint8_t wait_mask);
+[[nodiscard]] ink_gesture_error_t ink_gesture_set_wait_mask(ink_gesture_state_t *state, ink_gesture_button_t button,
+                                                            ink_gesture_wait_mask_t wait_mask);
 
 /**
- * Nhận một edge. Xử lý trước các deadline tới trước time_ms, nên gesture ra đúng thứ tự.
- * Gọi từ: task main, mỗi edge.
- * @param out gesture phát ra; out->count có thể là 0
- * @return ERROR_ARGUMENT nếu nullptr, button không phải A, B hoặc level lạ
+ * @brief Feed one edge.
+ *
+ * Runs deadlines due before event->time_ms first, so gestures come out in time order.
+ * @par Called from
+ * Main task, on every edge.
+ * @param out Gestures emitted; out->count may be 0.
+ * @retval INK_GESTURE_ERROR_ARGUMENT a pointer is NULL, button is not A or B, or level is unknown.
  */
 [[nodiscard]] ink_gesture_error_t ink_gesture_feed(ink_gesture_state_t *state, const ink_gesture_event_t *event, ink_gesture_output_t *out);
 
 /**
- * Xử lý các deadline đã tới tính đến now_ms.
- * Gọi từ: task main, khi timer theo ink_gesture_next_deadline() hết.
+ * @brief Run every deadline due at now_ms.
+ * @par Called from
+ * Main task, when the timer set from ink_gesture_next_deadline() expires.
+ * @retval INK_GESTURE_ERROR_ARGUMENT a pointer is NULL.
  */
 [[nodiscard]] ink_gesture_error_t ink_gesture_tick(ink_gesture_state_t *state, uint32_t now_ms, ink_gesture_output_t *out);
 
 /**
- * Deadline gần nhất, để hẹn timer.
- * @return false nếu không có gesture dở, không cần timer
+ * @brief Get the earliest deadline, to set the timer.
+ * @par Called from
+ * Main task, after every feed and tick.
+ * @return false if no deadline is pending (no timer needed), or a pointer is NULL.
  */
 bool ink_gesture_next_deadline(const ink_gesture_state_t *state, uint32_t *out_ms);
 
 /**
- * Gesture đang giữ dở tính tới now_ms. Chỉ đọc, không phát gesture.
- * @return false nếu không có gì đang giữ
+ * @brief Convert a button index (0 = A, 1 = B; the order bsp lists buttons in) to its button code.
+ * @par Called from
+ * Main task (input).
+ * @return Button code; 0 if index >= INK_GESTURE_BUTTON_COUNT.
+ */
+ink_gesture_button_t ink_gesture_button_of_index(uint8_t index);
+
+/**
+ * @brief Convert a button code to its index (A -> 0, B -> 1).
+ * @par Called from
+ * Main task (input, keymap).
+ * @return Index; -1 unless button is exactly one known button.
+ */
+int8_t ink_gesture_index_of_button(ink_gesture_button_t button);
+
+/**
+ * @brief Report the gesture being held at now_ms. Read only; emits nothing.
+ * @par Called from
+ * Main task.
+ * @return false if nothing is held, or a pointer is NULL.
  */
 bool ink_gesture_progress(const ink_gesture_state_t *state, uint32_t now_ms, ink_gesture_progress_t *out);

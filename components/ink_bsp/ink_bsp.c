@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/hardware-variants.md */
+/* Design: docs/design/hardware-variants.md */
 #include "ink_bsp.h"
 
 #include "esp_check.h"
@@ -9,12 +9,11 @@ static const char *TAG = "ink_bsp";
 
 static bool s_initialized;
 
-/* ---- Nút ---- */
+/* ---- Buttons ---- */
 
 #define BUTTON_COUNT 2
 
-/* BB0 (docs/hardware/boards/bb0.md). GPIO46 là chân strapping: chỉ dùng kéo lên
- * trong. */
+/* BB0 (docs/hardware/boards/bb0.md). WARN: GPIO46 is a strapping pin; use the internal pull-up only. */
 static const ink_drv_gpio_button_config_t s_button_pins[BUTTON_COUNT] = {
     {.pin = GPIO_NUM_8,  .active_low = true, .pull_up = true},
     {.pin = GPIO_NUM_46, .active_low = true, .pull_up = true},
@@ -39,11 +38,11 @@ esp_err_t ink_bsp_buttons(const ink_hal_button_device_t **out_devices, size_t *o
     return ESP_OK;
 }
 
-/* ---- Màn ---- */
+/* ---- Display ---- */
 
 #define DISPLAY_SPI_HOST SPI2_HOST
 
-/* BB0 (docs/hardware/boards/bb0.md). Màn chỉ ghi, không có MISO. */
+/* BB0 (docs/hardware/boards/bb0.md). The panel is write only: no MISO. */
 static const gpio_num_t s_display_sclk = GPIO_NUM_4;
 static const gpio_num_t s_display_mosi = GPIO_NUM_5;
 
@@ -77,6 +76,8 @@ esp_err_t ink_bsp_display(const ink_hal_display_device_t **out_device) {
     *out_device = &s_display_device;
     return ESP_OK;
 }
+
+/* ---- Bench support: temporary profile, OTP, panel settings ---- */
 
 esp_err_t ink_bsp_display_load_profile(const uint8_t *blob, size_t length) {
     ESP_RETURN_ON_FALSE(blob != nullptr, ESP_ERR_INVALID_ARG, TAG, "null arg");
@@ -119,14 +120,19 @@ uint8_t ink_bsp_display_power_off_frames(void) {
     return ink_drv_uc8253_power_off_frames(&s_display_driver);
 }
 
-/* ---- Khởi tạo board ---- */
+/* ---- Board init ---- */
 
 esp_err_t ink_bsp_init(void) {
     ESP_RETURN_ON_FALSE(!s_initialized, ESP_ERR_INVALID_STATE, TAG, "already init");
     ESP_RETURN_ON_ERROR(gpio_install_isr_service(0), TAG, "gpio_install_isr_service");
     ESP_RETURN_ON_ERROR(init_buttons(), TAG, "buttons");
+    /* NOTE: a failure here leaves the ISR service, buttons or SPI bus installed; no retry, because a boot error is fatal
+     * (app_main aborts through ESP_ERROR_CHECK). */
     ESP_RETURN_ON_ERROR(init_display(), TAG, "display");
     s_initialized = true;
-    ESP_LOGI(TAG, "board BB0");
     return ESP_OK;
+}
+
+const char *ink_bsp_board_name(void) {
+    return "BB0";
 }

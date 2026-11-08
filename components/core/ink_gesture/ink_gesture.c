@@ -1,30 +1,30 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #include "ink_gesture.h"
 
-/* Hai lớp: debounce từng nút, rồi state machine gesture. Mọi deadline tính
- * trong earliest_deadline(); tick xử lý deadline sớm nhất trước nên gesture ra
- * đúng thứ tự. */
+/* Two layers: debounce per button, then the gesture state machine. Every deadline is computed in
+ * earliest_deadline(); tick runs the earliest one first, so gestures come out in time order. */
 
-/* ---- Trạng thái nội bộ ---- */
+/* ---- Internal state ---- */
 
-/* Bên trong đánh số nút 0..INK_GESTURE_BUTTON_COUNT-1; ra ngoài đổi sang bit. */
+/* Inside, buttons are indexes 0..INK_GESTURE_BUTTON_COUNT-1; the API uses bit codes (index i = bit i). */
 
 enum : uint8_t {
-    PHASE_IDLE,         /* nhả, không có gì dở */
-    PHASE_DOWN,         /* đang bấm, chưa biết press hay hold */
-    PHASE_UP_WAIT,      /* đã nhả, chờ lần bấm thứ hai */
-    PHASE_WAIT_RELEASE, /* chờ nhả, không phát gì */
+    PHASE_IDLE,         /* released, nothing in progress */
+    PHASE_DOWN,         /* pressed; PRESS or HOLD not decided yet */
+    PHASE_UP_WAIT,      /* released, waiting for a second press */
+    PHASE_WAIT_RELEASE, /* waiting for release; emits nothing */
 };
 
 enum : uint8_t {
     MODE_NORMAL,
-    MODE_AB,      /* đang giữ A+B */
-    MODE_AB_DONE, /* đã phát HOLD_AB_LONG, chờ nhả hết */
-    MODE_BLOCK,   /* bỏ qua tới khi nhả hết */
+    MODE_AB,      /* A+B held */
+    MODE_AB_DONE, /* HOLD_AB_LONG emitted; waiting until both are released */
+    MODE_BLOCK,   /* ignore everything until both are released */
 };
 
-/* ---- Tiện ích ---- */
+/* ---- Helpers ---- */
 
+/* Wrap-safe: valid while the two times are less than 2^31 ms apart. */
 static bool time_reached(uint32_t now_ms, uint32_t time_ms) {
     return (int32_t)(now_ms - time_ms) >= 0;
 }
@@ -41,7 +41,6 @@ static uint8_t button_bit(uint8_t button_index) {
     return (uint8_t)(1u << button_index);
 }
 
-/* Mã nút → số thứ tự (A = 1 → 0); -1 nếu không phải đúng một nút. */
 static int button_index_of(ink_gesture_button_t button) {
     for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         if (button == button_bit(i)) { return i; }
@@ -49,6 +48,8 @@ static int button_index_of(ink_gesture_button_t button) {
     return -1;
 }
 
+/* Callers keep one free item per call: run_due_deadlines() stops when out is full, and feed() defers its edge
+ * instead of accepting it into a full out. The check below only guards the array. */
 static void emit(ink_gesture_output_t *out, uint8_t modifier, uint8_t button, ink_gesture_type_t type) {
     if (out->count < INK_GESTURE_OUTPUT_MAX) {
         out->items[out->count++] = (ink_gesture_t){
@@ -60,7 +61,10 @@ static void emit(ink_gesture_output_t *out, uint8_t modifier, uint8_t button, in
     }
 }
 
-/* ---- State machine: bấm, nhả ---- */
+/* ---- State machine: press, release ---- */
+
+/* The other button is `1 - index`: rule of three before generalizing to more buttons. */
+static_assert(INK_GESTURE_BUTTON_COUNT == 2, "press/release pair buttons as 1 - index");
 
 static void clear_gesture(ink_gesture_button_state_t *button) {
     button->phase            = button->stable ? PHASE_WAIT_RELEASE : PHASE_IDLE;
@@ -68,7 +72,7 @@ static void clear_gesture(ink_gesture_button_state_t *button) {
     button->used_as_modifier = false;
 }
 
-/* Lần bấm này không thành double press: phát press còn treo trước. */
+/* This press does not make a double press: emit the PRESS still waiting first. */
 static void flush_pending_press(ink_gesture_button_state_t *button, uint8_t button_index, ink_gesture_output_t *out) {
     if (button->phase == PHASE_UP_WAIT) { emit(out, button->modifier, button_bit(button_index), INK_GESTURE_TYPE_PRESS); }
     button->phase    = PHASE_IDLE;
@@ -222,8 +226,7 @@ static void run_deadline(ink_gesture_state_t *state, const deadline_t *deadline,
     }
 }
 
-/* Mỗi deadline phát tối đa một gesture; out đầy thì dừng, phần còn lại để lần
- * gọi sau. */
+/* Each deadline emits at most one gesture. Stops when out is full; the rest run on the next call. */
 static void run_due_deadlines(ink_gesture_state_t *state, uint32_t now_ms, ink_gesture_output_t *out) {
     while (out->count < INK_GESTURE_OUTPUT_MAX) {
         const deadline_t deadline = earliest_deadline(state);
@@ -232,7 +235,7 @@ static void run_due_deadlines(ink_gesture_state_t *state, uint32_t now_ms, ink_g
     }
 }
 
-/* ---- API: cấu hình ---- */
+/* ---- API: config ---- */
 
 ink_gesture_error_t ink_gesture_init(ink_gesture_state_t *state, const ink_gesture_config_t *config) {
     if (state == nullptr || config == nullptr) { return INK_GESTURE_ERROR_ARGUMENT; }
@@ -255,7 +258,7 @@ ink_gesture_error_t ink_gesture_get_config(const ink_gesture_state_t *state, ink
     return INK_GESTURE_OK;
 }
 
-ink_gesture_error_t ink_gesture_set_enabled(ink_gesture_state_t *state, ink_gesture_button_t button, uint8_t wait_mask) {
+ink_gesture_error_t ink_gesture_set_wait_mask(ink_gesture_state_t *state, ink_gesture_button_t button, ink_gesture_wait_mask_t wait_mask) {
     const int button_index = button_index_of(button);
     if (state == nullptr || button_index < 0 || (wait_mask & ~(INK_GESTURE_WAIT_DOUBLE | INK_GESTURE_WAIT_MODIFIER)) != 0) {
         return INK_GESTURE_ERROR_ARGUMENT;
@@ -269,7 +272,7 @@ ink_gesture_error_t ink_gesture_set_enabled(ink_gesture_state_t *state, ink_gest
     return INK_GESTURE_OK;
 }
 
-/* ---- API: edge và tick ---- */
+/* ---- API: edge and tick ---- */
 
 ink_gesture_error_t ink_gesture_feed(ink_gesture_state_t *state, const ink_gesture_event_t *event, ink_gesture_output_t *out) {
     if (state == nullptr || event == nullptr || out == nullptr || event->level > INK_GESTURE_LEVEL_PRESSED) {
@@ -282,7 +285,14 @@ ink_gesture_error_t ink_gesture_feed(ink_gesture_state_t *state, const ink_gestu
     ink_gesture_button_state_t *button  = &state->priv.buttons[button_index];
     const bool                  pressed = event->level == INK_GESTURE_LEVEL_PRESSED;
     button->raw                         = pressed;
-    if (!button->locked && pressed != button->stable) { accept_edge(state, (uint8_t)button_index, pressed, event->time_ms, out); }
+    if (button->locked || pressed == button->stable) { return INK_GESTURE_OK; }
+    if (out->count == INK_GESTURE_OUTPUT_MAX) {
+        /* No room: let the debounce deadline accept the edge at time_ms on the next tick, after the due deadlines. */
+        button->locked        = true;
+        button->lock_until_ms = event->time_ms;
+        return INK_GESTURE_OK;
+    }
+    accept_edge(state, (uint8_t)button_index, pressed, event->time_ms, out);
     return INK_GESTURE_OK;
 }
 
@@ -298,6 +308,16 @@ bool ink_gesture_next_deadline(const ink_gesture_state_t *state, uint32_t *out_m
     const deadline_t deadline = earliest_deadline(state);
     if (deadline.found) { *out_ms = deadline.time_ms; }
     return deadline.found;
+}
+
+/* ---- API: button index <-> code ---- */
+
+ink_gesture_button_t ink_gesture_button_of_index(uint8_t index) {
+    return index < INK_GESTURE_BUTTON_COUNT ? (ink_gesture_button_t)button_bit(index) : (ink_gesture_button_t)0;
+}
+
+int8_t ink_gesture_index_of_button(ink_gesture_button_t button) {
+    return (int8_t)button_index_of(button);
 }
 
 /* ---- API: progress ---- */

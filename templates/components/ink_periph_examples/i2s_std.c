@@ -1,7 +1,7 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
-/* Dựa theo: examples/peripherals/i2s/i2s_basic/i2s_std. Không dùng driver/i2s.h
- * (đã xoá trong v6.1). */
+/* Based on: examples/peripherals/i2s/i2s_basic/i2s_std. Not driver/i2s.h
+ * (removed in v6.1). */
 #include "ink_periph_examples.h"
 
 #include "esp_check.h"

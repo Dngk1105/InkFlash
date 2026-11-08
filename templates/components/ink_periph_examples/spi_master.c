@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
-/* Dựa theo: examples/peripherals/spi_master/lcd */
+/* Based on: examples/peripherals/spi_master/lcd */
 #include "ink_periph_examples.h"
 
 #include "esp_check.h"
@@ -12,7 +12,7 @@ esp_err_t ink_periph_examples_spi_init(spi_host_device_t host, gpio_num_t sclk, 
     const spi_bus_config_t bus_config = {
         .sclk_io_num     = sclk,
         .mosi_io_num     = mosi,
-        .miso_io_num     = -1, /* chỉ ghi */
+        .miso_io_num     = -1, /* write only */
         .quadwp_io_num   = -1,
         .quadhd_io_num   = -1,
         .max_transfer_sz = 16 * 1024,
@@ -28,9 +28,9 @@ esp_err_t ink_periph_examples_spi_init(spi_host_device_t host, gpio_num_t sclk, 
 }
 
 esp_err_t ink_periph_examples_spi_write(spi_device_handle_t device, const uint8_t *data, size_t length) {
-    /* Dữ liệu gửi bằng DMA phải nằm trong RAM nội có MALLOC_CAP_DMA. */
+    /* WARN: data sent by DMA must be in internal RAM with MALLOC_CAP_DMA. */
     spi_transaction_t transaction = {
-        .length    = length * 8, /* đơn vị bit */
+        .length    = length * 8, /* in bits */
         .tx_buffer = data,
     };
     return spi_device_polling_transmit(device, &transaction);

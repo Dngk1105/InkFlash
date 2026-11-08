@@ -2,13 +2,14 @@
 
 ## Vấn đề
 
-Đảm bảo dùng đúng chuẩn API của ESP-IDF v6.1
+ESP-IDF v6.1 đã xoá hoặc đánh dấu deprecated nhiều API mà ví dụ cũ, code Arduino và AI viết theo trí nhớ vẫn dùng.
+Code gọi API cũ thì build lỗi, hoặc build qua nhưng hỏng ở bản ESP-IDF sau.
 
 ## Cách xử lý
 
-### API đúng 
+### API đúng
 
-Kiểm trong `C:\esp\v6.1\esp-idf`
+Bảng dưới đã kiểm trong `C:\esp\v6.1\esp-idf`.
 
 | Việc                   | API cũ                             | Trạng thái trong v6.1                  | Dùng                                                    |
 | ----------------------- | ----------------------------------- | ---------------------------------------- | -------------------------------------------------------- |

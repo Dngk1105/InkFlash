@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/code-structure.md */
+/* Design: docs/design/code-structure.md */
 
-/* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
+/* Host test: runs on the PC with gcc and the Unity copy from ESP-IDF. One test_* function per case. */
 #include "ink_example.h"
 #include "unity.h"
 

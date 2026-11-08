@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 
-/* Trạng thái của khối và phần chạy trên task main: edge → gesture, timer theo deadline, đọc lại chân, cài đặt gesture. */
+/* Module state and the main task side: edge -> gesture, timer at deadlines, resync, gesture config. */
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "ink_input_internal.h"
@@ -11,15 +11,15 @@
 
 static const char *TAG = "ink_input";
 
-/* ---- Hàm post của system ---- */
-/* Gán một lần trong ink_input_start(), trước khi bật ngắt và timer; sau đó chỉ đọc. */
+/* ---- Post functions from system ---- */
+/* Set once in ink_input_start(), before interrupts and the timer run; read only afterwards. */
 
 static ink_input_post_t          s_post;
 static ink_input_post_from_isr_t s_post_from_isr;
 
-/* ---- Nguồn message: ISR nút, timer ---- */
+/* ---- Message sources: button ISR, timer ---- */
 
-/* user_data là mã nút (ink_gesture_button_t). Đóng dấu thời gian tại đây: chỉ một nguồn giờ. */
+/* user_data is the button code (ink_gesture_button_t). The timestamp is taken here, so there is one time source. */
 static void IRAM_ATTR on_button_edge(void *user_data, bool pressed) {
     ink_input_message_t message = {.type = INK_INPUT_MESSAGE_BUTTON_EDGE};
 
@@ -37,9 +37,10 @@ static void on_timer_expired(void *user_data) {
     s_post(&message);
 }
 
-/* ---- Trạng thái task main ---- */
-/* Chỉ task main đọc và sửa. */
+/* ---- Main task state ---- */
+/* Only the main task reads or writes these. */
 
+/* REVIEW(input): defaults not measured on BB0 buttons; move to options when Settings exists. */
 static const ink_gesture_config_t s_default_gesture_config = {
     .debounce_ms = 20,
     .double_ms   = 400,
@@ -51,17 +52,17 @@ static const ink_gesture_config_t s_default_gesture_config = {
 
 static ink_gesture_state_t            s_gesture_state;
 static ink_platform_timer_t           s_gesture_timer;
-static const ink_hal_button_device_t *s_buttons;                                /* index 0 là A, 1 là B; nullptr khi chưa start */
-static bool                           s_last_pressed[INK_GESTURE_BUTTON_COUNT]; /* level của edge cuối đã đưa vào gesture */
-static bool                           s_resync_pending;                         /* timer vừa chạy, chưa đọc lại chân */
+static const ink_hal_button_device_t *s_buttons;                                /* index 0 = A, 1 = B; NULL until started */
+static bool                           s_last_pressed[INK_GESTURE_BUTTON_COUNT]; /* level of the last edge fed to gesture */
+static bool                           s_resync_pending;                         /* timer fired; resync not done yet */
 
-/* ---- Timer theo deadline của gesture ---- */
+/* ---- Timer at gesture deadlines ---- */
 
 #define PROGRESS_LOG_INTERVAL_MS 1000
 
 /*
- * Hẹn timer theo deadline gần nhất; có gesture dở thì hẹn không quá PROGRESS_LOG_INTERVAL_MS.
- * Chỉ log progress khi gọi từ timer: gọi từ edge thì một chùm rung in vài chục dòng.
+ * Start the timer at the earliest deadline; while a gesture is in progress, at most PROGRESS_LOG_INTERVAL_MS away.
+ * Log progress only when called from the timer: from edges, one bounce would print dozens of lines.
  */
 static void update_gesture_timer(bool log) {
     const uint32_t         now_ms = ink_platform_now_ms();
@@ -84,13 +85,13 @@ static void update_gesture_timer(bool log) {
     ESP_ERROR_CHECK(ink_platform_timer_start(s_gesture_timer, delay_ms));
 }
 
-/* ---- Edge vào gesture ---- */
+/* ---- Edges into gesture ---- */
 
-/* Gom gesture vào out; out đầy thì bỏ phần thừa và báo. */
+/* Append gestures to out; when out is full, drop the rest and log it. */
 static void append_gestures(ink_gesture_output_t *out, const ink_gesture_output_t *gestures) {
     for (uint8_t i = 0; i < gestures->count; i++) {
         if (out->count == INK_GESTURE_OUTPUT_MAX) {
-            ESP_LOGW(TAG, "bỏ %u gesture vì đầy output", gestures->count - i);
+            ESP_LOGW(TAG, "dropped %u gestures: output full", gestures->count - i);
             return;
         }
         out->items[out->count++] = gestures->items[i];
@@ -103,15 +104,16 @@ static void feed_edge(const ink_gesture_event_t *event, ink_gesture_output_t *ou
         ESP_LOGE(TAG, "feed button %u", event->button);
         return;
     }
-    s_last_pressed[event->button == INK_GESTURE_BUTTON_A ? 0 : 1] = event->level == INK_GESTURE_LEVEL_PRESSED;
+    s_last_pressed[ink_gesture_index_of_button(event->button)] = event->level == INK_GESTURE_LEVEL_PRESSED;
     input_log_gestures(&gestures);
     append_gestures(out, &gestures);
 }
 
 /*
- * Edge cuối của một chùm rung có thể rơi khi hàng đợi đầy; gesture giữ level sai tới lần bấm sau. Đọc chân thật,
- * khác level edge cuối thì đưa edge bù. Chỉ gọi khi hàng đợi rỗng: còn edge chưa xử lý thì level chân chưa phải level cuối.
- * Trả true nếu đã đưa edge bù.
+ * The last edge of a bounce can be dropped when the main queue is full; gesture then keeps a wrong level until the
+ * next press. Read the real pin; if it differs from the last edge, feed a resync edge. Call only with the main queue
+ * empty: while edges are queued, the pin level is not final.
+ * Returns true if a resync edge was fed.
  */
 static bool resync_buttons(ink_gesture_output_t *out) {
     bool fed = false;
@@ -120,18 +122,18 @@ static bool resync_buttons(ink_gesture_output_t *out) {
         if (s_buttons[i].operations->read(s_buttons[i].context, &pressed) != ESP_OK) { continue; }
         if (pressed == s_last_pressed[i]) { continue; }
         const ink_gesture_event_t event = {
-            .button  = (ink_gesture_button_t)(1u << i),
+            .button  = ink_gesture_button_of_index((uint8_t)i),
             .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
             .time_ms = ink_platform_now_ms(),
         };
-        ESP_LOGW(TAG, "button %s: mất edge, đưa edge bù", input_button_name(event.button));
+        ESP_LOGW(TAG, "button %s: edge lost, feeding resync edge", input_button_name(event.button));
         feed_edge(&event, out);
         fed = true;
     }
     return fed;
 }
 
-/* ---- API cho task main ---- */
+/* ---- API for the main task ---- */
 
 void ink_input_handle(const ink_input_message_t *message, ink_gesture_output_t *out_gestures) {
     out_gestures->count = 0;
@@ -158,9 +160,9 @@ esp_err_t ink_input_set_gesture_config(const ink_gesture_config_t *config) {
     return ESP_OK;
 }
 
-esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, uint8_t wait_mask) {
+esp_err_t ink_input_set_wait_mask(ink_gesture_button_t button, ink_gesture_wait_mask_t wait_mask) {
     if (s_buttons == nullptr) { return ESP_ERR_INVALID_STATE; }
-    if (ink_gesture_set_enabled(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
+    if (ink_gesture_set_wait_mask(&s_gesture_state, button, wait_mask) != INK_GESTURE_OK) { return ESP_ERR_INVALID_ARG; }
     update_gesture_timer(false);
     return ESP_OK;
 }
@@ -172,12 +174,11 @@ void ink_input_on_queue_empty(bool messages_dropped, ink_gesture_output_t *out_g
     if (resync_buttons(out_gestures)) { update_gesture_timer(false); }
 }
 
-/* ---- Khởi động ---- */
+/* ---- Boot ---- */
 
-/* Nút index i có mã bit i (A = 1, B = 2). */
 static esp_err_t connect_buttons(const ink_hal_button_device_t *buttons) {
     for (size_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
-        const ink_gesture_button_t button = (ink_gesture_button_t)(1u << i);
+        const ink_gesture_button_t button = ink_gesture_button_of_index((uint8_t)i);
         const esp_err_t error = buttons[i].operations->set_callback(buttons[i].context, on_button_edge, (void *)(uintptr_t)button);
         if (error != ESP_OK) {
             ESP_LOGE(TAG, "button %s: %s", input_button_name(button), esp_err_to_name(error));
@@ -203,5 +204,7 @@ esp_err_t ink_input_start(const ink_hal_button_device_t *buttons, size_t count, 
     esp_err_t error = ink_platform_timer_create(on_timer_expired, nullptr, "gesture", &s_gesture_timer);
     if (error != ESP_OK) { return error; }
     s_buttons = buttons;
+    /* NOTE: a connect_buttons() failure leaves s_buttons set and the timer allocated; no retry, because a boot error
+     * is fatal (app_main aborts through ESP_ERROR_CHECK). */
     return connect_buttons(buttons);
 }
