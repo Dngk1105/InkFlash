@@ -43,7 +43,8 @@ typedef struct {
     uint8_t              debt_page;
     uint8_t              debt_ceiling;
     uint8_t              debt_ceiling_max;
-    uint32_t             edge_ms; /**< bậc 1 của thang dọn; 0 = bỏ */
+    uint32_t             active_ms; /**< see ink_display_policy_config_t */
+    uint32_t             edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
     uint32_t             light_ms;
     uint32_t             strong_ms;
     uint32_t             power_off_ms; /**< không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ */

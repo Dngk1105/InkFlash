@@ -366,7 +366,7 @@ static bool request_valid(ink_display_policy_request_t request) {
 /* Khung mới: bắt đầu lại thang dọn; khung tới khi đang thao tác thì nâng trần. Trả true nếu đang thao tác. */
 static bool start_idle_period(ink_display_policy_state_t *state, ink_display_policy_request_t request, uint32_t now_ms) {
     const ink_display_policy_config_t *config = &state->priv.config;
-    const bool active = state->priv.has_frame && config->edge_ms > 0 && elapsed_ms(state->priv.last_frame_ms, now_ms) < config->edge_ms;
+    const bool active = state->priv.has_frame && config->active_ms > 0 && elapsed_ms(state->priv.last_frame_ms, now_ms) < config->active_ms;
     if (!active) {
         state->priv.ceiling = config->debt_ceiling;
     } else if (state->priv.ceiling < config->debt_ceiling_max) {

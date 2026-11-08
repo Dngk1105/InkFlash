@@ -630,7 +630,7 @@ function request_valid(request)
 function start_idle_period(state, request, now_ms)
 {
     const config = state.priv.config;
-    const active = state.priv.has_frame && config.edge_ms > 0 && elapsed_ms(state.priv.last_frame_ms, now_ms) < config.edge_ms;
+    const active = state.priv.has_frame && config.active_ms > 0 && elapsed_ms(state.priv.last_frame_ms, now_ms) < config.active_ms;
     if (!active) {
         state.priv.ceiling = config.debt_ceiling;
     } else if (state.priv.ceiling < config.debt_ceiling_max) {
@@ -845,7 +845,7 @@ const live = {
         marks_edges: [false, false, true, false], /* ink_display_default_options: chỉ UI */
         auto_ui_percent: 10,         /* DEFAULT_AUTO_UI_PERCENT */
         debt_light: 2, debt_page: 6, debt_ceiling: 8, debt_ceiling_max: 15,
-        edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
+        active_ms: 2000, edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
     },
     power_off_ms: 4000,              /* DEFAULT_POWER_OFF_MS */
     state: new_state(),
@@ -1109,7 +1109,7 @@ const CONFIG_FIELDS = [
     ["weights.1", "trọng số TEXT"], ["weights.2", "trọng số UI"], ["weights.3", "trọng số PAGE"],
     ["marks_edges.1", "cờ viền TEXT (0/1)"], ["marks_edges.2", "cờ viền UI (0/1)"], ["marks_edges.3", "cờ viền PAGE (0/1)"], ["auto_ui_percent", "auto_ui_percent"],
     ["debt_light", "debt_light"], ["debt_page", "debt_page"], ["debt_ceiling", "debt_ceiling"], ["debt_ceiling_max", "debt_ceiling_max"],
-    ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["power_off_ms", "(vỏ) power_off_ms"],
+    ["active_ms", "active_ms"], ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["power_off_ms", "(vỏ) power_off_ms"],
 ];
 
 function config_value(key)
@@ -1244,7 +1244,7 @@ function expect_less_or_equal(threshold, actual) { if (!(actual <= threshold)) {
 function default_config()
 {
     return {width: WIDTH, height: HEIGHT, x_align: 8, weights: [0, 1, 2, 1], marks_edges: [false, true, true, true], auto_ui_percent: 10, debt_light: 2, debt_page: 6,
-        debt_ceiling: 8, debt_ceiling_max: 15, edge_ms: 2000, light_ms: 10000, strong_ms: 60000};
+        debt_ceiling: 8, debt_ceiling_max: 15, active_ms: 2000, edge_ms: 2000, light_ms: 10000, strong_ms: 60000};
 }
 
 function set_black(frame, x, y) { frame[y * ROW_BYTES + Math.floor(x / 8)] &= ~(0x80 >> (x % 8)) & 0xFF; }

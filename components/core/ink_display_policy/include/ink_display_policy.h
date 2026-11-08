@@ -73,9 +73,10 @@ typedef struct {
     uint8_t  debt_page;                                     /**< PAGE khi nợ lớn nhất tới mức này thì dọn mạnh */
     uint8_t  debt_ceiling;                                  /**< trần nợ lúc nghỉ */
     uint8_t  debt_ceiling_max;                              /**< trần lớn nhất khi đang thao tác liên tục */
-    uint32_t edge_ms;                                       /**< bậc 1 của thang dọn; cũng là khoảng "đang thao tác"; 0 = bỏ */
-    uint32_t light_ms;                                      /**< bậc 2; 0 = bỏ */
-    uint32_t strong_ms;                                     /**< bậc 3; 0 = bỏ */
+    uint32_t active_ms; /**< frame arriving within this time after the previous one = active period: ceiling +1; 0 = off */
+    uint32_t edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
+    uint32_t light_ms;  /**< bậc 2; 0 = bỏ */
+    uint32_t strong_ms; /**< bậc 3; 0 = bỏ */
 } ink_display_policy_config_t;
 
 typedef struct {

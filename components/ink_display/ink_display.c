@@ -17,10 +17,11 @@ static const char *TAG = "ink_display";
 #define DEFAULT_WEIGHT_UI        2
 #define DEFAULT_WEIGHT_PAGE      1
 #define DEFAULT_AUTO_UI_PERCENT  10
-#define DEFAULT_DEBT_SOFT        2
+#define DEFAULT_DEBT_LIGHT       2
 #define DEFAULT_DEBT_PAGE        6
 #define DEFAULT_DEBT_CEILING     8
 #define DEFAULT_DEBT_CEILING_MAX 15
+#define DEFAULT_ACTIVE_MS        2000
 #define DEFAULT_EDGE_MS          2000
 #define DEFAULT_LIGHT_MS         10000
 #define DEFAULT_STRONG_MS        60000
@@ -92,10 +93,11 @@ static ink_display_preset_t default_preset(const ink_hal_display_purpose_default
 ink_display_options_t ink_display_default_options(const ink_hal_display_capabilities_t *capabilities) {
     ink_display_options_t options = {
         .auto_ui_percent  = DEFAULT_AUTO_UI_PERCENT,
-        .debt_light       = DEFAULT_DEBT_SOFT,
+        .debt_light       = DEFAULT_DEBT_LIGHT,
         .debt_page        = DEFAULT_DEBT_PAGE,
         .debt_ceiling     = DEFAULT_DEBT_CEILING,
         .debt_ceiling_max = DEFAULT_DEBT_CEILING_MAX,
+        .active_ms        = DEFAULT_ACTIVE_MS,
         .edge_ms          = DEFAULT_EDGE_MS,
         .light_ms         = DEFAULT_LIGHT_MS,
         .strong_ms        = DEFAULT_STRONG_MS,
@@ -137,6 +139,7 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
         .debt_page        = options->debt_page,
         .debt_ceiling     = options->debt_ceiling,
         .debt_ceiling_max = options->debt_ceiling_max,
+        .active_ms        = options->active_ms,
         .edge_ms          = options->edge_ms,
         .light_ms         = options->light_ms,
         .strong_ms        = options->strong_ms,

@@ -132,7 +132,7 @@ chữ nhật bao vùng đổi (mép x căn theo bước căn của driver), rồ
 | 2 | Cờ trước khi ngủ, và còn nợ hoặc còn cờ viền | Dọn mạnh |
 | 3 | Khung giống hệt khung đang hiện | Không vẽ |
 | 4 | Lần vẽ đầu sau khi thức dậy, khung đang hiện là màn nền đã vẽ trước khi ngủ | Preset của ý định, window cả màn |
-| 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Khung tới trong vòng `edge_ms` sau khung trước (đang thao tác liên tục): dọn nhanh; còn lại: dọn mạnh. Cả hai vẽ luôn khung này (không dọn trước rồi mới vẽ) |
+| 5 | Một điểm trong vùng đổi sẽ vượt trần nợ | Khung tới trong vòng `active_ms` sau khung trước (đang thao tác liên tục): dọn nhanh; còn lại: dọn mạnh. Cả hai vẽ luôn khung này (không dọn trước rồi mới vẽ) |
 | 6 | Ý định `PAGE` và nợ lớn nhất đã tới `debt_page` | Dọn mạnh |
 | 7 | Còn lại | Preset của ý định, chỉ vùng đổi |
 
@@ -164,8 +164,8 @@ Luật cuối làm cờ thưa (dọc một cạnh thẳng cứ một điểm có
 kề cạnh của tâm được dọn ở lượt dọn quanh viền.
 
 **Nợ và trần co giãn.** Nợ không tự giảm theo thời gian, chỉ dọn mới hết. Trần nợ bắt đầu ở `debt_ceiling`. Khung tới
-trong vòng `edge_ms` sau khung trước (người dùng đang thao tác liên tục) thì trần tăng 1, tối đa `debt_ceiling_max`, để
-ít bị ngắt giữa chừng, và vượt trần lúc đó thì dọn nhanh thay dọn mạnh; nghỉ quá `edge_ms` thì trần về `debt_ceiling`.
+trong vòng `active_ms` sau khung trước (người dùng đang thao tác liên tục) thì trần tăng 1, tối đa `debt_ceiling_max`, để
+ít bị ngắt giữa chừng, và vượt trần lúc đó thì dọn nhanh thay dọn mạnh; nghỉ quá `active_ms` thì trần về `debt_ceiling`.
 
 Ngủ sâu làm mất PSRAM, và RTC memory (16 KB) không chứa nổi 100 KB. Vì vậy trước khi ngủ màn phải sạch (cờ trước khi
 ngủ), và khi thức mọi điểm bắt đầu với nợ bằng 0, đúng với màn thật.
@@ -357,6 +357,7 @@ khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
 | `debt_light`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn mạnh khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Trần nợ lúc nghỉ và trần lớn nhất khi đang thao tác | 8, 15 |
+| `active_ms` | Frame tới trong khoảng này sau frame trước là active period: debt ceiling tăng 1, vượt ceiling thì cleanup fast; 0 = tắt | 2 s |
 | `edge_ms`, `light_ms`, `strong_ms` | Thời gian nghỉ của ba bậc thang dọn; 0 = bỏ bậc đó | 2 s, 10 s, 60 s |
 | `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 4 s |
 

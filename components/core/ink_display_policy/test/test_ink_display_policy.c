@@ -31,6 +31,7 @@ static ink_display_policy_config_t default_config(void) {
         .debt_page        = 6,
         .debt_ceiling     = 8,
         .debt_ceiling_max = 15,
+        .active_ms        = 2000,
         .edge_ms          = 2000,
         .light_ms         = 10000,
         .strong_ms        = 60000,
@@ -302,7 +303,7 @@ static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
     }
     TEST_ASSERT_EQUAL_UINT8(14, ink_display_policy_max_debt(&s_state));
     TEST_ASSERT_EQUAL_UINT8(15, ink_display_policy_ceiling(&s_state));
-    s_now_ms += 5000; /* nghỉ quá edge_ms: trần về 8, nợ 14 + 2 vượt */
+    s_now_ms += 5000; /* rest longer than active_ms: ceiling back to 8; debt 14 + 2 exceeds it */
     set_white(s_next, 4, 4);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
     TEST_ASSERT_EQUAL_UINT8(8, ink_display_policy_ceiling(&s_state));
@@ -476,6 +477,35 @@ static void test_defer_flag_blocks_ladder_until_next_frame(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER, idle_at(s_now_ms + 2000).action);
 }
 
+/* active_ms and edge_ms are independent: no cleanup stage 1, ceiling still grows. */
+static void test_active_period_without_edge_stage(void) {
+    ink_display_policy_config_t config = default_config();
+    config.edge_ms                     = 0;
+    start(&config);
+    s_now_ms += 100;
+    set_black(s_next, 4, 4);
+    draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    s_now_ms += 100;
+    set_white(s_next, 4, 4);
+    draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    /* start() draws the first frame, so both frames above are in the active period */
+    TEST_ASSERT_EQUAL_UINT8(config.debt_ceiling + 2, ink_display_policy_ceiling(&s_state));
+}
+
+/* active_ms = 0: frames close together do not raise the ceiling. */
+static void test_zero_active_ms_keeps_ceiling(void) {
+    ink_display_policy_config_t config = default_config();
+    config.active_ms                   = 0;
+    start(&config);
+    s_now_ms += 100;
+    set_black(s_next, 4, 4);
+    draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    s_now_ms += 100;
+    set_white(s_next, 4, 4);
+    draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
+    TEST_ASSERT_EQUAL_UINT8(config.debt_ceiling, ink_display_policy_ceiling(&s_state));
+}
+
 static void test_zero_stage_time_skips_stage(void) {
     ink_display_policy_config_t config = default_config();
     config.edge_ms                     = 0;
@@ -621,6 +651,8 @@ int main(void) {
     RUN_TEST(test_new_frame_restarts_ladder);
     RUN_TEST(test_defer_flag_blocks_ladder_until_next_frame);
     RUN_TEST(test_zero_stage_time_skips_stage);
+    RUN_TEST(test_active_period_without_edge_stage);
+    RUN_TEST(test_zero_active_ms_keeps_ceiling);
     RUN_TEST(test_idle_handles_clock_wrap);
     RUN_TEST(test_cleanup_plane_inverts_flagged_centers_only);
     RUN_TEST(test_cleanup_plane_neighbor_inverts_cardinal_neighbors_of_centers);

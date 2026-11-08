@@ -139,6 +139,11 @@ terms:
     term: idle
     meaning: 'khoảng không có frame mới; policy chạy các cleanup stage.'
     avoid: [lúc nghỉ, khi nghỉ]
+  - id: active_period
+    term: active period
+    meaning: 'frame tới trong vòng active_ms sau frame trước: người dùng đang thao tác liên tục; debt ceiling tăng 1, vượt ceiling thì cleanup fast.'
+    avoid: [đang thao tác liên tục, đang thao tác]
+    symbols: [active_ms]
   - id: old_plane_new_plane
     term: old plane / new plane
     meaning: 'hai ảnh 1 bit gửi cho controller; mỗi pixel vẽ theo cặp bit (new, old).'
