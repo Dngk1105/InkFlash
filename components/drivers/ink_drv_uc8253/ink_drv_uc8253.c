@@ -304,7 +304,7 @@ static uint32_t elapsed_us(int64_t *since_us) {
 }
 
 /* Aligned window, or the whole panel outside partial mode or when image RAM is not trusted. */
-static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rect_t rect, bool partial_mode, window_t *out_window) {
+static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_display_rect_t rect, bool partial_mode, window_t *out_window) {
     if (!partial_mode || !driver->ram_trusted) {
         *out_window = whole_screen();
         return ESP_OK;
@@ -330,7 +330,7 @@ static esp_err_t make_window(const ink_drv_uc8253_t *driver, ink_hal_display_rec
     return ESP_OK;
 }
 
-static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t rect,
+static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new, const uint8_t *plane_old, ink_display_rect_t rect,
                              size_t index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
     const ink_drv_uc8253_profile_t *profile = profile_at(index);
@@ -364,8 +364,8 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
 
 /* ---- ink_hal_display operations ---- */
 
-static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
-                      size_t profile_index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
+static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_display_rect_t window, size_t profile_index,
+                      const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
     ESP_RETURN_ON_FALSE(context && plane_new && plane_old && config && out_timing, ESP_ERR_INVALID_ARG, TAG, "arg");
     return draw_planes(context, plane_new, plane_old, window, profile_index, config, out_timing);
 }
@@ -438,7 +438,8 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
         .x_align          = X_ALIGN,
         .profiles         = driver->profile_info,
         .profile_count    = PROFILE_SLOTS,
-        .purpose_defaults = ink_drv_uc8253_purpose_defaults,
+        .draw_defaults    = ink_drv_uc8253_draw_defaults,
+        .cleanup_defaults = ink_drv_uc8253_cleanup_defaults,
     };
 
     *out_device = (ink_hal_display_device_t){

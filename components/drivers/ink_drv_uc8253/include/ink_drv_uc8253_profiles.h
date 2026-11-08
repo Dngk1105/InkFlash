@@ -6,5 +6,6 @@
 
 #define INK_DRV_UC8253_PROFILE_COUNT 13
 
-extern const ink_drv_uc8253_profile_t          ink_drv_uc8253_profiles[INK_DRV_UC8253_PROFILE_COUNT];
-extern const ink_hal_display_purpose_default_t ink_drv_uc8253_purpose_defaults[INK_HAL_DISPLAY_PURPOSE_COUNT];
+extern const ink_drv_uc8253_profile_t         ink_drv_uc8253_profiles[INK_DRV_UC8253_PROFILE_COUNT];
+extern const ink_hal_display_preset_default_t ink_drv_uc8253_draw_defaults[INK_DISPLAY_INTENT_COUNT];
+extern const ink_hal_display_preset_default_t ink_drv_uc8253_cleanup_defaults[INK_DISPLAY_CLEANUP_COUNT];

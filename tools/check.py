@@ -161,7 +161,12 @@ def check_component(comp):
 
 
 def check_public_names(path, comp, hint):
-    if not os.path.basename(path).startswith(comp):
+    base = os.path.basename(path)
+    # Header chỉ có kiểu dùng chung giữa nhiều tầng: <tiền tố>_types.h, tiền tố là phần đầu tên component
+    # (ink_display_types.h trong ink_display_policy). Tên bên trong theo tiền tố đó (docs/design/code-structure.md).
+    if base.endswith("_types.h") and comp.startswith(base[: -len("_types.h")]):
+        comp = base[: -len("_types.h")]
+    elif not base.startswith(comp):
         err(path, 0, f"tên header phải bắt đầu bằng {comp} (mẫu: {hint})")
     code = strip_comments(read(path))
     upper = comp.upper()

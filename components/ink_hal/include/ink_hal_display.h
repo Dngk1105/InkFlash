@@ -7,34 +7,14 @@
  * Coordinates in native panel orientation, px. Only the display task calls `operations`.
  */
 #include "esp_err.h"
+#include "ink_display_types.h"
 #include <stddef.h>
 #include <stdint.h>
 
 #define INK_HAL_DISPLAY_SOURCE_CUSTOM 0xFF /**< custom profile; 0-8 = bands TR0-TR8 copied from OTP */
 #define INK_HAL_DISPLAY_MAX_BANDS     9
 
-typedef struct {
-    uint16_t x;
-    uint16_t y;
-    uint16_t width;
-    uint16_t height;
-} ink_hal_display_rect_t;
-
-/** Purpose of a draw; display keeps one preset per purpose.
- * WARN: append only; options and the bench protocol use this order. */
-typedef enum : uint8_t {
-    INK_HAL_DISPLAY_PURPOSE_TEXT,
-    INK_HAL_DISPLAY_PURPOSE_UI,
-    INK_HAL_DISPLAY_PURPOSE_PAGE,
-    INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG,
-    INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST,
-    INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_CENTER,
-    INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_NEIGHBOR,
-    INK_HAL_DISPLAY_PURPOSE_CLEANUP_LIGHT,
-    INK_HAL_DISPLAY_PURPOSE_COUNT,
-} ink_hal_display_purpose_t;
-
-/** Per-draw config, kept apart from the profile so one waveform serves several purposes. */
+/** Per-draw config, kept apart from the profile so one waveform serves several presets. */
 typedef struct {
     bool partial_mode;        /**< partial mode (PTL) on window; false = whole panel, window ignored */
     bool scan_outside_window; /**< partial mode: scan gates outside the window too (UC8253 PT_SCAN) */
@@ -61,20 +41,21 @@ typedef struct {
     uint16_t profile_id;
 } ink_hal_display_band_t;
 
-/** Driver default for one purpose. */
+/** Driver default preset for one intent or one kind of cleanup. */
 typedef struct {
     const ink_hal_display_band_t *bands; /**< checked in order; above the last band -> last band */
     uint8_t                       band_count;
     ink_hal_display_draw_config_t config;
-} ink_hal_display_purpose_default_t;
+} ink_hal_display_preset_default_t;
 
 typedef struct {
-    uint16_t                                 width; /**< native panel width, px */
-    uint16_t                                 height;
-    uint8_t                                  x_align; /**< window left/right edges are multiples of this */
-    const ink_hal_display_profile_info_t    *profiles;
-    size_t                                   profile_count;
-    const ink_hal_display_purpose_default_t *purpose_defaults; /**< INK_HAL_DISPLAY_PURPOSE_COUNT entries */
+    uint16_t                                width; /**< native panel width, px */
+    uint16_t                                height;
+    uint8_t                                 x_align; /**< window left/right edges are multiples of this */
+    const ink_hal_display_profile_info_t   *profiles;
+    size_t                                  profile_count;
+    const ink_hal_display_preset_default_t *draw_defaults;    /**< INK_DISPLAY_INTENT_COUNT entries; AUTO unused */
+    const ink_hal_display_preset_default_t *cleanup_defaults; /**< INK_DISPLAY_CLEANUP_COUNT entries; INVALID unused */
 } ink_hal_display_capabilities_t;
 
 typedef struct {
@@ -91,8 +72,8 @@ typedef struct {
      * @retval ESP_ERR_TIMEOUT BUSY did not go high.
      * @retval other SPI error.
      */
-    esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
-                      size_t profile_index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing);
+    esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_display_rect_t window, size_t profile_index,
+                      const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing);
     /**
      * @brief Turn analog power off if on.
      * @par Called from

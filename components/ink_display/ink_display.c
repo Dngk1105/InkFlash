@@ -81,10 +81,10 @@ static void unlock(void) {
 
 /* ---- Options ---- */
 
-static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight, bool marks_edges) {
-    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight, .marks_edges = marks_edges};
-    preset.band_count = purpose_default->band_count < INK_HAL_DISPLAY_MAX_BANDS ? purpose_default->band_count : INK_HAL_DISPLAY_MAX_BANDS;
-    memcpy(preset.bands, purpose_default->bands, preset.band_count * sizeof(preset.bands[0]));
+static ink_display_preset_t default_preset(const ink_hal_display_preset_default_t *preset_default) {
+    ink_display_preset_t preset = {.config = preset_default->config};
+    preset.band_count = preset_default->band_count < INK_HAL_DISPLAY_MAX_BANDS ? preset_default->band_count : INK_HAL_DISPLAY_MAX_BANDS;
+    memcpy(preset.bands, preset_default->bands, preset.band_count * sizeof(preset.bands[0]));
     return preset;
 }
 
@@ -101,37 +101,31 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
         .strong_ms        = DEFAULT_STRONG_MS,
         .power_off_ms     = DEFAULT_POWER_OFF_MS,
     };
-    if (capabilities == nullptr || capabilities->purpose_defaults == nullptr) { return options; }
-    static const uint8_t debt_weights[INK_HAL_DISPLAY_PURPOSE_COUNT] = {
-        [INK_HAL_DISPLAY_PURPOSE_TEXT] = DEFAULT_WEIGHT_TEXT,
-        [INK_HAL_DISPLAY_PURPOSE_UI]   = DEFAULT_WEIGHT_UI,
-        [INK_HAL_DISPLAY_PURPOSE_PAGE] = DEFAULT_WEIGHT_PAGE,
+    if (capabilities == nullptr || capabilities->draw_defaults == nullptr || capabilities->cleanup_defaults == nullptr) { return options; }
+    static const uint8_t debt_weights[INK_DISPLAY_INTENT_COUNT] = {
+        [INK_DISPLAY_INTENT_TEXT] = DEFAULT_WEIGHT_TEXT,
+        [INK_DISPLAY_INTENT_UI]   = DEFAULT_WEIGHT_UI,
+        [INK_DISPLAY_INTENT_PAGE] = DEFAULT_WEIGHT_PAGE,
     };
-    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        /* UI only: a text page sets thousands of edge flags, and the edge center cleanup then speckles the whole page */
-        const bool marks_edges   = purpose == INK_HAL_DISPLAY_PURPOSE_UI;
-        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], debt_weights[purpose], marks_edges);
+    for (int intent = INK_DISPLAY_INTENT_TEXT; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
+        options.draw_presets[intent] = (ink_display_draw_preset_t){
+            .preset      = default_preset(&capabilities->draw_defaults[intent]),
+            .debt_weight = debt_weights[intent],
+            /* UI only: a text page sets thousands of edge flags, and the edge center cleanup then speckles the whole page */
+            .marks_edges = intent == INK_DISPLAY_INTENT_UI,
+        };
+    }
+    for (int cleanup = INK_DISPLAY_CLEANUP_STRONG; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
+        options.cleanup_presets[cleanup] = default_preset(&capabilities->cleanup_defaults[cleanup]);
     }
     return options;
 }
 
 static ink_display_policy_config_t policy_config(const ink_hal_display_capabilities_t *capabilities, const ink_display_options_t *options) {
-    return (ink_display_policy_config_t){
-        .width   = capabilities->width,
-        .height  = capabilities->height,
-        .x_align = capabilities->x_align,
-        .debt_weights =
-            {
-                           [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].debt_weight,
-                           [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].debt_weight,
-                           [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].debt_weight,
-                           },
-        .marks_edges =
-            {
-                           [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].marks_edges,
-                           [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].marks_edges,
-                           [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].marks_edges,
-                           },
+    ink_display_policy_config_t config = {
+        .width            = capabilities->width,
+        .height           = capabilities->height,
+        .x_align          = capabilities->x_align,
         .auto_ui_percent  = options->auto_ui_percent,
         .debt_light       = options->debt_light,
         .debt_page        = options->debt_page,
@@ -142,13 +136,24 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
         .light_ms         = options->light_ms,
         .strong_ms        = options->strong_ms,
     };
+    for (int intent = INK_DISPLAY_INTENT_TEXT; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
+        config.debt_weights[intent] = options->draw_presets[intent].debt_weight;
+        config.marks_edges[intent]  = options->draw_presets[intent].marks_edges;
+    }
+    return config;
+}
+
+static bool bands_valid(const ink_display_preset_t *preset) {
+    return preset->band_count > 0 && preset->band_count <= INK_HAL_DISPLAY_MAX_BANDS;
 }
 
 /* Try the policy config on a scratch state: same checks as when it is applied. */
 static bool options_valid(const ink_display_options_t *options, const ink_hal_display_capabilities_t *capabilities) {
-    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        const uint8_t count = options->presets[purpose].band_count;
-        if (count == 0 || count > INK_HAL_DISPLAY_MAX_BANDS) { return false; }
+    for (int intent = INK_DISPLAY_INTENT_TEXT; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
+        if (!bands_valid(&options->draw_presets[intent].preset)) { return false; }
+    }
+    for (int cleanup = INK_DISPLAY_CLEANUP_STRONG; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
+        if (!bands_valid(&options->cleanup_presets[cleanup])) { return false; }
     }
     static uint8_t                    probe_pixel;
     ink_display_policy_state_t        probe;
@@ -192,7 +197,7 @@ uint8_t *ink_display_acquire(void) {
 
 esp_err_t ink_display_submit(uint8_t *buffer, uint32_t input_ms, ink_display_intent_t intent, uint8_t flags) {
     if (s_task == nullptr) { return ESP_ERR_INVALID_STATE; }
-    if (intent >= INK_DISPLAY_POLICY_INTENT_COUNT) { return ESP_ERR_INVALID_ARG; }
+    if (intent >= INK_DISPLAY_INTENT_COUNT) { return ESP_ERR_INVALID_ARG; }
     lock();
     const int8_t acquired = ink_frame_slots_acquired(&s_slots);
     unlock();
@@ -237,12 +242,37 @@ static bool index_of(uint16_t id, size_t *out_index) {
     return false;
 }
 
-/* Profile index for the purpose at the current temperature; unknown profile id -> driver default. */
-static size_t profile_for(ink_hal_display_purpose_t purpose, uint16_t *out_id) {
-    const ink_display_preset_t *preset = &s_options.presets[purpose];
+/* What one draw needs: the preset in options, the driver default behind it, and whether to read the temperature. */
+typedef struct {
+    const ink_display_preset_t             *preset;
+    const ink_hal_display_preset_default_t *fallback;
+    bool                                    reads_temperature;
+} setup_t;
+
+/* Whole-panel cleanups read the temperature first: they follow a period with no fresh reading. */
+static const bool READS_TEMPERATURE[INK_DISPLAY_CLEANUP_COUNT] = {
+    [INK_DISPLAY_CLEANUP_STRONG] = true,
+    [INK_DISPLAY_CLEANUP_FAST]   = true,
+};
+
+static setup_t draw_setup(ink_display_intent_t intent) {
+    return (setup_t){.preset = &s_options.draw_presets[intent].preset, .fallback = &s_device.capabilities.draw_defaults[intent]};
+}
+
+static setup_t cleanup_setup(ink_display_cleanup_t cleanup) {
+    return (setup_t){
+        .preset            = &s_options.cleanup_presets[cleanup],
+        .fallback          = &s_device.capabilities.cleanup_defaults[cleanup],
+        .reads_temperature = READS_TEMPERATURE[cleanup],
+    };
+}
+
+/* Profile index for the preset at the current temperature; unknown profile id -> driver default. */
+static size_t profile_for(const setup_t *setup, uint16_t *out_id) {
+    const ink_display_preset_t *preset = setup->preset;
     size_t                      index  = 0;
     if (band_profile(preset->bands, preset->band_count, s_celsius, out_id) && index_of(*out_id, &index)) { return index; }
-    const ink_hal_display_purpose_default_t *fallback = &s_device.capabilities.purpose_defaults[purpose];
+    const ink_hal_display_preset_default_t *fallback = setup->fallback;
     if (band_profile(fallback->bands, fallback->band_count, s_celsius, out_id) && index_of(*out_id, &index)) { return index; }
     *out_id = s_device.capabilities.profiles[0].id;
     return 0;
@@ -308,31 +338,6 @@ static void invert_into(const uint8_t *source, uint8_t *destination) {
     for (size_t i = 0; i < s_frame_bytes; i++) { destination[i] = (uint8_t)~source[i]; }
 }
 
-static ink_hal_display_rect_t hal_rect(ink_display_policy_rect_t rect) {
-    return (ink_hal_display_rect_t){.x = rect.x, .y = rect.y, .width = rect.width, .height = rect.height};
-}
-
-static ink_hal_display_purpose_t purpose_of(ink_display_policy_action_t action, ink_display_policy_intent_t intent) {
-    switch (action) {
-        case INK_DISPLAY_POLICY_ACTION_DRAW:
-            if (intent == INK_DISPLAY_POLICY_INTENT_UI) { return INK_HAL_DISPLAY_PURPOSE_UI; }
-            return intent == INK_DISPLAY_POLICY_INTENT_PAGE ? INK_HAL_DISPLAY_PURPOSE_PAGE : INK_HAL_DISPLAY_PURPOSE_TEXT;
-        case INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG:
-            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG;
-        case INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST:
-            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST;
-        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER:
-            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_CENTER;
-        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR:
-            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_NEIGHBOR;
-        case INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT:
-            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_LIGHT;
-        case INK_DISPLAY_POLICY_ACTION_NONE:
-            break;
-    }
-    return INK_HAL_DISPLAY_PURPOSE_COUNT;
-}
-
 static void fill_policy_stats(ink_display_report_t *report) {
     report->max_debt      = ink_display_policy_max_debt(&s_policy);
     report->ceiling       = ink_display_policy_ceiling(&s_policy);
@@ -344,27 +349,24 @@ static void notify_report(ink_display_report_t *report) {
     if (s_on_report != nullptr) { s_on_report(report, s_user_data); }
 }
 
-/* Read the temperature if needed, pick the profile from the purpose preset, call the driver. */
-static esp_err_t drive(ink_hal_display_purpose_t purpose, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
+/* Read the temperature if needed, pick the profile from the preset, call the driver. */
+static esp_err_t drive(setup_t setup, const uint8_t *plane_new, const uint8_t *plane_old, ink_display_rect_t window,
                        ink_display_report_t *report) {
-    const bool whole_clean = purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG || purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST;
-    if (whole_clean) { read_temperature(report); }
-    report->purpose       = purpose;
-    report->window        = window;
-    const size_t index    = profile_for(purpose, &report->profile_id);
-    report->decide_us     = esp_timer_get_time();
-    const esp_err_t error = s_device.operations->draw(s_device.context, plane_new, plane_old, window, index,
-                                                      &s_options.presets[purpose].config, &report->driver);
-    s_power_on            = true;
-    s_last_drive_ms       = ink_platform_now_ms();
+    if (setup.reads_temperature) { read_temperature(report); }
+    report->window     = window;
+    const size_t index = profile_for(&setup, &report->profile_id);
+    report->decide_us  = esp_timer_get_time();
+    const esp_err_t error =
+        s_device.operations->draw(s_device.context, plane_new, plane_old, window, index, &setup.preset->config, &report->driver);
+    s_power_on      = true;
+    s_last_drive_ms = ink_platform_now_ms();
     return error;
 }
 
 static void power_off(ink_display_report_t *report) {
-    report->action  = INK_DISPLAY_ACTION_POWER_OFF;
-    report->purpose = INK_HAL_DISPLAY_PURPOSE_COUNT;
-    report->error   = s_device.operations->power_off(s_device.context);
-    s_power_on      = false;
+    report->action = INK_DISPLAY_ACTION_POWER_OFF;
+    report->error  = s_device.operations->power_off(s_device.context);
+    s_power_on     = false;
     if (report->error != ESP_OK) { ESP_LOGE(TAG, "power_off: %s", esp_err_to_name(report->error)); }
 }
 
@@ -377,16 +379,18 @@ static bool draw_frame(const frame_t *frame, ink_display_report_t *report) {
         report->error = ESP_ERR_INVALID_STATE;
         return false;
     }
-    report->action  = (ink_display_action_t)decision.action;
-    report->purpose = INK_HAL_DISPLAY_PURPOSE_COUNT;
-    if (decision.action == INK_DISPLAY_POLICY_ACTION_NONE) { return true; }
+    report->action  = decision.action;
+    report->intent  = decision.intent;
+    report->cleanup = decision.cleanup;
+    if (decision.action == INK_DISPLAY_ACTION_NONE) { return true; }
 
     const uint8_t *plane_old = shown;
     if (decision.old_plane == INK_DISPLAY_POLICY_OLD_INVERTED || shown == nullptr) {
         invert_into(frame->buffer, s_old_plane);
         plane_old = s_old_plane;
     }
-    report->error = drive(purpose_of(decision.action, decision.intent), frame->buffer, plane_old, hal_rect(decision.window), report);
+    const setup_t setup = decision.action == INK_DISPLAY_ACTION_DRAW ? draw_setup(decision.intent) : cleanup_setup(decision.cleanup);
+    report->error       = drive(setup, frame->buffer, plane_old, decision.window, report);
     return true;
 }
 
@@ -424,22 +428,20 @@ static void draw_latest(void) {
 /* ---- Idle cleanup stages and power off (display task) ---- */
 
 /* One cleanup: new plane = shown frame, old plane = shown frame with the cleaned pixels inverted. */
-static void run_cleanup(ink_display_policy_action_t action) {
+static void run_cleanup(ink_display_cleanup_t cleanup) {
     const uint8_t *shown = shown_buffer();
     if (shown == nullptr) { return; }
-    ink_display_report_t      report = {.action = (ink_display_action_t)action, .take_us = esp_timer_get_time()};
-    ink_display_policy_rect_t window;
-    if (ink_display_policy_cleanup_plane(&s_policy, shown, action, s_old_plane, &window) != INK_DISPLAY_POLICY_OK) {
+    ink_display_report_t report = {.action = INK_DISPLAY_ACTION_CLEANUP, .cleanup = cleanup, .take_us = esp_timer_get_time()};
+    ink_display_rect_t   window;
+    if (ink_display_policy_cleanup_plane(&s_policy, shown, cleanup, s_old_plane, &window) != INK_DISPLAY_POLICY_OK) {
         ESP_LOGE(TAG, "cleanup plane");
         return;
     }
-    if (window.width > 0 && window.height > 0) {
-        report.error = drive(purpose_of(action, INK_DISPLAY_POLICY_INTENT_AUTO), shown, s_old_plane, hal_rect(window), &report);
-    }
+    if (window.width > 0 && window.height > 0) { report.error = drive(cleanup_setup(cleanup), shown, s_old_plane, window, &report); }
     if (report.error != ESP_OK) {
         ESP_LOGE(TAG, "cleanup: %s", esp_err_to_name(report.error));
         ink_display_policy_invalidate(&s_policy);
-    } else if (ink_display_policy_cleanup_done(&s_policy, action) != INK_DISPLAY_POLICY_OK) {
+    } else if (ink_display_policy_cleanup_done(&s_policy, cleanup) != INK_DISPLAY_POLICY_OK) {
         ESP_LOGE(TAG, "cleanup done");
     }
     if (window.width > 0) { notify_report(&report); }
@@ -456,8 +458,8 @@ static uint32_t run_idle(void) {
     const uint32_t            now = ink_platform_now_ms();
     ink_display_policy_idle_t idle;
     if (ink_display_policy_idle(&s_policy, now, &idle) != INK_DISPLAY_POLICY_OK) { return INK_DISPLAY_POLICY_WAIT_FOREVER; }
-    if (idle.action != INK_DISPLAY_POLICY_ACTION_NONE) {
-        run_cleanup(idle.action);
+    if (idle.action == INK_DISPLAY_ACTION_CLEANUP) {
+        run_cleanup(idle.cleanup);
         return 0;
     }
     const uint32_t power_wait = power_off_wait_ms(now);
@@ -496,8 +498,9 @@ static esp_err_t check_config(const ink_display_config_t *config) {
     const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
     ESP_RETURN_ON_FALSE(operations->draw && operations->power_off && operations->read_temperature, ESP_ERR_INVALID_ARG, TAG,
                         "null operation");
-    ESP_RETURN_ON_FALSE(capabilities->profile_count > 0 && capabilities->profiles && capabilities->purpose_defaults, ESP_ERR_INVALID_ARG,
-                        TAG, "no profile");
+    ESP_RETURN_ON_FALSE(
+        capabilities->profile_count > 0 && capabilities->profiles && capabilities->draw_defaults && capabilities->cleanup_defaults,
+        ESP_ERR_INVALID_ARG, TAG, "no profile");
     const bool options_ok = config->options == nullptr || options_valid(config->options, capabilities);
     ESP_RETURN_ON_FALSE(options_ok, ESP_ERR_INVALID_ARG, TAG, "options");
     return ESP_OK;
@@ -547,7 +550,7 @@ esp_err_t ink_display_start(const ink_display_config_t *config) {
     ESP_RETURN_ON_ERROR(check_config(config), TAG, "config");
     const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
     s_device                                           = *config->device;
-    s_on_report                                         = config->on_report;
+    s_on_report                                        = config->on_report;
     s_user_data                                        = config->user_data;
     s_options     = config->options != nullptr ? *config->options : ink_display_default_options(capabilities);
     s_frame_bytes = ((size_t)capabilities->width + 7) / 8 * capabilities->height;

@@ -12,77 +12,66 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* ---- Intent and flags of a frame (values from ink_display_policy) ---- */
-
-typedef ink_display_policy_intent_t ink_display_intent_t;
-
-#define INK_DISPLAY_INTENT_AUTO INK_DISPLAY_POLICY_INTENT_AUTO
-#define INK_DISPLAY_INTENT_TEXT INK_DISPLAY_POLICY_INTENT_TEXT /**< text page the user will read */
-#define INK_DISPLAY_INTENT_UI   INK_DISPLAY_POLICY_INTENT_UI   /**< cursor, buttons: fast, accepts light ghosting */
-#define INK_DISPLAY_INTENT_PAGE INK_DISPLAY_POLICY_INTENT_PAGE /**< whole-panel change */
+/* ---- Flags of a frame (intent, cleanup, action, rect: ink_display_types.h) ---- */
 
 #define INK_DISPLAY_FLAG_DEFER_CLEANUP INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP
 #define INK_DISPLAY_FLAG_BEFORE_SLEEP  INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP
 
 /* ---- Options ---- */
 
-/** Preset of one purpose. */
+/** Preset of one draw: profile per temperature band and draw config. */
 typedef struct {
     ink_hal_display_band_t        bands[INK_HAL_DISPLAY_MAX_BANDS]; /**< checked in order; unknown profile id -> driver default */
     uint8_t                       band_count;
     ink_hal_display_draw_config_t config;
-    uint8_t                       debt_weight; /**< used by TEXT, UI, PAGE only */
-    bool                          marks_edges; /**< TEXT, UI, PAGE only: frames drawn with this preset set edge flags */
 } ink_display_preset_t;
 
-/** Options changeable at run time. */
+/** Preset of a frame draw; only frame draws add debt and set edge flags. */
 typedef struct {
-    ink_display_preset_t presets[INK_HAL_DISPLAY_PURPOSE_COUNT];
-    uint8_t              auto_ui_percent;
-    uint8_t              debt_light;
-    uint8_t              debt_page;
-    uint8_t              debt_ceiling;
-    uint8_t              debt_ceiling_max;
-    uint32_t             active_ms; /**< see ink_display_policy_config_t */
-    uint32_t             edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
-    uint32_t             light_ms;
-    uint32_t             strong_ms;
-    uint32_t             power_off_ms; /**< no DRF for this long -> analog power off; 0 = only before sleep */
+    ink_display_preset_t preset;
+    uint8_t              debt_weight; /**< debt added per changed pixel */
+    bool                 marks_edges; /**< frames drawn with this preset set edge flags */
+} ink_display_draw_preset_t;
+
+/** Options changeable at run time.
+ * WARN: stored by array index; ink_display_intent_t and ink_display_cleanup_t are append only. */
+typedef struct {
+    ink_display_draw_preset_t draw_presets[INK_DISPLAY_INTENT_COUNT];     /**< AUTO unused */
+    ink_display_preset_t      cleanup_presets[INK_DISPLAY_CLEANUP_COUNT]; /**< INVALID unused */
+    uint8_t                   auto_ui_percent;
+    uint8_t                   debt_light;
+    uint8_t                   debt_page;
+    uint8_t                   debt_ceiling;
+    uint8_t                   debt_ceiling_max;
+    uint32_t                  active_ms; /**< see ink_display_policy_config_t */
+    uint32_t                  edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
+    uint32_t                  light_ms;
+    uint32_t                  strong_ms;
+    uint32_t                  power_off_ms; /**< no DRF for this long -> analog power off; 0 = only before sleep */
 } ink_display_options_t;
 
 /* ---- Report ---- */
 
-/** What the display task just did; same values as ink_display_policy_action_t, plus POWER_OFF. */
-typedef enum : uint8_t {
-    INK_DISPLAY_ACTION_NONE                  = INK_DISPLAY_POLICY_ACTION_NONE,
-    INK_DISPLAY_ACTION_DRAW                  = INK_DISPLAY_POLICY_ACTION_DRAW,
-    INK_DISPLAY_ACTION_CLEANUP_STRONG        = INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG,
-    INK_DISPLAY_ACTION_CLEANUP_FAST          = INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST,
-    INK_DISPLAY_ACTION_CLEANUP_EDGE_CENTER   = INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER,
-    INK_DISPLAY_ACTION_CLEANUP_EDGE_NEIGHBOR = INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR,
-    INK_DISPLAY_ACTION_CLEANUP_LIGHT         = INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT,
-    INK_DISPLAY_ACTION_POWER_OFF,
-} ink_display_action_t;
-
 /** One piece of work by the display task; timestamps from esp_timer, µs. */
 typedef struct {
-    esp_err_t                 error; /**< ESP_OK, or the policy or driver error */
-    ink_display_action_t      action;
-    bool                      is_frame; /**< draw of a submitted frame; false = cleanup or power off */
-    ink_hal_display_purpose_t purpose;  /**< INK_HAL_DISPLAY_PURPOSE_COUNT when nothing is drawn */
-    uint16_t                  profile_id;
-    ink_hal_display_rect_t    window;
-    int8_t                    temperature_celsius; /**< valid only when temperature_valid */
-    bool                      temperature_valid;   /**< sensor just read (before cleanup strong, cleanup fast) */
-    uint8_t                   max_debt;            /**< after this work */
-    uint8_t                   ceiling;
-    uint32_t                  flagged_count;
-    uint32_t                  input_ms;   /**< input time passed to submit, from ink_platform_now_ms() */
-    int64_t                   acquire_us; /**< frame acquired */
-    int64_t                   submit_us;  /**< frame submitted */
-    int64_t                   take_us;    /**< display task took the frame, or the cleanup started */
-    int64_t                   decide_us;  /**< decide and old plane done */
-    ink_hal_display_timing_t  driver;     /**< timing returned by the driver */
+    esp_err_t                error;    /**< ESP_OK, or the policy or driver error */
+    ink_display_action_t     action;   /**< NONE, DRAW, CLEANUP or POWER_OFF */
+    bool                     is_frame; /**< draw of a submitted frame; false = cleanup or power off */
+    ink_display_intent_t     intent;   /**< DRAW: resolved intent */
+    ink_display_cleanup_t    cleanup;  /**< CLEANUP: kind of cleanup; INVALID otherwise */
+    uint16_t                 profile_id;
+    ink_display_rect_t       window;
+    int8_t                   temperature_celsius; /**< valid only when temperature_valid */
+    bool                     temperature_valid;   /**< sensor just read (before cleanup strong, cleanup fast) */
+    uint8_t                  max_debt;            /**< after this work */
+    uint8_t                  ceiling;
+    uint32_t                 flagged_count;
+    uint32_t                 input_ms;   /**< input time passed to submit, from ink_platform_now_ms() */
+    int64_t                  acquire_us; /**< frame acquired */
+    int64_t                  submit_us;  /**< frame submitted */
+    int64_t                  take_us;    /**< display task took the frame, or the cleanup started */
+    int64_t                  decide_us;  /**< decide and old plane done */
+    ink_hal_display_timing_t driver;     /**< timing returned by the driver */
 } ink_display_report_t;
 
 /** Runs on the display task right after each piece of work; must not block. */
@@ -99,7 +88,7 @@ typedef struct {
 /* ---- API ---- */
 
 /**
- * @brief Default options: presets from the driver's purpose defaults; weights, thresholds and times are display
+ * @brief Default options: presets from the driver's draw and cleanup defaults; weights, thresholds and times are display
  *        constants.
  * @par Called from
  * Any task.

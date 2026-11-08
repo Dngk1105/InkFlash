@@ -39,6 +39,7 @@ Tên thư mục của component chính là tên component (luật của ESP-IDF)
 | Hàm, biến nội bộ | `static`, không tiền tố; biến bắt đầu `s_` | `choose_mode`, `s_state` |
 | Hàm dùng chung giữa các file trong một component | `<khối>_<động từ>`, không có `ink_`; khai báo trong `<component>_internal.h` đặt cạnh file `.c`, không đặt trong `include/` nên khối khác không include được | `input_log_gestures` trong `ink_input_internal.h` |
 | Kiểu dữ liệu | `ink_<khối>_<tên>_t` | `ink_gesture_event_t` |
+| Header chỉ có kiểu dùng chung giữa nhiều tầng | `<tiền tố>_types.h` trong core module thấp nhất dùng nó; tiền tố là phần đầu tên component, mọi tên bên trong theo tiền tố đó. Không có hàm, không include ESP-IDF | `ink_display_types.h` trong `ink_display_policy`: `ink_display_cleanup_t` dùng chung cho policy, display, HAL |
 | Mọi tên | Viết đủ từ, không viết tắt. Được giữ: đơn vị (`ms`, `mv`), chỉ số vòng lặp `i`, tên quen của C và ESP-IDF (`argc`, `argv`, `TAG`, `ISR`, `GPIO`, `u32`), tên chân và tín hiệu theo datasheet (`sda`, `scl`, `mosi`, `cs`, `bclk`) | `button`, `config`, `message`, không `btn`, `cfg`, `msg` |
 
 Tiền tố `ink_` tránh trùng tên với component của ESP-IDF (IDF đã có `hal`, `esp_system`...).
