@@ -172,5 +172,75 @@
         }
       }
     }
+  },
+  "editor.tokenColorCustomizations": {
+    "[Solarized Light]": {
+      "textMateRules": [
+        {
+          "scope": [
+            "comment.block.documentation",
+            "comment.line.double-slash.documentation"
+          ],
+          "settings": {
+            "foreground": "#657B83",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": "comment.block.documentation storage.type.class.doxygen",
+          "settings": {
+            "foreground": "#6C71C4",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "scope": "comment.block.documentation variable.parameter",
+          "settings": {
+            "foreground": "#268BD2",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": "comment.block.documentation markup.inline.raw.string",
+          "settings": {
+            "foreground": "#CB4B16"
+          }
+        }
+      ]
+    },
+    "[Solarized Dark]": {
+      "textMateRules": [
+        {
+          "scope": [
+            "comment.block.documentation",
+            "comment.line.double-slash.documentation"
+          ],
+          "settings": {
+            "foreground": "#839496",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": "comment.block.documentation storage.type.class.doxygen",
+          "settings": {
+            "foreground": "#6C71C4",
+            "fontStyle": "bold"
+          }
+        },
+        {
+          "scope": "comment.block.documentation variable.parameter",
+          "settings": {
+            "foreground": "#268BD2",
+            "fontStyle": ""
+          }
+        },
+        {
+          "scope": "comment.block.documentation markup.inline.raw.string",
+          "settings": {
+            "foreground": "#CB4B16"
+          }
+        }
+      ]
+    }
   }
 }

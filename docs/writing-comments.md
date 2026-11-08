@@ -95,6 +95,21 @@ Khung sinh cho `ink_frame_slots_init(ink_frame_slots_state_t *state)`:
 - Hàm trả `bool` sinh sẵn `@retval true` và `@retval false`.
 - Hàm trả giá trị không phải mã lỗi: đổi `@retval` thành `@return`.
 
+### Màu Doxygen trong editor
+
+`.vscode/settings.json` (`editor.tokenColorCustomizations`) tô màu comment `/** */` theo scope của grammar C có sẵn,
+riêng cho Solarized Light và Solarized Dark:
+
+| Phần | Màu |
+|---|---|
+| Thân `/** */` | Light: base00 `#657B83`; Dark: base0 `#839496`; không nghiêng, để tách khỏi comment `/* */` thường |
+| Thẻ `@brief`, `@param`, `@retval`, `@par`, `@return` | Tím `#6C71C4`, đậm |
+| Tên tham số sau `@param` | Xanh dương `#268BD2` |
+| Từ sau `@c`, `@p` | Cam `#CB4B16` |
+
+Comment field `/**< */` không được grammar coi là comment tài liệu (sau `/**` phải là khoảng trắng), nên giữ màu
+comment thường.
+
 ### Xem comment khi hover
 
 clangd (`esp-clangd 21.1.3`) hiện comment `/** */` khi hover vào hàm, struct, enum, field.
