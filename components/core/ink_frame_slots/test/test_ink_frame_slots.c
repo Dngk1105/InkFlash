@@ -51,7 +51,7 @@ static void test_first_acquire_is_white(void) {
     TEST_ASSERT_EQUAL(lease.frame, ink_frame_slots_acquired(&s_state));
 }
 
-static void test_acquire_twice_or_submit_unborrowed_is_state_error(void) {
+static void test_acquire_twice_or_submit_unacquired_is_state_error(void) {
     ink_frame_slots_lease_t lease;
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_ERROR_STATE, ink_frame_slots_submit(&s_state));
     acquire();
@@ -137,7 +137,7 @@ int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_rejects_null);
     RUN_TEST(test_first_acquire_is_white);
-    RUN_TEST(test_acquire_twice_or_submit_unborrowed_is_state_error);
+    RUN_TEST(test_acquire_twice_or_submit_unacquired_is_state_error);
     RUN_TEST(test_acquire_copies_latest_submitted);
     RUN_TEST(test_take_then_show_frees_previous_shown);
     RUN_TEST(test_submit_over_pending_drops_old);

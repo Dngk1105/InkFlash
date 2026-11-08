@@ -22,7 +22,7 @@
     {"id": 24, "name": "clean_full100", "base": "TR8", "frame_rate_hz": 100,
      "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}}
   ],
-  "purposes": {
+  "presets": {
     "text": {"bands": [[127, 9]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
     "ui": {"bands": [[127, 13]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
     "page": {"bands": [[127, 9]], "partial_mode": true, "scan_outside_window": true, "drive_border": true},

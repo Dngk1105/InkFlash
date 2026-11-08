@@ -72,7 +72,7 @@ modules:
     meaning: 'core module: edge của nút -> gesture; debounce, state machine từng nút, deadline.'
   - id: keymap
     prefix: ink_keymap
-    meaning: 'core module: gesture -> keymap intent theo scene table và app table; kiểm keymap table.'
+    meaning: 'core module: gesture -> command theo scene table và app table; kiểm keymap table.'
   - id: input
     prefix: ink_input
     meaning: 'shell module của gesture: interrupt nút, timestamp, timer theo deadline, resync.'
@@ -350,7 +350,7 @@ terms:
     avoid: [đọc lại chân, edge bù, cạnh bù]
   - id: keymap_table
     term: keymap table
-    meaning: 'danh sách entry {gesture, keymap intent}, tối đa INK_KEYMAP_ENTRY_MAX (32). App có app table; scene cần nghĩa riêng có thêm scene table, tra trước app table.'
+    meaning: 'danh sách entry {gesture, command}, tối đa INK_KEYMAP_ENTRY_MAX (32). App có app table; scene cần nghĩa riêng có thêm scene table, tra trước app table.'
     avoid: [bảng gán]
     symbols: [ink_keymap_table_t]
   - id: keymap_intent

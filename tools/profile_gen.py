@@ -39,8 +39,8 @@ GROUP_COUNT = 6
 MAX_PHASE_FRAMES = 63
 LEVELS = {"0": 0, "VSH": 1, "VSL": 2, "VDHR": 3}
 
-PURPOSES = ["text", "ui", "page", "cleanup_strong", "cleanup_fast", "cleanup_edge_center", "cleanup_edge_neighbor", "cleanup_light"]
-# Khoá trong "purposes" của profiles.json -> (mảng C, chỉ số enum trong ink_display_types.h).
+PRESETS = ["text", "ui", "page", "cleanup_strong", "cleanup_fast", "cleanup_edge_center", "cleanup_edge_neighbor", "cleanup_light"]
+# Khoá trong "presets" của profiles.json -> (mảng C, chỉ số enum trong ink_display_types.h).
 PRESET_SLOTS = {
     "text": ("draw", "INK_DISPLAY_INTENT_TEXT"),
     "ui": ("draw", "INK_DISPLAY_INTENT_UI"),
@@ -260,20 +260,20 @@ def build_all(source):
         ids.add(profile["id"])
         check_profile(profile, warnings)
         profiles.append(profile)
-    purposes = []
-    for purpose in PURPOSES:
-        spec = source["purposes"].get(purpose)
+    presets = []
+    for preset in PRESETS:
+        spec = source["presets"].get(preset)
         if spec is None:
-            raise ProfileError(f"thiếu mục đích {purpose}")
+            raise ProfileError(f"thiếu preset {preset}")
         if not 1 <= len(spec["bands"]) <= 9:
-            raise ProfileError(f"{purpose}: cần 1–9 dải")
+            raise ProfileError(f"{preset}: cần 1–9 dải")
         for max_celsius, profile_id in spec["bands"]:
             if profile_id not in ids:
-                raise ProfileError(f"{purpose}: id {profile_id} không có")
+                raise ProfileError(f"{preset}: id {profile_id} không có")
             if not -128 <= max_celsius <= 127:
-                raise ProfileError(f"{purpose}: {max_celsius} °C ngoài int8")
-        purposes.append({"name": purpose, **spec})
-    return profiles, purposes, warnings
+                raise ProfileError(f"{preset}: {max_celsius} °C ngoài int8")
+        presets.append({"name": preset, **spec})
+    return profiles, presets, warnings
 
 
 # ---- Sinh file C ----
@@ -309,24 +309,24 @@ def c_profile(profile):
     )
 
 
-def c_source(profiles, purposes):
+def c_source(profiles, presets):
     lines = [HEADER, "\n", GENERATED, "#include \"ink_drv_uc8253_profiles.h\"\n", "\n"]
     lines.append("const ink_drv_uc8253_profile_t ink_drv_uc8253_profiles[INK_DRV_UC8253_PROFILE_COUNT] = {\n")
     lines.extend(c_profile(profile) for profile in profiles)
     lines.append("};\n\n")
-    for purpose in purposes:
-        bands = ", ".join(f"{{.max_celsius = {celsius}, .profile_id = {profile_id}}}" for celsius, profile_id in purpose["bands"])
-        lines.append(f"static const ink_hal_display_band_t s_{purpose['name']}_bands[] = {{{bands}}};\n")
+    for preset in presets:
+        bands = ", ".join(f"{{.max_celsius = {celsius}, .profile_id = {profile_id}}}" for celsius, profile_id in preset["bands"])
+        lines.append(f"static const ink_hal_display_band_t s_{preset['name']}_bands[] = {{{bands}}};\n")
     lines.append("\n")
     for array, count in PRESET_ARRAYS.items():
         lines.append(f"const ink_hal_display_preset_default_t ink_drv_uc8253_{array}_defaults[{count}] = {{\n")
-        for purpose in purposes:
-            slot_array, enum = PRESET_SLOTS[purpose["name"]]
+        for preset in presets:
+            slot_array, enum = PRESET_SLOTS[preset["name"]]
             if slot_array != array:
                 continue
-            flags = (f".partial_mode = {str(purpose['partial_mode']).lower()}, .scan_outside_window = {str(purpose['scan_outside_window']).lower()}, "
-                     f".drive_border = {str(purpose['drive_border']).lower()}")
-            lines.append(f"    [{enum}] = {{.bands = s_{purpose['name']}_bands, .band_count = {len(purpose['bands'])}, "
+            flags = (f".partial_mode = {str(preset['partial_mode']).lower()}, .scan_outside_window = {str(preset['scan_outside_window']).lower()}, "
+                     f".drive_border = {str(preset['drive_border']).lower()}")
+            lines.append(f"    [{enum}] = {{.bands = s_{preset['name']}_bands, .band_count = {len(preset['bands'])}, "
                          f".config = {{{flags}}}}},\n")
         lines.append("};\n\n")
     return "".join(lines).rstrip("\n") + "\n"
@@ -403,7 +403,7 @@ def main():
     with open(args.source, encoding="utf-8") as file:
         source = json.load(file)
     try:
-        profiles, purposes, warnings = build_all(source)
+        profiles, presets, warnings = build_all(source)
     except ProfileError as error:
         print(f"LỖI: {error}")
         return 1
@@ -426,12 +426,12 @@ def main():
         print(f"đã ghi {output} ({os.path.getsize(output)} byte)")
         return 0
 
-    c_text = clang_format(c_source(profiles, purposes), C_PATH)
+    c_text = clang_format(c_source(profiles, presets), C_PATH)
     h_text = clang_format(h_source(profiles), H_PATH)
     failed = write_if_changed(C_PATH, c_text, args.check)
     failed = write_if_changed(H_PATH, h_text, args.check) or failed
     if not failed:
-        print(f"OK: {len(profiles)} profile, {len(purposes)} mục đích")
+        print(f"OK: {len(profiles)} profile, {len(presets)} preset")
     return 1 if failed else 0
 
 
