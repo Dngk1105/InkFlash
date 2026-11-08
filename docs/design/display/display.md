@@ -104,7 +104,7 @@ nằm ở display, không nằm trong profile, nên một waveform dùng đượ
 | Purpose | Dùng cho | Old plane | Window |
 |---|---|---|---|
 | `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
-| `CLEANUP_STRONG` | Khởi động nguội, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
+| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
 | `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới đảo bit | Cả panel |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
@@ -128,7 +128,7 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 
 | # | Điều kiện | Decision |
 |---|---|---|
-| 1 | Chưa biết panel đang hiện gì (khởi động nguội), hoặc lần vẽ trước lỗi | Cleanup strong |
+| 1 | Chưa biết panel đang hiện gì (cold boot), hoặc lần vẽ trước lỗi | Cleanup strong |
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |

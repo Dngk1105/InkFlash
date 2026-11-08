@@ -46,6 +46,36 @@ modules:
   - id: drv_uc8253
     prefix: ink_drv_uc8253
     meaning: 'driver controller UC8253 của panel WeAct 3,7".'
+  - id: hal
+    prefix: ink_hal
+    meaning: 'header gộp các interface phần cứng (button, display).'
+  - id: hal_button
+    prefix: ink_hal_button
+    meaning: 'interface giữa input và driver nút.'
+  - id: drv_gpio_button
+    prefix: ink_drv_gpio_button
+    meaning: 'driver nút nối thẳng một chân GPIO, báo edge bằng interrupt.'
+  - id: bsp
+    prefix: ink_bsp
+    meaning: 'pin map và driver của board; tạo device cho tầng trên.'
+  - id: gesture
+    prefix: ink_gesture
+    meaning: 'core module: edge của nút -> gesture; debounce, state machine từng nút, deadline.'
+  - id: keymap
+    prefix: ink_keymap
+    meaning: 'core module: gesture -> keymap intent theo scene table và app table; kiểm keymap table.'
+  - id: input
+    prefix: ink_input
+    meaning: 'shell module của gesture: interrupt nút, timestamp, timer theo deadline, resync.'
+  - id: platform
+    prefix: ink_platform
+    meaning: 'giờ (ms từ lúc boot) và one-shot timer trên esp_timer.'
+  - id: system
+    prefix: ink_system
+    meaning: 'main queue và main task; chuyển message cho module owner; khởi động input và display.'
+  - id: ui
+    prefix: ink_ui
+    meaning: 'core module: canvas 1 bit theo bố cục frame, vẽ hình và chữ UTF-8, font.'
 
 terms:
   # ---- Task ----
@@ -55,8 +85,12 @@ terms:
     avoid: [task màn]
   - id: main_task
     term: main task
-    meaning: 'task chạy app; acquire frame, vẽ, submit frame.'
-    avoid: []
+    meaning: 'task chạy app; giữ mọi state, nhận message từ main queue, acquire frame, vẽ, submit frame.'
+    avoid: [task main]
+  - id: helper_task
+    term: helper task
+    meaning: 'task khác main task và display task, gồm task esp_timer của ESP-IDF; chỉ post message vào main queue, không sửa state của main task.'
+    avoid: [task phụ]
 
   # ---- Frame và vòng đời (ink_frame_slots) ----
   - id: frame
@@ -95,7 +129,7 @@ terms:
     symbols: [ink_frame_slots_shown]
   - id: drop
     term: drop
-    meaning: 'frame pending bị bỏ vì có frame mới hơn; đếm trong ink_frame_slots_dropped().'
+    meaning: 'frame pending bị bỏ vì có frame mới hơn (đếm trong ink_frame_slots_dropped()); message bị bỏ vì main queue đầy.'
     avoid: [bị bỏ]
   - id: background_frame
     term: background frame
@@ -171,7 +205,7 @@ terms:
     symbols: [ink_display_options_t]
   - id: capabilities
     term: capabilities
-    meaning: 'bảng driver khai báo: cỡ panel, x_align, profiles, purpose defaults.'
+    meaning: 'struct driver khai báo nó làm được gì. Display: cỡ panel, x_align, profiles, purpose defaults. Button: has_interrupt.'
     avoid: [bảng khả năng]
     symbols: [ink_hal_display_capabilities_t]
   - id: profile
@@ -206,3 +240,175 @@ terms:
     term: caller
     meaning: 'code gọi hàm đang nói tới.'
     avoid: [bên gọi]
+
+  # ---- Kiến trúc chung ----
+  - id: core_module
+    term: core module
+    meaning: 'module C thuần trong components/core/: không include ESP-IDF, có host test. Nhận event, trả action.'
+    avoid: [khối lõi, lõi thuần, lõi]
+  - id: shell_module
+    term: shell module
+    meaning: 'module bọc core module: giữ task, queue, lock, gọi driver; càng mỏng càng tốt.'
+    avoid: [khối vỏ, vỏ mỏng, vỏ]
+  - id: operations
+    term: operations
+    meaning: 'struct con trỏ hàm driver điền (ink_hal_*_operations_t); tầng trên chỉ gọi driver qua đây.'
+    avoid: [bảng hàm]
+  - id: device
+    term: device
+    meaning: 'operations + context + capabilities của một linh kiện; bsp tạo, tầng trên nhận qua ink_bsp_*().'
+    avoid: []
+  - id: pin_map
+    term: pin map
+    meaning: 'bảng chân GPIO của board trong ink_bsp.c; là dữ liệu, không dùng #define.'
+    avoid: [bảng chân]
+
+  # ---- Task và message (ink_system, ink_platform) ----
+  - id: main_queue
+    term: main queue
+    meaning: 'FreeRTOS queue của main task, 32 message. ISR và helper task chỉ post message vào đây.'
+    avoid: [hàng đợi task main, hàng đợi của task main, hàng đợi main, hàng đợi]
+  - id: message
+    term: message
+    meaning: 'struct post vào main queue; system chuyển cho module owner (hiện chỉ input).'
+    avoid: []
+  - id: post
+    term: post
+    meaning: 'đẩy message vào main queue, không chờ; queue đầy thì message bị drop và được đếm.'
+    avoid: []
+  - id: interrupt
+    term: interrupt
+    meaning: 'GPIO interrupt khi chân nút đổi level; ISR nằm trong IRAM, không log, không chờ.'
+    avoid: [ngắt nút, ngắt GPIO, bật ngắt, có ngắt, dịch vụ ngắt]
+  - id: timer
+    term: timer
+    meaning: 'one-shot timer của platform (esp_timer); callback chạy trên task esp_timer nên chỉ được post message.'
+    avoid: [hẹn giờ, bộ hẹn giờ]
+
+  # ---- Input (ink_gesture, ink_keymap, ink_input) ----
+  - id: edge
+    term: edge
+    meaning: 'một lần chân nút đổi level (bấm hoặc nhả), kèm timestamp. Vào gesture dưới dạng ink_gesture_event_t.'
+    avoid: [cạnh nút, cạnh cuối, cạnh đầu tiên, mỗi cạnh, mất cạnh]
+  - id: timestamp
+    term: timestamp
+    meaning: 'time_ms của edge; input đọc ink_platform_now_ms() trong ISR, nên chỉ có một nguồn giờ.'
+    avoid: [đóng dấu thời gian, đóng dấu giờ]
+  - id: bounce
+    term: bounce
+    meaning: 'chuỗi edge giả khi tiếp điểm nút rung lúc bấm hoặc nhả.'
+    avoid: [chùm rung]
+  - id: debounce
+    term: debounce
+    meaning: 'gesture nhận edge đầu tiên ngay, bỏ mọi edge trong debounce_ms sau đó, hết khoảng này thì so level cuối với level đã nhận.'
+    avoid: [lọc rung, chống rung]
+  - id: gesture
+    term: gesture
+    meaning: 'cặp (modifier, trigger) gesture nhận ra từ các edge; trigger = (source, button, type).'
+    avoid: [cử chỉ]
+    symbols: [ink_gesture_t]
+  - id: modifier
+    term: modifier
+    meaning: 'nút đang giữ khi trigger bắt đầu (NONE, A, B); chỉ có khi nút đó bật WAIT_MODIFIER.'
+    avoid: []
+  - id: trigger
+    term: trigger
+    meaning: 'phần (source, button, type) của gesture. type: PRESS, DOUBLE_PRESS, HOLD, HOLD_AB_SHORT, HOLD_AB_LONG.'
+    avoid: []
+  - id: double_press
+    term: double press
+    meaning: 'gesture type DOUBLE_PRESS: bấm lần hai trong double_ms sau lần nhả.'
+    avoid: [nhấn kép, bấm kép]
+  - id: hold_ab
+    term: hold A+B
+    meaning: 'giữ cả A và B: HOLD_AB_SHORT (≥ ab_short_ms, về menu), HOLD_AB_LONG (≥ ab_long_ms, tắt nguồn). System xử lý; app không thấy, không gán được.'
+    avoid: [giữ A+B ngắn, giữ A+B dài]
+  - id: wait_mask
+    term: wait mask
+    meaning: 'bit các gesture type bắt một nút phải chờ: WAIT_DOUBLE (chờ double_ms sau nhả), WAIT_MODIFIER (HOLD chờ tới lúc nhả). Mặc định tắt.'
+    avoid: [kiểu phải chờ, kiểu bắt phải chờ]
+    symbols: [ink_gesture_wait_mask_t]
+  - id: deadline
+    term: deadline
+    meaning: 'thời điểm gesture cần được tick tiếp: hết debounce, đủ hold_ms, hết double_ms, đủ ab_long_ms.'
+    avoid: []
+  - id: progress
+    term: progress
+    meaning: 'gesture đang giữ dở: on_release, type kế tiếp và lúc tới; system dùng để vẽ thanh đếm ngược.'
+    avoid: [cử chỉ dở, gesture dở]
+    symbols: [ink_gesture_progress, ink_gesture_progress_t]
+  - id: gesture_config
+    term: gesture config
+    meaning: 'các ngưỡng thời gian của gesture (debounce_ms, double_ms, hold_ms, combo_ms, ab_short_ms, ab_long_ms); đổi được lúc chạy.'
+    avoid: []
+    symbols: [ink_gesture_config_t]
+  - id: resync
+    term: resync
+    meaning: 'input đọc lại level thật của chân khi main queue rỗng, sau timer hoặc khi có message bị drop; khác level của edge cuối thì feed thêm một resync edge.'
+    avoid: [đọc lại chân, edge bù, cạnh bù]
+  - id: keymap_table
+    term: keymap table
+    meaning: 'danh sách entry {gesture, keymap intent}, tối đa INK_KEYMAP_ENTRY_MAX (32). App có app table; scene cần nghĩa riêng có thêm scene table, tra trước app table.'
+    avoid: [bảng gán]
+    symbols: [ink_keymap_table_t]
+  - id: keymap_intent
+    term: keymap intent
+    meaning: 'lệnh keymap tra ra từ gesture rồi đưa cho app: NEXT, PREV, SELECT, BACK (0-3), mã riêng của app từ APP_BASE (16). Khác intent của display.'
+    avoid: []
+    symbols: [ink_keymap_intent_t]
+
+  # ---- Wake session ----
+  - id: deep_sleep
+    term: deep sleep
+    meaning: 'chế độ ngủ của ESP32-S3: mất RAM và PSRAM, giữ RTC memory; wake là boot lại từ đầu.'
+    avoid: [ngủ sâu]
+  - id: wake_session
+    term: wake session
+    meaning: 'một lần máy thức: boot, restore, active, save, deep sleep. State machine nằm trong session.'
+    avoid: [phiên thức]
+  - id: cold_boot
+    term: cold boot
+    meaning: 'boot khi vừa cấp điện, không phải wake từ deep sleep: không có snapshot, shown frame chưa biết.'
+    avoid: [khởi động nguội]
+  - id: snapshot
+    term: snapshot
+    meaning: 'state một module ghi vào RTC slot của nó trước deep sleep, đọc lại sau wake.'
+    avoid: []
+  - id: rtc_slot
+    term: RTC slot
+    meaning: 'vùng RTC memory cỡ cố định, có version, dành riêng cho một module.'
+    avoid: [ô RTC memory, ô RTC]
+
+  # ---- App ----
+  - id: scene
+    term: scene
+    meaning: 'một màn của app, có cùng bộ hàm như app.'
+    avoid: []
+  - id: scene_stack
+    term: scene stack
+    meaning: 'stack scene của app, tối đa 4 tầng; BACK pop về scene trước.'
+    avoid: [ngăn xếp scene]
+
+  # ---- UI (ink_ui) ----
+  - id: canvas
+    term: canvas
+    meaning: 'ảnh 1 bit đúng bố cục frame (240 × 416 px, dọc); app vẽ theo app coordinates, canvas đổi sang toạ độ panel từng pixel.'
+    avoid: []
+    symbols: [ink_ui_canvas_t]
+  - id: app_coordinates
+    term: app coordinates
+    meaning: 'toạ độ màn ngang 416 × 240 px, gốc góc trên trái, x sang phải, y xuống dưới.'
+    avoid: [toạ độ app]
+  - id: rotation
+    term: rotation
+    meaning: 'cách đổi app coordinates sang toạ độ panel: ROTATION_90 hoặc ROTATION_270, chọn lúc init canvas.'
+    avoid: [hướng xoay]
+  - id: glyph
+    term: glyph
+    meaning: 'bitmap và số đo của một ký tự trong font.'
+    avoid: []
+    symbols: [ink_ui_glyph_t]
+  - id: baseline
+    term: baseline
+    meaning: 'đường chân chữ; offset_y của glyph và ascent của font tính từ đây.'
+    avoid: [đường cơ sở]
