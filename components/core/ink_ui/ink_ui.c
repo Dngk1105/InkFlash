@@ -62,8 +62,6 @@ void ink_ui_set_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_colo
     put_pixel(canvas, x, y, color);
 }
 
-/* PERF(ui): one put_pixel() per pixel, rotation branch included; not measured. A full clear goes through
- * ink_ui_clear() instead. */
 void ink_ui_fill_rect(ink_ui_canvas_t *canvas, int32_t x, int32_t y, int32_t width, int32_t height, ink_ui_color_t color) {
     if (canvas == nullptr || width <= 0 || height <= 0) { return; }
     const int64_t left       = x < 0 ? 0 : x;
