@@ -49,8 +49,8 @@ static int button_index_of(ink_gesture_button_t button) {
     return -1;
 }
 
-/* FIXME(gesture): drops the gesture when out is full. feed() can hit this: run_due_deadlines() may fill all
- * INK_GESTURE_OUTPUT_MAX items, then accept_edge() emits one more. */
+/* Callers keep one free item per call: run_due_deadlines() stops when out is full, and feed() defers its edge
+ * instead of accepting it into a full out. The check below only guards the array. */
 static void emit(ink_gesture_output_t *out, uint8_t modifier, uint8_t button, ink_gesture_type_t type) {
     if (out->count < INK_GESTURE_OUTPUT_MAX) {
         out->items[out->count++] = (ink_gesture_t){
@@ -283,7 +283,14 @@ ink_gesture_error_t ink_gesture_feed(ink_gesture_state_t *state, const ink_gestu
     ink_gesture_button_state_t *button  = &state->priv.buttons[button_index];
     const bool                  pressed = event->level == INK_GESTURE_LEVEL_PRESSED;
     button->raw                         = pressed;
-    if (!button->locked && pressed != button->stable) { accept_edge(state, (uint8_t)button_index, pressed, event->time_ms, out); }
+    if (button->locked || pressed == button->stable) { return INK_GESTURE_OK; }
+    if (out->count == INK_GESTURE_OUTPUT_MAX) {
+        /* No room: let the debounce deadline accept the edge at time_ms on the next tick, after the due deadlines. */
+        button->locked        = true;
+        button->lock_until_ms = event->time_ms;
+        return INK_GESTURE_OK;
+    }
+    accept_edge(state, (uint8_t)button_index, pressed, event->time_ms, out);
     return INK_GESTURE_OK;
 }
 
