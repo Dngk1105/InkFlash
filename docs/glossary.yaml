@@ -181,6 +181,10 @@ terms:
     term: waveform
     meaning: '5 bảng LUT (LUTC, LUTWW, LUTKW, LUTWK, LUTKK) điều khiển điện áp từng pixel.'
     avoid: [bảng sóng]
+  - id: lut_frame
+    term: LUT frame
+    meaning: 'một bước thời gian của waveform, dài 1 / (LUT frame rate do PLL đặt). Khác frame (ảnh). Ví dụ: 10 LUT frame ở 50 Hz = 200 ms.'
+    avoid: []
   - id: band
     term: band
     meaning: 'dải nhiệt độ; nhiệt độ ≤ max_celsius thì dùng profile_id.'
