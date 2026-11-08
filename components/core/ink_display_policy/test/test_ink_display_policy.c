@@ -20,14 +20,14 @@ static uint32_t                   s_now_ms;
 
 static ink_display_policy_config_t default_config(void) {
     return (ink_display_policy_config_t){
-        .width   = WIDTH,
-        .height  = HEIGHT,
-        .x_align = 8,
-        .weights = {[INK_DISPLAY_POLICY_INTENT_TEXT] = 1,    [INK_DISPLAY_POLICY_INTENT_UI] = 2,    [INK_DISPLAY_POLICY_INTENT_PAGE] = 1   },
-        .edge_flags =
+        .width        = WIDTH,
+        .height       = HEIGHT,
+        .x_align      = 8,
+        .debt_weights = {[INK_DISPLAY_POLICY_INTENT_TEXT] = 1,    [INK_DISPLAY_POLICY_INTENT_UI] = 2,    [INK_DISPLAY_POLICY_INTENT_PAGE] = 1   },
+        .marks_edges =
             {[INK_DISPLAY_POLICY_INTENT_TEXT] = true, [INK_DISPLAY_POLICY_INTENT_UI] = true, [INK_DISPLAY_POLICY_INTENT_PAGE] = true},
         .auto_ui_percent  = 10,
-        .debt_soft        = 2,
+        .debt_light       = 2,
         .debt_page        = 6,
         .debt_ceiling     = 8,
         .debt_ceiling_max = 15,
@@ -69,7 +69,7 @@ static void start(const ink_display_policy_config_t *config) {
     TEST_ASSERT_EQUAL(
         INK_DISPLAY_POLICY_OK,
         ink_display_policy_decide(&s_state, nullptr, s_shown, request(INK_DISPLAY_POLICY_INTENT_TEXT, 0), s_now_ms, &decision));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, decision.action);
 }
 
 static ink_display_policy_idle_t idle_at(uint32_t now_ms) {
@@ -133,8 +133,8 @@ static void test_set_config_rejects_size_change(void) {
     ink_display_policy_config_t changed = config;
     changed.width                       = WIDTH - 1;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_set_config(&s_state, &changed));
-    changed           = config;
-    changed.debt_soft = 3;
+    changed            = config;
+    changed.debt_light = 3;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_set_config(&s_state, &changed));
 }
 
@@ -152,13 +152,13 @@ static void test_decide_rejects_bad_arguments(void) {
 
 /* ---- Chọn cách vẽ ---- */
 
-static void test_first_decide_is_clean_strong_with_inverted_plane(void) {
+static void test_first_decide_is_cleanup_strong_with_inverted_plane(void) {
     const ink_display_policy_config_t config = default_config();
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_init(&s_state, &config, s_pixels));
     ink_display_policy_decision_t decision;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK,
                       ink_display_policy_decide(&s_state, nullptr, s_next, request(INK_DISPLAY_POLICY_INTENT_UI, 0), 0, &decision));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, decision.action);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
     TEST_ASSERT_EQUAL_UINT16(WIDTH, decision.window.width);
     TEST_ASSERT_EQUAL_UINT16(HEIGHT, decision.window.height);
@@ -219,7 +219,7 @@ static void test_after_wake_draws_whole_screen_with_intent(void) {
     TEST_ASSERT_EQUAL_UINT16(8, draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0).window.width);
 }
 
-static void test_invalidate_forces_clean_strong(void) {
+static void test_invalidate_forces_cleanup_strong(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     ink_display_policy_invalidate(&s_state);
@@ -227,7 +227,7 @@ static void test_invalidate_forces_clean_strong(void) {
     TEST_ASSERT_EQUAL(
         INK_DISPLAY_POLICY_OK,
         ink_display_policy_decide(&s_state, nullptr, s_next, request(INK_DISPLAY_POLICY_INTENT_TEXT, 0), s_now_ms, &decision));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, decision.action);
 }
 
 /* ---- Nợ ---- */
@@ -245,7 +245,7 @@ static void test_debt_adds_weight_on_changed_pixels_only(void) {
     TEST_ASSERT_EQUAL_UINT8(0, s_pixels[4 * WIDTH + 5] & 0x3C); /* trong window nhưng không đổi màu */
 }
 
-static void test_exceeding_ceiling_draws_clean_strong_and_clears_debt(void) {
+static void test_exceeding_ceiling_draws_cleanup_strong_and_clears_debt(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     /* nghỉ lâu giữa các lần lật: trần giữ 8; UI cộng 2 mỗi lần */
@@ -262,12 +262,12 @@ static void test_exceeding_ceiling_draws_clean_strong_and_clears_debt(void) {
     s_now_ms += 5000;
     set_black(s_next, 4, 4);
     const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, decision.action);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
 
-static void test_exceeding_ceiling_while_active_draws_clean_fast(void) {
+static void test_exceeding_ceiling_while_active_draws_cleanup_fast(void) {
     ink_display_policy_config_t config = default_config();
     config.debt_ceiling_max            = config.debt_ceiling; /* trần không nâng */
     start(&config);
@@ -283,7 +283,7 @@ static void test_exceeding_ceiling_while_active_draws_clean_fast(void) {
     s_now_ms += 100;
     set_black(s_next, 4, 4);
     const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_FAST, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST, decision.action);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
@@ -304,11 +304,11 @@ static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
     TEST_ASSERT_EQUAL_UINT8(15, ink_display_policy_ceiling(&s_state));
     s_now_ms += 5000; /* nghỉ quá edge_ms: trần về 8, nợ 14 + 2 vượt */
     set_white(s_next, 4, 4);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0).action);
     TEST_ASSERT_EQUAL_UINT8(8, ink_display_policy_ceiling(&s_state));
 }
 
-static void test_page_with_high_debt_draws_clean_strong(void) {
+static void test_page_with_high_debt_draws_cleanup_strong(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     for (int i = 0; i < 3; i++) {
@@ -323,7 +323,7 @@ static void test_page_with_high_debt_draws_clean_strong(void) {
     TEST_ASSERT_EQUAL_UINT8(6, ink_display_policy_max_debt(&s_state));
     set_black(s_next, 15, 6);
     const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, decision.action);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
@@ -335,7 +335,7 @@ static void test_before_sleep_cleans_only_when_dirty(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_DRAW,
                       draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
     set_black(s_next, 12, 2); /* còn nợ của lần trước */
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG,
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG,
                       draw_next(INK_DISPLAY_POLICY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
 }
 
@@ -358,8 +358,8 @@ static void test_marks_dark_edge_around_box_that_turns_white(void) {
 }
 
 static void test_intent_without_edge_flags_marks_nothing_but_adds_debt(void) {
-    ink_display_policy_config_t config                = default_config();
-    config.edge_flags[INK_DISPLAY_POLICY_INTENT_TEXT] = false;
+    ink_display_policy_config_t config                 = default_config();
+    config.marks_edges[INK_DISPLAY_POLICY_INTENT_TEXT] = false;
     black_box(4, 3);
     memcpy(s_shown, s_next, SIZE);
     start(&config);
@@ -417,35 +417,35 @@ static void test_idle_ladder_runs_edge_then_light_then_strong(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
     TEST_ASSERT_EQUAL_UINT32(1500, idle.wait_ms);
 
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(drawn_ms + 2000).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR, idle_at(drawn_ms + 2100).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER, idle_at(drawn_ms + 2000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR, idle_at(drawn_ms + 2100).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR));
     TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
 
     idle = idle_at(drawn_ms + 2200);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
     TEST_ASSERT_EQUAL_UINT32(7800, idle.wait_ms);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(drawn_ms + 10000).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT, idle_at(drawn_ms + 10000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT));
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 
     /* hết nợ và cờ: không còn bậc nào */
     idle = idle_at(drawn_ms + 70000);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle.action);
-    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_NO_WAIT, idle.wait_ms);
+    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_WAIT_FOREVER, idle.wait_ms);
 }
 
 static void test_idle_strong_runs_when_debt_below_soft_remains(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     set_black(s_next, 4, 4);
-    draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0); /* nợ 1 < debt_soft */
+    draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0); /* nợ 1 < debt_light */
     const uint32_t drawn_ms = s_now_ms;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(drawn_ms + 30000).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, idle_at(drawn_ms + 60000).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG));
-    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_NO_WAIT, idle_at(drawn_ms + 60001).wait_ms);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, idle_at(drawn_ms + 60000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG));
+    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_WAIT_FOREVER, idle_at(drawn_ms + 60001).wait_ms);
 }
 
 static void test_new_frame_restarts_ladder(void) {
@@ -455,13 +455,13 @@ static void test_new_frame_restarts_ladder(void) {
     start(&config);
     memset(s_next, 0xFF, SIZE);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER));
     s_now_ms += 2100;
     set_black(s_next, 15, 0);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
     /* lượt dọn tâm phải chạy lại: thang bắt đầu lại từ khung mới */
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(s_now_ms + 1000).action);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(s_now_ms + 2000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER, idle_at(s_now_ms + 2000).action);
 }
 
 static void test_defer_flag_blocks_ladder_until_next_frame(void) {
@@ -470,10 +470,10 @@ static void test_defer_flag_blocks_ladder_until_next_frame(void) {
     set_black(s_next, 4, 4);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP);
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_NONE, idle_at(s_now_ms + 100000).action);
-    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_NO_WAIT, idle_at(s_now_ms + 100000).wait_ms);
+    TEST_ASSERT_EQUAL_UINT32(INK_DISPLAY_POLICY_WAIT_FOREVER, idle_at(s_now_ms + 100000).wait_ms);
     set_white(s_next, 4, 4);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, idle_at(s_now_ms + 2000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER, idle_at(s_now_ms + 2000).action);
 }
 
 static void test_zero_stage_time_skips_stage(void) {
@@ -484,7 +484,7 @@ static void test_zero_stage_time_skips_stage(void) {
     start(&config);
     memset(s_next, 0xFF, SIZE);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(s_now_ms + 10000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT, idle_at(s_now_ms + 10000).action);
 }
 
 static void test_idle_handles_clock_wrap(void) {
@@ -493,7 +493,7 @@ static void test_idle_handles_clock_wrap(void) {
     start(&config);
     set_black(s_next, 4, 4);
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, idle_at(s_now_ms + 10000).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT, idle_at(s_now_ms + 10000).action);
 }
 
 /* ---- Mặt phẳng cũ của lượt dọn ---- */
@@ -507,7 +507,7 @@ static void test_cleanup_plane_inverts_flagged_centers_only(void) {
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
     ink_display_policy_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK,
-                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER, s_old, &window));
+                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER, s_old, &window));
     uint32_t inverted = 0;
     for (uint32_t y = 0; y < HEIGHT; y++) {
         for (uint32_t x = 0; x < WIDTH; x++) {
@@ -530,7 +530,7 @@ static void test_cleanup_plane_neighbor_inverts_cardinal_neighbors_of_centers(vo
     draw_next(INK_DISPLAY_POLICY_INTENT_UI, 0);
     ink_display_policy_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK,
-                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR, s_old, &window));
+                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR, s_old, &window));
     /* (3, 4) là tâm: không đảo; (3, 3) ngay trên, trắng, không cờ: đảo */
     TEST_ASSERT_TRUE(is_white(s_old, 3, 4));
     TEST_ASSERT_FALSE(is_white(s_old, 3, 3));
@@ -547,12 +547,12 @@ static void test_cleanup_plane_light_inverts_pixels_with_soft_debt(void) {
     draw_next(INK_DISPLAY_POLICY_INTENT_TEXT, 0);
     ink_display_policy_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK,
-                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, s_old, &window));
+                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT, s_old, &window));
     TEST_ASSERT_FALSE(is_white(s_old, 4, 4));
     TEST_ASSERT_FALSE(is_white(s_old, 6, 4)); /* đen, không đảo */
     TEST_ASSERT_EQUAL_UINT16(0, window.x);
     TEST_ASSERT_EQUAL_UINT16(8, window.width);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT));
     TEST_ASSERT_EQUAL_UINT8(1, ink_display_policy_max_debt(&s_state));
 }
 
@@ -561,7 +561,7 @@ static void test_cleanup_plane_strong_inverts_whole_screen(void) {
     start(&config);
     ink_display_policy_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK,
-                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, s_old, &window));
+                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, s_old, &window));
     for (uint32_t y = 0; y < HEIGHT; y++) {
         for (uint32_t x = 0; x < WIDTH; x++) { TEST_ASSERT_NOT_EQUAL(is_white(s_shown, x, y), is_white(s_old, x, y)); }
     }
@@ -575,7 +575,7 @@ static void test_cleanup_rejects_non_cleanup_action(void) {
     ink_display_policy_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT,
                       ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_POLICY_ACTION_DRAW, s_old, &window));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEAN_FAST));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST));
 }
 
 /* ---- Vùng đổi ---- */
@@ -599,18 +599,18 @@ int main(void) {
     RUN_TEST(test_init_clears_pixels);
     RUN_TEST(test_set_config_rejects_size_change);
     RUN_TEST(test_decide_rejects_bad_arguments);
-    RUN_TEST(test_first_decide_is_clean_strong_with_inverted_plane);
+    RUN_TEST(test_first_decide_is_cleanup_strong_with_inverted_plane);
     RUN_TEST(test_identical_frame_draws_nothing);
     RUN_TEST(test_draw_uses_changed_window_and_shown_plane);
     RUN_TEST(test_window_is_clipped_to_screen_width);
     RUN_TEST(test_auto_picks_ui_for_small_window_and_text_for_large);
     RUN_TEST(test_after_wake_draws_whole_screen_with_intent);
-    RUN_TEST(test_invalidate_forces_clean_strong);
+    RUN_TEST(test_invalidate_forces_cleanup_strong);
     RUN_TEST(test_debt_adds_weight_on_changed_pixels_only);
-    RUN_TEST(test_exceeding_ceiling_draws_clean_strong_and_clears_debt);
-    RUN_TEST(test_exceeding_ceiling_while_active_draws_clean_fast);
+    RUN_TEST(test_exceeding_ceiling_draws_cleanup_strong_and_clears_debt);
+    RUN_TEST(test_exceeding_ceiling_while_active_draws_cleanup_fast);
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
-    RUN_TEST(test_page_with_high_debt_draws_clean_strong);
+    RUN_TEST(test_page_with_high_debt_draws_cleanup_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
     RUN_TEST(test_marks_dark_edge_around_box_that_turns_white);
     RUN_TEST(test_intent_without_edge_flags_marks_nothing_but_adds_debt);

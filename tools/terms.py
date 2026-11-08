@@ -16,7 +16,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GLOSSARY = "docs/glossary.yaml"
-TEXT_EXT = (".c", ".h", ".md", ".py", ".txt", ".cmake", ".yaml", ".yml", ".json")
+TEXT_EXT = (".c", ".h", ".md", ".py", ".txt", ".cmake", ".yaml", ".yml", ".json", ".html", ".js")
 CODE_EXT = (".c", ".h")
 
 TAGS_ALLOWED = ("TODO", "FIXME", "REVIEW", "EXTEND", "WARN")

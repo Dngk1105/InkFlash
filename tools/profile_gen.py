@@ -39,8 +39,8 @@ GROUP_COUNT = 6
 MAX_PHASE_FRAMES = 63
 LEVELS = {"0": 0, "VSH": 1, "VSL": 2, "VDHR": 3}
 
-PURPOSES = ["text", "ui", "page", "clean_strong", "clean_fast", "clean_edge_center", "clean_edge_neighbor", "clean_light"]
-SOURCE_HAND = 0xFF
+PURPOSES = ["text", "ui", "page", "cleanup_strong", "cleanup_fast", "cleanup_edge_center", "cleanup_edge_neighbor", "cleanup_light"]
+SOURCE_CUSTOM = 0xFF
 NAME_BYTES = 16
 
 # ---- Gói .inkw ----
@@ -204,7 +204,7 @@ def build_profile(spec, otp):
     return {
         "id": spec["id"],
         "name": name,
-        "source": band_index if unchanged_copy else SOURCE_HAND,
+        "source": band_index if unchanged_copy else SOURCE_CUSTOM,
         "copied": "copy" in spec,
         "allow_unbalanced": spec.get("allow_unbalanced", False),
         "scans": scans,
@@ -223,7 +223,7 @@ def check_profile(profile, warnings):
     """Luật của mục "Kiểm tra profile". Profile chép từ OTP (không sửa bảng) không kiểm cân bằng."""
     name = profile["name"]
     tables = dict(zip(TABLE_NAMES, profile["tables"]))
-    if profile["copied"] and profile["source"] != SOURCE_HAND:
+    if profile["copied"] and profile["source"] != SOURCE_CUSTOM:
         return
     # chép OTP rồi sửa bảng: LUTWK, LUTKW vẫn của hãng nên không bắt cân bằng
     cycle = table_charge(tables["WK"]) + table_charge(tables["KW"])
@@ -276,7 +276,7 @@ def hex_list(values):
 
 def c_profile(profile):
     tables = ",\n".join(f"            {{{hex_list(table)}}}" for table in profile["tables"])
-    source = "INK_HAL_DISPLAY_SOURCE_HAND" if profile["source"] == SOURCE_HAND else str(profile["source"])
+    source = "INK_HAL_DISPLAY_SOURCE_CUSTOM" if profile["source"] == SOURCE_CUSTOM else str(profile["source"])
     return (
         "    {\n"
         f"        .id     = {profile['id']},\n"
@@ -309,7 +309,7 @@ def c_source(profiles, purposes):
     lines.append("const ink_hal_display_purpose_default_t ink_drv_uc8253_purpose_defaults[INK_HAL_DISPLAY_PURPOSE_COUNT] = {\n")
     for purpose in purposes:
         enum = "INK_HAL_DISPLAY_PURPOSE_" + purpose["name"].upper()
-        flags = (f".partial_mode = {str(purpose['partial_mode']).lower()}, .pt_scan = {str(purpose['pt_scan']).lower()}, "
+        flags = (f".partial_mode = {str(purpose['partial_mode']).lower()}, .scan_outside_window = {str(purpose['scan_outside_window']).lower()}, "
                  f".drive_border = {str(purpose['drive_border']).lower()}")
         lines.append(f"    [{enum}] = {{.bands = s_{purpose['name']}_bands, .band_count = {len(purpose['bands'])}, "
                      f".config = {{{flags}}}}},\n")
@@ -396,7 +396,7 @@ def main():
 
     if args.list:
         for profile in profiles:
-            origin = "vẽ tay" if profile["source"] == SOURCE_HAND else f"TR{profile['source']}"
+            origin = "vẽ tay" if profile["source"] == SOURCE_CUSTOM else f"TR{profile['source']}"
             print(f"{profile['id']:5}  {profile['name']:12} {origin:7} {profile['draw_ms']:5} ms  PLL {pll_hz(profile['pll'])} Hz")
         return 0
     if args.blob:

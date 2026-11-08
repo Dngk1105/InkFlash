@@ -239,7 +239,7 @@ static window_t whole_screen(void) {
 }
 
 /* Vào chế độ partial với window đã căn mép (PTIN rồi PTL). Bên gọi gửi PTOUT khi xong. */
-static esp_err_t enter_window(ink_drv_uc8253_t *driver, const window_t *window, bool pt_scan) {
+static esp_err_t enter_window(ink_drv_uc8253_t *driver, const window_t *window, bool scan_outside_window) {
     /* PTL 7 byte (image-memory.md): HRST, HRED, VRST cao/thấp, VRED cao/thấp, PT_SCAN */
     const uint8_t ptl[7] = {
         (uint8_t)window->x0,
@@ -248,7 +248,7 @@ static esp_err_t enter_window(ink_drv_uc8253_t *driver, const window_t *window, 
         (uint8_t)(window->y0 & 0xFF),
         (uint8_t)(window->y1 >> 8),
         (uint8_t)(window->y1 & 0xFF),
-        pt_scan ? PTL_SCAN_ALL : PTL_SCAN_WINDOW,
+        scan_outside_window ? PTL_SCAN_ALL : PTL_SCAN_WINDOW,
     };
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_PTIN, nullptr, 0), TAG, "ptin");
     return send_command(driver, CMD_PTL, ptl, sizeof(ptl));
@@ -285,7 +285,7 @@ static esp_err_t send_power_off(ink_drv_uc8253_t *driver) {
 /* Một lần DRF. Ngoài chế độ partial: cả màn, không PTIN. */
 static esp_err_t refresh(ink_drv_uc8253_t *driver, const ink_drv_uc8253_profile_t *profile, const window_t *window,
                          const ink_hal_display_draw_config_t *config, uint32_t *power_us) {
-    if (config->partial_mode) { ESP_RETURN_ON_ERROR(enter_window(driver, window, config->pt_scan), TAG, "window"); }
+    if (config->partial_mode) { ESP_RETURN_ON_ERROR(enter_window(driver, window, config->scan_outside_window), TAG, "window"); }
     const uint8_t cdi = config->drive_border ? CDI_DRIVE_BORDER : CDI_FLOAT_BORDER;
     ESP_RETURN_ON_ERROR(send_command(driver, CMD_CDI, &cdi, 1), TAG, "cdi");
     ESP_RETURN_ON_ERROR(power_on(driver, power_us), TAG, "pon");
@@ -356,18 +356,18 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
         ESP_RETURN_ON_ERROR(refresh(driver, profile, &window, config, &out_timing->power_us), TAG, "refresh");
         out_timing->panel_us += elapsed_us(&mark_us) - (out_timing->power_us - power_before);
     }
-    driver->needs_reset  = false;
-    driver->ram_trusted  = true;
-    out_timing->after_us = elapsed_us(&mark_us);
+    driver->needs_reset      = false;
+    driver->ram_trusted      = true;
+    out_timing->post_scan_us = elapsed_us(&mark_us);
     return ESP_OK;
 }
 
 /* ---- Bảng hàm ink_hal_display ---- */
 
-static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window, size_t profile,
-                      const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
+static esp_err_t draw(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
+                      size_t profile_index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing) {
     ESP_RETURN_ON_FALSE(context && plane_new && plane_old && config && out_timing, ESP_ERR_INVALID_ARG, TAG, "arg");
-    return draw_planes(context, plane_new, plane_old, window, profile, config, out_timing);
+    return draw_planes(context, plane_new, plane_old, window, profile_index, config, out_timing);
 }
 
 static esp_err_t power_off(void *context) {

@@ -40,19 +40,19 @@ static const char *TAG = "ink_display";
 
 typedef struct {
     uint8_t             *buffer;
-    uint32_t             press_ms;
+    uint32_t             input_ms;
     ink_display_intent_t intent;
     uint8_t              flags;
     int64_t              acquire_us;
     int64_t              submit_us;
 } frame_t;
 
-static ink_hal_display_device_t     s_device;
-static ink_display_drawn_callback_t s_on_drawn;
-static void                        *s_user_data;
-static TaskHandle_t                 s_task;
-static size_t                       s_frame_bytes;
-static frame_t                      s_frames[INK_FRAME_SLOTS_COUNT];
+static ink_hal_display_device_t      s_device;
+static ink_display_report_callback_t s_on_drawn;
+static void                         *s_user_data;
+static TaskHandle_t                  s_task;
+static size_t                        s_frame_bytes;
+static frame_t                       s_frames[INK_FRAME_SLOTS_COUNT];
 
 /* s_lock giữ s_slots và s_requested_options: task main và task màn cùng đụng. */
 static portMUX_TYPE            s_lock = portMUX_INITIALIZER_UNLOCKED;
@@ -82,8 +82,8 @@ static uint32_t now_ms(void) {
 
 /* ---- Cài đặt ---- */
 
-static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight, bool edge_flags) {
-    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight, .edge_flags = edge_flags};
+static ink_display_preset_t default_preset(const ink_hal_display_purpose_default_t *purpose_default, uint8_t weight, bool marks_edges) {
+    ink_display_preset_t preset = {.config = purpose_default->config, .debt_weight = weight, .marks_edges = marks_edges};
     preset.band_count = purpose_default->band_count < INK_HAL_DISPLAY_MAX_BANDS ? purpose_default->band_count : INK_HAL_DISPLAY_MAX_BANDS;
     memcpy(preset.bands, purpose_default->bands, preset.band_count * sizeof(preset.bands[0]));
     return preset;
@@ -92,7 +92,7 @@ static ink_display_preset_t default_preset(const ink_hal_display_purpose_default
 ink_display_options_t ink_display_default_options(const ink_hal_display_capabilities_t *capabilities) {
     ink_display_options_t options = {
         .auto_ui_percent  = DEFAULT_AUTO_UI_PERCENT,
-        .debt_soft        = DEFAULT_DEBT_SOFT,
+        .debt_light       = DEFAULT_DEBT_SOFT,
         .debt_page        = DEFAULT_DEBT_PAGE,
         .debt_ceiling     = DEFAULT_DEBT_CEILING,
         .debt_ceiling_max = DEFAULT_DEBT_CEILING_MAX,
@@ -102,15 +102,15 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
         .power_off_ms     = DEFAULT_POWER_OFF_MS,
     };
     if (capabilities == nullptr || capabilities->purpose_defaults == nullptr) { return options; }
-    static const uint8_t weights[INK_HAL_DISPLAY_PURPOSE_COUNT] = {
+    static const uint8_t debt_weights[INK_HAL_DISPLAY_PURPOSE_COUNT] = {
         [INK_HAL_DISPLAY_PURPOSE_TEXT] = DEFAULT_WEIGHT_TEXT,
         [INK_HAL_DISPLAY_PURPOSE_UI]   = DEFAULT_WEIGHT_UI,
         [INK_HAL_DISPLAY_PURPOSE_PAGE] = DEFAULT_WEIGHT_PAGE,
     };
     for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
         /* Chỉ UI: trang chữ đánh dấu hàng nghìn cờ, lượt dọn tâm viền làm cả trang chớp lấm tấm */
-        const bool edge_flags    = purpose == INK_HAL_DISPLAY_PURPOSE_UI;
-        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], weights[purpose], edge_flags);
+        const bool marks_edges   = purpose == INK_HAL_DISPLAY_PURPOSE_UI;
+        options.presets[purpose] = default_preset(&capabilities->purpose_defaults[purpose], debt_weights[purpose], marks_edges);
     }
     return options;
 }
@@ -120,20 +120,20 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
         .width   = capabilities->width,
         .height  = capabilities->height,
         .x_align = capabilities->x_align,
-        .weights =
+        .debt_weights =
             {
-                      [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].debt_weight,
-                      [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].debt_weight,
-                      [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].debt_weight,
-                      },
-        .edge_flags =
+                           [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].debt_weight,
+                           [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].debt_weight,
+                           [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].debt_weight,
+                           },
+        .marks_edges =
             {
-                      [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].edge_flags,
-                      [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].edge_flags,
-                      [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].edge_flags,
-                      },
+                           [INK_DISPLAY_POLICY_INTENT_TEXT] = options->presets[INK_HAL_DISPLAY_PURPOSE_TEXT].marks_edges,
+                           [INK_DISPLAY_POLICY_INTENT_UI]   = options->presets[INK_HAL_DISPLAY_PURPOSE_UI].marks_edges,
+                           [INK_DISPLAY_POLICY_INTENT_PAGE] = options->presets[INK_HAL_DISPLAY_PURPOSE_PAGE].marks_edges,
+                           },
         .auto_ui_percent  = options->auto_ui_percent,
-        .debt_soft        = options->debt_soft,
+        .debt_light       = options->debt_light,
         .debt_page        = options->debt_page,
         .debt_ceiling     = options->debt_ceiling,
         .debt_ceiling_max = options->debt_ceiling_max,
@@ -189,17 +189,17 @@ uint8_t *ink_display_acquire(void) {
     return frame->buffer;
 }
 
-esp_err_t ink_display_submit(uint8_t *buffer, uint32_t press_ms, ink_display_intent_t intent, uint8_t flags) {
+esp_err_t ink_display_submit(uint8_t *buffer, uint32_t input_ms, ink_display_intent_t intent, uint8_t flags) {
     if (s_task == nullptr) { return ESP_ERR_INVALID_STATE; }
     if (intent >= INK_DISPLAY_POLICY_INTENT_COUNT) { return ESP_ERR_INVALID_ARG; }
     lock();
-    const int8_t borrowed = ink_frame_slots_borrowed(&s_slots);
+    const int8_t acquired = ink_frame_slots_acquired(&s_slots);
     unlock();
-    if (borrowed == INK_FRAME_SLOTS_NONE) { return ESP_ERR_INVALID_STATE; }
-    frame_t *frame = &s_frames[borrowed];
+    if (acquired == INK_FRAME_SLOTS_NONE) { return ESP_ERR_INVALID_STATE; }
+    frame_t *frame = &s_frames[acquired];
     if (buffer != frame->buffer) { return ESP_ERR_INVALID_ARG; }
 
-    frame->press_ms  = press_ms;
+    frame->input_ms  = input_ms;
     frame->intent    = intent;
     frame->flags     = flags;
     frame->submit_us = esp_timer_get_time();
@@ -316,16 +316,16 @@ static ink_hal_display_purpose_t purpose_of(ink_display_policy_action_t action, 
         case INK_DISPLAY_POLICY_ACTION_DRAW:
             if (intent == INK_DISPLAY_POLICY_INTENT_UI) { return INK_HAL_DISPLAY_PURPOSE_UI; }
             return intent == INK_DISPLAY_POLICY_INTENT_PAGE ? INK_HAL_DISPLAY_PURPOSE_PAGE : INK_HAL_DISPLAY_PURPOSE_TEXT;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG:
-            return INK_HAL_DISPLAY_PURPOSE_CLEAN_STRONG;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_FAST:
-            return INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
-            return INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_CENTER;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
-            return INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_NEIGHBOR;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
-            return INK_HAL_DISPLAY_PURPOSE_CLEAN_LIGHT;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG:
+            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST:
+            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER:
+            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_CENTER;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR:
+            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_NEIGHBOR;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT:
+            return INK_HAL_DISPLAY_PURPOSE_CLEANUP_LIGHT;
         case INK_DISPLAY_POLICY_ACTION_NONE:
             break;
     }
@@ -346,12 +346,12 @@ static void notify_drawn(ink_display_report_t *report) {
 /* Đọc nhiệt độ nếu cần, chọn profile theo preset của mục đích, gọi driver. */
 static esp_err_t drive(ink_hal_display_purpose_t purpose, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
                        ink_display_report_t *report) {
-    const bool whole_clean = purpose == INK_HAL_DISPLAY_PURPOSE_CLEAN_STRONG || purpose == INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST;
+    const bool whole_clean = purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG || purpose == INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST;
     if (whole_clean) { read_temperature(report); }
     report->purpose       = purpose;
     report->window        = window;
     const size_t index    = profile_for(purpose, &report->profile_id);
-    report->diff_us       = esp_timer_get_time();
+    report->decide_us     = esp_timer_get_time();
     const esp_err_t error = s_device.operations->draw(s_device.context, plane_new, plane_old, window, index,
                                                       &s_options.presets[purpose].config, &report->driver);
     s_power_on            = true;
@@ -394,8 +394,8 @@ static void draw_latest(void) {
     if (index == INK_FRAME_SLOTS_NONE) { return; }
     const frame_t       *frame  = &s_frames[index];
     ink_display_report_t report = {
-        .frame      = true,
-        .press_ms   = frame->press_ms,
+        .is_frame   = true,
+        .input_ms   = frame->input_ms,
         .acquire_us = frame->acquire_us,
         .submit_us  = frame->submit_us,
         .take_us    = esp_timer_get_time(),
@@ -445,7 +445,7 @@ static void run_cleanup(ink_display_policy_action_t action) {
 }
 
 static uint32_t power_off_wait_ms(uint32_t now) {
-    if (!s_power_on || s_options.power_off_ms == 0) { return INK_DISPLAY_POLICY_NO_WAIT; }
+    if (!s_power_on || s_options.power_off_ms == 0) { return INK_DISPLAY_POLICY_WAIT_FOREVER; }
     const uint32_t idle_ms = now - s_last_drive_ms;
     return idle_ms >= s_options.power_off_ms ? 0 : s_options.power_off_ms - idle_ms;
 }
@@ -454,7 +454,7 @@ static uint32_t power_off_wait_ms(uint32_t now) {
 static uint32_t run_idle(void) {
     const uint32_t            now = now_ms();
     ink_display_policy_idle_t idle;
-    if (ink_display_policy_idle(&s_policy, now, &idle) != INK_DISPLAY_POLICY_OK) { return INK_DISPLAY_POLICY_NO_WAIT; }
+    if (ink_display_policy_idle(&s_policy, now, &idle) != INK_DISPLAY_POLICY_OK) { return INK_DISPLAY_POLICY_WAIT_FOREVER; }
     if (idle.action != INK_DISPLAY_POLICY_ACTION_NONE) {
         run_cleanup(idle.action);
         return 0;
@@ -470,13 +470,13 @@ static uint32_t run_idle(void) {
 }
 
 static TickType_t ticks_for(uint32_t wait_ms) {
-    return wait_ms == INK_DISPLAY_POLICY_NO_WAIT ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms) + 1;
+    return wait_ms == INK_DISPLAY_POLICY_WAIT_FOREVER ? portMAX_DELAY : pdMS_TO_TICKS(wait_ms) + 1;
 }
 
 /* Khung mới luôn được ưu tiên: mỗi vòng chỉ làm tối đa một lượt dọn, rồi xem lại thông báo. */
 static void task_main(void *user_data) {
     (void)user_data;
-    uint32_t wait_ms = INK_DISPLAY_POLICY_NO_WAIT;
+    uint32_t wait_ms = INK_DISPLAY_POLICY_WAIT_FOREVER;
     for (;;) {
         uint32_t   bits     = 0;
         const bool notified = xTaskNotifyWait(0, UINT32_MAX, &bits, ticks_for(wait_ms)) == pdTRUE;
@@ -546,7 +546,7 @@ esp_err_t ink_display_start(const ink_display_config_t *config) {
     ESP_RETURN_ON_ERROR(check_config(config), TAG, "config");
     const ink_hal_display_capabilities_t *capabilities = &config->device->capabilities;
     s_device                                           = *config->device;
-    s_on_drawn                                         = config->on_drawn;
+    s_on_drawn                                         = config->on_report;
     s_user_data                                        = config->user_data;
     s_options     = config->options != nullptr ? *config->options : ink_display_default_options(capabilities);
     s_frame_bytes = ((size_t)capabilities->width + 7) / 8 * capabilities->height;

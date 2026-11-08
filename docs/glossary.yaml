@@ -129,7 +129,7 @@ terms:
     avoid: [vùng đổi]
   - id: cleanup
     term: cleanup
-    meaning: 'lần vẽ không đổi ảnh, chỉ để xoá ghosting (CLEAN_STRONG, CLEAN_FAST, CLEAN_EDGE_*, CLEAN_LIGHT).'
+    meaning: 'lần vẽ không đổi ảnh, chỉ để xoá ghosting (CLEANUP_STRONG, CLEANUP_FAST, CLEAN_EDGE_*, CLEANUP_LIGHT).'
     avoid: [dọn màn, lượt dọn, dọn]
   - id: cleanup_stage
     term: cleanup stage
@@ -156,7 +156,7 @@ terms:
     symbols: [ink_hal_display_purpose_t]
   - id: preset
     term: preset
-    meaning: 'cấu hình vẽ của 1 purpose: bands, draw config, debt_weight, edge_flags.'
+    meaning: 'cấu hình vẽ của 1 purpose: bands, draw config, debt_weight, marks_edges.'
     avoid: []
   - id: options
     term: options

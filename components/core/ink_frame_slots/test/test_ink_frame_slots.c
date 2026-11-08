@@ -48,7 +48,7 @@ static void test_first_acquire_is_white(void) {
     const ink_frame_slots_lease_t lease = acquire();
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_FILL_WHITE, lease.fill);
     TEST_ASSERT_EQUAL(INK_FRAME_SLOTS_NONE, lease.copy_from);
-    TEST_ASSERT_EQUAL(lease.frame, ink_frame_slots_borrowed(&s_state));
+    TEST_ASSERT_EQUAL(lease.frame, ink_frame_slots_acquired(&s_state));
 }
 
 static void test_acquire_twice_or_submit_unborrowed_is_state_error(void) {

@@ -10,8 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define INK_DISPLAY_POLICY_MAX_DEBT 15
-#define INK_DISPLAY_POLICY_NO_WAIT  UINT32_MAX /**< thang dọn không còn bậc nào phải chờ */
+#define INK_DISPLAY_POLICY_MAX_DEBT     15
+#define INK_DISPLAY_POLICY_WAIT_FOREVER UINT32_MAX /**< thang dọn không còn bậc nào phải chờ */
 
 /* ---- Lỗi ---- */
 
@@ -41,11 +41,11 @@ enum : uint8_t {
 typedef enum : uint8_t {
     INK_DISPLAY_POLICY_ACTION_NONE,
     INK_DISPLAY_POLICY_ACTION_DRAW, /**< preset của ý định, window vùng đổi */
-    INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG,
-    INK_DISPLAY_POLICY_ACTION_CLEAN_FAST,
-    INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER,
-    INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR,
-    INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT,
+    INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG,
+    INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST,
+    INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER,
+    INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR,
+    INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT,
 } ink_display_policy_action_t;
 
 /** Mặt phẳng cũ của lần vẽ. */
@@ -65,17 +65,17 @@ typedef struct {
 typedef struct {
     uint16_t width; /**< cỡ gốc, từ bảng khả năng của driver */
     uint16_t height;
-    uint8_t  x_align;                                     /**< mép x window là bội của số này */
-    uint8_t  weights[INK_DISPLAY_POLICY_INTENT_COUNT];    /**< nợ cộng cho mỗi điểm đổi màu; index AUTO không dùng */
-    bool     edge_flags[INK_DISPLAY_POLICY_INTENT_COUNT]; /**< khung của ý định này đánh dấu cờ viền; index AUTO không dùng */
-    uint8_t  auto_ui_percent;                             /**< AUTO: window nhỏ hơn chừng này % diện tích màn thì là UI */
-    uint8_t  debt_soft;                                   /**< dọn nhẹ các điểm có nợ từ mức này */
-    uint8_t  debt_page;                                   /**< PAGE khi nợ lớn nhất tới mức này thì dọn mạnh */
-    uint8_t  debt_ceiling;                                /**< trần nợ lúc nghỉ */
-    uint8_t  debt_ceiling_max;                            /**< trần lớn nhất khi đang thao tác liên tục */
-    uint32_t edge_ms;                                     /**< bậc 1 của thang dọn; cũng là khoảng "đang thao tác"; 0 = bỏ */
-    uint32_t light_ms;                                    /**< bậc 2; 0 = bỏ */
-    uint32_t strong_ms;                                   /**< bậc 3; 0 = bỏ */
+    uint8_t  x_align;                                       /**< mép x window là bội của số này */
+    uint8_t  debt_weights[INK_DISPLAY_POLICY_INTENT_COUNT]; /**< nợ cộng cho mỗi điểm đổi màu; index AUTO không dùng */
+    bool     marks_edges[INK_DISPLAY_POLICY_INTENT_COUNT];  /**< khung của ý định này đánh dấu cờ viền; index AUTO không dùng */
+    uint8_t  auto_ui_percent;                               /**< AUTO: window nhỏ hơn chừng này % diện tích màn thì là UI */
+    uint8_t  debt_light;                                    /**< dọn nhẹ các điểm có nợ từ mức này */
+    uint8_t  debt_page;                                     /**< PAGE khi nợ lớn nhất tới mức này thì dọn mạnh */
+    uint8_t  debt_ceiling;                                  /**< trần nợ lúc nghỉ */
+    uint8_t  debt_ceiling_max;                              /**< trần lớn nhất khi đang thao tác liên tục */
+    uint32_t edge_ms;                                       /**< bậc 1 của thang dọn; cũng là khoảng "đang thao tác"; 0 = bỏ */
+    uint32_t light_ms;                                      /**< bậc 2; 0 = bỏ */
+    uint32_t strong_ms;                                     /**< bậc 3; 0 = bỏ */
 } ink_display_policy_config_t;
 
 typedef struct {
@@ -84,7 +84,7 @@ typedef struct {
 } ink_display_policy_request_t;
 
 typedef struct {
-    ink_display_policy_action_t    action; /**< NONE, DRAW, CLEAN_STRONG hoặc CLEAN_FAST */
+    ink_display_policy_action_t    action; /**< NONE, DRAW, CLEANUP_STRONG hoặc CLEANUP_FAST */
     ink_display_policy_intent_t    intent; /**< DRAW: ý định đã chọn (TEXT, UI, PAGE) */
     ink_display_policy_rect_t      window; /**< cả màn khi dọn; cỡ 0 khi NONE */
     ink_display_policy_old_plane_t old_plane;
@@ -92,13 +92,13 @@ typedef struct {
 
 typedef struct {
     ink_display_policy_action_t action;  /**< NONE: chờ wait_ms rồi hỏi lại */
-    uint32_t                    wait_ms; /**< INK_DISPLAY_POLICY_NO_WAIT khi không còn bậc nào */
+    uint32_t                    wait_ms; /**< INK_DISPLAY_POLICY_WAIT_FOREVER khi không còn bậc nào */
 } ink_display_policy_idle_t;
 
 typedef struct {
     struct {
         ink_display_policy_config_t config;
-        uint8_t                    *pixels; /**< mỗi điểm: bit 0–1 cờ viền, bit 2–5 nợ */
+        uint8_t                    *pixel_state; /**< mỗi điểm: bit 0–1 cờ viền, bit 2–5 nợ */
         uint32_t                    flagged_count;
         uint32_t                    last_frame_ms;
         uint8_t                     max_debt;
@@ -117,11 +117,11 @@ typedef struct {
 /**
  * Khởi tạo; mọi điểm nợ 0, không cờ; lần decide đầu tiên là dọn mạnh.
  * Gọi từ: display, lúc khởi động.
- * @param pixels width × height byte, sống cùng state
+ * @param pixel_state width × height byte, sống cùng state
  * @return INK_DISPLAY_POLICY_ERROR_ARGUMENT nếu có con trỏ nullptr hoặc config sai
  */
 [[nodiscard]] ink_display_policy_error_t ink_display_policy_init(ink_display_policy_state_t        *state,
-                                                                 const ink_display_policy_config_t *config, uint8_t *pixels);
+                                                                 const ink_display_policy_config_t *config, uint8_t *pixel_state);
 
 /**
  * Đổi config cho các lần sau, giữ nợ và cờ. Cỡ màn và x_align phải giữ nguyên.
@@ -151,7 +151,7 @@ typedef struct {
                                                                  ink_display_policy_idle_t *out_idle);
 
 /**
- * Dựng mặt phẳng cũ cho lượt dọn `action` (CLEAN_EDGE_CENTER, CLEAN_EDGE_NEIGHBOR, CLEAN_LIGHT, CLEAN_STRONG):
+ * Dựng mặt phẳng cũ cho lượt dọn `action` (CLEANUP_EDGE_CENTER, CLEANUP_EDGE_NEIGHBOR, CLEANUP_LIGHT, CLEANUP_STRONG):
  * chép `shown` rồi đảo bit ở các điểm được dọn (dọn mạnh: mọi điểm). Mặt phẳng mới của lượt dọn là `shown`.
  * Gọi từ: task màn, sau idle.
  * @param out_window bao các điểm được dọn, mép x đã căn; cỡ 0 nếu không có điểm nào

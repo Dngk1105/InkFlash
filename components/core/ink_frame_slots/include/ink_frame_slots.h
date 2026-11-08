@@ -39,7 +39,7 @@ typedef struct {
 typedef struct {
     struct {
         uint8_t  owner[INK_FRAME_SLOTS_COUNT];
-        int8_t   borrowed; /* khung task main đang vẽ */
+        int8_t   acquired; /* khung task main đang vẽ */
         int8_t   pending;  /* khung đã giao, task màn chưa lấy */
         int8_t   latest;   /* khung giao gần nhất; lần mượn sau chép ảnh từ đây */
         int8_t   shown;    /* khung đang hiện trên màn */
@@ -74,7 +74,7 @@ typedef struct {
 [[nodiscard]] ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, ink_frame_slots_lease_t *out_lease);
 
 /** Khung task main đang mượn, hoặc INK_FRAME_SLOTS_NONE. */
-int8_t ink_frame_slots_borrowed(const ink_frame_slots_state_t *state);
+int8_t ink_frame_slots_acquired(const ink_frame_slots_state_t *state);
 
 /**
  * Giao khung đang mượn vào hàng chờ. Hàng chờ đã có khung thì khung cũ đó bị bỏ.

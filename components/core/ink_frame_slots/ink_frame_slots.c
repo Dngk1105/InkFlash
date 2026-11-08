@@ -24,7 +24,7 @@ static int8_t find_free(const ink_frame_slots_state_t *state) {
 ink_frame_slots_error_t ink_frame_slots_init(ink_frame_slots_state_t *state) {
     if (state == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
     *state = (ink_frame_slots_state_t){
-        .priv = {.borrowed = INK_FRAME_SLOTS_NONE,
+        .priv = {.acquired = INK_FRAME_SLOTS_NONE,
                  .pending  = INK_FRAME_SLOTS_NONE,
                  .latest   = INK_FRAME_SLOTS_NONE,
                  .shown    = INK_FRAME_SLOTS_NONE},
@@ -45,7 +45,7 @@ ink_frame_slots_error_t ink_frame_slots_assume_shown(ink_frame_slots_state_t *st
 
 ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, ink_frame_slots_lease_t *out_lease) {
     if (state == nullptr || out_lease == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
-    if (state->priv.borrowed != INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
+    if (state->priv.acquired != INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
 
     int8_t frame = find_free(state);
     if (frame != INK_FRAME_SLOTS_NONE) {
@@ -71,17 +71,17 @@ ink_frame_slots_error_t ink_frame_slots_acquire(ink_frame_slots_state_t *state, 
         *out_lease = (ink_frame_slots_lease_t){.frame = frame, .fill = INK_FRAME_SLOTS_FILL_KEEP, .copy_from = INK_FRAME_SLOTS_NONE};
     }
     state->priv.owner[frame] = OWNER_MAIN;
-    state->priv.borrowed     = frame;
+    state->priv.acquired     = frame;
     return INK_FRAME_SLOTS_OK;
 }
 
-int8_t ink_frame_slots_borrowed(const ink_frame_slots_state_t *state) {
-    return state == nullptr ? INK_FRAME_SLOTS_NONE : state->priv.borrowed;
+int8_t ink_frame_slots_acquired(const ink_frame_slots_state_t *state) {
+    return state == nullptr ? INK_FRAME_SLOTS_NONE : state->priv.acquired;
 }
 
 ink_frame_slots_error_t ink_frame_slots_submit(ink_frame_slots_state_t *state) {
     if (state == nullptr) { return INK_FRAME_SLOTS_ERROR_ARGUMENT; }
-    const int8_t frame = state->priv.borrowed;
+    const int8_t frame = state->priv.acquired;
     if (frame == INK_FRAME_SLOTS_NONE) { return INK_FRAME_SLOTS_ERROR_STATE; }
 
     if (state->priv.pending != INK_FRAME_SLOTS_NONE) {
@@ -91,7 +91,7 @@ ink_frame_slots_error_t ink_frame_slots_submit(ink_frame_slots_state_t *state) {
     state->priv.owner[frame] = OWNER_PENDING;
     state->priv.pending      = frame;
     state->priv.latest       = frame;
-    state->priv.borrowed     = INK_FRAME_SLOTS_NONE;
+    state->priv.acquired     = INK_FRAME_SLOTS_NONE;
     return INK_FRAME_SLOTS_OK;
 }
 

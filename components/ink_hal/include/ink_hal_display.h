@@ -10,8 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define INK_HAL_DISPLAY_SOURCE_HAND 0xFF /**< profile vẽ tay; 0–8 là dải TR0–TR8 chép từ OTP */
-#define INK_HAL_DISPLAY_MAX_BANDS   9
+#define INK_HAL_DISPLAY_SOURCE_CUSTOM 0xFF /**< profile vẽ tay; 0–8 là dải TR0–TR8 chép từ OTP */
+#define INK_HAL_DISPLAY_MAX_BANDS     9
 
 typedef struct {
     uint16_t x;
@@ -25,32 +25,32 @@ typedef enum : uint8_t {
     INK_HAL_DISPLAY_PURPOSE_TEXT,
     INK_HAL_DISPLAY_PURPOSE_UI,
     INK_HAL_DISPLAY_PURPOSE_PAGE,
-    INK_HAL_DISPLAY_PURPOSE_CLEAN_STRONG,
-    INK_HAL_DISPLAY_PURPOSE_CLEAN_FAST,
-    INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_CENTER,
-    INK_HAL_DISPLAY_PURPOSE_CLEAN_EDGE_NEIGHBOR,
-    INK_HAL_DISPLAY_PURPOSE_CLEAN_LIGHT,
+    INK_HAL_DISPLAY_PURPOSE_CLEANUP_STRONG,
+    INK_HAL_DISPLAY_PURPOSE_CLEANUP_FAST,
+    INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_CENTER,
+    INK_HAL_DISPLAY_PURPOSE_CLEANUP_EDGE_NEIGHBOR,
+    INK_HAL_DISPLAY_PURPOSE_CLEANUP_LIGHT,
     INK_HAL_DISPLAY_PURPOSE_COUNT,
 } ink_hal_display_purpose_t;
 
 /** Cấu hình đi kèm mỗi lần vẽ, tách khỏi profile để một bảng sóng dùng được cho nhiều mục đích. */
 typedef struct {
-    bool partial_mode; /**< vào chế độ partial (PTL) với window; false = vẽ cả màn, bỏ qua window */
-    bool pt_scan;      /**< chế độ partial: quét gate cả ngoài window */
-    bool drive_border; /**< kéo viền màn theo bảng sóng; false = viền nổi */
+    bool partial_mode;        /**< vào chế độ partial (PTL) với window; false = vẽ cả màn, bỏ qua window */
+    bool scan_outside_window; /**< chế độ partial: quét gate cả ngoài window */
+    bool drive_border;        /**< kéo viền màn theo bảng sóng; false = viền nổi */
 } ink_hal_display_draw_config_t;
 
 typedef struct {
-    uint32_t spi_us;   /**< Gửi ảnh và bảng sóng, trước khi quét */
-    uint32_t power_us; /**< bật nguồn analog (PON) nếu đang tắt; 0 nếu nguồn đã bật */
-    uint32_t panel_us; /**< panel quét tới khi BUSY cao (rảnh), không gồm power_us */
-    uint32_t after_us; /**< sau khi quét */
+    uint32_t spi_us;       /**< Gửi ảnh và bảng sóng, trước khi quét */
+    uint32_t power_us;     /**< bật nguồn analog (PON) nếu đang tắt; 0 nếu nguồn đã bật */
+    uint32_t panel_us;     /**< panel quét tới khi BUSY cao (rảnh), không gồm power_us */
+    uint32_t post_scan_us; /**< sau khi quét */
 } ink_hal_display_timing_t;
 
 typedef struct {
     uint16_t    id; /**< cố định giữa các bản build; cài đặt lưu id */
     const char *name;
-    uint8_t     source;  /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_HAND */
+    uint8_t     source;  /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_CUSTOM */
     uint32_t    draw_ms; /**< một lần vẽ (mọi lần quét), script tính */
 } ink_hal_display_profile_info_t;
 
@@ -86,8 +86,8 @@ typedef struct {
      * @return ESP_ERR_INVALID_ARG nếu tham số sai hoặc profile ngoài danh sách; ESP_ERR_TIMEOUT nếu BUSY không lên;
      *         lỗi SPI
      */
-    esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window, size_t profile,
-                      const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing);
+    esp_err_t (*draw)(void *context, const uint8_t *plane_new, const uint8_t *plane_old, ink_hal_display_rect_t window,
+                      size_t profile_index, const ink_hal_display_draw_config_t *config, ink_hal_display_timing_t *out_timing);
     /**
      * Tắt nguồn analog nếu đang bật.
      * Gọi từ: task màn.

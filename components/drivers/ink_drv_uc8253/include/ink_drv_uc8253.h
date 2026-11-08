@@ -34,7 +34,7 @@ typedef struct {
 typedef struct {
     uint16_t    id;
     const char *name;
-    uint8_t     source;   /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_HAND */
+    uint8_t     source;   /**< 0–8 = TR0–TR8, INK_HAL_DISPLAY_SOURCE_CUSTOM */
     uint8_t     scans;    /**< số DRF cho một lần vẽ, 1–4 */
     uint8_t     pll;      /**< byte lệnh 0x30 */
     uint8_t     power[4]; /**< VG, VSH, VSL, VDHR: byte 2–5 của lệnh 0x01 */

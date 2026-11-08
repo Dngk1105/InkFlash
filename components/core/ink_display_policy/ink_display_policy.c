@@ -21,13 +21,13 @@ static bool config_valid(const ink_display_policy_config_t *config) {
         && config->height != 0
         && config->x_align != 0
         && config->auto_ui_percent <= 100
-        && config->debt_soft != 0
+        && config->debt_light != 0
         && config->debt_ceiling != 0
         && config->debt_ceiling <= config->debt_ceiling_max
         && config->debt_ceiling_max <= INK_DISPLAY_POLICY_MAX_DEBT
-        && config->weights[INK_DISPLAY_POLICY_INTENT_TEXT] <= INK_DISPLAY_POLICY_MAX_DEBT
-        && config->weights[INK_DISPLAY_POLICY_INTENT_UI] <= INK_DISPLAY_POLICY_MAX_DEBT
-        && config->weights[INK_DISPLAY_POLICY_INTENT_PAGE] <= INK_DISPLAY_POLICY_MAX_DEBT;
+        && config->debt_weights[INK_DISPLAY_POLICY_INTENT_TEXT] <= INK_DISPLAY_POLICY_MAX_DEBT
+        && config->debt_weights[INK_DISPLAY_POLICY_INTENT_UI] <= INK_DISPLAY_POLICY_MAX_DEBT
+        && config->debt_weights[INK_DISPLAY_POLICY_INTENT_PAGE] <= INK_DISPLAY_POLICY_MAX_DEBT;
 }
 
 static size_t pixel_count(const ink_display_policy_config_t *config) {
@@ -36,18 +36,20 @@ static size_t pixel_count(const ink_display_policy_config_t *config) {
 
 /* Mọi điểm nợ 0, không cờ; bắt đầu lại thang dọn. */
 static void clear_pixels(ink_display_policy_state_t *state) {
-    memset(state->priv.pixels, 0, pixel_count(&state->priv.config));
+    memset(state->priv.pixel_state, 0, pixel_count(&state->priv.config));
     state->priv.flagged_count = 0;
     state->priv.max_debt      = 0;
 }
 
 ink_display_policy_error_t ink_display_policy_init(ink_display_policy_state_t *state, const ink_display_policy_config_t *config,
-                                                   uint8_t *pixels) {
-    if (state == nullptr || config == nullptr || pixels == nullptr || !config_valid(config)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
-    *state              = (ink_display_policy_state_t){};
-    state->priv.config  = *config;
-    state->priv.pixels  = pixels;
-    state->priv.ceiling = config->debt_ceiling;
+                                                   uint8_t *pixel_state) {
+    if (state == nullptr || config == nullptr || pixel_state == nullptr || !config_valid(config)) {
+        return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
+    }
+    *state                  = (ink_display_policy_state_t){};
+    state->priv.config      = *config;
+    state->priv.pixel_state = pixel_state;
+    state->priv.ceiling     = config->debt_ceiling;
     clear_pixels(state);
     return INK_DISPLAY_POLICY_OK;
 }
@@ -185,7 +187,7 @@ bool ink_display_policy_changed_window(const ink_display_policy_config_t *config
 /* ---- Trạng thái từng điểm ---- */
 
 static uint8_t *pixel_state(const ink_display_policy_state_t *state, uint32_t x, uint32_t y) {
-    return &state->priv.pixels[(size_t)y * state->priv.config.width + x];
+    return &state->priv.pixel_state[(size_t)y * state->priv.config.width + x];
 }
 
 static uint8_t debt_of(uint8_t pixel) {
@@ -211,7 +213,7 @@ static void recompute_max_debt(ink_display_policy_state_t *state) {
     uint8_t      max_debt = 0;
     const size_t count    = pixel_count(&state->priv.config);
     for (size_t i = 0; i < count; i++) {
-        const uint8_t debt = debt_of(state->priv.pixels[i]);
+        const uint8_t debt = debt_of(state->priv.pixel_state[i]);
         if (debt > max_debt) { max_debt = debt; }
     }
     state->priv.max_debt = max_debt;
@@ -273,7 +275,7 @@ static bool neighbor(const ink_display_policy_config_t *config, uint32_t x, uint
     return true;
 }
 
-/* 8 điểm xung quanh, cắt theo màn; đọc thẳng 3 hàng của priv.pixels. */
+/* 8 điểm xung quanh, cắt theo màn; đọc thẳng 3 hàng của priv.pixel_state. */
 static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x, uint32_t y) {
     const ink_display_policy_config_t *config = &state->priv.config;
     const uint32_t                     left   = x > 0 ? x - 1 : 0;
@@ -281,9 +283,9 @@ static bool any_flag_around(const ink_display_policy_state_t *state, uint32_t x,
     const uint32_t                     top    = y > 0 ? y - 1 : 0;
     const uint32_t                     bottom = y + 1 < config->height ? y + 1 : y;
     for (uint32_t row = top; row <= bottom; row++) {
-        const uint8_t *pixels = &state->priv.pixels[(size_t)row * config->width];
+        const uint8_t *pixel_state = &state->priv.pixel_state[(size_t)row * config->width];
         for (uint32_t column = left; column <= right; column++) {
-            if ((row != y || column != x) && flag_of(pixels[column]) != FLAG_NONE) { return true; }
+            if ((row != y || column != x) && flag_of(pixel_state[column]) != FLAG_NONE) { return true; }
         }
     }
     return false;
@@ -417,7 +419,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     const bool before_sleep = (request.flags & INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP) != 0;
     if (!state->priv.shown_valid || (before_sleep && has_dirt(state))) {
         (void)start_idle_period(state, request, now_ms);
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     bounds_t changed;
@@ -431,19 +433,19 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     const bool                        after_wake = state->priv.after_wake;
     const ink_display_policy_rect_t   window     = after_wake ? whole_screen(config) : make_window(config, changed);
     const ink_display_policy_intent_t intent     = resolve_intent(config, request.intent, window);
-    const uint32_t                    weight     = config->weights[intent];
+    const uint32_t                    weight     = config->debt_weights[intent];
     state->priv.after_wake                       = false;
 
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state->priv.ceiling)) {
-        decide_clean(state, active ? INK_DISPLAY_POLICY_ACTION_CLEAN_FAST : INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        decide_clean(state, active ? INK_DISPLAY_POLICY_ACTION_CLEANUP_FAST : INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent == INK_DISPLAY_POLICY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
-        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, out_decision);
+        decide_clean(state, INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);
-    if (config->edge_flags[intent]) { mark_edges(state, shown, next, changed); }
+    if (config->marks_edges[intent]) { mark_edges(state, shown, next, changed); }
 
     *out_decision = (ink_display_policy_decision_t){
         .action    = INK_DISPLAY_POLICY_ACTION_DRAW,
@@ -468,14 +470,14 @@ static size_t pending_stages(const ink_display_policy_state_t *state, stage_t ou
     size_t                             count  = 0;
     if (config->edge_ms > 0 && (done & STAGE_EDGE) == 0 && state->priv.flagged_count > 0) {
         const ink_display_policy_action_t action =
-            state->priv.edge_center_done ? INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR : INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER;
+            state->priv.edge_center_done ? INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR : INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER;
         out_stages[count++] = (stage_t){.action = action, .after_ms = config->edge_ms};
     }
-    if (config->light_ms > 0 && (done & STAGE_LIGHT) == 0 && state->priv.max_debt >= config->debt_soft) {
-        out_stages[count++] = (stage_t){.action = INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT, .after_ms = config->light_ms};
+    if (config->light_ms > 0 && (done & STAGE_LIGHT) == 0 && state->priv.max_debt >= config->debt_light) {
+        out_stages[count++] = (stage_t){.action = INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT, .after_ms = config->light_ms};
     }
     if (config->strong_ms > 0 && (done & STAGE_STRONG) == 0 && has_dirt(state)) {
-        out_stages[count++] = (stage_t){.action = INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG, .after_ms = config->strong_ms};
+        out_stages[count++] = (stage_t){.action = INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG, .after_ms = config->strong_ms};
     }
     return count;
 }
@@ -483,7 +485,7 @@ static size_t pending_stages(const ink_display_policy_state_t *state, stage_t ou
 ink_display_policy_error_t ink_display_policy_idle(const ink_display_policy_state_t *state, uint32_t now_ms,
                                                    ink_display_policy_idle_t *out_idle) {
     if (state == nullptr || out_idle == nullptr) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
-    *out_idle = (ink_display_policy_idle_t){.action = INK_DISPLAY_POLICY_ACTION_NONE, .wait_ms = INK_DISPLAY_POLICY_NO_WAIT};
+    *out_idle = (ink_display_policy_idle_t){.action = INK_DISPLAY_POLICY_ACTION_NONE, .wait_ms = INK_DISPLAY_POLICY_WAIT_FOREVER};
     if (!state->priv.shown_valid || state->priv.after_wake || !state->priv.has_frame || state->priv.defer) { return INK_DISPLAY_POLICY_OK; }
 
     stage_t        stages[3];
@@ -501,10 +503,10 @@ ink_display_policy_error_t ink_display_policy_idle(const ink_display_policy_stat
 }
 
 static bool cleanup_action(ink_display_policy_action_t action) {
-    return action == INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER
-        || action == INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR
-        || action == INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT
-        || action == INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG;
+    return action == INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER
+        || action == INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR
+        || action == INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT
+        || action == INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG;
 }
 
 /* Điểm trắng cạnh tâm viền tối, điểm đen cạnh tâm viền sáng (US 11,568,827, cột 12). */
@@ -524,14 +526,14 @@ static bool selected_for(const ink_display_policy_state_t *state, const uint8_t 
                          uint32_t y) {
     const uint8_t pixel = *pixel_state(state, x, y);
     switch (action) {
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER:
             return flag_of(pixel) != FLAG_NONE;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR:
             return flag_of(pixel) == FLAG_NONE && near_matching_center(state, shown, x, y);
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
-            return debt_of(pixel) >= state->priv.config.debt_soft;
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT:
+            return debt_of(pixel) >= state->priv.config.debt_light;
         default:
-            return true; /* CLEAN_STRONG */
+            return true; /* CLEANUP_STRONG */
     }
 }
 
@@ -552,7 +554,7 @@ ink_display_policy_error_t ink_display_policy_cleanup_plane(const ink_display_po
         }
     }
     *out_window = bounds_empty(&bounds) ? (ink_display_policy_rect_t){} : make_window(config, bounds);
-    if (action == INK_DISPLAY_POLICY_ACTION_CLEAN_STRONG) { *out_window = whole_screen(config); }
+    if (action == INK_DISPLAY_POLICY_ACTION_CLEANUP_STRONG) { *out_window = whole_screen(config); }
     return INK_DISPLAY_POLICY_OK;
 }
 
@@ -560,22 +562,22 @@ ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_st
     if (state == nullptr || !cleanup_action(action)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
     const size_t count = pixel_count(&state->priv.config);
     switch (action) {
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_CENTER:
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_CENTER:
             state->priv.edge_center_done = true;
             break;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_EDGE_NEIGHBOR:
-            for (size_t i = 0; i < count; i++) { state->priv.pixels[i] &= (uint8_t)~FLAG_MASK; }
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_EDGE_NEIGHBOR:
+            for (size_t i = 0; i < count; i++) { state->priv.pixel_state[i] &= (uint8_t)~FLAG_MASK; }
             state->priv.flagged_count = 0;
             state->priv.stages_done |= STAGE_EDGE;
             break;
-        case INK_DISPLAY_POLICY_ACTION_CLEAN_LIGHT:
+        case INK_DISPLAY_POLICY_ACTION_CLEANUP_LIGHT:
             for (size_t i = 0; i < count; i++) {
-                if (debt_of(state->priv.pixels[i]) >= state->priv.config.debt_soft) { set_debt(&state->priv.pixels[i], 0); }
+                if (debt_of(state->priv.pixel_state[i]) >= state->priv.config.debt_light) { set_debt(&state->priv.pixel_state[i], 0); }
             }
             recompute_max_debt(state);
             state->priv.stages_done |= STAGE_LIGHT;
             break;
-        default: /* CLEAN_STRONG */
+        default: /* CLEANUP_STRONG */
             clear_pixels(state);
             state->priv.stages_done |= STAGE_EDGE | STAGE_LIGHT | STAGE_STRONG;
             break;

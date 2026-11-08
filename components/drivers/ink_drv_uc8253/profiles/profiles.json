@@ -23,14 +23,14 @@
      "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}}
   ],
   "purposes": {
-    "text": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": false},
-    "ui": {"bands": [[127, 13]], "partial_mode": true, "pt_scan": true, "drive_border": false},
-    "page": {"bands": [[127, 9]], "partial_mode": true, "pt_scan": true, "drive_border": true},
-    "clean_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
-                     "partial_mode": false, "pt_scan": true, "drive_border": true},
-    "clean_fast": {"bands": [[127, 24]], "partial_mode": false, "pt_scan": true, "drive_border": true},
-    "clean_edge_center": {"bands": [[127, 24]], "partial_mode": true, "pt_scan": true, "drive_border": false},
-    "clean_edge_neighbor": {"bands": [[127, 21]], "partial_mode": true, "pt_scan": true, "drive_border": false},
-    "clean_light": {"bands": [[127, 22]], "partial_mode": true, "pt_scan": true, "drive_border": false}
+    "text": {"bands": [[127, 9]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
+    "ui": {"bands": [[127, 13]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
+    "page": {"bands": [[127, 9]], "partial_mode": true, "scan_outside_window": true, "drive_border": true},
+    "cleanup_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
+                     "partial_mode": false, "scan_outside_window": true, "drive_border": true},
+    "cleanup_fast": {"bands": [[127, 24]], "partial_mode": false, "scan_outside_window": true, "drive_border": true},
+    "cleanup_edge_center": {"bands": [[127, 24]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
+    "cleanup_edge_neighbor": {"bands": [[127, 21]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
+    "cleanup_light": {"bands": [[127, 22]], "partial_mode": true, "scan_outside_window": true, "drive_border": false}
   }
 }

@@ -184,7 +184,7 @@ Nghỉ càng lâu thì dọn càng mạnh, vì người dùng càng có khả n�
 | Bậc | Khi | Làm gì | Profile |
 |---|---|---|---|
 | 1 | Nghỉ `edge_ms`, còn cờ viền | Dọn tâm viền, rồi dọn quanh viền; xoá cờ | Tâm: DRF 320 ms; quanh: DRF dưới 100 ms |
-| 2 | Nghỉ `light_ms`, nợ lớn nhất ≥ `debt_soft` | Dọn nhẹ các điểm có nợ ≥ `debt_soft`; nợ của chúng về 0 | DRF dưới 100 ms |
+| 2 | Nghỉ `light_ms`, nợ lớn nhất ≥ `debt_light` | Dọn nhẹ các điểm có nợ ≥ `debt_light`; nợ của chúng về 0 | DRF dưới 100 ms |
 | 3 | Nghỉ `strong_ms`, còn nợ hoặc còn cờ | Dọn mạnh một lần; mọi nợ và cờ về 0 | Theo dải nhiệt độ |
 
 - Mỗi bậc chạy tối đa một lần trong một lần nghỉ. Bậc có thời gian 0 thì bỏ.
@@ -355,14 +355,14 @@ khởi động, `system` truyền cài đặt đã lưu vào `ink_display_start`
 |---|---|---|
 | Preset của từng mục đích | Bảng dải nhiệt độ → id profile; cấu hình vẽ; trọng số nợ và đánh dấu cờ viền (chỉ preset của ý định). Id không còn trong danh sách thì dùng mặc định của driver cho mục đích đó | Mặc định theo mục đích của driver; trọng số `TEXT` 1, `UI` 2, `PAGE` 1; cờ viền chỉ `UI` |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
-| `debt_soft`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn mạnh khi `PAGE` | 2, 6 |
+| `debt_light`, `debt_page` | Ngưỡng của dọn nhẹ và của dọn mạnh khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Trần nợ lúc nghỉ và trần lớn nhất khi đang thao tác | 8, 15 |
 | `edge_ms`, `light_ms`, `strong_ms` | Thời gian nghỉ của ba bậc thang dọn; 0 = bỏ bậc đó | 2 s, 10 s, 60 s |
 | `power_off_ms` | Không có DRF chừng này thì tắt nguồn analog; 0 = chỉ tắt trước khi ngủ | 4 s |
 
 Các mặc định về nợ và thời gian là điểm xuất phát, chưa đo; chỉnh bằng firmware test.
 
-Sau mỗi lần task màn làm việc với màn (vẽ khung, một lượt dọn, tắt nguồn), nó gọi callback `on_drawn` (nếu có) với một
+Sau mỗi lần task màn làm việc với màn (vẽ khung, một lượt dọn, tắt nguồn), nó gọi callback `on_report` (nếu có) với một
 báo cáo: việc đã làm, mục đích, id profile, window, nhiệt độ nếu vừa đọc, lỗi, nợ lớn nhất, số điểm có cờ viền, trần
 nợ, và 6 mốc thời gian ở bảng "Một lần vẽ đi qua đâu". Thời điểm bấm do task main đưa vào lúc giao khung; các mốc khác
 `display` tự ghi. Báo cáo này là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo của firmware test. Firmware
