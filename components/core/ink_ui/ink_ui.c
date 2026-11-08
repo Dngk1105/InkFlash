@@ -5,18 +5,36 @@
 
 /* ---- Canvas ---- */
 
-ink_ui_error_t ink_ui_canvas_init(ink_ui_canvas_t *canvas, uint8_t *buffer, size_t size, ink_ui_rotation_t rotation) {
-    if (canvas == nullptr || buffer == nullptr || size < INK_UI_BUFFER_SIZE) { return INK_UI_ERROR_ARGUMENT; }
+size_t ink_ui_frame_bytes(uint16_t panel_width, uint16_t panel_height) {
+    return (size_t)((panel_width + 7) / 8) * panel_height;
+}
+
+ink_ui_error_t ink_ui_canvas_init(ink_ui_canvas_t *canvas, uint8_t *buffer, size_t size, uint16_t panel_width, uint16_t panel_height,
+                                  ink_ui_rotation_t rotation) {
+    if (canvas == nullptr || buffer == nullptr || panel_width == 0 || panel_height == 0) { return INK_UI_ERROR_ARGUMENT; }
+    if (size < ink_ui_frame_bytes(panel_width, panel_height)) { return INK_UI_ERROR_ARGUMENT; }
     if (rotation != INK_UI_ROTATION_90 && rotation != INK_UI_ROTATION_270) { return INK_UI_ERROR_ARGUMENT; }
-    canvas->priv.buffer   = buffer;
-    canvas->priv.rotation = rotation;
+    canvas->priv.buffer       = buffer;
+    canvas->priv.panel_width  = panel_width;
+    canvas->priv.panel_height = panel_height;
+    canvas->priv.row_bytes    = (uint16_t)((panel_width + 7) / 8);
+    canvas->priv.rotation     = rotation;
     return INK_UI_OK;
+}
+
+int32_t ink_ui_width(const ink_ui_canvas_t *canvas) {
+    return canvas == nullptr ? 0 : canvas->priv.panel_height;
+}
+
+int32_t ink_ui_height(const ink_ui_canvas_t *canvas) {
+    return canvas == nullptr ? 0 : canvas->priv.panel_width;
 }
 
 void ink_ui_clear(ink_ui_canvas_t *canvas, ink_ui_color_t color) {
     if (canvas == nullptr) { return; }
-    const uint8_t fill = color == INK_UI_COLOR_WHITE ? 0xFF : 0x00;
-    for (size_t i = 0; i < INK_UI_BUFFER_SIZE; i++) { canvas->priv.buffer[i] = fill; }
+    const uint8_t fill  = color == INK_UI_COLOR_WHITE ? 0xFF : 0x00;
+    const size_t  bytes = ink_ui_frame_bytes(canvas->priv.panel_width, canvas->priv.panel_height);
+    for (size_t i = 0; i < bytes; i++) { canvas->priv.buffer[i] = fill; }
 }
 
 /* Coordinates already inside the canvas. */
@@ -25,12 +43,12 @@ static void put_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_colo
     int32_t row;
     if (canvas->priv.rotation == INK_UI_ROTATION_90) {
         column = y;
-        row    = INK_UI_PANEL_HEIGHT - 1 - x;
+        row    = canvas->priv.panel_height - 1 - x;
     } else {
-        column = INK_UI_PANEL_WIDTH - 1 - y;
+        column = canvas->priv.panel_width - 1 - y;
         row    = x;
     }
-    uint8_t      *byte = &canvas->priv.buffer[row * INK_UI_PANEL_ROW_BYTES + (column >> 3)];
+    uint8_t      *byte = &canvas->priv.buffer[row * canvas->priv.row_bytes + (column >> 3)];
     const uint8_t mask = (uint8_t)(0x80 >> (column & 7));
     if (color == INK_UI_COLOR_WHITE) {
         *byte |= mask;
@@ -40,7 +58,7 @@ static void put_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_colo
 }
 
 void ink_ui_set_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_color_t color) {
-    if (canvas == nullptr || x < 0 || y < 0 || x >= INK_UI_WIDTH || y >= INK_UI_HEIGHT) { return; }
+    if (canvas == nullptr || x < 0 || y < 0 || x >= ink_ui_width(canvas) || y >= ink_ui_height(canvas)) { return; }
     put_pixel(canvas, x, y, color);
 }
 
@@ -48,10 +66,12 @@ void ink_ui_set_pixel(ink_ui_canvas_t *canvas, int32_t x, int32_t y, ink_ui_colo
  * ink_ui_clear() instead. */
 void ink_ui_fill_rect(ink_ui_canvas_t *canvas, int32_t x, int32_t y, int32_t width, int32_t height, ink_ui_color_t color) {
     if (canvas == nullptr || width <= 0 || height <= 0) { return; }
-    const int64_t left   = x < 0 ? 0 : x;
-    const int64_t top    = y < 0 ? 0 : y;
-    const int64_t right  = (int64_t)x + width > INK_UI_WIDTH ? INK_UI_WIDTH : (int64_t)x + width;
-    const int64_t bottom = (int64_t)y + height > INK_UI_HEIGHT ? INK_UI_HEIGHT : (int64_t)y + height;
+    const int64_t left       = x < 0 ? 0 : x;
+    const int64_t top        = y < 0 ? 0 : y;
+    const int64_t app_width  = ink_ui_width(canvas);
+    const int64_t app_height = ink_ui_height(canvas);
+    const int64_t right      = (int64_t)x + width > app_width ? app_width : (int64_t)x + width;
+    const int64_t bottom     = (int64_t)y + height > app_height ? app_height : (int64_t)y + height;
     for (int64_t row = top; row < bottom; row++) {
         for (int64_t column = left; column < right; column++) { put_pixel(canvas, (int32_t)column, (int32_t)row, color); }
     }
@@ -142,7 +162,7 @@ static void draw_glyph(ink_ui_canvas_t *canvas, const ink_ui_font_t *font, const
     const int32_t  row_bytes = (glyph->width + 7) / 8;
     const int32_t  left      = x + glyph->offset_x;
     const int32_t  top       = y + font->ascent + glyph->offset_y;
-    if (left >= INK_UI_WIDTH || top >= INK_UI_HEIGHT || left + glyph->width <= 0 || top + glyph->height <= 0) { return; }
+    if (left >= ink_ui_width(canvas) || top >= ink_ui_height(canvas) || left + glyph->width <= 0 || top + glyph->height <= 0) { return; }
     for (int32_t row = 0; row < glyph->height; row++) {
         for (int32_t column = 0; column < glyph->width; column++) {
             if (bitmap[row * row_bytes + (column >> 3)] & (0x80 >> (column & 7))) {

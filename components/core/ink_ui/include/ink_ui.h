@@ -8,19 +8,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* ---- Sizes ---- */
-
-/* Frame layout of the panel (portrait).
- * WARN: must match INK_DRV_UC8253_WIDTH/HEIGHT/FRAME_BYTES; nothing checks it at build time. */
-#define INK_UI_PANEL_WIDTH     240
-#define INK_UI_PANEL_HEIGHT    416
-#define INK_UI_PANEL_ROW_BYTES 30
-#define INK_UI_BUFFER_SIZE     12480
-
-/* App coordinates (landscape). */
-#define INK_UI_WIDTH  416
-#define INK_UI_HEIGHT 240
-
 /* ---- Types ---- */
 
 typedef enum : uint8_t {
@@ -63,6 +50,9 @@ typedef struct {
 typedef struct {
     struct {
         uint8_t          *buffer;
+        uint16_t          panel_width; /* native panel orientation, px */
+        uint16_t          panel_height;
+        uint16_t          row_bytes;
         ink_ui_rotation_t rotation;
     } priv;
 } ink_ui_canvas_t;
@@ -70,16 +60,44 @@ typedef struct {
 /* ---- Canvas ---- */
 
 /**
+ * @brief Bytes of one frame: (panel_width + 7) / 8 per row, panel_height rows.
+ * @par Called from
+ * Any task.
+ * @return Frame size, bytes.
+ */
+size_t ink_ui_frame_bytes(uint16_t panel_width, uint16_t panel_height);
+
+/**
  * @brief Attach the canvas to caller memory; does not clear it.
+ *
+ * The panel size comes from the driver capabilities (native orientation), so the frame layout has one source.
  * @par Called from
  * Main task, after acquiring a frame.
- * @retval INK_UI_ERROR_ARGUMENT a pointer is NULL, `size` < INK_UI_BUFFER_SIZE, or `rotation` is invalid.
+ * @retval INK_UI_ERROR_ARGUMENT a pointer is NULL, a panel size is 0, `size` < ink_ui_frame_bytes(), or
+ *         `rotation` is invalid.
  */
-[[nodiscard]] ink_ui_error_t ink_ui_canvas_init(ink_ui_canvas_t *canvas, uint8_t *buffer, size_t size, ink_ui_rotation_t rotation);
+[[nodiscard]] ink_ui_error_t ink_ui_canvas_init(ink_ui_canvas_t *canvas, uint8_t *buffer, size_t size, uint16_t panel_width,
+                                                uint16_t panel_height, ink_ui_rotation_t rotation);
+
+/**
+ * @brief Get the app coordinates width (landscape: the panel height).
+ * @par Called from
+ * Main task.
+ * @return Width, px; 0 if canvas is NULL.
+ */
+int32_t ink_ui_width(const ink_ui_canvas_t *canvas);
+
+/**
+ * @brief Get the app coordinates height (landscape: the panel width).
+ * @par Called from
+ * Main task.
+ * @return Height, px; 0 if canvas is NULL.
+ */
+int32_t ink_ui_height(const ink_ui_canvas_t *canvas);
 
 /*
- * Drawing functions below take app coordinates (416 × 240 px), clip at the edges, and ignore a NULL canvas.
- * All are called from the main task.
+ * Drawing functions below take app coordinates (ink_ui_width() × ink_ui_height(), 416 × 240 px on BB0), clip at the
+ * edges, and ignore a NULL canvas. All are called from the main task.
  */
 
 /**

@@ -5,11 +5,22 @@
 #include "ink_ui_font_cascadia_code_24.h"
 #include "unity.h"
 
-static uint8_t         s_buffer[INK_UI_BUFFER_SIZE];
+/* BB0 panel (WeAct 3.7"), native portrait orientation. App coordinates are 416 × 240. */
+#define PANEL_WIDTH     240
+#define PANEL_HEIGHT    416
+#define PANEL_ROW_BYTES 30
+#define APP_WIDTH       PANEL_HEIGHT
+#define APP_HEIGHT      PANEL_WIDTH
+
+static uint8_t         s_buffer[PANEL_ROW_BYTES * PANEL_HEIGHT];
 static ink_ui_canvas_t s_canvas;
 
+static ink_ui_error_t init(ink_ui_canvas_t *canvas, uint8_t *buffer, size_t size, ink_ui_rotation_t rotation) {
+    return ink_ui_canvas_init(canvas, buffer, size, PANEL_WIDTH, PANEL_HEIGHT, rotation);
+}
+
 void setUp(void) {
-    TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&s_canvas, s_buffer, sizeof s_buffer, INK_UI_ROTATION_90));
+    TEST_ASSERT_EQUAL(INK_UI_OK, init(&s_canvas, s_buffer, sizeof s_buffer, INK_UI_ROTATION_90));
     ink_ui_clear(&s_canvas, INK_UI_COLOR_WHITE);
 }
 
@@ -18,13 +29,13 @@ void tearDown(void) {
 
 /* Bit of panel pixel (column, row): 1 = white. */
 static int panel_bit(int column, int row) {
-    return (s_buffer[row * INK_UI_PANEL_ROW_BYTES + column / 8] >> (7 - column % 8)) & 1;
+    return (s_buffer[row * PANEL_ROW_BYTES + column / 8] >> (7 - column % 8)) & 1;
 }
 
 static int count_black(void) {
     int count = 0;
-    for (int row = 0; row < INK_UI_PANEL_HEIGHT; row++) {
-        for (int column = 0; column < INK_UI_PANEL_WIDTH; column++) { count += !panel_bit(column, row); }
+    for (int row = 0; row < PANEL_HEIGHT; row++) {
+        for (int column = 0; column < PANEL_WIDTH; column++) { count += !panel_bit(column, row); }
     }
     return count;
 }
@@ -33,10 +44,18 @@ static int count_black(void) {
 
 static void test_init_rejects_bad_arguments(void) {
     ink_ui_canvas_t canvas;
-    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(nullptr, s_buffer, sizeof s_buffer, INK_UI_ROTATION_90));
-    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(&canvas, nullptr, sizeof s_buffer, INK_UI_ROTATION_90));
-    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(&canvas, s_buffer, INK_UI_BUFFER_SIZE - 1, INK_UI_ROTATION_90));
-    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(&canvas, s_buffer, sizeof s_buffer, (ink_ui_rotation_t)7));
+    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, init(nullptr, s_buffer, sizeof s_buffer, INK_UI_ROTATION_90));
+    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, init(&canvas, nullptr, sizeof s_buffer, INK_UI_ROTATION_90));
+    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, init(&canvas, s_buffer, sizeof s_buffer - 1, INK_UI_ROTATION_90));
+    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, init(&canvas, s_buffer, sizeof s_buffer, (ink_ui_rotation_t)7));
+    TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(&canvas, s_buffer, sizeof s_buffer, 0, PANEL_HEIGHT, INK_UI_ROTATION_90));
+}
+
+static void test_layout_comes_from_panel_size(void) {
+    TEST_ASSERT_EQUAL(sizeof s_buffer, ink_ui_frame_bytes(PANEL_WIDTH, PANEL_HEIGHT));
+    TEST_ASSERT_EQUAL(APP_WIDTH, ink_ui_width(&s_canvas));
+    TEST_ASSERT_EQUAL(APP_HEIGHT, ink_ui_height(&s_canvas));
+    TEST_ASSERT_EQUAL(2 * 3, ink_ui_frame_bytes(9, 3)); /* rows padded to whole bytes */
 }
 
 static void test_clear_fills_every_byte(void) {
@@ -61,7 +80,7 @@ static void test_set_pixel_rotation_90_maps_corners(void) {
 }
 
 static void test_set_pixel_rotation_270_maps_corners(void) {
-    TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&s_canvas, s_buffer, sizeof s_buffer, INK_UI_ROTATION_270));
+    TEST_ASSERT_EQUAL(INK_UI_OK, init(&s_canvas, s_buffer, sizeof s_buffer, INK_UI_ROTATION_270));
     ink_ui_set_pixel(&s_canvas, 0, 0, INK_UI_COLOR_BLACK);
     TEST_ASSERT_EQUAL(0, panel_bit(239, 0));
     ink_ui_set_pixel(&s_canvas, 415, 0, INK_UI_COLOR_BLACK);
@@ -95,8 +114,8 @@ static void test_set_pixel_white_restores_bit(void) {
 static void test_set_pixel_outside_is_ignored(void) {
     ink_ui_set_pixel(&s_canvas, -1, 0, INK_UI_COLOR_BLACK);
     ink_ui_set_pixel(&s_canvas, 0, -1, INK_UI_COLOR_BLACK);
-    ink_ui_set_pixel(&s_canvas, INK_UI_WIDTH, 0, INK_UI_COLOR_BLACK);
-    ink_ui_set_pixel(&s_canvas, 0, INK_UI_HEIGHT, INK_UI_COLOR_BLACK);
+    ink_ui_set_pixel(&s_canvas, APP_WIDTH, 0, INK_UI_COLOR_BLACK);
+    ink_ui_set_pixel(&s_canvas, 0, APP_HEIGHT, INK_UI_COLOR_BLACK);
     ink_ui_set_pixel(&s_canvas, INT32_MIN, INT32_MAX, INK_UI_COLOR_BLACK);
     TEST_ASSERT_EQUAL(0, count_black());
 }
@@ -113,7 +132,7 @@ static void test_fill_rect_clips_at_edges(void) {
 }
 
 static void test_fill_rect_whole_screen(void) {
-    ink_ui_fill_rect(&s_canvas, 0, 0, INK_UI_WIDTH, INK_UI_HEIGHT, INK_UI_COLOR_BLACK);
+    ink_ui_fill_rect(&s_canvas, 0, 0, APP_WIDTH, APP_HEIGHT, INK_UI_COLOR_BLACK);
     for (size_t i = 0; i < sizeof s_buffer; i++) { TEST_ASSERT_EQUAL_HEX8(0x00, s_buffer[i]); }
 }
 
@@ -244,6 +263,7 @@ static void test_utf8_valid_multibyte_in_font_is_not_question_mark(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_init_rejects_bad_arguments);
+    RUN_TEST(test_layout_comes_from_panel_size);
     RUN_TEST(test_clear_fills_every_byte);
     RUN_TEST(test_set_pixel_rotation_90_maps_corners);
     RUN_TEST(test_set_pixel_rotation_270_maps_corners);

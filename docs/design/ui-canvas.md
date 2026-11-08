@@ -17,20 +17,20 @@ vẽ theo app coordinates; canvas đổi sang toạ độ panel ngay khi đặt 
 
 | Hạng mục | Quy định |
 |---|---|
-| Kích thước ảnh | 240 × 416 px, 30 byte mỗi hàng, 12 480 byte |
+| Kích thước ảnh | Lấy từ capabilities của driver lúc init canvas (`ink_ui_canvas_init()` nhận `width`, `height` của panel): mỗi hàng `(width + 7) / 8` byte. BB0: 240 × 416 px, 30 byte mỗi hàng, 12 480 byte |
 | Gói pixel | 8 pixel một byte, pixel đầu ở bit cao nhất |
 | Cực tính | Bit 1 là trắng, bit 0 là đen (cùng cực tính với CDI `0x97`/`0xD7` của GxEPD2, xem `docs/hardware/parts/weact-epaper-3.7/image-memory.md`) |
-| App coordinates | 416 × 240 px, gốc ở góc trên trái, x sang phải, y xuống dưới |
+| App coordinates | Rộng = chiều cao panel, cao = chiều rộng panel (BB0: 416 × 240 px); `ink_ui_width()`, `ink_ui_height()`. Gốc ở góc trên trái, x sang phải, y xuống dưới |
 | Màu | Hai giá trị `BLACK` và `WHITE`; giá trị số của màu bằng đúng bit lưu trong ảnh |
 | Cắt mép | Pixel nằm ngoài màn không được vẽ, không báo lỗi |
-| Vùng nhớ | Caller đưa vào, ít nhất 12 480 byte; canvas không giữ quyền sở hữu |
+| Vùng nhớ | Caller đưa vào, ít nhất `ink_ui_frame_bytes()`; canvas không giữ quyền sở hữu |
 
 Rotation chọn lúc init canvas, có hai giá trị. Với app coordinates (x, y), pixel panel (cột, hàng) là:
 
 | Rotation | Cột panel | Hàng panel |
 |---|---|---|
-| `ROTATION_90` (xoay phải 90°) | y | 415 − x |
-| `ROTATION_270` (xoay trái 90°) | 239 − y | x |
+| `ROTATION_90` (xoay phải 90°) | y | `height` − 1 − x (BB0: 415 − x) |
+| `ROTATION_270` (xoay trái 90°) | `width` − 1 − y (BB0: 239 − y) | x |
 
 Rotation nào đúng với cách gắn màn trên board BB0 chưa xác nhận trên máy, vì pixel đầu tiên của ảnh ứng với góc nào
 của panel còn phụ thuộc cách đấu dây.
