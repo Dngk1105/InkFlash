@@ -26,17 +26,6 @@
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
   },
-  "doxdocgen.generic.briefTemplate": "{text}",
-  "doxdocgen.generic.order": [
-    "brief",
-    "custom",
-    "params",
-    "returns"
-  ],
-  "doxdocgen.generic.customTags": [
-    "Gọi từ: "
-  ],
-  "doxdocgen.c.triggerSequence": "/**",
   "editor.semanticTokenColorCustomizations": {
     "[Solarized Light]": {
       "enabled": true,
