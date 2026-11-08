@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 3.2.0">
   <meta name="archify-reader-contract" content="declared-wide-v1">
-  <title>InkFlash: thang dọn khi nghỉ Diagram</title>
+  <title>InkFlash: cleanup stage khi idle Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -7368,17 +7368,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         data-preset-badge-blueprint="BLUEPRINT / REV 01"
         data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>InkFlash: thang dọn khi nghỉ</h1>
+        <h1>InkFlash: cleanup stage khi idle</h1>
       </div>
     </div>
 
-    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"9dc47cd6af5d2404d283bd4c020f951885077587","shortRevision":"9dc47cd","label":"Dngk1105/InkFlash","href":"https://github.com/Dngk1105/InkFlash/tree/9dc47cd6af5d2404d283bd4c020f951885077587"},"referenceCount":10,"nodes":{"drawn":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":365,"endLine":379,"label":"start_idle_period","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L365-L379"}],"edge":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":469,"endLine":473,"label":"bậc 1","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L469-L473"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":563,"endLine":570,"label":"tâm, rồi quanh và xoá cờ","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L563-L570"}],"light":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":474,"endLine":476,"label":"bậc 2","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L474-L476"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":571,"endLine":577,"label":"nợ về 0","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L571-L577"}],"strong":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":477,"endLine":479,"label":"bậc 3","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L477-L479"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":578,"endLine":581,"label":"xoá hết","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L578-L581"}],"clean":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":483,"endLine":501,"label":"idle","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L483-L501"}],"deferred":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":487,"label":"idle dừng khi defer","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_display_policy/ink_display_policy.c#L487"}],"off":[{"path":"components/ink_display/ink_display.c","line":447,"endLine":470,"label":"power_off_wait_ms, run_idle","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/ink_display/ink_display.c#L447-L470"}]}}</script>
+    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"c459447fbdd47b2084a7a793f274baa600e25446","shortRevision":"c459447","label":"Dngk1105/InkFlash","linkMode":"local-only"},"referenceCount":10,"nodes":{"drawn":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":367,"endLine":381,"label":"start_idle_period"}],"edge":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":483,"endLine":486,"label":"stage 1"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":579,"endLine":586,"label":"center, rồi neighbor xoá edge flag"}],"light":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":488,"endLine":490,"label":"stage 2"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":587,"endLine":593,"label":"debt về 0"}],"strong":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":491,"endLine":493,"label":"stage 3"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":594,"endLine":598,"label":"xoá hết"}],"clean":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":497,"endLine":516,"label":"idle"}],"deferred":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":501,"label":"idle dừng khi defer"}],"off":[{"path":"components/ink_display/ink_display.c","line":450,"endLine":473,"label":"power_off_wait_ms, run_idle"}]}}</script>
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"to cycle","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.svg.auto":"SVG · Auto","viewer.export.svg.auto.hint":"Matches host theme","viewer.export.svg.light":"SVG · Light","viewer.export.svg.light.hint":"Always light","viewer.export.svg.dark":"SVG · Dark","viewer.export.svg.dark.hint":"Always dark","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Path: {source} → {target} · {count} step","viewer.export.card.routeSummary.other":"Path: {source} → {target} · {count} steps","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guide.title":"Explore this system","viewer.focus.selectedNodes":"{count} selected nodes","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.credit":"Find Archify useful? A star on GitHub helps","viewer.guide.star":"Star","viewer.guide.facts":"{nodes} · {relationships}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.open":"Open diagram guide","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.move":"Move semantic passport. Drag, use arrow keys, or press Home to reset.","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Path","viewer.route.start":"Click where the path starts","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Path","viewer.route.pickTwo":"Click two nodes on the diagram","viewer.route.pickOne":"Click a node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Click a start, then an end. Paths follow the arrows.","viewer.route.destination":"Where does the path from {label} end?","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"Pick two different nodes.","viewer.route.unreachable":"Cannot reach {label} from here","viewer.route.unreachable.detail":"{target} cannot be reached from {source} along the arrows. Pick a highlighted node.","viewer.route.start.instructions":"Next, pick the end. Only nodes you can reach will light up.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest path","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} step","viewer.route.overview.hop.other":"{count} steps","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} reachable node is highlighted. Click it.","viewer.route.destination.count.other":"{count} reachable nodes are highlighted. Click one.","viewer.route.noOutgoing":"No arrows lead out of this node. Clear it and pick another start.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"ROUTE","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.outline.title":"Node index","viewer.rail.show":"Notes \u0026 index","viewer.rail.controls":"Side panel","viewer.rail.collapse":"Collapse side panel","viewer.rail.bottom":"Move panel below the diagram","viewer.rail.right":"Move panel beside the diagram","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
       data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 1275 392" data-reader-fit="intrinsic-height" data-lifecycle-layout="main-path-v3" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="editorial" data-quality-profile="showcase" data-motion-choreography="walk">
-        <title id="archify-diagram-title">InkFlash: thang dọn khi nghỉ</title>
+      <svg viewBox="0 0 1365 392" data-reader-fit="intrinsic-height" data-lifecycle-layout="main-path-v3" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="editorial" data-quality-profile="showcase" data-motion-choreography="walk">
+        <title id="archify-diagram-title">InkFlash: cleanup stage khi idle</title>
         <desc id="archify-diagram-description">A lifecycle diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
@@ -7407,184 +7407,184 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
         <!-- Transition paths -->
         <g data-graph-role="automatic-crossover" style="--step:0">
-          <path data-graph-role="automatic-crossover-underlay" d="M 211 126 L 315 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="drawn" data-edge-to="edge" data-edge-label="2 s, còn cờ" data-edge-key="0" data-edge-id="drawn-edge" data-composition-points="211,126;315,126" data-composition-crossover="halo" data-composition-independent="true" d="M 211 126 L 315 126" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 216.5 126 L 332.5 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="drawn" data-edge-to="edge" data-edge-label="2 s, còn flag" data-edge-key="0" data-edge-id="drawn-edge" data-composition-points="216.5,126;332.5,126" data-composition-crossover="halo" data-composition-independent="true" d="M 216.5 126 L 332.5 126" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:1">
-          <path data-graph-role="automatic-crossover-underlay" d="M 505 126 L 615 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="edge" data-edge-to="light" data-edge-label="10 s, nợ ≥ 2" data-edge-key="1" data-edge-id="edge-light" data-composition-points="505,126;615,126" data-composition-crossover="halo" data-composition-independent="true" d="M 505 126 L 615 126" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 496.5 126 L 618.5 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="edge" data-edge-to="light" data-edge-label="10 s, debt ≥ 2" data-edge-key="1" data-edge-id="edge-light" data-composition-points="496.5,126;618.5,126" data-composition-crossover="halo" data-composition-independent="true" d="M 496.5 126 L 618.5 126" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:2">
-          <path data-graph-role="automatic-crossover-underlay" d="M 757 126 L 867 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="light" data-edge-to="strong" data-edge-label="60 s, còn nợ" data-edge-key="2" data-edge-id="light-strong" data-composition-points="757,126;867,126" data-composition-crossover="halo" data-composition-independent="true" d="M 757 126 L 867 126" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 789.5 126 L 911.5 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="light" data-edge-to="strong" data-edge-label="60 s, còn debt" data-edge-key="2" data-edge-id="light-strong" data-composition-points="789.5,126;911.5,126" data-composition-crossover="halo" data-composition-independent="true" d="M 789.5 126 L 911.5 126" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:3">
-          <path data-graph-role="automatic-crossover-underlay" d="M 1007 126 L 1079 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="strong" data-edge-to="clean" data-edge-label="sạch" data-edge-key="3" data-edge-id="strong-clean" data-composition-points="1007,126;1079,126" data-composition-crossover="halo" data-composition-independent="true" d="M 1007 126 L 1079 126" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 1089.5 126 L 1161.5 126" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="strong" data-edge-to="clean" data-edge-label="sạch" data-edge-key="3" data-edge-id="strong-clean" data-composition-points="1089.5,126;1161.5,126" data-composition-crossover="halo" data-composition-independent="true" d="M 1089.5 126 L 1161.5 126" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:4">
-          <path data-graph-role="automatic-crossover-underlay" d="M 410 94 L 410 76 Q 410 64 398 64 L 160 64 Q 148 64 148 76 L 148 94" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="edge" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="4" data-edge-id="edge-drawn" data-composition-points="410,94;410,64;148,64;148,94" data-composition-crossover="halo" data-composition-independent="true" d="M 410 94 L 410 76 Q 410 64 398 64 L 160 64 Q 148 64 148 76 L 148 94" class="a-dashed" data-animate="edge" style="--step:4" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 414.5 94 L 414.5 76 Q 414.5 64 402.5 64 L 165.5 64 Q 153.5 64 153.5 76 L 153.5 94" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="edge" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="4" data-edge-id="edge-drawn" data-composition-points="414.5,94;414.5,64;153.5,64;153.5,94" data-composition-crossover="halo" data-composition-independent="true" d="M 414.5 94 L 414.5 76 Q 414.5 64 402.5 64 L 165.5 64 Q 153.5 64 153.5 76 L 153.5 94" class="a-dashed" data-animate="edge" style="--step:4" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:5">
-          <path data-graph-role="automatic-crossover-underlay" d="M 1149 94 L 1149 52 Q 1149 40 1137 40 L 134 40 Q 122 40 122 52 L 122 94" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="clean" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="5" data-edge-id="clean-drawn" data-composition-points="1149,94;1149,40;122,40;122,94" data-composition-crossover="halo" data-composition-independent="true" d="M 1149 94 L 1149 52 Q 1149 40 1137 40 L 134 40 Q 122 40 122 52 L 122 94" class="a-dashed" data-animate="edge" style="--step:5" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 1235 94 L 1235 52 Q 1235 40 1223 40 L 139.5 40 Q 127.5 40 127.5 52 L 127.5 94" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="clean" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="5" data-edge-id="clean-drawn" data-composition-points="1235,94;1235,40;127.5,40;127.5,94" data-composition-crossover="halo" data-composition-independent="true" d="M 1235 94 L 1235 52 Q 1235 40 1223 40 L 139.5 40 Q 127.5 40 127.5 52 L 127.5 94" class="a-dashed" data-animate="edge" style="--step:5" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:6">
-          <path data-graph-role="automatic-crossover-underlay" d="M 122 158 L 122 250" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="drawn" data-edge-to="deferred" data-edge-label="cờ hoãn" data-edge-key="6" data-edge-id="drawn-deferred" data-composition-points="122,158;122,250" data-composition-crossover="halo" data-composition-independent="true" d="M 122 158 L 122 250" class="a-default" data-animate="edge" style="--step:6" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 127.5 158 L 127.5 250" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="drawn" data-edge-to="deferred" data-edge-label="có flag" data-edge-key="6" data-edge-id="drawn-deferred" data-composition-points="127.5,158;127.5,250" data-composition-crossover="halo" data-composition-independent="true" d="M 127.5 158 L 127.5 250" class="a-default" data-animate="edge" style="--step:6" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:7">
-          <path data-graph-role="automatic-crossover-underlay" d="M 148 250 L 148 158" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="deferred" data-edge-to="drawn" data-edge-label="hết cờ" data-edge-key="7" data-edge-id="deferred-drawn" data-composition-points="148,250;148,158" data-composition-crossover="halo" data-composition-independent="true" d="M 148 250 L 148 158" class="a-default" data-animate="edge" style="--step:7" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 153.5 250 L 153.5 158" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="deferred" data-edge-to="drawn" data-edge-label="hết flag" data-edge-key="7" data-edge-id="deferred-drawn" data-composition-points="153.5,250;153.5,158" data-composition-crossover="halo" data-composition-independent="true" d="M 153.5 250 L 153.5 158" class="a-default" data-animate="edge" style="--step:7" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:8">
-          <path data-graph-role="automatic-crossover-underlay" d="M 1101 158 L 1101 180 Q 1101 192 1089 192 L 722.5 192 Q 710.5 192 710.5 204 L 710.5 250" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="clean" data-edge-to="off" data-edge-label="4 s" data-edge-key="8" data-edge-id="clean-off" data-composition-points="1101,158;1101,192;710.5,192;710.5,250" data-composition-crossover="halo" data-composition-independent="true" d="M 1101 158 L 1101 180 Q 1101 192 1089 192 L 722.5 192 Q 710.5 192 710.5 204 L 710.5 250" class="a-default" data-animate="edge" style="--step:8" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 1183.5 158 L 1183.5 180 Q 1183.5 192 1171.5 192 L 768.3 192 Q 756.3 192 756.3 204 L 756.3 250" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="clean" data-edge-to="off" data-edge-label="4 s" data-edge-key="8" data-edge-id="clean-off" data-composition-points="1183.5,158;1183.5,192;756.3,192;756.3,250" data-composition-crossover="halo" data-composition-independent="true" d="M 1183.5 158 L 1183.5 180 Q 1183.5 192 1171.5 192 L 768.3 192 Q 756.3 192 756.3 204 L 756.3 250" class="a-default" data-animate="edge" style="--step:8" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:9">
-          <path data-graph-role="automatic-crossover-underlay" d="M 573.5 250 L 573.5 204 Q 573.5 192 561.5 192 L 201 192 Q 189 192 189 180 L 189 158" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="off" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="9" data-edge-id="off-drawn" data-composition-points="573.5,250;573.5,192;189,192;189,158" data-composition-crossover="halo" data-composition-independent="true" d="M 573.5 250 L 573.5 204 Q 573.5 192 561.5 192 L 201 192 Q 189 192 189 180 L 189 158" class="a-dashed" data-animate="edge" style="--step:9" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 619.3 250 L 619.3 204 Q 619.3 192 607.3 192 L 206.5 192 Q 194.5 192 194.5 180 L 194.5 158" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="off" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="9" data-edge-id="off-drawn" data-composition-points="619.3,250;619.3,192;194.5,192;194.5,158" data-composition-crossover="halo" data-composition-independent="true" d="M 619.3 250 L 619.3 204 Q 619.3 192 607.3 192 L 206.5 192 Q 194.5 192 194.5 180 L 194.5 158" class="a-dashed" data-animate="edge" style="--step:9" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
         </g>
 
 
         <!-- States -->
-        <g id="node-drawn" data-node-id="drawn" data-node-label="Vừa vẽ khung" tabindex="0" role="button" aria-label="Focus Vừa vẽ khung, thang bắt đầu lại, Lifecycle state" aria-pressed="false" data-node-kind="start" data-node-sublabel="thang bắt đầu lại" data-node-context="Lifecycle state">
-          <title>Vừa vẽ khung · thang bắt đầu lại · Lifecycle state</title>
-          <rect x="59" y="94" width="152" height="64" rx="8" class="c-mask"/>
-          <rect x="59" y="94" width="152" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:0" stroke-width="1.5"/>
-          <g aria-hidden="true" data-lifecycle-initial-marker=""><circle cx="33" cy="126" r="4.5" style="fill: var(--arrow-emphasis)"/><path d="M 37.5 126 L 52 126" class="a-emphasis" stroke-width="1.4"/><path d="M 51 122.5 L 58 126 L 51 129.5 Z" style="fill: var(--arrow-emphasis)"/></g>
+        <g id="node-drawn" data-node-id="drawn" data-node-label="Vừa vẽ frame" tabindex="0" role="button" aria-label="Focus Vừa vẽ frame, stage lại từ đầu, Lifecycle state" aria-pressed="false" data-node-kind="start" data-node-sublabel="stage lại từ đầu" data-node-context="Lifecycle state">
+          <title>Vừa vẽ frame · stage lại từ đầu · Lifecycle state</title>
+          <rect x="64.5" y="94" width="152" height="64" rx="8" class="c-mask"/>
+          <rect x="64.5" y="94" width="152" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-lifecycle-initial-marker=""><circle cx="38.5" cy="126" r="4.5" style="fill: var(--arrow-emphasis)"/><path d="M 43 126 L 57.5 126" class="a-emphasis" stroke-width="1.4"/><path d="M 56.5 122.5 L 63.5 126 L 56.5 129.5 Z" style="fill: var(--arrow-emphasis)"/></g>
           
-          <text data-node-label="" data-detail-anchor="" x="125.8" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Vừa vẽ khung</text>
-          <text data-detail="context" x="135" y="139" class="t-muted" font-size="9" text-anchor="middle">thang bắt đầu lại</text>
+          <text data-node-label="" data-detail-anchor="" x="131.3" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Vừa vẽ frame</text>
+          <text data-detail="context" x="140.5" y="139" class="t-muted" font-size="9" text-anchor="middle">stage lại từ đầu</text>
         </g>
 
-        <g id="node-edge" data-node-id="edge" data-node-label="Dọn viền" tabindex="0" role="button" aria-label="Focus Dọn viền, tâm 320 ms, rồi quanh 50 ms, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="tâm 320 ms, rồi quanh 50 ms" data-node-context="Lifecycle state">
-          <title>Dọn viền · tâm 320 ms, rồi quanh 50 ms · Lifecycle state</title>
-          <rect x="315" y="94" width="190" height="64" rx="8" class="c-mask"/>
-          <rect x="315" y="94" width="190" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:1" stroke-width="1.5"/>
+        <g id="node-edge" data-node-id="edge" data-node-label="Cleanup edge" tabindex="0" role="button" aria-label="Focus Cleanup edge, center rồi neighbor, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="center rồi neighbor" data-node-context="Lifecycle state">
+          <title>Cleanup edge · center rồi neighbor · Lifecycle state</title>
+          <rect x="332.5" y="94" width="164" height="64" rx="8" class="c-mask"/>
+          <rect x="332.5" y="94" width="164" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:1" stroke-width="1.5"/>
           
-          <text data-detail="fine" x="338" y="108" class="t-frontend" font-size="8" font-weight="700">1</text>
-          <text data-node-label="" data-detail-anchor="" x="410" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Dọn viền</text>
-          <text data-detail="context" x="410" y="139" class="t-muted" font-size="9" text-anchor="middle">tâm 320 ms, rồi quanh 50 ms</text>
+          <text data-detail="fine" x="355.5" y="108" class="t-frontend" font-size="8" font-weight="700">1</text>
+          <text data-node-label="" data-detail-anchor="" x="411.3" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Cleanup edge</text>
+          <text data-detail="context" x="414.5" y="139" class="t-muted" font-size="9" text-anchor="middle">center rồi neighbor</text>
         </g>
 
-        <g id="node-light" data-node-id="light" data-node-label="Dọn nhẹ" tabindex="0" role="button" aria-label="Focus Dọn nhẹ, clean_light, 50 ms, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="clean_light, 50 ms" data-node-context="Lifecycle state">
-          <title>Dọn nhẹ · clean_light, 50 ms · Lifecycle state</title>
-          <rect x="615" y="94" width="142" height="64" rx="8" class="c-mask"/>
-          <rect x="615" y="94" width="142" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:2" stroke-width="1.5"/>
+        <g id="node-light" data-node-id="light" data-node-label="Cleanup light" tabindex="0" role="button" aria-label="Focus Cleanup light, cleanup light, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="cleanup light" data-node-context="Lifecycle state">
+          <title>Cleanup light · cleanup light · Lifecycle state</title>
+          <rect x="618.5" y="94" width="171" height="64" rx="8" class="c-mask"/>
+          <rect x="618.5" y="94" width="171" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:2" stroke-width="1.5"/>
           
-          <text data-detail="fine" x="638" y="108" class="t-frontend" font-size="8" font-weight="700">2</text>
-          <text data-node-label="" data-detail-anchor="" x="686" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Dọn nhẹ</text>
-          <text data-detail="context" x="686" y="139" class="t-muted" font-size="9" text-anchor="middle">clean_light, 50 ms</text>
+          <text data-detail="fine" x="641.5" y="108" class="t-frontend" font-size="8" font-weight="700">2</text>
+          <text data-node-label="" data-detail-anchor="" x="700.7" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Cleanup light</text>
+          <text data-detail="context" x="704" y="139" class="t-muted" font-size="9" text-anchor="middle">cleanup light</text>
         </g>
 
-        <g id="node-strong" data-node-id="strong" data-node-label="Dọn mạnh" tabindex="0" role="button" aria-label="Focus Dọn mạnh, theo dải nhiệt độ, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="theo dải nhiệt độ" data-node-context="Lifecycle state">
-          <title>Dọn mạnh · theo dải nhiệt độ · Lifecycle state</title>
-          <rect x="867" y="94" width="140" height="64" rx="8" class="c-mask"/>
-          <rect x="867" y="94" width="140" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:3" stroke-width="1.5"/>
+        <g id="node-strong" data-node-id="strong" data-node-label="Cleanup strong" tabindex="0" role="button" aria-label="Focus Cleanup strong, profile theo band, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="profile theo band" data-node-context="Lifecycle state">
+          <title>Cleanup strong · profile theo band · Lifecycle state</title>
+          <rect x="911.5" y="94" width="178" height="64" rx="8" class="c-mask"/>
+          <rect x="911.5" y="94" width="178" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:3" stroke-width="1.5"/>
           
-          <text data-detail="fine" x="890" y="108" class="t-frontend" font-size="8" font-weight="700">3</text>
-          <text data-node-label="" data-detail-anchor="" x="936.2" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Dọn mạnh</text>
-          <text data-detail="context" x="937" y="139" class="t-muted" font-size="9" text-anchor="middle">theo dải nhiệt độ</text>
+          <text data-detail="fine" x="934.5" y="108" class="t-frontend" font-size="8" font-weight="700">3</text>
+          <text data-node-label="" data-detail-anchor="" x="997.1" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Cleanup strong</text>
+          <text data-detail="context" x="1000.5" y="139" class="t-muted" font-size="9" text-anchor="middle">profile theo band</text>
         </g>
 
-        <g id="node-clean" data-node-id="clean" data-node-label="Hết việc" tabindex="0" role="button" aria-label="Focus Hết việc, không còn bậc nào, Lifecycle state" aria-pressed="false" data-node-kind="success" data-node-sublabel="không còn bậc nào" data-node-context="Lifecycle state">
-          <title>Hết việc · không còn bậc nào · Lifecycle state</title>
-          <rect x="1079" y="94" width="140" height="64" rx="8" class="c-mask"/>
-          <rect x="1079" y="94" width="140" height="64" rx="8" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="success" class="semantic-sigil s-backend" transform="translate(1085 100) scale(0.6875)">
+        <g id="node-clean" data-node-id="clean" data-node-label="Hết việc" tabindex="0" role="button" aria-label="Focus Hết việc, không còn stage nào, Lifecycle state" aria-pressed="false" data-node-kind="success" data-node-sublabel="không còn stage nào" data-node-context="Lifecycle state">
+          <title>Hết việc · không còn stage nào · Lifecycle state</title>
+          <rect x="1161.5" y="94" width="147" height="64" rx="8" class="c-mask"/>
+          <rect x="1161.5" y="94" width="147" height="64" rx="8" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="success" class="semantic-sigil s-backend" transform="translate(1167.5 100) scale(0.6875)">
             <circle cx="8" cy="8" r="5.3"/>
             <path d="m5.2 8 1.8 1.8 3.8-4"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1148.2" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Hết việc</text>
-          <text data-detail="context" x="1149" y="139" class="t-muted" font-size="9" text-anchor="middle">không còn bậc nào</text>
+          <text data-node-label="" data-detail-anchor="" x="1235" y="121" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Hết việc</text>
+          <text data-detail="context" x="1235" y="139" class="t-muted" font-size="9" text-anchor="middle">không còn stage nào</text>
         </g>
 
-        <g id="node-deferred" data-node-id="deferred" data-node-label="Hoãn dọn" tabindex="0" role="button" aria-label="Focus Hoãn dọn, cờ của khung gần nhất, Lifecycle state" aria-pressed="false" data-node-kind="waiting" data-node-sublabel="cờ của khung gần nhất" data-node-context="Lifecycle state">
-          <title>Hoãn dọn · cờ của khung gần nhất · Lifecycle state</title>
-          <rect x="56" y="250" width="158" height="64" rx="8" class="c-mask"/>
-          <rect x="56" y="250" width="158" height="64" rx="8" class="c-cloud" data-animate="node" style="--step:7" stroke-width="1.5"/>
+        <g id="node-deferred" data-node-id="deferred" data-node-label="DEFER_CLEANUP" tabindex="0" role="button" aria-label="Focus DEFER_CLEANUP, flag của frame gần nhất, Lifecycle state" aria-pressed="false" data-node-kind="waiting" data-node-sublabel="flag của frame gần nhất" data-node-context="Lifecycle state">
+          <title>DEFER_CLEANUP · flag của frame gần nhất · Lifecycle state</title>
+          <rect x="56" y="250" width="169" height="64" rx="8" class="c-mask"/>
+          <rect x="56" y="250" width="169" height="64" rx="8" class="c-cloud" data-animate="node" style="--step:7" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="waiting" class="semantic-sigil s-cloud" transform="translate(62 256) scale(0.6875)">
             <path d="M4 2.5h8M4 13.5h8M5 3c0 2.8 2 3.2 3 5-1 1.8-3 2.2-3 5M11 3c0 2.8-2 3.2-3 5 1 1.8 3 2.2 3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="135" y="277" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Hoãn dọn</text>
-          <text data-detail="context" x="135" y="295" class="t-muted" font-size="9" text-anchor="middle">cờ của khung gần nhất</text>
+          <text data-node-label="" data-detail-anchor="" x="136.2" y="277" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">DEFER_CLEANUP</text>
+          <text data-detail="context" x="140.5" y="295" class="t-muted" font-size="9" text-anchor="middle">flag của frame gần nhất</text>
         </g>
 
-        <g id="node-off" data-node-id="off" data-node-label="Nguồn analog tắt" tabindex="0" role="button" aria-label="Focus Nguồn analog tắt, POF, màn giữ hình, Lifecycle state" aria-pressed="false" data-node-kind="neutral" data-node-sublabel="POF, màn giữ hình" data-node-context="Lifecycle state">
-          <title>Nguồn analog tắt · POF, màn giữ hình · Lifecycle state</title>
-          <rect x="551.5" y="250" width="181" height="64" rx="8" class="c-mask"/>
-          <rect x="551.5" y="250" width="181" height="64" rx="8" class="c-external" data-animate="node" style="--step:9" stroke-width="1.5"/>
+        <g id="node-off" data-node-id="off" data-node-label="Analog power tắt" tabindex="0" role="button" aria-label="Focus Analog power tắt, POF, panel giữ hình, Lifecycle state" aria-pressed="false" data-node-kind="neutral" data-node-sublabel="POF, panel giữ hình" data-node-context="Lifecycle state">
+          <title>Analog power tắt · POF, panel giữ hình · Lifecycle state</title>
+          <rect x="597.25" y="250" width="181" height="64" rx="8" class="c-mask"/>
+          <rect x="597.25" y="250" width="181" height="64" rx="8" class="c-external" data-animate="node" style="--step:9" stroke-width="1.5"/>
           
-          <text data-node-label="" data-detail-anchor="" x="632.9" y="277" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Nguồn analog tắt</text>
-          <text data-detail="context" x="642" y="295" class="t-muted" font-size="9" text-anchor="middle">POF, màn giữ hình</text>
+          <text data-node-label="" data-detail-anchor="" x="678.65" y="277" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Analog power tắt</text>
+          <text data-detail="context" x="687.75" y="295" class="t-muted" font-size="9" text-anchor="middle">POF, panel giữ hình</text>
         </g>
 
         <!-- Transition labels -->
-        <g data-detail="context" data-edge-from="drawn" data-edge-to="edge" data-edge-label="2 s, còn cờ" data-edge-key="0" data-edge-id="drawn-edge">
-          <rect x="224" y="104" width="78" height="16" rx="4" class="c-mask"/>
-          <text x="263" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">2 s, còn cờ</text>
+        <g data-detail="context" data-edge-from="drawn" data-edge-to="edge" data-edge-label="2 s, còn flag" data-edge-key="0" data-edge-id="drawn-edge">
+          <rect x="229.5" y="104" width="90" height="16" rx="4" class="c-mask"/>
+          <text x="274.5" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">2 s, còn flag</text>
         </g>
-        <g data-detail="context" data-edge-from="edge" data-edge-to="light" data-edge-label="10 s, nợ ≥ 2" data-edge-key="1" data-edge-id="edge-light">
-          <rect x="518" y="104" width="84" height="16" rx="4" class="c-mask"/>
-          <text x="560" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">10 s, nợ ≥ 2</text>
+        <g data-detail="context" data-edge-from="edge" data-edge-to="light" data-edge-label="10 s, debt ≥ 2" data-edge-key="1" data-edge-id="edge-light">
+          <rect x="509.5" y="104" width="96" height="16" rx="4" class="c-mask"/>
+          <text x="557.5" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">10 s, debt ≥ 2</text>
         </g>
-        <g data-detail="context" data-edge-from="light" data-edge-to="strong" data-edge-label="60 s, còn nợ" data-edge-key="2" data-edge-id="light-strong">
-          <rect x="770" y="104" width="84" height="16" rx="4" class="c-mask"/>
-          <text x="812" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">60 s, còn nợ</text>
+        <g data-detail="context" data-edge-from="light" data-edge-to="strong" data-edge-label="60 s, còn debt" data-edge-key="2" data-edge-id="light-strong">
+          <rect x="802.5" y="104" width="96" height="16" rx="4" class="c-mask"/>
+          <text x="850.5" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">60 s, còn debt</text>
         </g>
         <g data-detail="context" data-edge-from="strong" data-edge-to="clean" data-edge-label="sạch" data-edge-key="3" data-edge-id="strong-clean">
-          <rect x="1025" y="104" width="36" height="16" rx="4" class="c-mask"/>
-          <text x="1043" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">sạch</text>
+          <rect x="1107.5" y="104" width="36" height="16" rx="4" class="c-mask"/>
+          <text x="1125.5" y="115.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">sạch</text>
         </g>
-        <g data-detail="context" data-edge-from="edge" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="4" data-edge-id="edge-drawn">
-          <rect x="246" y="56" width="66" height="16" rx="4" class="c-mask"/>
-          <text x="279" y="67.5" class="t-edge-dashed" font-size="10" text-anchor="middle">khung mới</text>
+        <g data-detail="context" data-edge-from="edge" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="4" data-edge-id="edge-drawn">
+          <rect x="251" y="56" width="66" height="16" rx="4" class="c-mask"/>
+          <text x="284" y="67.5" class="t-edge-dashed" font-size="10" text-anchor="middle">frame mới</text>
         </g>
-        <g data-detail="context" data-edge-from="clean" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="5" data-edge-id="clean-drawn">
-          <rect x="602.5" y="32" width="66" height="16" rx="4" class="c-mask"/>
-          <text x="635.5" y="43.5" class="t-edge-dashed" font-size="10" text-anchor="middle">khung mới</text>
+        <g data-detail="context" data-edge-from="clean" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="5" data-edge-id="clean-drawn">
+          <rect x="648.25" y="32" width="66" height="16" rx="4" class="c-mask"/>
+          <text x="681.25" y="43.5" class="t-edge-dashed" font-size="10" text-anchor="middle">frame mới</text>
         </g>
-        <g data-detail="context" data-edge-from="drawn" data-edge-to="deferred" data-edge-label="cờ hoãn" data-edge-key="6" data-edge-id="drawn-deferred">
-          <rect x="62" y="196" width="54" height="16" rx="4" class="c-mask"/>
-          <text x="89" y="207.5" class="t-muted" font-size="10" text-anchor="middle">cờ hoãn</text>
+        <g data-detail="context" data-edge-from="drawn" data-edge-to="deferred" data-edge-label="có flag" data-edge-key="6" data-edge-id="drawn-deferred">
+          <rect x="67.5" y="196" width="54" height="16" rx="4" class="c-mask"/>
+          <text x="94.5" y="207.5" class="t-muted" font-size="10" text-anchor="middle">có flag</text>
         </g>
-        <g data-detail="context" data-edge-from="deferred" data-edge-to="drawn" data-edge-label="hết cờ" data-edge-key="7" data-edge-id="deferred-drawn">
-          <rect x="154" y="206" width="48" height="16" rx="4" class="c-mask"/>
-          <text x="178" y="217.5" class="t-muted" font-size="10" text-anchor="middle">hết cờ</text>
+        <g data-detail="context" data-edge-from="deferred" data-edge-to="drawn" data-edge-label="hết flag" data-edge-key="7" data-edge-id="deferred-drawn">
+          <rect x="159.5" y="206" width="60" height="16" rx="4" class="c-mask"/>
+          <text x="189.5" y="217.5" class="t-muted" font-size="10" text-anchor="middle">hết flag</text>
         </g>
         <g data-detail="context" data-edge-from="clean" data-edge-to="off" data-edge-label="4 s" data-edge-key="8" data-edge-id="clean-off">
-          <rect x="716.5" y="213" width="30" height="16" rx="4" class="c-mask"/>
-          <text x="731.5" y="224.5" class="t-muted" font-size="10" text-anchor="middle">4 s</text>
+          <rect x="762.3" y="213" width="30" height="16" rx="4" class="c-mask"/>
+          <text x="777.3" y="224.5" class="t-muted" font-size="10" text-anchor="middle">4 s</text>
         </g>
-        <g data-detail="context" data-edge-from="off" data-edge-to="drawn" data-edge-label="khung mới" data-edge-key="9" data-edge-id="off-drawn">
-          <rect x="501.5" y="213" width="66" height="16" rx="4" class="c-mask"/>
-          <text x="534.5" y="224.5" class="t-edge-dashed" font-size="10" text-anchor="middle">khung mới</text>
+        <g data-detail="context" data-edge-from="off" data-edge-to="drawn" data-edge-label="frame mới" data-edge-key="9" data-edge-id="off-drawn">
+          <rect x="547.3" y="213" width="66" height="16" rx="4" class="c-mask"/>
+          <text x="580.3" y="224.5" class="t-edge-dashed" font-size="10" text-anchor="middle">frame mới</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
           <text x="40" y="340" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="start" data-legend-kind="start" data-legend-label="Bắt đầu lần nghỉ" data-legend-x="40" data-legend-baseline="360" data-legend-width="155">
+          <g data-legend-semantic-kind="start" data-legend-kind="start" data-legend-label="Bắt đầu idle" data-legend-x="40" data-legend-baseline="360" data-legend-width="130">
             <circle cx="44.5" cy="356.5" r="4.5" style="fill: var(--arrow-emphasis)"/><path d="M 49 356.5 L 58 356.5" class="a-emphasis" stroke-width="1.4"/><path d="M 57 353 L 64 356.5 L 57 360 Z" style="fill: var(--arrow-emphasis)"/>
-            <text x="74" y="360" class="t-muted" font-size="10" font-weight="500">Bắt đầu lần nghỉ</text>
+            <text x="74" y="360" class="t-muted" font-size="10" font-weight="500">Bắt đầu idle</text>
           </g>
-          <g data-legend-semantic-kind="active" data-legend-kind="active" data-legend-label="Lượt dọn" data-legend-x="217" data-legend-baseline="360" data-legend-width="93">
-            <rect x="217" y="352" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="239" y="360" class="t-muted" font-size="10" font-weight="500">Lượt dọn</text>
+          <g data-legend-semantic-kind="active" data-legend-kind="active" data-legend-label="Cleanup stage" data-legend-x="192" data-legend-baseline="360" data-legend-width="124">
+            <rect x="192" y="352" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="214" y="360" class="t-muted" font-size="10" font-weight="500">Cleanup stage</text>
           </g>
-          <g data-legend-semantic-kind="waiting" data-legend-kind="waiting" data-legend-label="Bị hoãn" data-legend-x="332" data-legend-baseline="360" data-legend-width="87">
-            <rect x="332" y="352" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="354" y="360" class="t-muted" font-size="10" font-weight="500">Bị hoãn</text>
+          <g data-legend-semantic-kind="waiting" data-legend-kind="waiting" data-legend-label="Bị hoãn" data-legend-x="338" data-legend-baseline="360" data-legend-width="87">
+            <rect x="338" y="352" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="360" y="360" class="t-muted" font-size="10" font-weight="500">Bị hoãn</text>
           </g>
-          <g data-legend-semantic-kind="success" data-legend-kind="success" data-legend-label="Màn sạch" data-legend-x="441" data-legend-baseline="360" data-legend-width="93">
-            <rect x="441" y="352" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="463" y="360" class="t-muted" font-size="10" font-weight="500">Màn sạch</text>
+          <g data-legend-semantic-kind="success" data-legend-kind="success" data-legend-label="Panel sạch" data-legend-x="447" data-legend-baseline="360" data-legend-width="105">
+            <rect x="447" y="352" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="469" y="360" class="t-muted" font-size="10" font-weight="500">Panel sạch</text>
           </g>
-          <g data-legend-semantic-kind="neutral" data-legend-kind="neutral" data-legend-label="Nguồn tắt" data-legend-x="556" data-legend-baseline="360" data-legend-width="99">
-            <rect x="556" y="352" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
-            <text x="578" y="360" class="t-muted" font-size="10" font-weight="500">Nguồn tắt</text>
+          <g data-legend-semantic-kind="neutral" data-legend-kind="neutral" data-legend-label="Analog power tắt" data-legend-x="574" data-legend-baseline="360" data-legend-width="143">
+            <rect x="574" y="352" width="14" height="9" rx="2" class="c-external" stroke-width="1"/>
+            <text x="596" y="360" class="t-muted" font-size="10" font-weight="500">Analog power tắt</text>
           </g>
         </g>
       </svg>
@@ -7852,35 +7852,35 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Đọc sơ đồ thế nào</h3>
         </div>
         <ul>
-          <li>Dọn viền gồm hai lượt DRF: clean_full100 cho điểm có cờ, rồi clean_edge cho điểm kề cạnh và xoá cờ.</li>
-          <li>Thời gian tính từ lần vẽ khung gần nhất; số là mặc định của cài đặt edge_ms, light_ms, strong_ms, debt_light.</li>
-          <li>Bậc không còn việc thì bị bỏ qua: không có cờ thì đi thẳng tới dọn nhẹ, nợ dưới 2 thì đi thẳng tới dọn mạnh, sạch thì không dọn gì.</li>
-          <li>Mỗi bậc chạy tối đa một lần trong một lần nghỉ.</li>
-          <li>Cờ hoãn của khung gần nhất chặn cả ba bậc, tới khung sau không có cờ này.</li>
+          <li>Cleanup edge gồm hai lần DRF: cleanup edge center cho pixel có edge flag, rồi cleanup edge neighbor cho pixel kề nó, xong thì xoá edge flag.</li>
+          <li>Thời gian tính từ lần vẽ frame gần nhất; số là mặc định của options edge_ms, light_ms, strong_ms, debt_light.</li>
+          <li>Stage không còn việc thì bị bỏ qua: không có edge flag thì đi thẳng tới cleanup light, debt dưới 2 thì đi thẳng tới cleanup strong, sạch thì không cleanup gì.</li>
+          <li>Mỗi stage chạy tối đa một lần trong một idle.</li>
+          <li>Flag DEFER_CLEANUP của frame gần nhất chặn cả ba stage, tới frame sau không có flag này.</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Khung mới ở bậc nào cũng vậy</h3>
+          <h3>Frame mới tới ở stage nào cũng vậy</h3>
         </div>
         <ul>
-          <li>Sơ đồ chỉ vẽ mũi tên khung mới ở dọn viền và hết việc để đỡ rối; mọi bậc đều quay về vừa vẽ khung.</li>
-          <li>DRF không ngắt được, nên lần lật trùng lượt dọn chậm thêm tối đa một DRF dọn.</li>
-          <li>Khung mới tới sau dọn tâm mà chưa kịp dọn quanh: cờ giữ nguyên, lần nghỉ sau dọn lại cả hai.</li>
-          <li>Lần vẽ khi nguồn đã tắt, driver tự bật lại, khoảng 75 ms.</li>
+          <li>Sơ đồ chỉ vẽ mũi tên frame mới ở cleanup edge và hết việc để đỡ rối; mọi stage đều quay về vừa vẽ frame.</li>
+          <li>DRF không ngừng giữa chừng được, nên lần lật trùng cleanup chậm thêm tối đa một DRF cleanup.</li>
+          <li>Frame mới tới sau edge center mà chưa kịp edge neighbor: edge flag giữ nguyên, idle sau chạy lại cả hai.</li>
+          <li>Lần vẽ khi analog power đã tắt: driver tự bật lại, khoảng 75 ms.</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot violet"></div>
-          <h3>Tắt nguồn chạy song song với thang</h3>
+          <h3>Tắt analog power chạy song song với cleanup stage</h3>
         </div>
         <ul>
-          <li>Nguồn analog tắt sau 4 s không có DRF, kể cả khi thang còn bậc chưa tới hạn, vì 10 s và 60 s dài hơn 4 s.</li>
-          <li>Lượt dọn sau đó driver tự bật lại nguồn. Trước khi ngủ luôn tắt nguồn.</li>
+          <li>Analog power tắt sau 4 s không có DRF, kể cả khi còn cleanup stage chưa tới hạn, vì 10 s và 60 s dài hơn 4 s.</li>
+          <li>Cleanup stage sau đó driver tự bật lại nguồn. Trước khi ngủ luôn tắt nguồn.</li>
         </ul>
       </div>
     </div>

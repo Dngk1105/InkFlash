@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 3.2.0">
   <meta name="archify-reader-contract" content="declared-wide-v1">
-  <title>InkFlash: vòng đời chủ của một khung Diagram</title>
+  <title>InkFlash: owner của một frame Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -7368,17 +7368,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         data-preset-badge-blueprint="BLUEPRINT / REV 01"
         data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>InkFlash: vòng đời chủ của một khung</h1>
+        <h1>InkFlash: owner của một frame</h1>
       </div>
     </div>
 
-    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"9dc47cd6af5d2404d283bd4c020f951885077587","shortRevision":"9dc47cd","label":"Dngk1105/InkFlash","href":"https://github.com/Dngk1105/InkFlash/tree/9dc47cd6af5d2404d283bd4c020f951885077587"},"referenceCount":6,"nodes":{"free":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":15,"endLine":20,"label":"find_free","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L15-L20"}],"borrowed":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":46,"endLine":76,"label":"acquire","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L46-L76"}],"pending":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":82,"endLine":96,"label":"submit","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L82-L96"}],"drawing":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":100,"endLine":107,"label":"take","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L100-L107"}],"shown":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":116,"endLine":122,"label":"show","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L116-L122"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":35,"endLine":42,"label":"assume_shown","href":"https://github.com/Dngk1105/InkFlash/blob/9dc47cd6af5d2404d283bd4c020f951885077587/components/core/ink_frame_slots/ink_frame_slots.c#L35-L42"}]}}</script>
+    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"c459447fbdd47b2084a7a793f274baa600e25446","shortRevision":"c459447","label":"Dngk1105/InkFlash","linkMode":"local-only"},"referenceCount":6,"nodes":{"free":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":15,"endLine":20,"label":"find_free"}],"borrowed":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":46,"endLine":76,"label":"acquire"}],"pending":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":82,"endLine":96,"label":"submit"}],"drawing":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":100,"endLine":107,"label":"take"}],"shown":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":116,"endLine":122,"label":"show"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":35,"endLine":42,"label":"assume_shown"}]}}</script>
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"to cycle","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.svg.auto":"SVG · Auto","viewer.export.svg.auto.hint":"Matches host theme","viewer.export.svg.light":"SVG · Light","viewer.export.svg.light.hint":"Always light","viewer.export.svg.dark":"SVG · Dark","viewer.export.svg.dark.hint":"Always dark","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Path: {source} → {target} · {count} step","viewer.export.card.routeSummary.other":"Path: {source} → {target} · {count} steps","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guide.title":"Explore this system","viewer.focus.selectedNodes":"{count} selected nodes","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.credit":"Find Archify useful? A star on GitHub helps","viewer.guide.star":"Star","viewer.guide.facts":"{nodes} · {relationships}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.open":"Open diagram guide","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.move":"Move semantic passport. Drag, use arrow keys, or press Home to reset.","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Path","viewer.route.start":"Click where the path starts","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Path","viewer.route.pickTwo":"Click two nodes on the diagram","viewer.route.pickOne":"Click a node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Click a start, then an end. Paths follow the arrows.","viewer.route.destination":"Where does the path from {label} end?","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"Pick two different nodes.","viewer.route.unreachable":"Cannot reach {label} from here","viewer.route.unreachable.detail":"{target} cannot be reached from {source} along the arrows. Pick a highlighted node.","viewer.route.start.instructions":"Next, pick the end. Only nodes you can reach will light up.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest path","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} step","viewer.route.overview.hop.other":"{count} steps","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} reachable node is highlighted. Click it.","viewer.route.destination.count.other":"{count} reachable nodes are highlighted. Click one.","viewer.route.noOutgoing":"No arrows lead out of this node. Clear it and pick another start.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"ROUTE","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.outline.title":"Node index","viewer.rail.show":"Notes \u0026 index","viewer.rail.controls":"Side panel","viewer.rail.collapse":"Collapse side panel","viewer.rail.bottom":"Move panel below the diagram","viewer.rail.right":"Move panel beside the diagram","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
       data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 1291 308" data-reader-fit="intrinsic-height" data-lifecycle-layout="main-path-v3" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="editorial" data-quality-profile="showcase" data-motion-choreography="walk">
-        <title id="archify-diagram-title">InkFlash: vòng đời chủ của một khung</title>
+      <svg viewBox="0 0 1238 308" data-reader-fit="intrinsic-height" data-lifecycle-layout="main-path-v3" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="editorial" data-quality-profile="showcase" data-motion-choreography="walk">
+        <title id="archify-diagram-title">InkFlash: owner của một frame</title>
         <desc id="archify-diagram-description">A lifecycle diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
@@ -7415,90 +7415,90 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <path data-edge-from="borrowed" data-edge-to="pending" data-edge-label="submit" data-edge-key="1" data-edge-id="borrowed-pending" data-composition-points="476,198;550,198" data-composition-crossover="halo" data-composition-independent="true" d="M 476 198 L 550 198" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:2">
-          <path data-graph-role="automatic-crossover-underlay" d="M 728 198 L 800 198" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="pending" data-edge-to="drawing" data-edge-label="take" data-edge-key="2" data-edge-id="pending-drawing" data-composition-points="728,198;800,198" data-composition-crossover="halo" data-composition-independent="true" d="M 728 198 L 800 198" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 690 198 L 762 198" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="pending" data-edge-to="drawing" data-edge-label="take" data-edge-key="2" data-edge-id="pending-drawing" data-composition-points="690,198;762,198" data-composition-crossover="halo" data-composition-independent="true" d="M 690 198 L 762 198" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:3">
-          <path data-graph-role="automatic-crossover-underlay" d="M 978 198 L 1050 198" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="drawing" data-edge-to="shown" data-edge-label="show" data-edge-key="3" data-edge-id="drawing-shown" data-composition-points="978,198;1050,198" data-composition-crossover="halo" data-composition-independent="true" d="M 978 198 L 1050 198" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 954 198 L 1026 198" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="drawing" data-edge-to="shown" data-edge-label="show" data-edge-key="3" data-edge-id="drawing-shown" data-composition-points="954,198;1026,198" data-composition-crossover="halo" data-composition-independent="true" d="M 954 198 L 1026 198" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:4">
-          <path data-graph-role="automatic-crossover-underlay" d="M 1129.5 166 L 1129.5 76 Q 1129.5 64 1117.5 64 L 125 64 Q 113 64 113 76 L 113 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="shown" data-edge-to="free" data-edge-label="khung khác hiện" data-edge-key="4" data-edge-id="shown-free" data-composition-points="1129.5,166;1129.5,64;113,64;113,166" data-composition-crossover="halo" data-composition-independent="true" d="M 1129.5 166 L 1129.5 76 Q 1129.5 64 1117.5 64 L 125 64 Q 113 64 113 76 L 113 166" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 1091 166 L 1091 76 Q 1091 64 1079 64 L 125 64 Q 113 64 113 76 L 113 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="shown" data-edge-to="free" data-edge-label="frame khác thành shown frame" data-edge-key="4" data-edge-id="shown-free" data-composition-points="1091,166;1091,64;113,64;113,166" data-composition-crossover="halo" data-composition-independent="true" d="M 1091 166 L 1091 76 Q 1091 64 1079 64 L 125 64 Q 113 64 113 76 L 113 166" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:5">
-          <path data-graph-role="automatic-crossover-underlay" d="M 652 166 L 652 124 Q 652 112 640 112 L 177 112 Q 165 112 165 124 L 165 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="pending" data-edge-to="free" data-edge-label="bị bỏ" data-edge-key="5" data-edge-id="pending-free" data-composition-points="652,166;652,112;165,112;165,166" data-composition-crossover="halo" data-composition-independent="true" d="M 652 166 L 652 124 Q 652 112 640 112 L 177 112 Q 165 112 165 124 L 165 166" class="a-dashed" data-animate="edge" style="--step:5" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 633 166 L 633 124 Q 633 112 621 112 L 177 112 Q 165 112 165 124 L 165 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="pending" data-edge-to="free" data-edge-label="drop" data-edge-key="5" data-edge-id="pending-free" data-composition-points="633,166;633,112;165,112;165,166" data-composition-crossover="halo" data-composition-independent="true" d="M 633 166 L 633 124 Q 633 112 621 112 L 177 112 Q 165 112 165 124 L 165 166" class="a-dashed" data-animate="edge" style="--step:5" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:6">
-          <path data-graph-role="automatic-crossover-underlay" d="M 626 166 L 626 148 Q 626 136 614 136 L 388 136 Q 376 136 376 148 L 376 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="pending" data-edge-to="borrowed" data-edge-label="lấy lại" data-edge-key="6" data-edge-id="pending-borrowed" data-composition-points="626,166;626,136;376,136;376,166" data-composition-crossover="halo" data-composition-independent="true" d="M 626 166 L 626 148 Q 626 136 614 136 L 388 136 Q 376 136 376 148 L 376 166" class="a-dashed" data-animate="edge" style="--step:6" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 607 166 L 607 148 Q 607 136 595 136 L 388 136 Q 376 136 376 148 L 376 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="pending" data-edge-to="borrowed" data-edge-label="lấy lại" data-edge-key="6" data-edge-id="pending-borrowed" data-composition-points="607,166;607,136;376,136;376,166" data-composition-crossover="halo" data-composition-independent="true" d="M 607 166 L 607 148 Q 607 136 595 136 L 388 136 Q 376 136 376 148 L 376 166" class="a-dashed" data-animate="edge" style="--step:6" stroke-width="1.2" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:7">
-          <path data-graph-role="automatic-crossover-underlay" d="M 889 166 L 889 100 Q 889 88 877 88 L 151 88 Q 139 88 139 100 L 139 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="drawing" data-edge-to="free" data-edge-label="policy lỗi" data-edge-key="7" data-edge-id="drawing-free" data-composition-points="889,166;889,88;139,88;139,166" data-composition-crossover="halo" data-composition-independent="true" d="M 889 166 L 889 100 Q 889 88 877 88 L 151 88 Q 139 88 139 100 L 139 166" class="a-security" data-animate="edge" style="--step:7" stroke-width="1.2" marker-end="url(#arrowhead-security)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 858 166 L 858 100 Q 858 88 846 88 L 151 88 Q 139 88 139 100 L 139 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="drawing" data-edge-to="free" data-edge-label="policy lỗi" data-edge-key="7" data-edge-id="drawing-free" data-composition-points="858,166;858,88;139,88;139,166" data-composition-crossover="halo" data-composition-independent="true" d="M 858 166 L 858 100 Q 858 88 846 88 L 151 88 Q 139 88 139 100 L 139 166" class="a-security" data-animate="edge" style="--step:7" stroke-width="1.2" marker-end="url(#arrowhead-security)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:8">
-          <path data-graph-role="automatic-crossover-underlay" d="M 87 166 L 87 52 Q 87 40 99 40 L 1143.5 40 Q 1155.5 40 1155.5 52 L 1155.5 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="free" data-edge-to="shown" data-edge-label="màn nền" data-edge-key="8" data-edge-id="free-shown" data-composition-points="87,166;87,40;1155.5,40;1155.5,166" data-composition-crossover="halo" data-composition-independent="true" d="M 87 166 L 87 52 Q 87 40 99 40 L 1143.5 40 Q 1155.5 40 1155.5 52 L 1155.5 166" class="a-default" data-animate="edge" style="--step:8" stroke-width="1.2" marker-end="url(#arrowhead)"/>
+          <path data-graph-role="automatic-crossover-underlay" d="M 87 166 L 87 52 Q 87 40 99 40 L 1105 40 Q 1117 40 1117 52 L 1117 166" fill="none" stroke="var(--mask)" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
+          <path data-edge-from="free" data-edge-to="shown" data-edge-label="background frame" data-edge-key="8" data-edge-id="free-shown" data-composition-points="87,166;87,40;1117,40;1117,166" data-composition-crossover="halo" data-composition-independent="true" d="M 87 166 L 87 52 Q 87 40 99 40 L 1105 40 Q 1117 40 1117 52 L 1117 166" class="a-default" data-animate="edge" style="--step:8" stroke-width="1.2" marker-end="url(#arrowhead)"/>
         </g>
 
 
         <!-- States -->
-        <g id="node-free" data-node-id="free" data-node-label="Trống" tabindex="0" role="button" aria-label="Focus Trống, OWNER_FREE, Lifecycle state" aria-pressed="false" data-node-kind="start" data-node-sublabel="OWNER_FREE" data-node-context="Lifecycle state">
-          <title>Trống · OWNER_FREE · Lifecycle state</title>
+        <g id="node-free" data-node-id="free" data-node-label="Free" tabindex="0" role="button" aria-label="Focus Free, OWNER_FREE, Lifecycle state" aria-pressed="false" data-node-kind="start" data-node-sublabel="OWNER_FREE" data-node-context="Lifecycle state">
+          <title>Free · OWNER_FREE · Lifecycle state</title>
           <rect x="56" y="166" width="140" height="64" rx="8" class="c-mask"/>
           <rect x="56" y="166" width="140" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:0" stroke-width="1.5"/>
           <g aria-hidden="true" data-lifecycle-initial-marker=""><circle cx="30" cy="198" r="4.5" style="fill: var(--arrow-emphasis)"/><path d="M 34.5 198 L 49 198" class="a-emphasis" stroke-width="1.4"/><path d="M 48 194.5 L 55 198 L 48 201.5 Z" style="fill: var(--arrow-emphasis)"/></g>
           
           <text data-detail="fine" x="79" y="180" class="t-frontend" font-size="8" font-weight="700">1</text>
-          <text data-node-label="" data-detail-anchor="" x="126" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Trống</text>
+          <text data-node-label="" data-detail-anchor="" x="126" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Free</text>
           <text data-detail="context" x="126" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_FREE</text>
         </g>
 
-        <g id="node-borrowed" data-node-id="borrowed" data-node-label="Đang vẽ trong RAM" tabindex="0" role="button" aria-label="Focus Đang vẽ trong RAM, OWNER_MAIN: task main, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="OWNER_MAIN: task main" data-node-context="Lifecycle state">
-          <title>Đang vẽ trong RAM · OWNER_MAIN: task main · Lifecycle state</title>
+        <g id="node-borrowed" data-node-id="borrowed" data-node-label="Đang vẽ trong RAM" tabindex="0" role="button" aria-label="Focus Đang vẽ trong RAM, OWNER_MAIN: main task, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="OWNER_MAIN: main task" data-node-context="Lifecycle state">
+          <title>Đang vẽ trong RAM · OWNER_MAIN: main task · Lifecycle state</title>
           <rect x="276" y="166" width="200" height="64" rx="8" class="c-mask"/>
           <rect x="276" y="166" width="200" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:1" stroke-width="1.5"/>
           
           <text data-detail="fine" x="299" y="180" class="t-frontend" font-size="8" font-weight="700">2</text>
           <text data-node-label="" data-detail-anchor="" x="372.8" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Đang vẽ trong RAM</text>
-          <text data-detail="context" x="376" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_MAIN: task main</text>
+          <text data-detail="context" x="376" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_MAIN: main task</text>
         </g>
 
-        <g id="node-pending" data-node-id="pending" data-node-label="Trong hàng chờ" tabindex="0" role="button" aria-label="Focus Trong hàng chờ, OWNER_PENDING, Lifecycle state" aria-pressed="false" data-node-kind="waiting" data-node-sublabel="OWNER_PENDING" data-node-context="Lifecycle state">
-          <title>Trong hàng chờ · OWNER_PENDING · Lifecycle state</title>
-          <rect x="550" y="166" width="178" height="64" rx="8" class="c-mask"/>
-          <rect x="550" y="166" width="178" height="64" rx="8" class="c-cloud" data-animate="node" style="--step:2" stroke-width="1.5"/>
+        <g id="node-pending" data-node-id="pending" data-node-label="Pending" tabindex="0" role="button" aria-label="Focus Pending, OWNER_PENDING, Lifecycle state" aria-pressed="false" data-node-kind="waiting" data-node-sublabel="OWNER_PENDING" data-node-context="Lifecycle state">
+          <title>Pending · OWNER_PENDING · Lifecycle state</title>
+          <rect x="550" y="166" width="140" height="64" rx="8" class="c-mask"/>
+          <rect x="550" y="166" width="140" height="64" rx="8" class="c-cloud" data-animate="node" style="--step:2" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="waiting" class="semantic-sigil s-cloud" transform="translate(556 172) scale(0.6875)">
             <path d="M4 2.5h8M4 13.5h8M5 3c0 2.8 2 3.2 3 5-1 1.8-3 2.2-3 5M11 3c0 2.8-2 3.2-3 5 1 1.8 3 2.2 3 5"/>
           </g>
           <text data-detail="fine" x="573" y="180" class="t-cloud" font-size="8" font-weight="700">3</text>
-          <text data-node-label="" data-detail-anchor="" x="635.6" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Trong hàng chờ</text>
-          <text data-detail="context" x="639" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_PENDING</text>
+          <text data-node-label="" data-detail-anchor="" x="620" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Pending</text>
+          <text data-detail="context" x="620" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_PENDING</text>
         </g>
 
-        <g id="node-drawing" data-node-id="drawing" data-node-label="Đang vẽ ra màn" tabindex="0" role="button" aria-label="Focus Đang vẽ ra màn, OWNER_DISPLAY: task màn, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="OWNER_DISPLAY: task màn" data-node-context="Lifecycle state">
-          <title>Đang vẽ ra màn · OWNER_DISPLAY: task màn · Lifecycle state</title>
-          <rect x="800" y="166" width="178" height="64" rx="8" class="c-mask"/>
-          <rect x="800" y="166" width="178" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:3" stroke-width="1.5"/>
+        <g id="node-drawing" data-node-id="drawing" data-node-label="Đang vẽ ra panel" tabindex="0" role="button" aria-label="Focus Đang vẽ ra panel, OWNER_DISPLAY: display task, Lifecycle state" aria-pressed="false" data-node-kind="active" data-node-sublabel="OWNER_DISPLAY: display task" data-node-context="Lifecycle state">
+          <title>Đang vẽ ra panel · OWNER_DISPLAY: display task · Lifecycle state</title>
+          <rect x="762" y="166" width="192" height="64" rx="8" class="c-mask"/>
+          <rect x="762" y="166" width="192" height="64" rx="8" class="c-frontend" data-animate="node" style="--step:3" stroke-width="1.5"/>
           
-          <text data-detail="fine" x="823" y="180" class="t-frontend" font-size="8" font-weight="700">4</text>
-          <text data-node-label="" data-detail-anchor="" x="885.6" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Đang vẽ ra màn</text>
-          <text data-detail="context" x="889" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_DISPLAY: task màn</text>
+          <text data-detail="fine" x="785" y="180" class="t-frontend" font-size="8" font-weight="700">4</text>
+          <text data-node-label="" data-detail-anchor="" x="854.4" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Đang vẽ ra panel</text>
+          <text data-detail="context" x="858" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_DISPLAY: display task</text>
         </g>
 
-        <g id="node-shown" data-node-id="shown" data-node-label="Khung đang hiện" tabindex="0" role="button" aria-label="Focus Khung đang hiện, OWNER_DISPLAY, shown, Lifecycle state" aria-pressed="false" data-node-kind="success" data-node-sublabel="OWNER_DISPLAY, shown" data-node-context="Lifecycle state">
-          <title>Khung đang hiện · OWNER_DISPLAY, shown · Lifecycle state</title>
-          <rect x="1050" y="166" width="185" height="64" rx="8" class="c-mask"/>
-          <rect x="1050" y="166" width="185" height="64" rx="8" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="success" class="semantic-sigil s-backend" transform="translate(1056 172) scale(0.6875)">
+        <g id="node-shown" data-node-id="shown" data-node-label="Shown frame" tabindex="0" role="button" aria-label="Focus Shown frame, OWNER_DISPLAY, shown, Lifecycle state" aria-pressed="false" data-node-kind="success" data-node-sublabel="OWNER_DISPLAY, shown" data-node-context="Lifecycle state">
+          <title>Shown frame · OWNER_DISPLAY, shown · Lifecycle state</title>
+          <rect x="1026" y="166" width="156" height="64" rx="8" class="c-mask"/>
+          <rect x="1026" y="166" width="156" height="64" rx="8" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="success" class="semantic-sigil s-backend" transform="translate(1032 172) scale(0.6875)">
             <circle cx="8" cy="8" r="5.3"/>
             <path d="m5.2 8 1.8 1.8 3.8-4"/>
           </g>
-          <text data-detail="fine" x="1073" y="180" class="t-backend" font-size="8" font-weight="700">5</text>
-          <text data-node-label="" data-detail-anchor="" x="1139" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Khung đang hiện</text>
-          <text data-detail="context" x="1142.5" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_DISPLAY, shown</text>
+          <text data-detail="fine" x="1049" y="180" class="t-backend" font-size="8" font-weight="700">5</text>
+          <text data-node-label="" data-detail-anchor="" x="1100.4" y="193" class="t-primary" font-size="12" font-weight="600" text-anchor="middle">Shown frame</text>
+          <text data-detail="context" x="1104" y="211" class="t-muted" font-size="9" text-anchor="middle">OWNER_DISPLAY, shown</text>
         </g>
 
         <!-- Transition labels -->
@@ -7511,52 +7511,52 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <text x="513" y="187.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">submit</text>
         </g>
         <g data-detail="context" data-edge-from="pending" data-edge-to="drawing" data-edge-label="take" data-edge-key="2" data-edge-id="pending-drawing">
-          <rect x="746" y="176" width="36" height="16" rx="4" class="c-mask"/>
-          <text x="764" y="187.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">take</text>
+          <rect x="708" y="176" width="36" height="16" rx="4" class="c-mask"/>
+          <text x="726" y="187.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">take</text>
         </g>
         <g data-detail="context" data-edge-from="drawing" data-edge-to="shown" data-edge-label="show" data-edge-key="3" data-edge-id="drawing-shown">
-          <rect x="996" y="176" width="36" height="16" rx="4" class="c-mask"/>
-          <text x="1014" y="187.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">show</text>
+          <rect x="972" y="176" width="36" height="16" rx="4" class="c-mask"/>
+          <text x="990" y="187.5" class="t-edge-emphasis" font-size="10" text-anchor="middle">show</text>
         </g>
-        <g data-detail="context" data-edge-from="shown" data-edge-to="free" data-edge-label="khung khác hiện" data-edge-key="4" data-edge-id="shown-free">
-          <rect x="570.25" y="56" width="102" height="16" rx="4" class="c-mask"/>
-          <text x="621.25" y="67.5" class="t-muted" font-size="10" text-anchor="middle">khung khác hiện</text>
+        <g data-detail="context" data-edge-from="shown" data-edge-to="free" data-edge-label="frame khác thành shown frame" data-edge-key="4" data-edge-id="shown-free">
+          <rect x="512" y="56" width="180" height="16" rx="4" class="c-mask"/>
+          <text x="602" y="67.5" class="t-muted" font-size="10" text-anchor="middle">frame khác thành shown frame</text>
         </g>
-        <g data-detail="context" data-edge-from="pending" data-edge-to="free" data-edge-label="bị bỏ" data-edge-key="5" data-edge-id="pending-free">
-          <rect x="387.5" y="104" width="42" height="16" rx="4" class="c-mask"/>
-          <text x="408.5" y="115.5" class="t-edge-dashed" font-size="10" text-anchor="middle">bị bỏ</text>
+        <g data-detail="context" data-edge-from="pending" data-edge-to="free" data-edge-label="drop" data-edge-key="5" data-edge-id="pending-free">
+          <rect x="381" y="104" width="36" height="16" rx="4" class="c-mask"/>
+          <text x="399" y="115.5" class="t-edge-dashed" font-size="10" text-anchor="middle">drop</text>
         </g>
         <g data-detail="context" data-edge-from="pending" data-edge-to="borrowed" data-edge-label="lấy lại" data-edge-key="6" data-edge-id="pending-borrowed">
-          <rect x="474" y="128" width="54" height="16" rx="4" class="c-mask"/>
-          <text x="501" y="139.5" class="t-edge-dashed" font-size="10" text-anchor="middle">lấy lại</text>
+          <rect x="464.5" y="128" width="54" height="16" rx="4" class="c-mask"/>
+          <text x="491.5" y="139.5" class="t-edge-dashed" font-size="10" text-anchor="middle">lấy lại</text>
         </g>
         <g data-detail="context" data-edge-from="drawing" data-edge-to="free" data-edge-label="policy lỗi" data-edge-key="7" data-edge-id="drawing-free">
-          <rect x="478" y="80" width="72" height="16" rx="4" class="c-mask"/>
-          <text x="514" y="91.5" class="t-edge-security" font-size="10" text-anchor="middle">policy lỗi</text>
+          <rect x="462.5" y="80" width="72" height="16" rx="4" class="c-mask"/>
+          <text x="498.5" y="91.5" class="t-edge-security" font-size="10" text-anchor="middle">policy lỗi</text>
         </g>
-        <g data-detail="context" data-edge-from="free" data-edge-to="shown" data-edge-label="màn nền" data-edge-key="8" data-edge-id="free-shown">
-          <rect x="594.25" y="32" width="54" height="16" rx="4" class="c-mask"/>
-          <text x="621.25" y="43.5" class="t-muted" font-size="10" text-anchor="middle">màn nền</text>
+        <g data-detail="context" data-edge-from="free" data-edge-to="shown" data-edge-label="background frame" data-edge-key="8" data-edge-id="free-shown">
+          <rect x="548" y="32" width="108" height="16" rx="4" class="c-mask"/>
+          <text x="602" y="43.5" class="t-muted" font-size="10" text-anchor="middle">background frame</text>
         </g>
 
         <!-- Legend -->
         <g data-legend="" data-legend-bridge="">
           <text x="40" y="256" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="start" data-legend-kind="start" data-legend-label="Khung trống" data-legend-x="40" data-legend-baseline="276" data-legend-width="124">
+          <g data-legend-semantic-kind="start" data-legend-kind="start" data-legend-label="Frame free" data-legend-x="40" data-legend-baseline="276" data-legend-width="117">
             <circle cx="44.5" cy="272.5" r="4.5" style="fill: var(--arrow-emphasis)"/><path d="M 49 272.5 L 58 272.5" class="a-emphasis" stroke-width="1.4"/><path d="M 57 269 L 64 272.5 L 57 276 Z" style="fill: var(--arrow-emphasis)"/>
-            <text x="74" y="276" class="t-muted" font-size="10" font-weight="500">Khung trống</text>
+            <text x="74" y="276" class="t-muted" font-size="10" font-weight="500">Frame free</text>
           </g>
-          <g data-legend-semantic-kind="active" data-legend-kind="active" data-legend-label="Đang có người dùng" data-legend-x="186" data-legend-baseline="276" data-legend-width="155">
-            <rect x="186" y="268" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
-            <text x="208" y="276" class="t-muted" font-size="10" font-weight="500">Đang có người dùng</text>
+          <g data-legend-semantic-kind="active" data-legend-kind="active" data-legend-label="Có owner đang dùng" data-legend-x="179" data-legend-baseline="276" data-legend-width="155">
+            <rect x="179" y="268" width="14" height="9" rx="2" class="c-frontend" stroke-width="1"/>
+            <text x="201" y="276" class="t-muted" font-size="10" font-weight="500">Có owner đang dùng</text>
           </g>
-          <g data-legend-semantic-kind="waiting" data-legend-kind="waiting" data-legend-label="Chờ task màn" data-legend-x="363" data-legend-baseline="276" data-legend-width="118">
-            <rect x="363" y="268" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
-            <text x="385" y="276" class="t-muted" font-size="10" font-weight="500">Chờ task màn</text>
+          <g data-legend-semantic-kind="waiting" data-legend-kind="waiting" data-legend-label="Chờ display task" data-legend-x="356" data-legend-baseline="276" data-legend-width="143">
+            <rect x="356" y="268" width="14" height="9" rx="2" class="c-cloud" stroke-width="1"/>
+            <text x="378" y="276" class="t-muted" font-size="10" font-weight="500">Chờ display task</text>
           </g>
-          <g data-legend-semantic-kind="success" data-legend-kind="success" data-legend-label="Khung đang hiện" data-legend-x="503" data-legend-baseline="276" data-legend-width="136">
-            <rect x="503" y="268" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
-            <text x="525" y="276" class="t-muted" font-size="10" font-weight="500">Khung đang hiện</text>
+          <g data-legend-semantic-kind="success" data-legend-kind="success" data-legend-label="Shown frame" data-legend-x="521" data-legend-baseline="276" data-legend-width="112">
+            <rect x="521" y="268" width="14" height="9" rx="2" class="c-backend" stroke-width="1"/>
+            <text x="543" y="276" class="t-muted" font-size="10" font-weight="500">Shown frame</text>
           </g>
         </g>
       </svg>
@@ -7824,33 +7824,33 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Từng mũi tên phụ</h3>
         </div>
         <ul>
-          <li>Bị bỏ: submit khi hàng chờ đã có khung; khung cũ về trống và đếm vào dropped.</li>
-          <li>Lấy lại: acquire khi hết khung trống, vì task màn đang giữ hai khung; cũng đếm vào dropped.</li>
-          <li>Policy lỗi: release trả khung về trống, khung không được vẽ. Driver lỗi thì khung vẫn được show, lần sau dọn mạnh.</li>
-          <li>Màn nền: assume_shown lúc thức dậy, khung 0 chép màn nền và thành khung đang hiện.</li>
-          <li>Khung khác hiện: khi show một khung mới, khung hiện cũ về trống.</li>
+          <li>Drop: submit khi pending đã có frame; frame cũ về free và đếm vào dropped.</li>
+          <li>Lấy lại: acquire khi hết frame free, vì display task đang giữ hai frame; cũng đếm vào dropped.</li>
+          <li>Policy lỗi: release trả frame về free, frame không được vẽ. Driver lỗi thì frame vẫn được show, lần sau cleanup strong.</li>
+          <li>Background frame: assume_shown lúc wake, frame 0 chép background frame và thành shown frame.</li>
+          <li>Frame khác thành shown frame: show một frame mới thì shown frame cũ về free.</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Vì sao 3 khung là đủ</h3>
+          <h3>Vì sao 3 frame là đủ</h3>
         </div>
         <ul>
-          <li>Lúc nào mỗi khung cũng có đúng một chủ: task main, hàng chờ, hoặc task màn.</li>
-          <li>Task màn giữ tối đa hai khung: khung đang hiện và khung đang vẽ ra màn. Vì vậy khi hết khung trống thì luôn có khung trong hàng chờ để lấy lại.</li>
+          <li>Lúc nào mỗi frame cũng có đúng một owner: main task, pending, hoặc display task.</li>
+          <li>Display task giữ tối đa hai frame: shown frame và frame đang vẽ ra màn. Vì vậy khi hết frame free thì luôn có frame trong pending để lấy lại.</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot emerald"></div>
-          <h3>Khung bị bỏ có nghĩa gì</h3>
+          <h3>Frame bị drop có nghĩa gì</h3>
         </div>
         <ul>
-          <li>Bấm nhanh hơn tốc độ màn thì khung giữa bị bỏ, chỉ khung mới nhất được vẽ.</li>
-          <li>Khung mượn lại vẫn đúng ảnh, vì khung trong hàng chờ chính là khung giao gần nhất.</li>
+          <li>Bấm nhanh hơn tốc độ màn thì frame pending ở giữa bị drop; chỉ frame mới nhất được vẽ.</li>
+          <li>Frame acquire lại vẫn đúng ảnh, vì frame trong pending chính là frame submit gần nhất.</li>
         </ul>
       </div>
 
@@ -7860,8 +7860,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Khoá và bộ nhớ</h3>
         </div>
         <ul>
-          <li>ink_frame_slots chỉ giữ chủ của khung, không giữ ảnh; ink_display gọi nó trong lock.</li>
-          <li>Ảnh chép ngoài lock: khung giao gần nhất chỉ được trả về khi đã có khung mới hơn.</li>
+          <li>ink_frame_slots chỉ giữ owner của frame, không giữ ảnh; ink_display gọi nó trong lock.</li>
+          <li>Ảnh chép ngoài lock: frame submit gần nhất chỉ được trả về khi đã có frame mới hơn.</li>
         </ul>
       </div>
     </div>
