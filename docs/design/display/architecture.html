@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 3.2.0">
   <meta name="archify-reader-contract" content="declared-wide-v1">
-  <title>InkFlash: kiến trúc tầng hiển thị Diagram</title>
+  <title>InkFlash: kiến trúc đường vẽ panel Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -7368,17 +7368,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         data-preset-badge-blueprint="BLUEPRINT / REV 01"
         data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>InkFlash: kiến trúc tầng hiển thị</h1>
+        <h1>InkFlash: kiến trúc đường vẽ panel</h1>
       </div>
     </div>
 
-    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"995e00bbadbed1bfa0cba9bc64a47c0a190ebf52","shortRevision":"995e00b","label":"Dngk1105/InkFlash","href":"https://github.com/Dngk1105/InkFlash/tree/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52"},"referenceCount":28,"nodes":{"app":[{"path":"docs/design/display/display.md","line":32,"endLine":34,"label":"đoạn 2 và 3 của một lần vẽ","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/docs/design/display/display.md#L32-L34"}],"display_api":[{"path":"components/ink_display/ink_display.c","line":161,"endLine":169,"label":"set_options","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L161-L169"},{"path":"components/ink_display/ink_display.c","line":173,"endLine":212,"label":"acquire, submit","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L173-L212"}],"display_task":[{"path":"components/ink_display/ink_display.c","line":346,"endLine":360,"label":"drive","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L346-L360"},{"path":"components/ink_display/ink_display.c","line":371,"endLine":421,"label":"draw_frame, draw_latest","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L371-L421"},{"path":"components/ink_display/ink_display.c","line":477,"endLine":487,"label":"task_main","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L477-L487"}],"policy":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":408,"label":"decide","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_display_policy/ink_display_policy.c#L408"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":483,"label":"idle","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_display_policy/ink_display_policy.c#L483"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":538,"label":"cleanup_plane","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_display_policy/ink_display_policy.c#L538"}],"pixels":[{"path":"components/ink_display/ink_display.c","line":522,"label":"display cấp trong PSRAM","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L522"},{"path":"components/core/ink_display_policy/include/ink_display_policy.h","line":101,"label":"bit của mỗi điểm","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_display_policy/include/ink_display_policy.h#L101"}],"slots":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":46,"label":"acquire","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_frame_slots/ink_frame_slots.c#L46"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":82,"label":"submit","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_frame_slots/ink_frame_slots.c#L82"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":116,"label":"show","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/core/ink_frame_slots/ink_frame_slots.c#L116"}],"frames":[{"path":"components/ink_display/ink_display.c","line":516,"endLine":521,"label":"cấp bộ nhớ","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_display/ink_display.c#L516-L521"}],"hal":[{"path":"components/ink_hal/include/ink_hal_display.h","line":79,"endLine":102,"label":"operations","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_hal/include/ink_hal_display.h#L79-L102"}],"driver":[{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":119,"endLine":128,"label":"ngủ chờ BUSY","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/drivers/ink_drv_uc8253/ink_drv_uc8253.c#L119-L128"},{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":333,"endLine":345,"label":"draw_planes","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/drivers/ink_drv_uc8253/ink_drv_uc8253.c#L333-L345"},{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":388,"endLine":392,"label":"làm theo HAL","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/drivers/ink_drv_uc8253/ink_drv_uc8253.c#L388-L392"}],"profiles":[{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253_profiles.c","line":3,"endLine":6,"label":"file sinh ra","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/drivers/ink_drv_uc8253/ink_drv_uc8253_profiles.c#L3-L6"}],"panel":[{"path":"components/ink_bsp/ink_bsp.c","line":46,"endLine":56,"label":"chân nối trên BB0","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_bsp/ink_bsp.c#L46-L56"},{"path":"docs/design/display/display.md","line":230,"label":"cỡ gốc panel","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/docs/design/display/display.md#L230"},{"path":"docs/design/display/display.md","line":134,"endLine":135,"label":"giữ hình khi ngủ","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/docs/design/display/display.md#L134-L135"}],"profile_gen":[{"path":"tools/profile_gen.py","line":4,"endLine":5,"label":"kiểm luật, sinh file C","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/tools/profile_gen.py#L4-L5"}],"system":[{"path":"components/ink_system/ink_system.c","line":105,"endLine":119,"label":"ink_system_start","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_system/ink_system.c#L105-L119"}],"boot":[{"path":"main/main.c","line":14,"endLine":30,"label":"app_main","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/main/main.c#L14-L30"}],"bsp":[{"path":"components/ink_bsp/ink_bsp.c","line":50,"endLine":56,"label":"chân","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_bsp/ink_bsp.c#L50-L56"},{"path":"components/ink_bsp/ink_bsp.c","line":61,"endLine":79,"label":"init_display, ink_bsp_display","href":"https://github.com/Dngk1105/InkFlash/blob/995e00bbadbed1bfa0cba9bc64a47c0a190ebf52/components/ink_bsp/ink_bsp.c#L61-L79"}]}}</script>
+    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/Dngk1105/InkFlash","revision":"24f9c959e3134325a57c0b0f023496161a58c00f","shortRevision":"24f9c95","label":"Dngk1105/InkFlash","linkMode":"local-only"},"referenceCount":28,"nodes":{"app":[{"path":"docs/design/display/display.md","line":38,"endLine":39,"label":"đoạn 2 và 3 của một lần vẽ"}],"display_api":[{"path":"components/ink_display/ink_display.c","line":167,"endLine":175,"label":"set_options"},{"path":"components/ink_display/ink_display.c","line":179,"endLine":218,"label":"acquire, submit"}],"display_task":[{"path":"components/ink_display/ink_display.c","line":353,"endLine":364,"label":"drive"},{"path":"components/ink_display/ink_display.c","line":374,"endLine":426,"label":"draw_frame, draw_latest"},{"path":"components/ink_display/ink_display.c","line":480,"endLine":490,"label":"task_main"}],"policy":[{"path":"components/core/ink_display_policy/ink_display_policy.c","line":427,"label":"decide"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":497,"label":"idle"},{"path":"components/core/ink_display_policy/ink_display_policy.c","line":554,"label":"cleanup_plane"}],"pixels":[{"path":"components/ink_display/ink_display.c","line":526,"label":"display cấp trong PSRAM"},{"path":"components/core/ink_display_policy/include/ink_display_policy.h","line":80,"label":"byte của mỗi pixel"}],"slots":[{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":46,"label":"acquire"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":82,"label":"submit"},{"path":"components/core/ink_frame_slots/ink_frame_slots.c","line":116,"label":"show"}],"frames":[{"path":"components/ink_display/ink_display.c","line":521,"endLine":539,"label":"cấp bộ nhớ"}],"hal":[{"path":"components/ink_hal/include/ink_hal_display.h","line":61,"endLine":93,"label":"operations"}],"driver":[{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":119,"endLine":128,"label":"ngủ chờ BUSY"},{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":333,"endLine":345,"label":"draw_planes"},{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253.c","line":388,"endLine":392,"label":"làm theo HAL"}],"profiles":[{"path":"components/drivers/ink_drv_uc8253/ink_drv_uc8253_profiles.c","line":3,"endLine":6,"label":"file sinh ra"}],"panel":[{"path":"components/ink_bsp/ink_bsp.c","line":46,"endLine":54,"label":"chân nối trên BB0"},{"path":"docs/design/display/display.md","line":251,"label":"cỡ gốc panel"},{"path":"docs/design/display/display.md","line":149,"endLine":150,"label":"giữ hình khi ngủ"}],"profile_gen":[{"path":"tools/profile_gen.py","line":4,"endLine":5,"label":"kiểm luật, sinh file C"}],"system":[{"path":"components/ink_system/ink_system.c","line":108,"endLine":124,"label":"ink_system_start"}],"boot":[{"path":"main/main.c","line":14,"endLine":30,"label":"app_main"}],"bsp":[{"path":"components/ink_bsp/ink_bsp.c","line":46,"endLine":54,"label":"chân"},{"path":"components/ink_bsp/ink_bsp.c","line":60,"endLine":79,"label":"init_display, ink_bsp_display"}]}}</script>
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"to cycle","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.svg.auto":"SVG · Auto","viewer.export.svg.auto.hint":"Matches host theme","viewer.export.svg.light":"SVG · Light","viewer.export.svg.light.hint":"Always light","viewer.export.svg.dark":"SVG · Dark","viewer.export.svg.dark.hint":"Always dark","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Path: {source} → {target} · {count} step","viewer.export.card.routeSummary.other":"Path: {source} → {target} · {count} steps","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guide.title":"Explore this system","viewer.focus.selectedNodes":"{count} selected nodes","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.credit":"Find Archify useful? A star on GitHub helps","viewer.guide.star":"Star","viewer.guide.facts":"{nodes} · {relationships}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.open":"Open diagram guide","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.verificationScope":"Verified against local Git at the pinned revision. Remote access has not been checked.","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.move":"Move semantic passport. Drag, use arrow keys, or press Home to reset.","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Path","viewer.route.start":"Click where the path starts","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Path","viewer.route.pickTwo":"Click two nodes on the diagram","viewer.route.pickOne":"Click a node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Click a start, then an end. Paths follow the arrows.","viewer.route.destination":"Where does the path from {label} end?","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"Pick two different nodes.","viewer.route.unreachable":"Cannot reach {label} from here","viewer.route.unreachable.detail":"{target} cannot be reached from {source} along the arrows. Pick a highlighted node.","viewer.route.start.instructions":"Next, pick the end. Only nodes you can reach will light up.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest path","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} step","viewer.route.overview.hop.other":"{count} steps","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} reachable node is highlighted. Click it.","viewer.route.destination.count.other":"{count} reachable nodes are highlighted. Click one.","viewer.route.noOutgoing":"No arrows lead out of this node. Clear it and pick another start.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"ROUTE","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.outline.title":"Node index","viewer.rail.show":"Notes \u0026 index","viewer.rail.controls":"Side panel","viewer.rail.collapse":"Collapse side panel","viewer.rail.bottom":"Move panel below the diagram","viewer.rail.right":"Move panel beside the diagram","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
       data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
       <svg viewBox="0 0 1240 942" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="editorial" data-quality-profile="showcase" data-node-ui="" data-reader-fit="intrinsic-height" data-reader-min-text="7.5" data-reader-primary-text="14">
-        <title id="archify-diagram-title">InkFlash: kiến trúc tầng hiển thị</title>
+        <title id="archify-diagram-title">InkFlash: kiến trúc đường vẽ panel</title>
         <desc id="archify-diagram-description">An architecture diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
@@ -7424,14 +7424,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <rect width="100%" height="100%" fill="url(#grid)" />
 
         <!-- Boundaries (behind everything) -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Task main" x="10" y="10" width="550" height="124" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Main task" x="10" y="10" width="550" height="124" rx="12" class="c-region" stroke-width="1"/>
 
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" data-composition-frame-label="Task màn: chủ duy nhất của màn" x="660" y="10" width="540" height="724" rx="12" class="c-region" stroke-width="1"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="1" data-composition-frame-label="Display task: owner duy nhất của panel" x="660" y="10" width="540" height="724" rx="12" class="c-region" stroke-width="1"/>
 
         <!-- Connection paths (before components for correct z-order) -->
         <g data-graph-role="automatic-crossover" style="--step:0">
           <path data-graph-role="automatic-crossover-underlay" d="M 220 77 L 350 77" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="app" data-edge-to="display_api" data-edge-label="mượn, giao khung" data-edge-key="0" data-edge-id="app-submit" data-composition-points="220,77;350,77" data-composition-crossover="halo" data-composition-independent="true" d="M 220 77 L 350 77" class="a-dashed" data-animate="edge" style="--step:0" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+          <path data-edge-from="app" data-edge-to="display_api" data-edge-label="acquire, submit frame" data-edge-key="0" data-edge-id="app-submit" data-composition-points="220,77;350,77" data-composition-crossover="halo" data-composition-independent="true" d="M 220 77 L 350 77" class="a-dashed" data-animate="edge" style="--step:0" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:1">
           <path data-graph-role="automatic-crossover-underlay" d="M 530 77 L 690 77" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -7439,7 +7439,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
         <g data-graph-role="automatic-crossover" style="--step:2">
           <path data-graph-role="automatic-crossover-underlay" d="M 440 114 L 440 400" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="display_api" data-edge-to="slots" data-edge-label="đổi chủ (trong lock)" data-edge-key="2" data-edge-id="api-slots" data-composition-points="440,114;440,400" data-composition-crossover="halo" data-composition-independent="true" d="M 440 114 L 440 400" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+          <path data-edge-from="display_api" data-edge-to="slots" data-edge-label="đổi owner (trong lock)" data-edge-key="2" data-edge-id="api-slots" data-composition-points="440,114;440,400" data-composition-crossover="halo" data-composition-independent="true" d="M 440 114 L 440 400" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:3">
           <path data-graph-role="automatic-crossover-underlay" d="M 496 114 L 496 230" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -7447,11 +7447,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
         <g data-graph-role="automatic-crossover" style="--step:4">
           <path data-graph-role="automatic-crossover-underlay" d="M 776 114 L 776 429 Q 776 437 768 437 L 530 437" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="display_task" data-edge-to="slots" data-edge-label="lấy khung, đổi khung hiện" data-edge-key="4" data-edge-id="task-slots" data-composition-points="776,114;776,437;530,437" data-composition-crossover="halo" data-composition-independent="true" d="M 776 114 L 776 429 Q 776 437 768 437 L 530 437" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+          <path data-edge-from="display_task" data-edge-to="slots" data-edge-label="take, show" data-edge-key="4" data-edge-id="task-slots" data-composition-points="776,114;776,437;530,437" data-composition-crossover="halo" data-composition-independent="true" d="M 776 114 L 776 429 Q 776 437 768 437 L 530 437" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:5">
           <path data-graph-role="automatic-crossover-underlay" d="M 762 114 L 762 254 Q 762 262 754 262 L 650 262" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="display_task" data-edge-to="frames" data-edge-label="đọc khung, dựng mặt phẳng cũ" data-edge-key="5" data-edge-id="task-frames" data-composition-points="762,114;762,262;650,262" data-composition-crossover="halo" data-composition-independent="true" d="M 762 114 L 762 254 Q 762 262 754 262 L 650 262" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+          <path data-edge-from="display_task" data-edge-to="frames" data-edge-label="đọc frame, dựng old plane" data-edge-key="5" data-edge-id="task-frames" data-composition-points="762,114;762,262;650,262" data-composition-crossover="halo" data-composition-independent="true" d="M 762 114 L 762 254 Q 762 262 754 262 L 650 262" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:6">
           <path data-graph-role="automatic-crossover-underlay" d="M 890 77 L 990 77" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -7459,11 +7459,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
         <g data-graph-role="automatic-crossover" style="--step:7">
           <path data-graph-role="automatic-crossover-underlay" d="M 1080 114 L 1080 230" fill="none" stroke="var(--mask)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="policy" data-edge-to="pixels" data-edge-label="đọc ghi nợ, cờ" data-edge-key="7" data-edge-id="policy-pixels" data-composition-points="1080,114;1080,230" data-composition-crossover="halo" data-composition-independent="true" d="M 1080 114 L 1080 230" class="a-default" data-animate="edge" style="--step:7" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+          <path data-edge-from="policy" data-edge-to="pixels" data-edge-label="đọc ghi debt, edge flag" data-edge-key="7" data-edge-id="policy-pixels" data-composition-points="1080,114;1080,230" data-composition-crossover="halo" data-composition-independent="true" d="M 1080 114 L 1080 230" class="a-default" data-animate="edge" style="--step:7" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:8">
           <path data-graph-role="automatic-crossover-underlay" d="M 804 114 L 804 500" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
-          <path data-edge-from="display_task" data-edge-to="hal" data-edge-label="2 mặt phẳng, window, profile" data-edge-key="8" data-edge-id="task-hal" data-composition-points="804,114;804,500" data-composition-crossover="halo" data-composition-independent="true" d="M 804 114 L 804 500" class="a-emphasis" data-animate="edge" style="--step:8" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+          <path data-edge-from="display_task" data-edge-to="hal" data-edge-label="new plane + old plane, window, profile" data-edge-key="8" data-edge-id="task-hal" data-composition-points="804,114;804,500" data-composition-crossover="halo" data-composition-independent="true" d="M 804 114 L 804 500" class="a-emphasis" data-animate="edge" style="--step:8" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         </g>
         <g data-graph-role="automatic-crossover" style="--step:9">
           <path data-graph-role="automatic-crossover-underlay" d="M 790 564 L 790 650" fill="none" stroke="var(--mask)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>
@@ -7499,8 +7499,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
 
         <!-- Components -->
-        <g id="node-app" data-node-id="app" data-node-label="App + ink_ui" tabindex="0" role="button" aria-label="Focus App + ink_ui, chưa có code; vẽ khung + ý định, Task main" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="chưa có code; vẽ khung + ý định" data-node-tag="chưa có code gọi" data-node-context="Task main">
-          <title>App + ink_ui · chưa có code; vẽ khung + ý định · Task main · chưa có code gọi</title>
+        <g id="node-app" data-node-id="app" data-node-label="App + ui" tabindex="0" role="button" aria-label="Focus App + ui, chưa có code; vẽ frame + intent, Main task" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="chưa có code; vẽ frame + intent" data-node-tag="chưa có code gọi" data-node-context="Main task">
+          <title>App + ui · chưa có code; vẽ frame + intent · Main task · chưa có code gọi</title>
           <rect x="40" y="40" width="180" height="74" rx="8" class="c-mask"/>
           <rect x="40" y="40" width="180" height="74" rx="8" class="c-frontend" data-animate="node" style="--step:0" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(46 46) scale(0.6875)">
@@ -7509,13 +7509,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
             <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="130" y="75" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">App + ink_ui</text>
-        <text data-detail="context" x="130" y="91" class="t-muted" font-size="9" text-anchor="middle">chưa có code; vẽ khung + ý định</text>
+          <text data-node-label="" data-detail-anchor="" x="130" y="75" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">App + ui</text>
+        <text data-detail="context" x="130" y="91" class="t-muted" font-size="9" text-anchor="middle">chưa có code; vẽ frame + intent</text>
         <text data-detail="fine" x="130" y="106" class="t-frontend" font-size="7" text-anchor="middle">chưa có code gọi</text>
         </g>
 
-        <g id="node-display_api" data-node-id="display_api" data-node-label="ink_display: API" tabindex="0" role="button" aria-label="Focus ink_display: API, acquire, submit, set_options, Task main" aria-pressed="false" data-node-kind="backend" data-node-sublabel="acquire, submit, set_options" data-node-context="Task main">
-          <title>ink_display: API · acquire, submit, set_options · Task main</title>
+        <g id="node-display_api" data-node-id="display_api" data-node-label="ink_display: API" tabindex="0" role="button" aria-label="Focus ink_display: API, acquire, submit, set_options, Main task" aria-pressed="false" data-node-kind="backend" data-node-sublabel="acquire, submit, set_options" data-node-context="Main task">
+          <title>ink_display: API · acquire, submit, set_options · Main task</title>
           <rect x="350" y="40" width="180" height="74" rx="8" class="c-mask"/>
           <rect x="350" y="40" width="180" height="74" rx="8" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(356 46) scale(0.6875)">
@@ -7525,43 +7525,43 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="440" y="91" class="t-muted" font-size="9" text-anchor="middle">acquire, submit, set_options</text>
         </g>
 
-        <g id="node-display_task" data-node-id="display_task" data-node-label="ink_display: task màn" tabindex="0" role="button" aria-label="Focus ink_display: task màn, vẽ khung mới, dọn, tắt nguồn, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="backend" data-node-sublabel="vẽ khung mới, dọn, tắt nguồn" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>ink_display: task màn · vẽ khung mới, dọn, tắt nguồn · Task màn: chủ duy nhất của màn</title>
+        <g id="node-display_task" data-node-id="display_task" data-node-label="ink_display: display task" tabindex="0" role="button" aria-label="Focus ink_display: display task, vẽ frame mới, cleanup, tắt analog power, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="backend" data-node-sublabel="vẽ frame mới, cleanup, tắt analog power" data-node-context="Display task: owner duy nhất của panel">
+          <title>ink_display: display task · vẽ frame mới, cleanup, tắt analog power · Display task: owner duy nhất của panel</title>
           <rect x="690" y="40" width="200" height="74" rx="8" class="c-mask"/>
           <rect x="690" y="40" width="200" height="74" rx="8" class="c-backend" data-animate="node" style="--step:2" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(696 46) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="790" y="75" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_display: task màn</text>
-        <text data-detail="context" x="790" y="91" class="t-muted" font-size="9" text-anchor="middle">vẽ khung mới, dọn, tắt nguồn</text>
+          <text data-node-label="" data-detail-anchor="" x="790" y="75" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_display: display task</text>
+        <text data-detail="context" x="790" y="91" class="t-muted" font-size="8.2" text-anchor="middle">vẽ frame mới, cleanup, tắt analog power</text>
         </g>
 
-        <g id="node-policy" data-node-id="policy" data-node-label="ink_display_policy" tabindex="0" role="button" aria-label="Focus ink_display_policy, chọn preset, window, thang dọn, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="backend" data-node-sublabel="chọn preset, window, thang dọn" data-node-tag="C thuần, host test" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>ink_display_policy · chọn preset, window, thang dọn · Task màn: chủ duy nhất của màn · C thuần, host test</title>
+        <g id="node-policy" data-node-id="policy" data-node-label="ink_display_policy" tabindex="0" role="button" aria-label="Focus ink_display_policy, chọn preset, window, cleanup stage, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="backend" data-node-sublabel="chọn preset, window, cleanup stage" data-node-tag="C thuần, host test" data-node-context="Display task: owner duy nhất của panel">
+          <title>ink_display_policy · chọn preset, window, cleanup stage · Display task: owner duy nhất của panel · C thuần, host test</title>
           <rect x="990" y="40" width="180" height="74" rx="8" class="c-mask"/>
           <rect x="990" y="40" width="180" height="74" rx="8" class="c-backend" data-animate="node" style="--step:7" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(996 46) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="1080" y="75" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_display_policy</text>
-        <text data-detail="context" x="1080" y="91" class="t-muted" font-size="9" text-anchor="middle">chọn preset, window, thang dọn</text>
+        <text data-detail="context" x="1080" y="91" class="t-muted" font-size="8.4" text-anchor="middle">chọn preset, window, cleanup stage</text>
         <text data-detail="fine" x="1080" y="106" class="t-backend" font-size="7" text-anchor="middle">C thuần, host test</text>
         </g>
 
-        <g id="node-pixels" data-node-id="pixels" data-node-label="Trạng thái từng điểm" tabindex="0" role="button" aria-label="Focus Trạng thái từng điểm, PSRAM: nợ xám, cờ viền, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="database" data-node-sublabel="PSRAM: nợ xám, cờ viền" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>Trạng thái từng điểm · PSRAM: nợ xám, cờ viền · Task màn: chủ duy nhất của màn</title>
+        <g id="node-pixels" data-node-id="pixels" data-node-label="pixel_state" tabindex="0" role="button" aria-label="Focus pixel_state, PSRAM: debt, edge flag, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="database" data-node-sublabel="PSRAM: debt, edge flag" data-node-context="Display task: owner duy nhất của panel">
+          <title>pixel_state · PSRAM: debt, edge flag · Display task: owner duy nhất của panel</title>
           <rect x="990" y="230" width="180" height="64" rx="8" class="c-mask"/>
           <rect x="990" y="230" width="180" height="64" rx="8" class="c-database" data-animate="node" style="--step:8" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(996 236) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="1080" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Trạng thái từng điểm</text>
-        <text data-detail="context" x="1080" y="276" class="t-muted" font-size="9" text-anchor="middle">PSRAM: nợ xám, cờ viền</text>
+          <text data-node-label="" data-detail-anchor="" x="1080" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">pixel_state</text>
+        <text data-detail="context" x="1080" y="276" class="t-muted" font-size="9" text-anchor="middle">PSRAM: debt, edge flag</text>
         </g>
 
-        <g id="node-slots" data-node-id="slots" data-node-label="ink_frame_slots" tabindex="0" role="button" aria-label="Focus ink_frame_slots, mỗi khung đúng một chủ, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="mỗi khung đúng một chủ" data-node-tag="C thuần, host test" data-node-context="Architecture component">
-          <title>ink_frame_slots · mỗi khung đúng một chủ · Architecture component · C thuần, host test</title>
+        <g id="node-slots" data-node-id="slots" data-node-label="ink_frame_slots" tabindex="0" role="button" aria-label="Focus ink_frame_slots, mỗi frame đúng một owner, Architecture component" aria-pressed="false" data-node-kind="messagebus" data-node-sublabel="mỗi frame đúng một owner" data-node-tag="C thuần, host test" data-node-context="Architecture component">
+          <title>ink_frame_slots · mỗi frame đúng một owner · Architecture component · C thuần, host test</title>
           <rect x="350" y="400" width="180" height="74" rx="8" class="c-mask"/>
           <rect x="350" y="400" width="180" height="74" rx="8" class="c-messagebus" data-animate="node" style="--step:3" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="messagebus" class="semantic-sigil s-messagebus" transform="translate(356 406) scale(0.6875)">
@@ -7571,24 +7571,24 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <circle cx="7" cy="11.5" r="1" class="sigil-fill"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="440" y="435" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_frame_slots</text>
-        <text data-detail="context" x="440" y="451" class="t-muted" font-size="9" text-anchor="middle">mỗi khung đúng một chủ</text>
+        <text data-detail="context" x="440" y="451" class="t-muted" font-size="9" text-anchor="middle">mỗi frame đúng một owner</text>
         <text data-detail="fine" x="440" y="466" class="t-messagebus" font-size="7" text-anchor="middle">C thuần, host test</text>
         </g>
 
-        <g id="node-frames" data-node-id="frames" data-node-label="3 khung + mặt phẳng cũ" tabindex="0" role="button" aria-label="Focus 3 khung + mặt phẳng cũ, RAM nội, driver gửi qua DMA, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="RAM nội, driver gửi qua DMA" data-node-context="Architecture component">
-          <title>3 khung + mặt phẳng cũ · RAM nội, driver gửi qua DMA · Architecture component</title>
+        <g id="node-frames" data-node-id="frames" data-node-label="3 frame + old plane" tabindex="0" role="button" aria-label="Focus 3 frame + old plane, RAM nội, driver gửi qua DMA, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="RAM nội, driver gửi qua DMA" data-node-context="Architecture component">
+          <title>3 frame + old plane · RAM nội, driver gửi qua DMA · Architecture component</title>
           <rect x="480" y="230" width="170" height="64" rx="8" class="c-mask"/>
           <rect x="480" y="230" width="170" height="64" rx="8" class="c-database" data-animate="node" style="--step:4" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(486 236) scale(0.6875)">
             <ellipse cx="8" cy="4" rx="5" ry="2"/>
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
-          <text data-node-label="" data-detail-anchor="" x="565" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">3 khung + mặt phẳng cũ</text>
+          <text data-node-label="" data-detail-anchor="" x="565" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">3 frame + old plane</text>
         <text data-detail="context" x="565" y="276" class="t-muted" font-size="9" text-anchor="middle">RAM nội, driver gửi qua DMA</text>
         </g>
 
-        <g id="node-hal" data-node-id="hal" data-node-label="ink_hal_display" tabindex="0" role="button" aria-label="Focus ink_hal_display, draw, power_off, read_temperature, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="draw, power_off, read_temperature" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>ink_hal_display · draw, power_off, read_temperature · Task màn: chủ duy nhất của màn</title>
+        <g id="node-hal" data-node-id="hal" data-node-label="ink_hal_display" tabindex="0" role="button" aria-label="Focus ink_hal_display, draw, power_off, read_temperature, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="draw, power_off, read_temperature" data-node-context="Display task: owner duy nhất của panel">
+          <title>ink_hal_display · draw, power_off, read_temperature · Display task: owner duy nhất của panel</title>
           <rect x="690" y="500" width="200" height="64" rx="8" class="c-mask"/>
           <rect x="690" y="500" width="200" height="64" rx="8" class="c-cloud" data-animate="node" style="--step:9" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(696 506) scale(0.6875)">
@@ -7598,8 +7598,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="790" y="546" class="t-muted" font-size="9" text-anchor="middle">draw, power_off, read_temperature</text>
         </g>
 
-        <g id="node-driver" data-node-id="driver" data-node-label="ink_drv_uc8253" tabindex="0" role="button" aria-label="Focus ink_drv_uc8253, ghi 2 vùng RAM, chờ BUSY, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="backend" data-node-sublabel="ghi 2 vùng RAM, chờ BUSY" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>ink_drv_uc8253 · ghi 2 vùng RAM, chờ BUSY · Task màn: chủ duy nhất của màn</title>
+        <g id="node-driver" data-node-id="driver" data-node-label="ink_drv_uc8253" tabindex="0" role="button" aria-label="Focus ink_drv_uc8253, ghi 2 vùng RAM, chờ BUSY, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="backend" data-node-sublabel="ghi 2 vùng RAM, chờ BUSY" data-node-context="Display task: owner duy nhất của panel">
+          <title>ink_drv_uc8253 · ghi 2 vùng RAM, chờ BUSY · Display task: owner duy nhất của panel</title>
           <rect x="690" y="650" width="200" height="64" rx="8" class="c-mask"/>
           <rect x="690" y="650" width="200" height="64" rx="8" class="c-backend" data-animate="node" style="--step:10" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(696 656) scale(0.6875)">
@@ -7609,8 +7609,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="790" y="696" class="t-muted" font-size="9" text-anchor="middle">ghi 2 vùng RAM, chờ BUSY</text>
         </g>
 
-        <g id="node-profiles" data-node-id="profiles" data-node-label="ink_drv_uc8253_profiles.c" tabindex="0" role="button" aria-label="Focus ink_drv_uc8253_profiles.c, mảng const trong flash, Task màn: chủ duy nhất của màn" aria-pressed="false" data-node-kind="database" data-node-sublabel="mảng const trong flash" data-node-context="Task màn: chủ duy nhất của màn">
-          <title>ink_drv_uc8253_profiles.c · mảng const trong flash · Task màn: chủ duy nhất của màn</title>
+        <g id="node-profiles" data-node-id="profiles" data-node-label="ink_drv_uc8253_profiles.c" tabindex="0" role="button" aria-label="Focus ink_drv_uc8253_profiles.c, mảng const trong flash, Display task: owner duy nhất của panel" aria-pressed="false" data-node-kind="database" data-node-sublabel="mảng const trong flash" data-node-context="Display task: owner duy nhất của panel">
+          <title>ink_drv_uc8253_profiles.c · mảng const trong flash · Display task: owner duy nhất của panel</title>
           <rect x="990" y="650" width="180" height="64" rx="8" class="c-mask"/>
           <rect x="990" y="650" width="180" height="64" rx="8" class="c-database" data-animate="node" style="--step:11" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(996 656) scale(0.6875)">
@@ -7645,15 +7645,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="1080" y="856" class="t-muted" font-size="9" text-anchor="middle">profiles.json, dump OTP</text>
         </g>
 
-        <g id="node-system" data-node-id="system" data-node-label="ink_system" tabindex="0" role="button" aria-label="Focus ink_system, truyền device và cài đặt, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="truyền device và cài đặt" data-node-context="Architecture component">
-          <title>ink_system · truyền device và cài đặt · Architecture component</title>
+        <g id="node-system" data-node-id="system" data-node-label="ink_system" tabindex="0" role="button" aria-label="Focus ink_system, truyền device và options, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="truyền device và options" data-node-context="Architecture component">
+          <title>ink_system · truyền device và options · Architecture component</title>
           <rect x="40" y="230" width="180" height="64" rx="8" class="c-mask"/>
           <rect x="40" y="230" width="180" height="64" rx="8" class="c-backend" data-animate="node" style="--step:12" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 236) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="130" y="260" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_system</text>
-        <text data-detail="context" x="130" y="276" class="t-muted" font-size="9" text-anchor="middle">truyền device và cài đặt</text>
+        <text data-detail="context" x="130" y="276" class="t-muted" font-size="9" text-anchor="middle">truyền device và options</text>
         </g>
 
         <g id="node-boot" data-node-id="boot" data-node-label="app_main" tabindex="0" role="button" aria-label="Focus app_main, lắp các khối, không có logic, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="lắp các khối, không có logic" data-node-context="Architecture component">
@@ -7667,53 +7667,53 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <text data-detail="context" x="130" y="446" class="t-muted" font-size="9" text-anchor="middle">lắp các khối, không có logic</text>
         </g>
 
-        <g id="node-bsp" data-node-id="bsp" data-node-label="ink_bsp" tabindex="0" role="button" aria-label="Focus ink_bsp, chân BB0, chọn driver màn, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="chân BB0, chọn driver màn" data-node-context="Architecture component">
-          <title>ink_bsp · chân BB0, chọn driver màn · Architecture component</title>
+        <g id="node-bsp" data-node-id="bsp" data-node-label="ink_bsp" tabindex="0" role="button" aria-label="Focus ink_bsp, pin map BB0, chọn driver panel, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="pin map BB0, chọn driver panel" data-node-context="Architecture component">
+          <title>ink_bsp · pin map BB0, chọn driver panel · Architecture component</title>
           <rect x="40" y="650" width="180" height="64" rx="8" class="c-mask"/>
           <rect x="40" y="650" width="180" height="64" rx="8" class="c-backend" data-animate="node" style="--step:12" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 656) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-node-label="" data-detail-anchor="" x="130" y="680" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">ink_bsp</text>
-        <text data-detail="context" x="130" y="696" class="t-muted" font-size="9" text-anchor="middle">chân BB0, chọn driver màn</text>
+        <text data-detail="context" x="130" y="696" class="t-muted" font-size="9" text-anchor="middle">pin map BB0, chọn driver panel</text>
         </g>
 
         <!-- Connection labels -->
-        <g data-detail="context" data-edge-from="app" data-edge-to="display_api" data-edge-label="mượn, giao khung" data-edge-key="0" data-edge-id="app-submit">
-          <rect x="241.6" y="57" width="86.8" height="14" rx="3" class="c-mask"/>
-          <text x="285" y="67" class="t-edge-dashed" font-size="8" text-anchor="middle">mượn, giao khung</text>
+        <g data-detail="context" data-edge-from="app" data-edge-to="display_api" data-edge-label="acquire, submit frame" data-edge-key="0" data-edge-id="app-submit">
+          <rect x="229.6" y="57" width="110.8" height="14" rx="3" class="c-mask"/>
+          <text x="285" y="67" class="t-edge-dashed" font-size="8" text-anchor="middle">acquire, submit frame</text>
         </g>
         <g data-detail="context" data-edge-from="display_api" data-edge-to="display_task" data-edge-label="xTaskNotify" data-edge-key="1" data-edge-id="api-notify">
           <rect x="578.6" y="57" width="62.8" height="14" rx="3" class="c-mask"/>
           <text x="610" y="67" class="t-edge-emphasis" font-size="8" text-anchor="middle">xTaskNotify</text>
         </g>
-        <g data-detail="context" data-edge-from="display_api" data-edge-to="slots" data-edge-label="đổi chủ (trong lock)" data-edge-key="2" data-edge-id="api-slots">
-          <rect x="328" y="321.5" width="106" height="14" rx="3" class="c-mask"/>
-          <text x="381" y="331.5" class="t-edge-default" font-size="8" text-anchor="middle">đổi chủ (trong lock)</text>
+        <g data-detail="context" data-edge-from="display_api" data-edge-to="slots" data-edge-label="đổi owner (trong lock)" data-edge-key="2" data-edge-id="api-slots">
+          <rect x="318.4" y="321.5" width="115.6" height="14" rx="3" class="c-mask"/>
+          <text x="376.2" y="331.5" class="t-edge-default" font-size="8" text-anchor="middle">đổi owner (trong lock)</text>
         </g>
         <g data-detail="context" data-edge-from="display_api" data-edge-to="frames" data-edge-label="chép ảnh ngoài lock" data-edge-key="3" data-edge-id="api-frames">
           <rect x="502" y="165" width="101.2" height="14" rx="3" class="c-mask"/>
           <text x="552.6" y="175" class="t-edge-default" font-size="8" text-anchor="middle">chép ảnh ngoài lock</text>
         </g>
-        <g data-detail="context" data-edge-from="display_task" data-edge-to="slots" data-edge-label="lấy khung, đổi khung hiện" data-edge-key="4" data-edge-id="task-slots">
-          <rect x="588" y="417" width="130" height="14" rx="3" class="c-mask"/>
-          <text x="653" y="427" class="t-edge-default" font-size="8" text-anchor="middle">lấy khung, đổi khung hiện</text>
+        <g data-detail="context" data-edge-from="display_task" data-edge-to="slots" data-edge-label="take, show" data-edge-key="4" data-edge-id="task-slots">
+          <rect x="624" y="417" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="653" y="427" class="t-edge-default" font-size="8" text-anchor="middle">take, show</text>
         </g>
-        <g data-detail="context" data-edge-from="display_task" data-edge-to="frames" data-edge-label="đọc khung, dựng mặt phẳng cũ" data-edge-key="5" data-edge-id="task-frames">
-          <rect x="611.5999999999999" y="181" width="144.4" height="14" rx="3" class="c-mask"/>
-          <text x="683.8" y="191" class="t-edge-default" font-size="8" text-anchor="middle">đọc khung, dựng mặt phẳng cũ</text>
+        <g data-detail="context" data-edge-from="display_task" data-edge-to="frames" data-edge-label="đọc frame, dựng old plane" data-edge-key="5" data-edge-id="task-frames">
+          <rect x="626" y="181" width="130" height="14" rx="3" class="c-mask"/>
+          <text x="691" y="191" class="t-edge-default" font-size="8" text-anchor="middle">đọc frame, dựng old plane</text>
         </g>
         <g data-detail="context" data-edge-from="display_task" data-edge-to="policy" data-edge-label="decide, idle" data-edge-key="6" data-edge-id="task-policy">
           <rect x="906.2" y="57" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="940" y="67" class="t-edge-default" font-size="8" text-anchor="middle">decide, idle</text>
         </g>
-        <g data-detail="context" data-edge-from="policy" data-edge-to="pixels" data-edge-label="đọc ghi nợ, cờ" data-edge-key="7" data-edge-id="policy-pixels">
-          <rect x="996.8000000000001" y="165" width="77.2" height="14" rx="3" class="c-mask"/>
-          <text x="1035.4" y="175" class="t-edge-default" font-size="8" text-anchor="middle">đọc ghi nợ, cờ</text>
+        <g data-detail="context" data-edge-from="policy" data-edge-to="pixels" data-edge-label="đọc ghi debt, edge flag" data-edge-key="7" data-edge-id="policy-pixels">
+          <rect x="953.5999999999999" y="165" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
+          <text x="1013.8" y="175" class="t-edge-default" font-size="8" text-anchor="middle">đọc ghi debt, edge flag</text>
         </g>
-        <g data-detail="context" data-edge-from="display_task" data-edge-to="hal" data-edge-label="2 mặt phẳng, window, profile" data-edge-key="8" data-edge-id="task-hal">
-          <rect x="810" y="300" width="144.4" height="14" rx="3" class="c-mask"/>
-          <text x="882.2" y="310" class="t-edge-emphasis" font-size="8" text-anchor="middle">2 mặt phẳng, window, profile</text>
+        <g data-detail="context" data-edge-from="display_task" data-edge-to="hal" data-edge-label="new plane + old plane, window, profile" data-edge-key="8" data-edge-id="task-hal">
+          <rect x="810" y="300" width="192.4" height="14" rx="3" class="c-mask"/>
+          <text x="906.2" y="310" class="t-edge-emphasis" font-size="8" text-anchor="middle">new plane + old plane, window, profile</text>
         </g>
         <g data-detail="context" data-edge-from="hal" data-edge-to="driver" data-edge-label="s_operations" data-edge-key="9" data-edge-id="hal-driver">
           <rect x="716.4000000000001" y="600" width="67.6" height="14" rx="3" class="c-mask"/>
@@ -7749,14 +7749,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </g>
 
         <!-- Boundary labels (foreground masks keep routes out of titles) -->
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="Task main">
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="Main task">
           <rect data-graph-role="structural-frame-label-mask" x="14" y="20" width="58.6" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="18" y="33" class="t-cloud" font-size="9" font-weight="600">Task main</text>
+          <text data-boundary-label="" x="18" y="33" class="t-cloud" font-size="9" font-weight="600">Main task</text>
         </g>
 
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="region" data-composition-frame-label="Task màn: chủ duy nhất của màn">
-          <rect data-graph-role="structural-frame-label-mask" x="664" y="20" width="172" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="668" y="33" class="t-cloud" font-size="9" font-weight="600">Task màn: chủ duy nhất của màn</text>
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="1" data-composition-frame-kind="region" data-composition-frame-label="Display task: owner duy nhất của panel">
+          <rect data-graph-role="structural-frame-label-mask" x="664" y="20" width="215.2" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="668" y="33" class="t-cloud" font-size="9" font-weight="600">Display task: owner duy nhất của panel</text>
         </g>
 
         <!-- Legend -->
@@ -7766,25 +7766,25 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <rect x="40" y="917" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
             <text x="62" y="926" class="t-muted" font-size="10" font-weight="500">App</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Khối firmware" data-legend-x="124" data-legend-baseline="926" data-legend-width="124">
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Module firmware" data-legend-x="124" data-legend-baseline="926" data-legend-width="136">
             <rect x="124" y="917" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
-            <text x="146" y="926" class="t-muted" font-size="10" font-weight="500">Khối firmware</text>
+            <text x="146" y="926" class="t-muted" font-size="10" font-weight="500">Module firmware</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Bộ nhớ và dữ liệu" data-legend-x="270" data-legend-baseline="926" data-legend-width="149">
-            <rect x="270" y="917" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
-            <text x="292" y="926" class="t-muted" font-size="10" font-weight="500">Bộ nhớ và dữ liệu</text>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Bộ nhớ và dữ liệu" data-legend-x="282" data-legend-baseline="926" data-legend-width="149">
+            <rect x="282" y="917" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
+            <text x="304" y="926" class="t-muted" font-size="10" font-weight="500">Bộ nhớ và dữ liệu</text>
           </g>
-          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Interface phần cứng" data-legend-x="441" data-legend-baseline="926" data-legend-width="161">
-            <rect x="441" y="917" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
-            <text x="463" y="926" class="t-muted" font-size="10" font-weight="500">Interface phần cứng</text>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Interface phần cứng" data-legend-x="453" data-legend-baseline="926" data-legend-width="161">
+            <rect x="453" y="917" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
+            <text x="475" y="926" class="t-muted" font-size="10" font-weight="500">Interface phần cứng</text>
           </g>
-          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Đổi chủ khung giữa hai task" data-legend-x="624" data-legend-baseline="926" data-legend-width="211">
-            <rect x="624" y="917" width="16" height="10" rx="2.5" class="c-messagebus" stroke-width="1"/>
-            <text x="646" y="926" class="t-muted" font-size="10" font-weight="500">Đổi chủ khung giữa hai task</text>
+          <g data-legend-semantic-kind="messagebus" data-legend-kind="messagebus" data-legend-label="Đổi owner frame giữa hai task" data-legend-x="636" data-legend-baseline="926" data-legend-width="223">
+            <rect x="636" y="917" width="16" height="10" rx="2.5" class="c-messagebus" stroke-width="1"/>
+            <text x="658" y="926" class="t-muted" font-size="10" font-weight="500">Đổi owner frame giữa hai task</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="Phần cứng và công cụ dev" data-legend-x="857" data-legend-baseline="926" data-legend-width="192">
-            <rect x="857" y="917" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
-            <text x="879" y="926" class="t-muted" font-size="10" font-weight="500">Phần cứng và công cụ dev</text>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="Phần cứng và công cụ dev" data-legend-x="881" data-legend-baseline="926" data-legend-width="192">
+            <rect x="881" y="917" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
+            <text x="903" y="926" class="t-muted" font-size="10" font-weight="500">Phần cứng và công cụ dev</text>
           </g>
         </g>
       </svg>
@@ -8052,9 +8052,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Ai giữ gì</h3>
         </div>
         <ul>
-          <li>ink_display giữ ảnh đang hiện, bỏ khung giữa và chạy thang dọn.</li>
-          <li>Driver chỉ nhận hai mặt phẳng bit, không hiểu thế nào là ảnh đang hiện.</li>
-          <li>Hai khối C thuần chỉ quyết định, không gọi driver và không dính FreeRTOS.</li>
+          <li>ink_display giữ shown frame, drop frame pending ở giữa và chạy cleanup stage.</li>
+          <li>Driver chỉ nhận hai plane bit, không biết shown frame là gì.</li>
+          <li>Hai core module chỉ quyết định, không gọi driver và không dính FreeRTOS.</li>
         </ul>
       </div>
 
@@ -8064,21 +8064,21 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3>Một lần lật thẻ</h3>
         </div>
         <ul>
-          <li>Task main mượn khung, vẽ, rồi giao khung kèm ý định TEXT, UI, PAGE hoặc AUTO.</li>
-          <li>Task màn lấy khung mới nhất, policy chọn preset và window, driver vẽ.</li>
-          <li>Bấm nhanh hơn tốc độ màn thì khung giữa bị bỏ.</li>
+          <li>Main task acquire frame, vẽ, rồi submit frame kèm intent TEXT, UI, PAGE hoặc AUTO.</li>
+          <li>Display task take frame mới nhất, policy chọn preset và window, driver vẽ.</li>
+          <li>Bấm nhanh hơn tốc độ panel thì frame pending ở giữa bị drop.</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
           <div class="card-dot violet"></div>
-          <h3>Khi nghỉ</h3>
+          <h3>Khi idle</h3>
         </div>
         <ul>
-          <li>Thang dọn: 2 s dọn viền, 10 s dọn nhẹ, 60 s dọn mạnh.</li>
-          <li>Sau 4 s không có DRF (một lần làm mới panel) thì tắt nguồn analog.</li>
-          <li>Mỗi vòng chỉ làm một lượt dọn, nên khung mới luôn được ưu tiên.</li>
+          <li>Cleanup stage: 2 s cleanup edge, 10 s cleanup light, 60 s cleanup strong.</li>
+          <li>Sau 4 s không có DRF (một lần làm mới panel) thì tắt analog power.</li>
+          <li>Mỗi vòng chỉ chạy một cleanup, nên frame mới luôn được ưu tiên.</li>
         </ul>
       </div>
 
@@ -8089,8 +8089,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </div>
         <ul>
           <li>Chưa có app: chưa có code nào gọi ink_display_acquire hoặc ink_display_submit.</li>
-          <li>ink_system chưa truyền on_report và background, nên chưa có báo cáo vẽ xong và màn nền.</li>
-          <li>Sơ đồ lược bỏ callback on_report và cài đặt set_options từ app vì hai đường đó chưa được gọi.</li>
+          <li>ink_system chưa truyền on_report và background, nên chưa có report vẽ xong và background frame.</li>
+          <li>Sơ đồ lược bỏ callback on_report và options set_options từ app vì hai đường đó chưa được gọi.</li>
         </ul>
       </div>
     </div>
