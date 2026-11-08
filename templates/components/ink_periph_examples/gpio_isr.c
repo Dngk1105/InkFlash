@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
-/* Dựa theo: examples/peripherals/gpio/generic_gpio */
+/* Based on: examples/peripherals/gpio/generic_gpio */
 #include "ink_periph_examples.h"
 
 #include "esp_check.h"
@@ -16,8 +16,8 @@ esp_err_t ink_periph_examples_gpio_isr_init(gpio_num_t pin, gpio_isr_t isr_handl
         .intr_type    = GPIO_INTR_ANYEDGE,
     };
     ESP_RETURN_ON_ERROR(gpio_config(&pin_config), TAG, "gpio_config");
-    /* Dịch vụ ngắt GPIO cài một lần cho cả chip; gọi lại trả
-     * ESP_ERR_INVALID_STATE, coi như đã có. */
+    /* The GPIO ISR service is installed once per chip; a second install returns
+     * ESP_ERR_INVALID_STATE, which means it is already there. */
     const esp_err_t error = gpio_install_isr_service(0);
     ESP_RETURN_ON_FALSE(error == ESP_OK || error == ESP_ERR_INVALID_STATE, error, TAG, "gpio_install_isr_service");
     return gpio_isr_handler_add(pin, isr_handler, user_data);

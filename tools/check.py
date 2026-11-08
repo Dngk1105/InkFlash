@@ -1,4 +1,4 @@
-# Thiết kế: docs/design/code-structure.md
+# Design: docs/design/code-structure.md
 """Kiểm tra code có khớp quy ước và docs không. Chạy trước mỗi commit:
 
     python tools/check.py
@@ -78,9 +78,9 @@ def check_design_line(path, text):
     head = "\n".join(text.splitlines()[:3])
     m = DESIGN_RE.search(head)
     if not m:
-        err(path, 1, "thiếu dòng 'Thiết kế: docs/design/<file>.md' ở đầu file")
+        err(path, 1, "thiếu dòng 'Design: docs/design/<file>.md' ở đầu file")
     elif not os.path.isfile(os.path.join(ROOT, m.group(1))):
-        err(path, 1, f"dòng Thiết kế trỏ tới {m.group(1)} không tồn tại")
+        err(path, 1, f"dòng Design trỏ tới {m.group(1)} không tồn tại")
 
 
 def strip_comments(text):

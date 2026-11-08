@@ -1,6 +1,6 @@
-# Thiết kế: docs/design/code-structure.md
+# Design: docs/design/code-structure.md
 #
-# Project ESP-IDF riêng chứa khối mẫu. Không nằm trong firmware; tools/build_all.py build nó để template không bị cũ.
+# Separate ESP-IDF project holding the template blocks. Not part of the firmware; tools/build_all.py builds it so templates stay current.
 cmake_minimum_required(VERSION 3.22)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ink.cmake)

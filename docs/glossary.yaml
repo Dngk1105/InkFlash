@@ -26,6 +26,7 @@ scope:
   - components/ink_hal/include/ink_hal_display.h
   - components/drivers/ink_drv_uc8253
   - docs/design/display/display.md
+  - templates
 
 # Prefix của từng component. Viết chữ thường; script tự đổi cả dạng CHỮ HOA (INK_FRAME_SLOTS_*).
 # Prefix dài thắng prefix ngắn: đổi `ink_display` không đụng `ink_display_policy_*`.

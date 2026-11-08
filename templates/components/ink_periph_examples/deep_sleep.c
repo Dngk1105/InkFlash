@@ -1,10 +1,9 @@
-/* Thiết kế: docs/design/esp-idf-api.md */
+/* Design: docs/design/esp-idf-api.md */
 
 /*
- * Dựa theo: examples/system/deep_sleep.
- * Dùng esp_sleep_enable_ext1_wakeup_io (không dùng
- * esp_sleep_enable_ext1_wakeup) và esp_sleep_get_wakeup_causes (không dùng
- * esp_sleep_get_wakeup_cause, đã deprecated trong v6.1).
+ * Based on: examples/system/deep_sleep.
+ * Uses esp_sleep_enable_ext1_wakeup_io (not esp_sleep_enable_ext1_wakeup) and
+ * esp_sleep_get_wakeup_causes (not esp_sleep_get_wakeup_cause, deprecated in v6.1).
  */
 #include "ink_periph_examples.h"
 
@@ -13,13 +12,13 @@
 #include "esp_bit_defs.h"
 #include "esp_sleep.h"
 
-/* Biến có RTC_DATA_ATTR nằm trong RTC memory: còn giữ qua ngủ sâu, mất khi mất
- * điện. */
+/* RTC_DATA_ATTR variables live in RTC memory: kept across deep sleep, lost on
+ * power loss. */
 static RTC_DATA_ATTR uint32_t s_rtc_counter;
 
 void ink_periph_examples_deep_sleep(uint64_t wake_pin_mask) {
-    /* Nút nối GND: giữ chân ở mức cao bằng pull-up của RTC trong lúc ngủ. Chân
-     * phải là RTC GPIO. */
+    /* Button to GND: the RTC pull-up holds the pin high during sleep. The pin
+     * must be an RTC GPIO. */
     for (int pin = 0; pin < GPIO_NUM_MAX; pin++) {
         if (wake_pin_mask & (1ULL << pin)) {
             rtc_gpio_pulldown_dis(pin);

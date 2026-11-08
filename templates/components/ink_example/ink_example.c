@@ -1,4 +1,4 @@
-/* Thiết kế: docs/design/code-structure.md */
+/* Design: docs/design/code-structure.md */
 #include "ink_example.h"
 
 ink_example_error_t ink_example_init(ink_example_state_t *state, uint32_t limit) {

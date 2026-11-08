@@ -1,4 +1,4 @@
-# Thiết kế: docs/design/code-structure.md
+# Design: docs/design/code-structure.md
 """Tạo khối mới từ template.
 
     python tools/new.py <loại> <tên> --design docs/design/<file>.md
@@ -22,7 +22,7 @@ KINDS = {
 }
 
 TEXT_EXT = (".c", ".h", ".txt", ".cmake")
-DESIGN_RE = re.compile(r"Thiết kế: docs/[\w/.-]+\.md")
+DESIGN_RE = re.compile(r"(?:Design|Thiết kế): docs/[\w/.-]+\.md")
 CMAKE_INCLUDE_RE = re.compile(r"include\(\$\{CMAKE_CURRENT_LIST_DIR\}/[./]*cmake/ink\.cmake\)")
 
 
@@ -61,7 +61,7 @@ def main():
                 with open(path, encoding="utf-8") as f:
                     text = f.read()
                 text = text.replace(token, new_name).replace(token.upper(), new_name.upper())
-                text = DESIGN_RE.sub(f"Thiết kế: {args.design}", text, count=1)
+                text = DESIGN_RE.sub(f"Design: {args.design}", text, count=1)
                 text = CMAKE_INCLUDE_RE.sub(f"include(${{CMAKE_CURRENT_LIST_DIR}}/{cmake_rel})", text)
                 with open(path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(text)
@@ -70,7 +70,7 @@ def main():
 
     print(f"Đã tạo {os.path.relpath(dest, ROOT)} từ template {args.kind}.")
     print("Việc tiếp theo:")
-    print("  1. Thay code mẫu bằng code thật, giữ nguyên khung (tên, file, dòng Thiết kế).")
+    print("  1. Thay code mẫu bằng code thật, giữ nguyên khung (tên, file, dòng Design:), comment tiếng Anh theo docs/writing-comments.md.")
     print("  2. Khai báo REQUIRES trong CMakeLists.txt theo bảng 'Được gọi' trong docs/architecture.md.")
     if args.kind == "driver":
         print("  3. Đổi ink_hal_example (interface mẫu) thành interface HAL thật mà driver làm theo.")

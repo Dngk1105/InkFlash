@@ -1,4 +1,4 @@
-# Thiết kế: docs/design/esp-idf-api.md
+# Design: docs/design/esp-idf-api.md
 idf_component_register(SRCS "gpio_isr.c" "spi_master.c" "i2c_master.c" "i2s_std.c" "adc_oneshot.c"
                             "deep_sleep.c" "nvs.c" "usb_serial_jtag.c"
                        INCLUDE_DIRS "include"

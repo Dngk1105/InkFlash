@@ -1,21 +1,26 @@
-/* Thiết kế: docs/design/hardware-variants.md */
+/* Design: docs/design/hardware-variants.md */
 #pragma once
 
 /*
- * Mẫu interface phần cứng (HAL). Tầng trên chỉ thấy bảng hàm và bảng khả năng,
- * không biết tên chip. Mỗi driver điền một ink_hal_example_device_t.
+ * Template of a hardware interface (HAL). Upper layers see only the operations and the
+ * capabilities, never the chip name. Each driver fills one ink_hal_example_device_t.
  */
 #include "esp_err.h"
 #include <stdbool.h>
 
-/* Bảng khả năng: driver khai báo nó làm được gì. Chỉ thêm trường khi tầng trên
- * thật sự dùng. */
+/** Capabilities: what the driver can do. Add a field only when an upper layer really uses it. */
 typedef struct {
-    bool has_interrupt; /* báo thay đổi bằng ngắt, không cần hỏi liên tục */
+    bool has_interrupt; /**< reports changes by interrupt, no polling needed */
 } ink_hal_example_capabilities_t;
 
-/* Bảng hàm. `context` là dữ liệu riêng của driver. */
+/** Operations. `context` is the driver's private data. */
 typedef struct {
+    /**
+     * @brief Read the input level.
+     * @par Called from
+     * Any task.
+     * @return ESP_OK, or a driver error.
+     */
     esp_err_t (*read)(void *context, bool *out_active);
 } ink_hal_example_operations_t;
 
