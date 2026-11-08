@@ -1,0 +1,198 @@
+# Từ điển thuật ngữ InkFlash.
+#
+# Luật:
+# - `term` viết y nguyên trong code, comment, docs và chat. Không dịch.
+# - `avoid` là cách gọi tiếng Việt cũ. `python tools/terms.py check` báo lỗi nếu gặp trong `scope`.
+# - `id` cố định, không sửa. Script dùng `id` để ghép mục cũ với mục mới.
+# - Thêm thuật ngữ mới vào đây trước khi dùng trong docs.
+#
+# Đổi tên: sửa thẳng file này, rồi chạy `python tools/terms.py rename` (so với bản ở HEAD, in diff).
+# Duyệt diff xong thì chạy lại với `--apply`, commit file này cùng code trong một commit.
+#
+# | Sửa chỗ nào             | Script đổi gì                                                                 |
+# |-------------------------|-------------------------------------------------------------------------------|
+# | `modules[].prefix`      | mọi identifier `prefix_*` và `PREFIX_*`, tên file, thư mục, component, #include |
+# | `terms[].term`          | chữ trong docs, comment; và phần chữ đó bên trong mỗi tên ở `symbols`          |
+# | `terms[].symbols[i]`    | đúng identifier đó (ưu tiên hơn cách đổi suy ra từ `term`)                     |
+#
+# Ví dụ: term `take` -> `dequeue` thì `ink_frame_slots_take` -> `ink_frame_slots_dequeue`, chữ "take" trong docs
+# cũng đổi. Field `take_us` không nằm trong `symbols` nên giữ nguyên.
+
+# Thư mục/file được kiểm tra. Giai đoạn mẫu: khối display.
+scope:
+  - components/core/ink_frame_slots
+  - components/core/ink_display_policy
+  - components/ink_display
+  - components/ink_hal/include/ink_hal_display.h
+  - components/drivers/ink_drv_uc8253
+  - docs/design/display/display.md
+
+# Prefix của từng component. Viết chữ thường; script tự đổi cả dạng CHỮ HOA (INK_FRAME_SLOTS_*).
+# Prefix dài thắng prefix ngắn: đổi `ink_display` không đụng `ink_display_policy_*`.
+modules:
+  - id: frame_slots
+    prefix: ink_frame_slots
+    meaning: 'quản lý owner của 3 frame giữa main task và display task.'
+  - id: display_policy
+    prefix: ink_display_policy
+    meaning: 'chọn decision cho mỗi frame, giữ debt và edge flag, lên lịch cleanup stage.'
+  - id: display
+    prefix: ink_display
+    meaning: 'owner duy nhất của panel; chạy display task.'
+  - id: hal_display
+    prefix: ink_hal_display
+    meaning: 'interface giữa display và driver màn.'
+  - id: drv_uc8253
+    prefix: ink_drv_uc8253
+    meaning: 'driver controller UC8253 của panel WeAct 3,7".'
+
+terms:
+  # ---- Task ----
+  - id: display_task
+    term: display task
+    meaning: 'FreeRTOS task duy nhất gọi driver màn (ink_display.c).'
+    avoid: [task màn]
+  - id: main_task
+    term: main task
+    meaning: 'task chạy app; acquire frame, vẽ, submit frame.'
+    avoid: []
+
+  # ---- Frame và vòng đời (ink_frame_slots) ----
+  - id: frame
+    term: frame
+    meaning: 'buffer 1 bit/pixel chứa ảnh full màn, nằm trong RAM nội. Có INK_FRAME_SLOTS_COUNT (3) frame.'
+    avoid: [khung, khung đệm]
+    symbols: [INK_DRV_UC8253_FRAME_BYTES]
+  - id: acquire
+    term: acquire
+    meaning: 'main task mượn 1 frame free để vẽ.'
+    avoid: [mượn khung]
+    symbols: [ink_frame_slots_acquire, ink_display_acquire]
+  - id: lease
+    term: lease
+    meaning: 'kết quả của acquire; gồm frame, fill, copy_from.'
+    avoid: []
+    symbols: [ink_frame_slots_lease_t]
+  - id: submit
+    term: submit
+    meaning: 'main task đưa frame đã vẽ vào pending, không chờ.'
+    avoid: [giao khung]
+    symbols: [ink_frame_slots_submit, ink_display_submit]
+  - id: pending
+    term: pending
+    meaning: 'frame đã submit, display task chưa take. Tối đa 1; submit đè thì frame cũ bị drop.'
+    avoid: [hàng chờ]
+  - id: take
+    term: take
+    meaning: 'display task lấy frame pending ra để vẽ.'
+    avoid: [lấy khung]
+    symbols: [ink_frame_slots_take]
+  - id: shown_frame
+    term: shown frame
+    meaning: 'frame đang hiện trên panel.'
+    avoid: [khung đang hiện]
+    symbols: [ink_frame_slots_shown]
+  - id: drop
+    term: drop
+    meaning: 'frame pending bị bỏ vì có frame mới hơn; đếm trong ink_frame_slots_dropped().'
+    avoid: [bị bỏ]
+  - id: background_frame
+    term: background frame
+    meaning: 'ảnh vẽ lên panel trước deep sleep; sau wake coi là shown frame.'
+    avoid: [màn nền]
+
+  # ---- Policy (ink_display_policy) ----
+  - id: intent
+    term: intent
+    meaning: 'lý do vẽ frame (AUTO, TEXT, UI, PAGE); policy dùng để chọn preset.'
+    avoid: [ý định vẽ, ý định]
+    symbols: [ink_display_policy_intent_t, ink_display_intent_t]
+  - id: flag
+    term: flag
+    meaning: 'bit đi kèm frame khi submit (DEFER_CLEANUP, BEFORE_SLEEP).'
+    avoid: [cờ đi kèm]
+  - id: debt
+    term: debt
+    meaning: 'mức ghosting tích luỹ của 1 pixel, 0..INK_DISPLAY_POLICY_MAX_DEBT (15).'
+    avoid: [nợ xám, nợ]
+  - id: debt_ceiling
+    term: debt ceiling
+    meaning: 'mức debt tối đa trước khi policy bắt buộc cleanup.'
+    avoid: [trần nợ]
+  - id: edge_flag
+    term: edge flag
+    meaning: 'đánh dấu pixel nằm ở mép vùng đổi màu, cần cleanup edge.'
+    avoid: [cờ viền]
+  - id: changed_window
+    term: changed window
+    meaning: 'rect bao các pixel khác nhau giữa shown frame và frame mới; mép x căn theo x_align.'
+    avoid: [vùng đổi]
+  - id: cleanup
+    term: cleanup
+    meaning: 'lần vẽ không đổi ảnh, chỉ để xoá ghosting (CLEAN_STRONG, CLEAN_FAST, CLEAN_EDGE_*, CLEAN_LIGHT).'
+    avoid: [dọn màn, lượt dọn, dọn]
+  - id: cleanup_stage
+    term: cleanup stage
+    meaning: 'một bậc cleanup khi idle (edge_ms, light_ms, strong_ms).'
+    avoid: [thang dọn, bậc dọn]
+  - id: idle
+    term: idle
+    meaning: 'khoảng không có frame mới; policy chạy các cleanup stage.'
+    avoid: [lúc nghỉ, khi nghỉ]
+  - id: old_plane_new_plane
+    term: old plane / new plane
+    meaning: 'hai ảnh 1 bit gửi cho controller; mỗi pixel vẽ theo cặp bit (new, old).'
+    avoid: [mặt phẳng cũ, mặt phẳng mới, mặt phẳng]
+  - id: decision
+    term: decision
+    meaning: 'kết quả policy cho 1 frame: action, intent, window, old_plane.'
+    avoid: [cách vẽ]
+
+  # ---- HAL và driver ----
+  - id: purpose
+    term: purpose
+    meaning: 'mục đích một lần vẽ (TEXT, UI, PAGE, CLEAN_*); display giữ 1 preset cho mỗi purpose.'
+    avoid: [mục đích vẽ]
+    symbols: [ink_hal_display_purpose_t]
+  - id: preset
+    term: preset
+    meaning: 'cấu hình vẽ của 1 purpose: bands, draw config, debt_weight, edge_flags.'
+    avoid: []
+  - id: options
+    term: options
+    meaning: 'cấu hình display đổi được lúc chạy (presets, ngưỡng debt, thời gian cleanup stage).'
+    avoid: [cài đặt]
+    symbols: [ink_display_options_t]
+  - id: capabilities
+    term: capabilities
+    meaning: 'bảng driver khai báo: cỡ panel, x_align, profiles, purpose defaults.'
+    avoid: [bảng khả năng]
+    symbols: [ink_hal_display_capabilities_t]
+  - id: profile
+    term: profile
+    meaning: 'bộ waveform và thông số nguồn nạp vào controller cho 1 lần vẽ.'
+    avoid: []
+  - id: waveform
+    term: waveform
+    meaning: '5 bảng LUT (LUTC, LUTWW, LUTKW, LUTWK, LUTKK) điều khiển điện áp từng pixel.'
+    avoid: [bảng sóng]
+  - id: band
+    term: band
+    meaning: 'dải nhiệt độ; nhiệt độ ≤ max_celsius thì dùng profile_id.'
+    avoid: [dải nhiệt độ, dải]
+  - id: analog_power
+    term: analog power
+    meaning: 'nguồn cao áp của controller, bật bằng PON, tắt bằng POF.'
+    avoid: [nguồn analog]
+  - id: drf
+    term: DRF
+    meaning: 'lệnh Display Refresh; panel quét 1 lần, BUSY thấp tới khi xong.'
+    avoid: []
+  - id: border
+    term: border
+    meaning: 'viền ngoài vùng hiển thị của panel.'
+    avoid: [viền màn]
+  - id: caller
+    term: caller
+    meaning: 'code gọi hàm đang nói tới.'
+    avoid: [bên gọi]
