@@ -1,9 +1,9 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #include "ink_keymap.h"
 
 #include <string.h>
 
-/* ---- So gesture ---- */
+/* ---- Compare gestures ---- */
 
 static bool gesture_equal(const ink_gesture_t *a, const ink_gesture_t *b) {
     return a->modifier == b->modifier && a->source == b->source && a->button == b->button && a->type == b->type;
@@ -14,7 +14,7 @@ static bool gesture_is_reserved(const ink_gesture_t *g) {
         && (g->type == INK_GESTURE_TYPE_HOLD_AB_SHORT || g->type == INK_GESTURE_TYPE_HOLD_AB_LONG);
 }
 
-/* ---- Tra ---- */
+/* ---- Lookup ---- */
 
 static bool table_find(const ink_keymap_table_t *table, const ink_gesture_t *gesture, ink_keymap_intent_t *out_intent) {
     if (table == nullptr) { return false; }
@@ -33,7 +33,7 @@ bool ink_keymap_lookup(const ink_keymap_table_t *scene, const ink_keymap_table_t
     return table_find(scene, gesture, out_intent) || table_find(app, gesture, out_intent);
 }
 
-/* ---- Kiểm tra ---- */
+/* ---- Validate ---- */
 
 static ink_keymap_error_t validate_table(const ink_keymap_table_t *table) {
     if (table->count > INK_KEYMAP_ENTRY_MAX) { return INK_KEYMAP_ERROR_COUNT; }
@@ -55,8 +55,8 @@ ink_keymap_error_t ink_keymap_validate(const ink_keymap_table_t *scene, const in
         if (error != INK_KEYMAP_OK) { return error; }
     }
 
-    /* BACK phải tra ra được: dòng BACK của scene, hoặc dòng BACK của app mà scene
-     * không đè */
+    /* BACK must be reachable: a BACK entry of the scene table, or a BACK entry of the app table the scene does
+     * not override. */
     for (uint8_t i = 0; i < app->count; i++) {
         ink_keymap_intent_t effective;
         if (ink_keymap_lookup(scene, app, &app->entries[i].gesture, &effective) && effective == INK_KEYMAP_INTENT_BACK) {
@@ -77,7 +77,7 @@ ink_keymap_error_t ink_keymap_reset(ink_keymap_table_t *table, const ink_keymap_
     return INK_KEYMAP_OK;
 }
 
-/* ---- Mask kiểu phải chờ ---- */
+/* ---- Wait mask ---- */
 
 static uint8_t table_wait_mask(const ink_keymap_table_t *table, ink_gesture_button_t button) {
     uint8_t mask = INK_GESTURE_WAIT_NONE;
@@ -92,6 +92,7 @@ static uint8_t table_wait_mask(const ink_keymap_table_t *table, ink_gesture_butt
 }
 
 uint8_t ink_keymap_wait_mask(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, ink_gesture_button_t button) {
+    /* EXTEND(keymap): a third button needs this check and INK_GESTURE_BUTTON_COUNT changed together. */
     if (button != INK_GESTURE_BUTTON_A && button != INK_GESTURE_BUTTON_B) { return INK_GESTURE_WAIT_NONE; }
     return table_wait_mask(scene, button) | table_wait_mask(app, button);
 }

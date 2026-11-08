@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 
-/* Host test: chạy trên PC bằng gcc, dùng Unity lấy từ ESP-IDF. Mỗi trường hợp một hàm test_*. */
+/* Host test: runs on the PC with gcc and the Unity copy from ESP-IDF. One test_* function per case. */
 #include "ink_keymap.h"
 #include "unity.h"
 
@@ -10,7 +10,7 @@ void setUp(void) {
 void tearDown(void) {
 }
 
-/* ---- Bảng mẫu ---- */
+/* ---- Sample keymap tables ---- */
 
 enum {
     INTENT_GRADE_GOOD = INK_KEYMAP_INTENT_APP_BASE,
@@ -26,7 +26,7 @@ static const ink_gesture_t A_HOLD   = G(INK_GESTURE_MODIFIER_NONE, INK_GESTURE_B
 static const ink_gesture_t B_DOUBLE = G(INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_DOUBLE_PRESS);
 static const ink_gesture_t A_THEN_B = G(INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_PRESS);
 
-/* App Flashcard mẫu */
+/* Sample Flashcard app */
 static ink_keymap_table_t make_app(void) {
     return (ink_keymap_table_t){
         .count   = 4,
@@ -43,7 +43,7 @@ static ink_keymap_intent_t lookup_ok(const ink_keymap_table_t *scene, const ink_
     return intent;
 }
 
-/* ---- Mã cố định ---- */
+/* ---- Fixed codes ---- */
 
 static void test_intent_codes_are_fixed(void) {
     TEST_ASSERT_EQUAL(0, INK_KEYMAP_INTENT_NEXT);
@@ -71,13 +71,13 @@ static void test_lookup_scene_overrides_app(void) {
     ink_keymap_table_t app   = make_app();
     ink_keymap_table_t scene = {.count = 1, .entries = {{B_PRESS, (ink_keymap_intent_t)INTENT_GRADE_GOOD}}};
     TEST_ASSERT_EQUAL(INTENT_GRADE_GOOD, lookup_ok(&scene, &app, B_PRESS));
-    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_PREV, lookup_ok(&scene, &app, A_PRESS)); /* không có trong scene: rơi về app */
+    TEST_ASSERT_EQUAL(INK_KEYMAP_INTENT_PREV, lookup_ok(&scene, &app, A_PRESS)); /* not in the scene table: falls back to the app table */
 }
 
 static void test_lookup_modifier_is_part_of_gesture(void) {
     ink_keymap_table_t  app = make_app();
     ink_keymap_intent_t intent;
-    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &A_THEN_B, &intent)); /* B nhấn có modifier A khác B nhấn */
+    TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, &app, &A_THEN_B, &intent)); /* B PRESS with modifier A differs from B PRESS */
 }
 
 static void test_lookup_rejects_null(void) {
@@ -88,7 +88,7 @@ static void test_lookup_rejects_null(void) {
     TEST_ASSERT_FALSE(ink_keymap_lookup(nullptr, nullptr, &B_PRESS, &intent));
 }
 
-/* ---- Kiểm tra ---- */
+/* ---- Validate ---- */
 
 static void test_validate_accepts_sample(void) {
     ink_keymap_table_t app = make_app();
@@ -129,7 +129,7 @@ static void test_validate_rejects_count_over_max(void) {
 
 static void test_validate_requires_back(void) {
     ink_keymap_table_t app = make_app();
-    app.entries[3].intent  = INK_KEYMAP_INTENT_SELECT; /* A giữ không còn là BACK */
+    app.entries[3].intent  = INK_KEYMAP_INTENT_SELECT; /* A HOLD is no longer BACK */
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_NO_BACK, ink_keymap_validate(nullptr, &app));
 }
 
@@ -154,7 +154,7 @@ static void test_validate_allows_scene_to_reuse_app_gesture(void) {
     TEST_ASSERT_EQUAL(INK_KEYMAP_OK, ink_keymap_validate(&scene, &app));
 }
 
-/* ---- Khôi phục mặc định ---- */
+/* ---- Reset to defaults ---- */
 
 static void test_reset_restores_defaults(void) {
     const ink_keymap_table_t defaults = make_app();
@@ -168,7 +168,7 @@ static void test_reset_restores_defaults(void) {
     TEST_ASSERT_EQUAL(INK_KEYMAP_ERROR_ARGUMENT, ink_keymap_reset(&table, nullptr));
 }
 
-/* ---- Mask kiểu phải chờ ---- */
+/* ---- Wait mask ---- */
 
 static void test_wait_mask_defaults_to_none(void) {
     ink_keymap_table_t app = make_app();

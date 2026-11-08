@@ -1,12 +1,12 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 
-/* Đổi mã gesture thành chữ và in log. Hàm thuần, không giữ trạng thái; gọi từ task main. */
+/* Gesture codes to text, and logging. Stateless; called from the main task. */
 #include "esp_log.h"
 #include "ink_input_internal.h"
 
 static const char *TAG = "ink_input";
 
-/* ---- Tên ---- */
+/* ---- Names ---- */
 
 const char *input_button_name(uint8_t button) {
     switch (button) {
@@ -38,7 +38,7 @@ static const char *gesture_type_name(ink_gesture_type_t type) {
     }
 }
 
-/* ---- Log gesture và progress ---- */
+/* ---- Log gestures and progress ---- */
 
 void input_log_gestures(const ink_gesture_output_t *gestures) {
     for (uint8_t i = 0; i < gestures->count; i++) {

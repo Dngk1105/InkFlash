@@ -1,7 +1,7 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #pragma once
 
-/* Hàm dùng chung giữa các file của ink_input. Không nằm trong include/: khối khác không thấy. */
+/* Functions shared by the files of ink_input. Not in include/, so other modules cannot see them. */
 #include "ink_input.h"
 #include <stddef.h>
 #include <stdint.h>

@@ -1,6 +1,6 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 
-/* Host test (Unity). advance() gọi tick đúng từng deadline, như system với timer thật. */
+/* Host test (Unity). advance() ticks at each deadline, as system does with the real timer. */
 #include "ink_gesture.h"
 #include "unity.h"
 
@@ -29,7 +29,7 @@ static void collect(const ink_gesture_output_t *out) {
 static void advance(uint32_t time_ms) {
     uint32_t deadline_ms;
     for (int guard = 0; ink_gesture_next_deadline(&s_state, &deadline_ms) && (int32_t)(time_ms - deadline_ms) >= 0; guard++) {
-        TEST_ASSERT_LESS_THAN_MESSAGE(100, guard, "tick không tiêu hạn");
+        TEST_ASSERT_LESS_THAN_MESSAGE(100, guard, "tick does not consume the deadline");
         ink_gesture_output_t out;
         TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_tick(&s_state, deadline_ms, &out));
         collect(&out);
@@ -71,7 +71,7 @@ void tearDown(void) {
 /* ---- Argument, config ---- */
 
 static void test_codes_are_stable(void) {
-    /* keymap lưu các số này: đổi là bảng gán đã lưu trỏ sai. */
+    /* Keymap tables store these numbers: changing them points stored entries at other gestures. */
     TEST_ASSERT_EQUAL(1, INK_GESTURE_BUTTON_A);
     TEST_ASSERT_EQUAL(2, INK_GESTURE_BUTTON_B);
     TEST_ASSERT_EQUAL(3, INK_GESTURE_BUTTON_AB);
@@ -154,7 +154,7 @@ static void test_bounce_gives_one_press(void) {
 }
 
 static void test_level_after_lock_is_checked(void) {
-    /* Nhả trong debounce_ms: hết debounce mới nhận. */
+    /* Release within debounce_ms: accepted when debounce ends. */
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 10);
     TEST_ASSERT_EQUAL(0, s_count);
@@ -177,7 +177,7 @@ static void test_hold_emitted_at_threshold_not_on_release(void) {
 static void test_time_wraps(void) {
     const uint32_t start_ms = UINT32_MAX - 50;
     down(INK_GESTURE_BUTTON_A, start_ms);
-    up(INK_GESTURE_BUTTON_A, start_ms + 100); /* quay vòng qua 0 */
+    up(INK_GESTURE_BUTTON_A, start_ms + 100); /* wraps past 0 */
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_PRESS);
     down(INK_GESTURE_BUTTON_B, start_ms + 200);
@@ -271,7 +271,7 @@ static void test_late_second_button_without_mod_ignored(void) {
     up(INK_GESTURE_BUTTON_A, 400);
     advance(10000);
     TEST_ASSERT_EQUAL(0, s_count);
-    /* Nhả hết thì nhận lại. */
+    /* Accepts again once both are released. */
     down(INK_GESTURE_BUTTON_A, 11000);
     up(INK_GESTURE_BUTTON_A, 11100);
     TEST_ASSERT_EQUAL(1, s_count);
@@ -282,7 +282,7 @@ static void test_pending_press_flushed_before_combo(void) {
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
     down(INK_GESTURE_BUTTON_B, 100);
-    down(INK_GESTURE_BUTTON_A, 150); /* trong double_ms của A và combo_ms của B */
+    down(INK_GESTURE_BUTTON_A, 150); /* within double_ms of A and combo_ms of B */
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_PRESS);
     up(INK_GESTURE_BUTTON_A, 300);
@@ -316,7 +316,7 @@ static void test_modifier_kept_when_released_first(void) {
     down(INK_GESTURE_BUTTON_A, 0);
     down(INK_GESTURE_BUTTON_B, 300);
     up(INK_GESTURE_BUTTON_B, 350);
-    up(INK_GESTURE_BUTTON_A, 400); /* nhả modifier trước khi B hết double_ms */
+    up(INK_GESTURE_BUTTON_A, 400); /* modifier released before double_ms of B ends */
     advance(5000);
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_PRESS);
@@ -340,10 +340,10 @@ static void test_modifier_enabled_short_press_still_press(void) {
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_PRESS);
 }
 
-/* ---- Đổi mask giữa chừng ---- */
+/* ---- Wait mask changes mid-gesture ---- */
 
 static void test_mask_change_drops_pending_after_release(void) {
-    /* Ví dụ trong docs: A đang chờ double press thì scene đổi, tắt double. */
+    /* Example from input.md: A waits for a double press, then the scene changes and turns WAIT_DOUBLE off. */
     TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_enabled(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_DOUBLE));
     down(INK_GESTURE_BUTTON_A, 0);
     up(INK_GESTURE_BUTTON_A, 50);
@@ -408,7 +408,7 @@ static void test_progress_hold(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.next);
     TEST_ASSERT_EQUAL(0, progress.start_ms);
     TEST_ASSERT_EQUAL(600, progress.next_ms);
-    expect_no_progress(700); /* HOLD đã phát */
+    expect_no_progress(700); /* HOLD already emitted */
 }
 
 static void test_progress_modifier_hold_waits_release(void) {
@@ -432,7 +432,7 @@ static void test_progress_ab_short_then_long(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_AB_SHORT, progress.on_release);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_AB_LONG, progress.next);
     TEST_ASSERT_EQUAL(8050, progress.next_ms);
-    expect_no_progress(8050); /* HOLD_AB_LONG đã phát */
+    expect_no_progress(8050); /* HOLD_AB_LONG already emitted */
 }
 
 static void test_progress_modifier_target(void) {

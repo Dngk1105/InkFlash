@@ -1,24 +1,26 @@
-/* Thiết kế: docs/design/input/input.md */
+/* Design: docs/design/input/input.md */
 #pragma once
 
-/* Interface nút: một device cho một nút. Driver không đóng dấu thời gian, bên
- * nhận callback đóng dấu. */
+/*
+ * Interface between input and a button driver: one device per button. The driver takes no timestamp;
+ * the receiver of the callback does.
+ */
 #include "esp_err.h"
 #include <stdbool.h>
 
-/** Chạy trong ISR mỗi khi chân đổi mức: phải nằm trong IRAM, không log, không
- * chặn. */
+/** Runs in the ISR on every pin level change. WARN: must be in IRAM, must not log or block. */
 typedef void (*ink_hal_button_callback_t)(void *user_data, bool pressed);
 
-/** Bảng khả năng: driver khai báo nó làm được gì. */
+/** What the driver can do. */
 typedef struct {
-    bool has_interrupt; /**< báo edge bằng ngắt qua set_callback */
+    bool has_interrupt; /**< reports edges by interrupt through set_callback */
 } ink_hal_button_capabilities_t;
 
-/** Bảng hàm. `context` là dữ liệu riêng của driver. */
+/** Driver operations; `context` is the driver's own data. */
 typedef struct {
+    /** Read the current level; true = pressed. Called from the main task (resync). */
     esp_err_t (*read)(void *context, bool *out_pressed);
-    /** Đăng ký callback rồi bật ngắt; gọi một lần, từ task. */
+    /** Register the callback, then enable the interrupt. Call once, from a task. */
     esp_err_t (*set_callback)(void *context, ink_hal_button_callback_t callback, void *user_data);
 } ink_hal_button_operations_t;
 
