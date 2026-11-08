@@ -19,7 +19,7 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
 | `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
-| `ui/` | Canvas, font | main | Có | Có | Chỉ thư viện C chuẩn |
+| `ui/` | Canvas, font | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
 | `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
 | `hal/` | Interface phần cứng | caller | | Có | |
@@ -65,7 +65,6 @@ Mỗi file tự đứng được; chỉ mở file khớp với vấn đề.
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |
 | Tạo module mới, đặt tên, repo xếp thế nào, mã lỗi, template, `tools/check.py` báo lỗi | [design/code-structure.md](design/code-structure.md) |
-| Vẽ chữ hoặc hình lên canvas, chữ Việt ra `?`, màn ngang bị xoay sai, thêm hoặc đổi font | [design/ui-canvas.md](design/ui-canvas.md) |
 | Viết code gọi ESP-IDF, không chắc API còn dùng được ở v6.1, build báo deprecated | [design/esp-idf-api.md](design/esp-idf-api.md) |
 | Thông số, chân, lệnh của một linh kiện; board dùng linh kiện nào, đấu chân nào | [hardware/index.md](hardware/index.md), rồi chỉ mở file cần |
 | Thuật ngữ, đổi tên identifier | [glossary.yaml](glossary.yaml) |

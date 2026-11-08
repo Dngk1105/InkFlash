@@ -25,7 +25,6 @@ scope:
   - components/ink_display
   - components/core/ink_gesture
   - components/core/ink_keymap
-  - components/core/ink_ui
   - components/ink_input
   - components/ink_hal
   - components/drivers/ink_drv_uc8253
@@ -83,9 +82,6 @@ modules:
   - id: system
     prefix: ink_system
     meaning: 'main queue và main task; chuyển message cho module owner; khởi động input và display.'
-  - id: ui
-    prefix: ink_ui
-    meaning: 'core module: canvas 1 bit theo bố cục frame, vẽ hình và chữ UTF-8, font.'
 
 terms:
   # ---- Task ----
@@ -394,31 +390,11 @@ terms:
     term: Settings
     meaning: 'app Cài đặt trên máy: đổi options, gesture config, keymap table; đọc ghi qua API của system.'
     avoid: [app Cài đặt]
+  - id: canvas
+    term: canvas
+    meaning: 'ảnh 1 bit app vẽ vào, đúng bố cục frame. Thiết kế ui chưa chốt.'
+    avoid: []
   - id: scene_stack
     term: scene stack
     meaning: 'stack scene của app, tối đa 4 tầng; BACK pop về scene trước.'
     avoid: [ngăn xếp scene]
-
-  # ---- UI (ink_ui) ----
-  - id: canvas
-    term: canvas
-    meaning: 'ảnh 1 bit đúng bố cục frame (240 × 416 px, dọc); app vẽ theo app coordinates, canvas đổi sang toạ độ panel từng pixel.'
-    avoid: []
-    symbols: [ink_ui_canvas_t]
-  - id: app_coordinates
-    term: app coordinates
-    meaning: 'toạ độ màn ngang 416 × 240 px, gốc góc trên trái, x sang phải, y xuống dưới.'
-    avoid: [toạ độ app]
-  - id: rotation
-    term: rotation
-    meaning: 'cách đổi app coordinates sang toạ độ panel: ROTATION_90 hoặc ROTATION_270, chọn lúc init canvas.'
-    avoid: [hướng xoay]
-  - id: glyph
-    term: glyph
-    meaning: 'bitmap và số đo của một ký tự trong font.'
-    avoid: []
-    symbols: [ink_ui_glyph_t]
-  - id: baseline
-    term: baseline
-    meaning: 'đường chân chữ; offset_y của glyph và ascent của font tính từ đây.'
-    avoid: [đường cơ sở]
