@@ -612,7 +612,7 @@ static esp_err_t configure_pins(const ink_drv_uc8253_config_t *config) {
 static void fill_profile_info(ink_drv_uc8253_t *driver) {
     for (size_t i = 0; i < INK_DRV_UC8253_PROFILE_COUNT; i++) { driver->profile_info[i] = profile_info(&ink_drv_uc8253_profiles[i]); }
     driver->profile_info[TEMPORARY_PROFILE] =
-        (ink_hal_display_profile_info_t){.id = 0, .name = "tmp", .source = INK_HAL_DISPLAY_SOURCE_HAND};
+        (ink_hal_display_profile_info_t){.id = 0, .name = "tmp", .source = INK_HAL_DISPLAY_SOURCE_CUSTOM};
 }
 
 esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_config_t *config, ink_hal_display_device_t *out_device) {
