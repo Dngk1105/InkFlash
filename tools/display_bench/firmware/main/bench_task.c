@@ -66,28 +66,51 @@ static void put_text(writer_t *writer, const char *text) {
 /* ---- Khối cài đặt (bench.md, "Giao thức") ---- */
 
 #define OPTIONS_PRESET_BYTES (1 + INK_HAL_DISPLAY_MAX_BANDS * 3 + 5)
-#define OPTIONS_BYTES        (INK_HAL_DISPLAY_PURPOSE_COUNT * OPTIONS_PRESET_BYTES + 8 + 16)
+#define OPTIONS_TAIL_BYTES   (5 + 4 * 5) /* 5 ngưỡng nợ, rồi active_ms, edge_ms, light_ms, strong_ms, power_off_ms (u32) */
+#define OPTIONS_BYTES        ((INK_DISPLAY_INTENT_COUNT + INK_DISPLAY_CLEANUP_COUNT) * OPTIONS_PRESET_BYTES + OPTIONS_TAIL_BYTES)
 
+/* Một bản ghi preset: cleanup không có debt_weight và marks_edges nên ghi 0. */
+static void put_preset(writer_t *writer, const ink_display_preset_t *preset, uint8_t debt_weight, bool marks_edges) {
+    put_u8(writer, preset->band_count);
+    for (int band = 0; band < INK_HAL_DISPLAY_MAX_BANDS; band++) {
+        put_u8(writer, (uint8_t)preset->bands[band].max_celsius);
+        put_u16(writer, preset->bands[band].profile_id);
+    }
+    put_u8(writer, preset->config.partial_mode);
+    put_u8(writer, preset->config.scan_outside_window);
+    put_u8(writer, preset->config.drive_border);
+    put_u8(writer, debt_weight);
+    put_u8(writer, marks_edges);
+}
+
+static const uint8_t *read_preset(const uint8_t *cursor, ink_display_preset_t *preset, uint8_t *debt_weight, bool *marks_edges) {
+    preset->band_count = *cursor++;
+    for (int band = 0; band < INK_HAL_DISPLAY_MAX_BANDS; band++) {
+        preset->bands[band] = (ink_hal_display_band_t){.max_celsius = (int8_t)cursor[0], .profile_id = read_u16(&cursor[1])};
+        cursor += 3;
+    }
+    preset->config =
+        (ink_hal_display_draw_config_t){.partial_mode = cursor[0] != 0, .scan_outside_window = cursor[1] != 0, .drive_border = cursor[2] != 0};
+    if (debt_weight != nullptr) { *debt_weight = cursor[3]; }
+    if (marks_edges != nullptr) { *marks_edges = cursor[4] != 0; }
+    return cursor + 5;
+}
+
+/* Index bản ghi = giá trị enum: draw theo ink_display_intent_t (AUTO không dùng), cleanup theo ink_display_cleanup_t (INVALID không dùng). */
 static void put_options(writer_t *writer, const ink_display_options_t *options) {
-    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        const ink_display_preset_t *preset = &options->presets[purpose];
-        put_u8(writer, preset->band_count);
-        for (int band = 0; band < INK_HAL_DISPLAY_MAX_BANDS; band++) {
-            put_u8(writer, (uint8_t)preset->bands[band].max_celsius);
-            put_u16(writer, preset->bands[band].profile_id);
-        }
-        put_u8(writer, preset->config.partial_mode);
-        put_u8(writer, preset->config.pt_scan);
-        put_u8(writer, preset->config.drive_border);
-        put_u8(writer, preset->debt_weight);
-        put_u8(writer, preset->edge_flags);
+    for (int intent = 0; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
+        const ink_display_draw_preset_t *draw = &options->draw_presets[intent];
+        put_preset(writer, &draw->preset, draw->debt_weight, draw->marks_edges);
+    }
+    for (int cleanup = 0; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
+        put_preset(writer, &options->cleanup_presets[cleanup], 0, false);
     }
     put_u8(writer, options->auto_ui_percent);
-    put_u8(writer, options->debt_soft);
+    put_u8(writer, options->debt_light);
     put_u8(writer, options->debt_page);
     put_u8(writer, options->debt_ceiling);
     put_u8(writer, options->debt_ceiling_max);
-    for (int i = 0; i < 3; i++) { put_u8(writer, 0); }
+    put_u32(writer, options->active_ms);
     put_u32(writer, options->edge_ms);
     put_u32(writer, options->light_ms);
     put_u32(writer, options->strong_ms);
@@ -97,29 +120,24 @@ static void put_options(writer_t *writer, const ink_display_options_t *options) 
 static esp_err_t read_options(const uint8_t *payload, size_t length, ink_display_options_t *out_options) {
     ESP_RETURN_ON_FALSE(length >= OPTIONS_BYTES, ESP_ERR_INVALID_ARG, TAG, "options %u", (unsigned)length);
     const uint8_t *cursor = payload;
-    for (int purpose = 0; purpose < INK_HAL_DISPLAY_PURPOSE_COUNT; purpose++) {
-        ink_display_preset_t *preset = &out_options->presets[purpose];
-        preset->band_count           = *cursor++;
-        for (int band = 0; band < INK_HAL_DISPLAY_MAX_BANDS; band++) {
-            preset->bands[band] = (ink_hal_display_band_t){.max_celsius = (int8_t)cursor[0], .profile_id = read_u16(&cursor[1])};
-            cursor += 3;
-        }
-        preset->config =
-            (ink_hal_display_draw_config_t){.partial_mode = cursor[0] != 0, .pt_scan = cursor[1] != 0, .drive_border = cursor[2] != 0};
-        preset->debt_weight = cursor[3];
-        preset->edge_flags  = cursor[4] != 0;
-        cursor += 5;
+    for (int intent = 0; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
+        ink_display_draw_preset_t *draw = &out_options->draw_presets[intent];
+        cursor = read_preset(cursor, &draw->preset, &draw->debt_weight, &draw->marks_edges);
+    }
+    for (int cleanup = 0; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
+        cursor = read_preset(cursor, &out_options->cleanup_presets[cleanup], nullptr, nullptr);
     }
     out_options->auto_ui_percent  = cursor[0];
-    out_options->debt_soft        = cursor[1];
+    out_options->debt_light       = cursor[1];
     out_options->debt_page        = cursor[2];
     out_options->debt_ceiling     = cursor[3];
     out_options->debt_ceiling_max = cursor[4];
-    cursor += 8;
-    out_options->edge_ms      = read_u32(&cursor[0]);
-    out_options->light_ms     = read_u32(&cursor[4]);
-    out_options->strong_ms    = read_u32(&cursor[8]);
-    out_options->power_off_ms = read_u32(&cursor[12]);
+    cursor += 5;
+    out_options->active_ms    = read_u32(&cursor[0]);
+    out_options->edge_ms      = read_u32(&cursor[4]);
+    out_options->light_ms     = read_u32(&cursor[8]);
+    out_options->strong_ms    = read_u32(&cursor[12]);
+    out_options->power_off_ms = read_u32(&cursor[16]);
     return ESP_OK;
 }
 
@@ -154,14 +172,15 @@ static void send_drawn(const bench_drawn_t *drawn) {
     writer_t writer = {};
     put_u8(&writer, drawn->slot);
     put_u8(&writer, drawn->action);
-    put_u8(&writer, drawn->purpose);
+    put_u8(&writer, drawn->intent);
     put_u8(&writer, (uint8_t)drawn->temperature_celsius);
     put_u8(&writer, drawn->temperature_valid);
     put_u8(&writer, drawn->max_debt);
     put_u8(&writer, drawn->ceiling);
-    put_u8(&writer, drawn->frame);
+    put_u8(&writer, drawn->is_frame);
     put_u16(&writer, drawn->profile_id);
-    put_u16(&writer, 0);
+    put_u8(&writer, drawn->cleanup);
+    put_u8(&writer, 0);
     put_u32(&writer, (uint32_t)drawn->error);
     put_u16(&writer, drawn->window.x);
     put_u16(&writer, drawn->window.y);
@@ -170,10 +189,10 @@ static void send_drawn(const bench_drawn_t *drawn) {
     put_u32(&writer, drawn->flagged_count);
     put_u32(&writer, drawn->input_ms);
     put_u32(&writer, drawn->queue_ms);
-    put_u32(&writer, drawn->diff_ms);
+    put_u32(&writer, drawn->decide_ms);
     put_u32(&writer, drawn->driver.spi_us);
     put_u32(&writer, drawn->driver.panel_us);
-    put_u32(&writer, drawn->driver.after_us);
+    put_u32(&writer, drawn->driver.post_scan_us);
     put_u32(&writer, drawn->driver.power_us);
     bench_link_send(BENCH_DRAWN, 0, writer.bytes, writer.length);
 }
@@ -200,9 +219,9 @@ static struct {
 
 /* Profile và cấu hình vẽ mặc định của đường raw: preset TEXT của driver. */
 static void init_raw_settings(void) {
-    const ink_hal_display_capabilities_t    *capabilities = bench_draw_capabilities();
-    const ink_hal_display_purpose_default_t *text         = &capabilities->purpose_defaults[INK_HAL_DISPLAY_PURPOSE_TEXT];
-    s_raw.config                                          = text->config;
+    const ink_hal_display_capabilities_t   *capabilities = bench_draw_capabilities();
+    const ink_hal_display_preset_default_t *text         = &capabilities->draw_defaults[INK_DISPLAY_INTENT_TEXT];
+    s_raw.config                                         = text->config;
     for (size_t i = 0; i < capabilities->profile_count; i++) {
         if (text->band_count > 0 && capabilities->profiles[i].id == text->bands[text->band_count - 1].profile_id) {
             s_raw.profile = (uint8_t)i;
@@ -232,7 +251,7 @@ static void restart_power_timer(void) {
 /* Tắt nguồn và báo bằng gói DRAWN (việc 7), để trang thấy lúc nguồn tắt. */
 static esp_err_t raw_power_off(void) {
     ink_platform_timer_stop(s_power_timer);
-    const bench_drawn_t drawn = {.action = INK_DISPLAY_ACTION_POWER_OFF, .purpose = 255, .error = bench_draw_power_off()};
+    const bench_drawn_t drawn = {.action = INK_DISPLAY_ACTION_POWER_OFF, .intent = 255, .error = bench_draw_power_off()};
     send_drawn(&drawn);
     return drawn.error;
 }
@@ -249,9 +268,9 @@ static esp_err_t handle_power_off(const uint8_t *payload, size_t length) {
 }
 
 /* Vẽ slot; đường raw gửi DRAWN ngay, đường pipeline gửi khi ink_display báo. Trả false nếu không vẽ được. */
-static bool draw_slot(uint8_t slot, uint32_t press_ms) {
+static bool draw_slot(uint8_t slot, uint32_t input_at_ms) {
     if (s_path == BENCH_PATH_PIPELINE) {
-        const esp_err_t error = bench_draw_submit(slot, press_ms, s_pipeline.intent, s_pipeline.flags);
+        const esp_err_t error = bench_draw_submit(slot, input_at_ms, s_pipeline.intent, s_pipeline.flags);
         if (error != ESP_OK) { ESP_LOGE(TAG, "submit: %s", esp_err_to_name(error)); }
         return error == ESP_OK;
     }
@@ -260,7 +279,7 @@ static bool draw_slot(uint8_t slot, uint32_t press_ms) {
     bench_drawn_t   drawn;
     const esp_err_t error = bench_draw_raw(slot, &s_raw, &drawn);
     if (error != ESP_OK) { return false; }
-    if (press_ms != 0) { drawn.input_ms = start_ms - press_ms; }
+    if (input_at_ms != 0) { drawn.input_ms = start_ms - input_at_ms; }
     send_drawn(&drawn);
     restart_power_timer();
     return true;
@@ -322,7 +341,7 @@ static esp_err_t start_sequence(const uint8_t *payload, size_t length) {
     stop_sequence();
     s_sequence.interval_ms  = read_u16(&payload[0]);
     s_sequence.repeats_left = payload[2];
-    s_pipeline.intent       = payload[3] < INK_DISPLAY_POLICY_INTENT_COUNT ? payload[3] : INK_DISPLAY_INTENT_AUTO;
+    s_pipeline.intent       = payload[3] < INK_DISPLAY_INTENT_COUNT ? payload[3] : INK_DISPLAY_INTENT_AUTO;
     s_pipeline.flags        = payload[4];
     s_sequence.count        = count;
     memcpy(s_sequence.slots, &payload[6], count);
@@ -334,12 +353,12 @@ static esp_err_t start_sequence(const uint8_t *payload, size_t length) {
 }
 
 /* Nút A: khung sau trong chuỗi, B: khung trước; dừng chuỗi đang tự chạy. */
-static void step_by_button(bool forward, uint32_t press_ms) {
+static void step_by_button(bool forward, uint32_t input_at_ms) {
     if (s_sequence.count == 0) { return; }
     stop_sequence();
     const uint8_t count = s_sequence.count;
     s_sequence.index    = forward ? (uint8_t)((s_sequence.index + 1) % count) : (uint8_t)((s_sequence.index + count - 1) % count);
-    draw_slot(s_sequence.slots[s_sequence.index], press_ms);
+    draw_slot(s_sequence.slots[s_sequence.index], input_at_ms);
 }
 
 /* ---- Gói từ PC ---- */
@@ -352,7 +371,7 @@ static esp_err_t handle_draw(const uint8_t *payload, size_t length) {
         .profile     = payload[1],
         .old_source  = (bench_old_source_t)payload[2],
         .old_slot    = payload[3],
-        .config      = {.partial_mode = payload[4] != 0, .pt_scan = payload[5] != 0, .drive_border = payload[6] != 0},
+        .config      = {.partial_mode = payload[4] != 0, .scan_outside_window = payload[5] != 0, .drive_border = payload[6] != 0},
         .window_kind = (bench_window_kind_t)payload[7],
         .window      = {read_u16(&payload[8]), read_u16(&payload[10]), read_u16(&payload[12]), read_u16(&payload[14])},
     };
@@ -366,7 +385,7 @@ static esp_err_t handle_draw(const uint8_t *payload, size_t length) {
 static esp_err_t handle_submit(const uint8_t *payload, size_t length) {
     ESP_RETURN_ON_FALSE(length >= 1, ESP_ERR_INVALID_ARG, TAG, "submit");
     if (length >= 3) {
-        s_pipeline.intent = payload[1] < INK_DISPLAY_POLICY_INTENT_COUNT ? payload[1] : INK_DISPLAY_INTENT_AUTO;
+        s_pipeline.intent = payload[1] < INK_DISPLAY_INTENT_COUNT ? payload[1] : INK_DISPLAY_INTENT_AUTO;
         s_pipeline.flags  = payload[2];
     }
     return draw_slot(payload[0], 0) ? ESP_OK : ESP_FAIL;
@@ -531,7 +550,7 @@ static void handle_event(const bench_event_message_t *event) {
             bench_drawn_t drawn;
             bench_draw_from_report(&event->report, &drawn);
             send_drawn(&drawn);
-            if (drawn.frame) { schedule_next_step(); }
+            if (drawn.is_frame) { schedule_next_step(); }
             break;
         }
         case BENCH_EVENT_POWER_TIMER:

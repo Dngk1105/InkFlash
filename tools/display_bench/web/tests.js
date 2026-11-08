@@ -174,7 +174,7 @@ export const TESTS = [
                 repeat: 1,
                 intent: Intent.UI,
                 flags: 0,
-                optionsPatch: {edgeMs: values.edge},
+                optionsPatch: {activeMs: values.edge, edgeMs: values.edge},
                 note: 'Chụp ảnh ngay sau lần lật cuối (trước lượt dọn) và sau gói "dọn quanh viền".',
             };
         },
@@ -198,13 +198,13 @@ export const TESTS = [
                 + 'Chụp ảnh ngay sau lần lật cuối (trước lượt dọn) và sau gói "dọn quanh viền".';
             if (values.together) {
                 return {frames: [createFrame(true), frameWithBoxes(orientation, boxes)], order: flips(values.cycles * 2), intervalMs: values.interval,
-                    repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {edgeMs: values.edge}, note};
+                    repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {activeMs: values.edge, edgeMs: values.edge}, note};
             }
             /* Khung i có i ô đầu đen: 0, 1, ..., n, n-1, ..., 1 lặp lại, mỗi bước đổi đúng một ô. */
             const frames = Array.from({length: boxes.length + 1}, (_, index) => frameWithBoxes(orientation, boxes.slice(0, index)));
             const cycle = [...frames.keys(), ...[...frames.keys()].slice(1, -1).reverse()];
             const order = [...Array.from({length: values.cycles}, () => cycle).flat(), 0];
-            return {frames, order, intervalMs: values.interval, repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {edgeMs: values.edge}, note};
+            return {frames, order, intervalMs: values.interval, repeat: 1, intent: Intent.UI, flags: 0, optionsPatch: {activeMs: values.edge, edgeMs: values.edge}, note};
         },
     },
     {
@@ -233,7 +233,7 @@ export const TESTS = [
                 intent: Intent.UI,
                 flags: 0,
                 psrSecond: values.psr,
-                optionsPatch: {edgeMs: values.edge, lightMs: values.light, strongMs: 3_600_000, powerOffMs: values.power},
+                optionsPatch: {activeMs: values.edge, edgeMs: values.edge, lightMs: values.light, strongMs: 3_600_000, powerOffMs: values.power},
                 note: 'Chụp ảnh: sau gói "dọn nhẹ", ngay sau gói "tắt nguồn", và 30 s sau đó. Dọn mạnh dời tới 1 giờ; bấm "Về mặc định" ở tab Chế độ khi xong.',
             };
         },
@@ -319,7 +319,7 @@ export const TESTS = [
                 repeat: 1,
                 intent: Intent.UI,
                 flags: 0,
-                optionsPatch: {edgeMs: values.edge, lightMs: values.light, strongMs: values.strong, powerOffMs: values.power},
+                optionsPatch: {activeMs: values.edge, edgeMs: values.edge, lightMs: values.light, strongMs: values.strong, powerOffMs: values.power},
                 note: 'Để máy yên tới khi có gói "dọn mạnh" và "tắt nguồn"; xem thứ tự trong log.',
             };
         },
@@ -352,7 +352,7 @@ export const TESTS = [
         description: 'Vẽ ô A bên trái, rồi vẽ thêm ô B bên phải (window chỉ quanh B). Chạy hai lần, PT_SCAN bật và tắt: ô A có bị nhạt hay kéo theo khi vẽ B không.',
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr8'},
-            {key: 'ptScan', label: 'PT_SCAN = 1', type: 'bool', value: true},
+            {key: 'scanOutsideWindow', label: 'PT_SCAN = 1', type: 'bool', value: true},
             {key: 'repeats', label: 'Số lần vẽ lại B', value: 5, min: 1, max: 30},
         ],
         build(values, orientation) {
@@ -369,7 +369,7 @@ export const TESTS = [
                 order,
                 intervalMs: 800,
                 repeat: 1,
-                raw: {profile: values.profile, windowKind: WindowKind.CHANGED, partialMode: true, ptScan: values.ptScan},
+                raw: {profile: values.profile, windowKind: WindowKind.CHANGED, partialMode: true, scanOutsideWindow: values.scanOutsideWindow},
             };
         },
     },

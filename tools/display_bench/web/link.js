@@ -22,24 +22,17 @@ export const Command = Object.freeze({
 
 const Event = Object.freeze({ACK: 0x80, INFO: 0x81, DRAWN: 0x82, GESTURE: 0x83, TEMP: 0x84, LOG: 0x85, OTP: 0x86});
 
-/* Mục đích vẽ theo thứ tự ink_hal_display_purpose_t; ý định theo ink_display_policy_intent_t. */
-export const PURPOSES = Object.freeze([
-    {key: 'text', name: 'TEXT'},
-    {key: 'ui', name: 'UI'},
-    {key: 'page', name: 'PAGE'},
-    {key: 'clean_strong', name: 'dọn mạnh'},
-    {key: 'clean_fast', name: 'dọn nhanh'},
-    {key: 'clean_edge_center', name: 'dọn tâm viền'},
-    {key: 'clean_edge_neighbor', name: 'dọn quanh viền'},
-    {key: 'clean_light', name: 'dọn nhẹ'},
-]);
+/* Số thứ tự trên dây = giá trị enum của firmware: ink_display_intent_t, ink_display_cleanup_t, ink_display_action_t. */
 export const Intent = Object.freeze({AUTO: 0, TEXT: 1, UI: 2, PAGE: 3});
 export const INTENT_NAMES = ['AUTO', 'TEXT', 'UI', 'PAGE'];
+export const INTENT_NONE = 255; /* DRAWN ở đường raw, hoặc việc không phải DRAW */
+export const Cleanup = Object.freeze({INVALID: 0, STRONG: 1, FAST: 2, EDGE_CENTER: 3, EDGE_NEIGHBOR: 4, LIGHT: 5});
+export const CLEANUP_NAMES = ['–', 'dọn mạnh', 'dọn nhanh', 'dọn tâm viền', 'dọn quanh viền', 'dọn nhẹ'];
+export const Action = Object.freeze({INVALID: 0, NONE: 1, DRAW: 2, CLEANUP: 3, POWER_OFF: 4});
+export const ACTION_NAMES = ['không hợp lệ', 'không vẽ', 'vẽ', 'dọn', 'tắt nguồn'];
 export const SubmitFlag = Object.freeze({DEFER_CLEANUP: 1, BEFORE_SLEEP: 2});
-export const ACTION_NAMES = ['không vẽ', 'vẽ', 'dọn mạnh', 'dọn nhanh', 'dọn tâm viền', 'dọn quanh viền', 'dọn nhẹ', 'tắt nguồn'];
-export const Action = Object.freeze({NONE: 0, DRAW: 1, CLEAN_STRONG: 2, CLEAN_FAST: 3, EDGE_CENTER: 4, EDGE_NEIGHBOR: 5, LIGHT: 6, POWER_OFF: 7});
 export const MAX_BANDS = 9;
-export const SOURCE_HAND = 255;
+export const SOURCE_CUSTOM = 255;
 
 const UPLOAD_CHUNK_BYTES = 4096;
 const REPLY_TIMEOUT_MS = 3000;
@@ -75,39 +68,44 @@ class Reader {
     }
 }
 
-/* Khối cài đặt (bench.md): mỗi mục đích một preset, rồi ngưỡng nợ và thời gian của thang dọn. */
+/* Khối cài đặt (bench.md): bản ghi draw theo intent, bản ghi cleanup theo cleanup, rồi ngưỡng nợ và thời gian của thang dọn.
+   Index trong drawPresets / cleanupPresets là giá trị enum; AUTO và INVALID (index 0) không dùng. */
+function readPreset(reader) {
+    const bandCount = reader.u8();
+    const bands = [];
+    for (let i = 0; i < MAX_BANDS; i++) { bands.push({maxCelsius: reader.i8(), profileId: reader.u16()}); }
+    return {
+        bands: bands.slice(0, bandCount),
+        partialMode: reader.u8() !== 0,
+        scanOutsideWindow: reader.u8() !== 0,
+        driveBorder: reader.u8() !== 0,
+        debtWeight: reader.u8(),
+        marksEdges: reader.u8() !== 0,
+    };
+}
+
 function readOptions(reader) {
-    const presets = PURPOSES.map(() => {
-        const bandCount = reader.u8();
-        const bands = [];
-        for (let i = 0; i < MAX_BANDS; i++) { bands.push({maxCelsius: reader.i8(), profileId: reader.u16()}); }
-        return {
-            bands: bands.slice(0, bandCount),
-            partialMode: reader.u8() !== 0,
-            ptScan: reader.u8() !== 0,
-            driveBorder: reader.u8() !== 0,
-            debtWeight: reader.u8(),
-            edgeFlags: reader.u8() !== 0,
-        };
-    });
-    const options = {presets, autoUiPercent: reader.u8(), debtSoft: reader.u8(), debtPage: reader.u8(), debtCeiling: reader.u8(), debtCeilingMax: reader.u8()};
-    reader.u8(); reader.u8(); reader.u8();
-    Object.assign(options, {edgeMs: reader.u32(), lightMs: reader.u32(), strongMs: reader.u32(), powerOffMs: reader.u32()});
+    const drawPresets = INTENT_NAMES.map(() => readPreset(reader));
+    const cleanupPresets = CLEANUP_NAMES.map(() => readPreset(reader));
+    const options = {drawPresets, cleanupPresets, autoUiPercent: reader.u8(), debtLight: reader.u8(), debtPage: reader.u8(), debtCeiling: reader.u8(), debtCeilingMax: reader.u8()};
+    Object.assign(options, {activeMs: reader.u32(), edgeMs: reader.u32(), lightMs: reader.u32(), strongMs: reader.u32(), powerOffMs: reader.u32()});
     return options;
 }
 
-export function writeOptions(writer, options) {
-    for (const preset of options.presets) {
-        writer.u8(preset.bands.length);
-        for (let i = 0; i < MAX_BANDS; i++) {
-            const band = preset.bands[i] ?? {maxCelsius: 0, profileId: 0};
-            writer.u8(band.maxCelsius).u16(band.profileId);
-        }
-        writer.u8(preset.partialMode ? 1 : 0).u8(preset.ptScan ? 1 : 0).u8(preset.driveBorder ? 1 : 0).u8(preset.debtWeight).u8(preset.edgeFlags ? 1 : 0);
+function writePreset(writer, preset) {
+    writer.u8(preset.bands.length);
+    for (let i = 0; i < MAX_BANDS; i++) {
+        const band = preset.bands[i] ?? {maxCelsius: 0, profileId: 0};
+        writer.u8(band.maxCelsius).u16(band.profileId);
     }
-    writer.u8(options.autoUiPercent).u8(options.debtSoft).u8(options.debtPage).u8(options.debtCeiling).u8(options.debtCeilingMax);
-    writer.u8(0).u8(0).u8(0);
-    return writer.u32(options.edgeMs).u32(options.lightMs).u32(options.strongMs).u32(options.powerOffMs);
+    writer.u8(preset.partialMode ? 1 : 0).u8(preset.scanOutsideWindow ? 1 : 0).u8(preset.driveBorder ? 1 : 0).u8(preset.debtWeight).u8(preset.marksEdges ? 1 : 0);
+}
+
+export function writeOptions(writer, options) {
+    for (const preset of options.drawPresets) { writePreset(writer, preset); }
+    for (const preset of options.cleanupPresets) { writePreset(writer, preset); }
+    writer.u8(options.autoUiPercent).u8(options.debtLight).u8(options.debtPage).u8(options.debtCeiling).u8(options.debtCeilingMax);
+    return writer.u32(options.activeMs).u32(options.edgeMs).u32(options.lightMs).u32(options.strongMs).u32(options.powerOffMs);
 }
 
 function parseInfo(payload) {
@@ -136,33 +134,35 @@ function parseDrawn(payload) {
     const reader = new Reader(payload);
     const slot = reader.u8();
     const action = reader.u8();
-    const purpose = reader.u8();
+    const intent = reader.u8();
     const drawn = {
         slot,
         action,
-        actionName: ACTION_NAMES[action] ?? '?',
-        purpose,
-        purposeName: PURPOSES[purpose]?.name ?? 'raw',
+        intent,
+        intentName: INTENT_NAMES[intent] ?? '–',
         temperatureCelsius: reader.i8(),
         temperatureValid: reader.u8() !== 0,
         maxDebt: reader.u8(),
         ceiling: reader.u8(),
-        frame: reader.u8() !== 0,
+        isFrame: reader.u8() !== 0,
         profileId: reader.u16(),
     };
-    reader.u16();
+    drawn.cleanup = reader.u8();
+    reader.u8();
+    /* Tên việc: DRAW hiện "vẽ"; CLEANUP hiện loại cleanup. Dùng cho bảng và thống kê theo việc. */
+    drawn.actionName = action === Action.CLEANUP ? (CLEANUP_NAMES[drawn.cleanup] ?? '?') : (ACTION_NAMES[action] ?? '?');
     drawn.mode = drawn.actionName; /* tên cũ, cho lịch sử chấm điểm */
     drawn.error = reader.i32();
     drawn.window = {x: reader.u16(), y: reader.u16(), width: reader.u16(), height: reader.u16()};
     drawn.flaggedCount = reader.u32();
     drawn.inputMs = reader.u32();
     drawn.queueMs = reader.u32();
-    drawn.diffMs = reader.u32();
+    drawn.decideMs = reader.u32();
     drawn.spiMs = reader.u32() / 1000;
     drawn.panelMs = reader.u32() / 1000;
-    drawn.afterMs = reader.u32() / 1000;
+    drawn.postScanMs = reader.u32() / 1000;
     drawn.powerMs = reader.u32() / 1000;
-    drawn.totalMs = drawn.inputMs + drawn.queueMs + drawn.diffMs + drawn.spiMs + drawn.powerMs + drawn.panelMs + drawn.afterMs;
+    drawn.totalMs = drawn.inputMs + drawn.queueMs + drawn.decideMs + drawn.spiMs + drawn.powerMs + drawn.panelMs + drawn.postScanMs;
     drawn.receivedAt = Date.now();
     return drawn;
 }

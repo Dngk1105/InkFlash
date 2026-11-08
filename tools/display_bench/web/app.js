@@ -2,7 +2,7 @@
 
 /* Điều khiển trang: kết nối, chế độ, ảnh, chuỗi, bài test, chấm điểm, lịch sử. Trạng thái gom trong `app`. */
 import {
-    ACTION_NAMES, Action, BenchLink, Command, INTENT_NAMES, PURPOSES, SOURCE_HAND, SubmitFlag, Writer, delay, espErrorName, writeOptions,
+    Action, BenchLink, CLEANUP_NAMES, Cleanup, Command, INTENT_NAMES, INTENT_NONE, Intent, SOURCE_CUSTOM, SubmitFlag, Writer, delay, espErrorName, writeOptions,
 } from './link.js';
 import {
     DITHER_NAMES, DitherMethod, FRAME_BYTES, createFrame, grayToFrame, imageToGray, renderFrame, viewRectToPanel, viewSize,
@@ -14,7 +14,6 @@ import {OldSource, TESTS, TEST_FIRST_SLOT, TEST_SLOT_COUNT, PSR_SECOND_OPTIONS, 
 const SLOT_COUNT = 64;
 const USER_SLOT_COUNT = TEST_FIRST_SLOT;
 const PATH_CODES = {raw: 0, pipeline: 1};
-const CLEAN_STRONG = 3; /* index của mục đích dọn mạnh trong PURPOSES */
 const DEFAULT_CELSIUS = 25;
 const LOG_LINE_LIMIT = 600;
 const GESTURE_LIMIT = 30;
@@ -24,11 +23,11 @@ const THUMBNAIL_SCALE = 0.25;
 const SEGMENTS = [
     {key: 'inputMs', label: 'input'},
     {key: 'queueMs', label: 'queue'},
-    {key: 'diffMs', label: 'diff'},
+    {key: 'decideMs', label: 'decide'},
     {key: 'spiMs', label: 'spi'},
     {key: 'powerMs', label: 'bật nguồn'},
     {key: 'panelMs', label: 'panel'},
-    {key: 'afterMs', label: 'after'},
+    {key: 'postScanMs', label: 'post-scan'},
     {key: 'totalMs', label: 'tổng'},
 ];
 
@@ -55,7 +54,7 @@ const app = {
     sequence: [],
     selectedTestId: TESTS[0].id,
     settings: {
-        raw: {profile: 0, windowKind: WindowKind.CHANGED, partialMode: true, ptScan: true, driveBorder: false},
+        raw: {profile: 0, windowKind: WindowKind.CHANGED, partialMode: true, scanOutsideWindow: true, driveBorder: false},
         intent: 0,
         flags: 0,
         options: null,        /* cài đặt đang dùng của ink_display (từ INFO, sửa ở tab Chế độ) */
@@ -157,7 +156,7 @@ async function onConnected() {
     app.settings.vcomOverride = info.vcomOverride;
     app.settings.powerOffFrames = info.powerOffFrames;
     renderPanel();
-    app.settings.raw.profile = profileIndexForPurpose(0) ?? 0;
+    app.settings.raw.profile = profileIndexForPreset(app.settings.options?.drawPresets[Intent.TEXT]) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
     document.querySelectorAll('input[name="path"]').forEach((radio) => { radio.checked = radio.value === info.path; });
     renderProfiles();
@@ -203,7 +202,7 @@ function profileName(index) { return profileByIndex(index)?.name ?? `#${index}`;
 function profileNameById(id) { return profileById(id)?.name ?? `id ${id}`; }
 
 function profileLabel(profile) {
-    const source = profile.source === SOURCE_HAND ? 'vẽ tay' : `TR${profile.source}`;
+    const source = profile.source === SOURCE_CUSTOM ? 'custom' : `TR${profile.source}`;
     return `${profile.name} · id ${profile.id} · ${source} · ${profile.drawMs} ms`;
 }
 
@@ -213,8 +212,8 @@ function bandProfileId(preset, celsius = DEFAULT_CELSIUS) {
     return (preset.bands.find((band) => celsius <= band.maxCelsius) ?? preset.bands[preset.bands.length - 1]).profileId;
 }
 
-function profileIndexForPurpose(purpose) {
-    const id = bandProfileId(app.settings.options?.presets[purpose], app.settings.temperatureCelsius ?? DEFAULT_CELSIUS);
+function profileIndexForPreset(preset) {
+    const id = bandProfileId(preset, app.settings.temperatureCelsius ?? DEFAULT_CELSIUS);
     return profileById(id)?.index ?? null;
 }
 
@@ -252,7 +251,7 @@ function readRawForm(source) {
         profile: Number($('raw-profile').value),
         windowKind: Number(windowKind),
         partialMode: $('raw-partial-mode').checked,
-        ptScan: $('raw-pt-scan').checked,
+        scanOutsideWindow: $('raw-pt-scan').checked,
         driveBorder: $('raw-drive-border').checked,
     };
 }
@@ -263,7 +262,7 @@ function renderRawForm() {
     $('raw-window-kind').value = String(raw.windowKind);
     $('draw-window-kind').value = String(raw.windowKind);
     $('raw-partial-mode').checked = raw.partialMode;
-    $('raw-pt-scan').checked = raw.ptScan;
+    $('raw-pt-scan').checked = raw.scanOutsideWindow;
     $('raw-drive-border').checked = raw.driveBorder;
 }
 
@@ -271,7 +270,7 @@ function renderRawForm() {
 function drawPayload(slot, raw, oldSource, oldSlot, window) {
     const rect = window ?? {x: 0, y: 0, width: 0, height: 0};
     return new Writer().u8(slot).u8(raw.profile).u8(oldSource).u8(oldSlot)
-        .u8(raw.partialMode ? 1 : 0).u8(raw.ptScan ? 1 : 0).u8(raw.driveBorder ? 1 : 0).u8(raw.windowKind)
+        .u8(raw.partialMode ? 1 : 0).u8(raw.scanOutsideWindow ? 1 : 0).u8(raw.driveBorder ? 1 : 0).u8(raw.windowKind)
         .u16(rect.x).u16(rect.y).u16(rect.width).u16(rect.height).result();
 }
 
@@ -339,39 +338,49 @@ function readSubmitForm() {
 }
 
 const OPTION_FIELDS = [
-    ['option-auto-ui', 'autoUiPercent'], ['option-debt-soft', 'debtSoft'], ['option-debt-page', 'debtPage'], ['option-debt-ceiling', 'debtCeiling'],
-    ['option-debt-ceiling-max', 'debtCeilingMax'], ['option-edge-ms', 'edgeMs'], ['option-light-ms', 'lightMs'], ['option-strong-ms', 'strongMs'],
+    ['option-auto-ui', 'autoUiPercent'], ['option-debt-soft', 'debtLight'], ['option-debt-page', 'debtPage'], ['option-debt-ceiling', 'debtCeiling'],
+    ['option-debt-ceiling-max', 'debtCeilingMax'], ['option-active-ms', 'activeMs'], ['option-edge-ms', 'edgeMs'], ['option-light-ms', 'lightMs'], ['option-strong-ms', 'strongMs'],
     ['option-power-off-ms', 'powerOffMs'],
 ];
 
-/* Bảng preset: mỗi mục đích một hàng (profile hoặc theo dải, chế độ partial, PT_SCAN, kéo viền, trọng số, cờ viền). */
+/* Các hàng của bảng preset: draw theo intent (bỏ AUTO), cleanup theo loại (bỏ INVALID). `index` là giá trị enum. */
+const PRESET_ROWS = [
+    ...INTENT_NAMES.map((name, index) => ({kind: 'draw', index, name})).filter(({index}) => index !== Intent.AUTO),
+    ...CLEANUP_NAMES.map((name, index) => ({kind: 'cleanup', index, name})).filter(({index}) => index !== Cleanup.INVALID),
+];
+
+function presetOf(options, row) { return (row.kind === 'draw' ? options.drawPresets : options.cleanupPresets)[row.index]; }
+function rowKey(row) { return `${row.kind}-${row.index}`; }
+
+/* Bảng preset: mỗi intent và mỗi loại cleanup một hàng (profile hoặc theo dải, chế độ partial, PT_SCAN, kéo viền, trọng số, cờ viền). */
 function renderOptionsForm() {
     const options = app.settings.options;
     if (!options || !app.info) { return; }
     const profileOptions = app.info.profiles.map((profile) => ({value: String(profile.id), label: `${profile.name} (${profile.drawMs} ms)`}));
-    const header = element('tr', {}, ['Mục đích', 'Profile', 'Partial', 'PT_SCAN', 'Viền', 'Trọng số', 'Cờ viền'].map((title) => element('th', {text: title})));
-    const rows = PURPOSES.map((purpose, index) => {
-        const preset = options.presets[index];
-        const select = element('select', {id: `preset-profile-${index}`});
+    const header = element('tr', {}, ['Preset', 'Profile', 'Partial', 'PT_SCAN', 'Viền', 'Trọng số', 'Cờ viền'].map((title) => element('th', {text: title})));
+    const rows = PRESET_ROWS.map((row) => {
+        const key = rowKey(row);
+        const preset = presetOf(options, row);
+        const select = element('select', {id: `preset-profile-${key}`});
         const bandsLabel = preset.bands.length > 1 ? `theo dải nhiệt (${preset.bands.length} dải)` : null;
         fillSelect(select, [...(bandsLabel ? [{value: 'bands', label: bandsLabel}] : []), ...profileOptions],
                    bandsLabel ? 'bands' : String(preset.bands[0]?.profileId ?? ''));
-        const check = (key, value) => {
-            const input = element('input', {type: 'checkbox', id: `preset-${key}-${index}`});
+        const check = (name, value) => {
+            const input = element('input', {type: 'checkbox', id: `preset-${name}-${key}`});
             input.checked = value;
             return input;
         };
-        const weight = element('input', {type: 'number', id: `preset-weight-${index}`, min: '0', max: '15', value: String(preset.debtWeight)});
-        const edgeFlags = check('edge-flags', preset.edgeFlags);
-        if (index > 2) { weight.disabled = true; edgeFlags.disabled = true; }
+        const weight = element('input', {type: 'number', id: `preset-weight-${key}`, min: '0', max: '15', value: String(preset.debtWeight)});
+        const marksEdges = check('marks-edges', preset.marksEdges);
+        if (row.kind === 'cleanup') { weight.disabled = true; marksEdges.disabled = true; } /* cleanup không cộng nợ, không đánh cờ viền */
         return element('tr', {}, [
-            element('td', {class: 'text', text: purpose.name}),
+            element('td', {class: 'text', text: row.name}),
             element('td', {}, [select]),
             element('td', {}, [check('partial', preset.partialMode)]),
-            element('td', {}, [check('pt', preset.ptScan)]),
+            element('td', {}, [check('pt', preset.scanOutsideWindow)]),
             element('td', {}, [check('border', preset.driveBorder)]),
             element('td', {}, [weight]),
-            element('td', {}, [edgeFlags]),
+            element('td', {}, [marksEdges]),
         ]);
     });
     $('preset-table').replaceChildren(header, ...rows);
@@ -380,15 +389,17 @@ function renderOptionsForm() {
 
 function readOptionsForm() {
     const options = structuredClone(app.settings.options);
-    options.presets.forEach((preset, index) => {
-        const choice = $(`preset-profile-${index}`).value;
+    for (const row of PRESET_ROWS) {
+        const key = rowKey(row);
+        const preset = presetOf(options, row);
+        const choice = $(`preset-profile-${key}`).value;
         if (choice !== 'bands') { preset.bands = [{maxCelsius: 127, profileId: Number(choice)}]; }
-        preset.partialMode = $(`preset-partial-${index}`).checked;
-        preset.ptScan = $(`preset-pt-${index}`).checked;
-        preset.driveBorder = $(`preset-border-${index}`).checked;
-        preset.debtWeight = Number($(`preset-weight-${index}`).value);
-        preset.edgeFlags = $(`preset-edge-flags-${index}`).checked;
-    });
+        preset.partialMode = $(`preset-partial-${key}`).checked;
+        preset.scanOutsideWindow = $(`preset-pt-${key}`).checked;
+        preset.driveBorder = $(`preset-border-${key}`).checked;
+        preset.debtWeight = Number($(`preset-weight-${key}`).value);
+        preset.marksEdges = $(`preset-marks-edges-${key}`).checked;
+    }
     for (const [id, key] of OPTION_FIELDS) { options[key] = Math.max(0, Number($(id).value) || 0); }
     return options;
 }
@@ -413,12 +424,12 @@ async function resetOptions() {
 
 function optionsSummary(options) {
     if (!options) { return ''; }
-    const names = PURPOSES.slice(0, 3).map((purpose, index) => {
-        const preset = options.presets[index];
-        return `${purpose.name} ${preset.bands.length > 1 ? 'theo dải' : profileNameById(preset.bands[0]?.profileId)}`;
+    const names = PRESET_ROWS.filter((row) => row.kind === 'draw').map((row) => {
+        const preset = presetOf(options, row);
+        return `${row.name} ${preset.bands.length > 1 ? 'theo dải' : profileNameById(preset.bands[0]?.profileId)}`;
     });
-    return `${names.join(', ')} · nợ ${options.debtSoft}/${options.debtPage}/${options.debtCeiling}–${options.debtCeilingMax}`
-        + ` · dọn ${options.edgeMs}/${options.lightMs}/${options.strongMs} ms · tắt nguồn ${options.powerOffMs} ms`;
+    return `${names.join(', ')} · nợ ${options.debtLight}/${options.debtPage}/${options.debtCeiling}–${options.debtCeilingMax}`
+        + ` · active ${options.activeMs} ms · dọn ${options.edgeMs}/${options.lightMs}/${options.strongMs} ms · tắt nguồn ${options.powerOffMs} ms`;
 }
 
 /* ---- Profile tạm, OTP ---- */
@@ -627,7 +638,7 @@ function startRun(label, details = {}, expected = 0) {
     renderProgress();
 }
 
-function framesDrawn(run) { return run.drawn.filter((item) => item.frame).length; }
+function framesDrawn(run) { return run.drawn.filter((item) => item.isFrame).length; }
 
 function renderProgress() {
     const run = app.run;
@@ -656,12 +667,12 @@ async function clearScreen() {
         await storeSlot(CLEAR_SLOT, createFrame(true), 'trắng');
         app.pendingPreview.set(CLEAR_SLOT, app.slots[CLEAR_SLOT].frame);
         if (app.info?.path === 'pipeline') {
-            await app.link.command(Command.SUBMIT, new Writer().u8(CLEAR_SLOT).u8(3).u8(0).result());
+            await app.link.command(Command.SUBMIT, new Writer().u8(CLEAR_SLOT).u8(Intent.PAGE).u8(0).result());
             return;
         }
         /* dọn mạnh: profile của preset dọn mạnh, cả màn ngoài chế độ partial, mặt phẳng cũ đảo bit */
-        const raw = {profile: profileIndexForPurpose(CLEAN_STRONG) ?? app.settings.raw.profile, windowKind: WindowKind.WHOLE, partialMode: false,
-            ptScan: true, driveBorder: true};
+        const raw = {profile: profileIndexForPreset(app.settings.options?.cleanupPresets[Cleanup.STRONG]) ?? app.settings.raw.profile, windowKind: WindowKind.WHOLE, partialMode: false,
+            scanOutsideWindow: true, driveBorder: true};
         await app.link.command(Command.DRAW, drawPayload(CLEAR_SLOT, raw, OldSource.INVERTED, 0, null));
     });
 }
@@ -700,11 +711,11 @@ async function drawSlot() {
 
 function onDrawn(drawn) {
     const frame = app.pendingPreview.get(drawn.slot) ?? app.slots[drawn.slot]?.frame;
-    if (drawn.frame && drawn.action !== Action.NONE && drawn.error === 0 && frame) { app.shown = {frame, window: drawn.window}; }
+    if (drawn.isFrame && drawn.action !== Action.NONE && drawn.error === 0 && frame) { app.shown = {frame, window: drawn.window}; }
     if (drawn.temperatureValid) { app.settings.temperatureCelsius = drawn.temperatureCelsius; }
     renderFrame($('shown-preview'), app.shown.frame, app.orientation, PREVIEW_SCALE, drawn.action === Action.POWER_OFF ? app.shown.window : drawn.window);
     renderLastDrawn(drawn);
-    if (app.manualDrawPending && drawn.frame) {
+    if (app.manualDrawPending && drawn.isFrame) {
         app.manualDrawPending = false;
         if (drawn.action === Action.NONE) {
             toast('Máy không vẽ: khung mới giống hệt mặt phẳng cũ trong window "Vùng đổi". Chọn window "Cả màn" hoặc mặt phẳng cũ "Khung mới đảo bit".', true);
@@ -715,8 +726,8 @@ function onDrawn(drawn) {
         renderRun();
         renderProgress();
     }
-    if (drawn.frame) { highlightSequence(drawn.slot); }
-    if (!drawn.frame) { log(`[web] ${drawn.actionName}${drawn.action === Action.POWER_OFF ? '' : ` ${profileNameById(drawn.profileId)}, panel ${format(drawn.panelMs, 1)} ms`}`); }
+    if (drawn.isFrame) { highlightSequence(drawn.slot); }
+    if (!drawn.isFrame) { log(`[web] ${drawn.actionName}${drawn.action === Action.POWER_OFF ? '' : ` ${profileNameById(drawn.profileId)}, panel ${format(drawn.panelMs, 1)} ms`}`); }
 }
 
 /* input chỉ có khi khung do nút bấm; queue chỉ có ở đường pipeline. */
@@ -728,8 +739,8 @@ function segmentText(drawn, key) {
 
 function renderLastDrawn(drawn) {
     const items = [
-        ['việc', drawn.frame ? `${drawn.actionName} (khung slot ${drawn.slot})` : drawn.actionName],
-        ['mục đích', drawn.purposeName],
+        ['việc', drawn.isFrame ? `${drawn.actionName} (khung slot ${drawn.slot})` : drawn.actionName],
+        ['intent', drawn.intent === INTENT_NONE ? '–' : drawn.intentName],
         ['profile', drawn.action === Action.POWER_OFF ? '–' : profileNameById(drawn.profileId)],
         ['window', `${drawn.window.x},${drawn.window.y} ${drawn.window.width}×${drawn.window.height}`],
         ['nhiệt độ', drawn.temperatureValid ? `${drawn.temperatureCelsius} °C` : '–'],
@@ -959,7 +970,7 @@ async function waitForDraws(run, count) {
 
 /* Thời gian theo đoạn, tách theo việc đã làm (vẽ khung, từng lượt dọn). */
 function statistics(drawn) {
-    const done = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.POWER_OFF && item.error === 0);
+    const done = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.INVALID && item.action !== Action.POWER_OFF && item.error === 0);
     const summarize = (items) => {
         const result = {count: items.length};
         for (const {key} of SEGMENTS) {
@@ -971,14 +982,14 @@ function statistics(drawn) {
         return result;
     };
     const byAction = {};
-    for (const action of new Set(done.map((item) => item.action))) {
-        byAction[ACTION_NAMES[action]] = summarize(done.filter((item) => item.action === action));
+    for (const name of new Set(done.map((item) => item.actionName))) {
+        byAction[name] = summarize(done.filter((item) => item.actionName === name));
     }
-    const frames = done.filter((item) => item.frame);
+    const frames = done.filter((item) => item.isFrame);
     return {
         ...summarize(frames),
         byAction,
-        cleanups: done.filter((item) => !item.frame).length,
+        cleanups: done.filter((item) => !item.isFrame).length,
         maxFlagged: Math.max(0, ...drawn.map((item) => item.flaggedCount ?? 0)),
         maxDebt: Math.max(0, ...drawn.map((item) => item.maxDebt ?? 0)),
         frameAverageMs: frames.length ? frames.reduce((sum, item) => sum + item.totalMs, 0) / frames.length : null,
@@ -1024,8 +1035,8 @@ function renderChart(drawn) {
     const style = getComputedStyle(document.documentElement);
     const colors = [style.getPropertyValue('--brand-teal'), style.getPropertyValue('--brand-purple'), style.getPropertyValue('--accent'),
         style.getPropertyValue('--brand-bronze')];
-    const parts = ['spiMs', 'powerMs', 'panelMs', 'afterMs'];
-    const items = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.POWER_OFF);
+    const parts = ['spiMs', 'powerMs', 'panelMs', 'postScanMs'];
+    const items = drawn.filter((item) => item.action !== Action.NONE && item.action !== Action.INVALID && item.action !== Action.POWER_OFF);
     const maximum = Math.max(1, ...items.map((item) => parts.reduce((sum, key) => sum + item[key], 0)));
     const left = 44;
     const bottom = height - 20;
@@ -1125,7 +1136,7 @@ async function saveRating() {
 /* Profile của một dòng lịch sử: raw thì profile raw, pipeline thì profile TEXT/UI; dòng cũ thì full/partial. */
 function historyProfiles(item) {
     if (item.rawProfile && item.path !== 'pipeline') { return [item.rawProfile]; }
-    if (item.options) { return item.options.presets.slice(0, 2).map((preset) => profileNameById(preset.bands[0]?.profileId)); }
+    if (item.options) { return (item.options.drawPresets?.slice(1, 3) ?? item.options.presets.slice(0, 2)).map((preset) => profileNameById(preset.bands[0]?.profileId)); }
     return [item.fullProfile, item.partialProfile].filter(Boolean);
 }
 

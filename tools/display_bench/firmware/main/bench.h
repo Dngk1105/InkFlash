@@ -76,7 +76,7 @@ typedef struct {
     uint8_t                       old_slot;
     ink_hal_display_draw_config_t config;
     bench_window_kind_t           window_kind;
-    ink_hal_display_rect_t        window;
+    ink_display_rect_t            window;
 } bench_raw_settings_t;
 
 /* ---- Message vào task bench ---- */
@@ -111,18 +111,19 @@ typedef struct {
     uint8_t                  slot; /**< slot nguồn của khung */
     esp_err_t                error;
     ink_display_action_t     action;
-    bool                     frame;   /**< lần vẽ một khung; false = lượt dọn hoặc tắt nguồn */
-    uint8_t                  purpose; /**< 255 ở đường raw */
+    bool                     is_frame; /**< lần vẽ một khung; false = lượt dọn hoặc tắt nguồn */
+    uint8_t                  intent;   /**< ink_display_intent_t khi DRAW; 255 ở đường raw */
+    uint8_t                  cleanup;  /**< ink_display_cleanup_t khi CLEANUP; INVALID (0) còn lại */
     uint16_t                 profile_id;
-    ink_hal_display_rect_t   window;
+    ink_display_rect_t       window;
     int8_t                   temperature_celsius;
     bool                     temperature_valid;
     uint8_t                  max_debt;
     uint8_t                  ceiling;
     uint32_t                 flagged_count;
-    uint32_t                 input_ms; /**< bấm nút → mượn khung; 0 nếu không do nút */
+    uint32_t                 input_ms; /**< bấm nút → acquire khung; 0 nếu không do nút */
     uint32_t                 queue_ms; /**< giao khung → bắt đầu vẽ */
-    uint32_t                 diff_ms;  /**< policy và mặt phẳng cũ */
+    uint32_t                 decide_ms; /**< decide và mặt phẳng cũ */
     ink_hal_display_timing_t driver;
 } bench_drawn_t;
 
@@ -164,8 +165,8 @@ esp_err_t bench_draw_raw(uint8_t slot, const bench_raw_settings_t *settings, ben
 /** Đường raw: tắt nguồn analog của màn. */
 esp_err_t bench_draw_power_off(void);
 
-/** Đường pipeline: chép slot vào khung mượn của ink_display rồi giao; kết quả về qua BENCH_EVENT_DRAWN. */
-esp_err_t bench_draw_submit(uint8_t slot, uint32_t press_ms, ink_display_intent_t intent, uint8_t flags);
+/** Đường pipeline: chép slot vào khung acquire của ink_display rồi giao; kết quả về qua BENCH_EVENT_DRAWN. */
+esp_err_t bench_draw_submit(uint8_t slot, uint32_t input_ms, ink_display_intent_t intent, uint8_t flags);
 
 /** Đường pipeline: đổi report của ink_display thành bench_drawn_t cho slot đã giao gần nhất. */
 void bench_draw_from_report(const ink_display_report_t *report, bench_drawn_t *out);

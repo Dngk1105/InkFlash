@@ -9,7 +9,7 @@ thống kê và đường gửi ảnh làm code dài và rối, trong khi ngư�
 ## Cách xử lý
 
 Ví dụ: cần biết dọn viền theo cờ có xoá được viền quanh ô vừa lật không. Nạp firmware test, mở trang công cụ trên
-Chrome, chọn đường pipeline, chọn bài "Dọn viền theo cờ", chạy. Ô lật 20 lần với ý định `UI`, rồi máy nghỉ; sau
+Chrome, chọn đường pipeline, chọn bài "Dọn viền theo cờ", chạy. Ô lật 20 lần với intent `UI`, rồi máy nghỉ; sau
 `edge_ms` các gói DRAWN của lượt dọn tâm và dọn quanh hiện ra kèm số điểm có cờ và thời gian DRF. Chụp ảnh trước và
 sau lượt dọn, chấm điểm viền 1–5; trang ghi một dòng gồm điểm, cài đặt, nhiệt độ và thời gian vào
 `tools/display_bench/results/`.
@@ -34,7 +34,7 @@ Cài đặt cũng gọi) và callback `on_drawn` (luồng đi ngủ cũng chờ)
 | Đường | Vẽ thế nào | Dùng khi |
 |---|---|---|
 | raw | Task bench gọi thẳng `draw` của driver: profile, cấu hình vẽ, window (tuỳ ý, cả màn, hoặc vùng khung mới khác mặt phẳng cũ) và mặt phẳng cũ (ảnh đang hiện, một slot khác, khung mới đảo bit, hoặc bằng khung mới) đều chọn tay. Nguồn analog tự tắt sau 4 s không vẽ, chỉnh được bằng gói POWER_OFF | So bảng sóng, thử window, thử mặt phẳng cũ, đo nhiệt độ và dòng |
-| pipeline | Chép slot vào khung mượn của `ink_display` rồi giao kèm ý định và cờ, như app thật: policy chọn preset, giữ nợ và cờ viền, chạy thang dọn khi nghỉ, tắt nguồn | Kiểm hành vi thật, đo từ lúc bấm nút, kiểm thang dọn |
+| pipeline | Chép slot vào khung acquire của `ink_display` rồi giao kèm intent và cờ, như app thật: policy chọn preset, giữ nợ và cờ viền, chạy thang dọn khi nghỉ, tắt nguồn | Kiểm hành vi thật, đo từ lúc bấm nút, kiểm thang dọn |
 
 `ink_display` giữ driver suốt đời, nên hai đường không chạy cùng lúc. Đổi đường thì máy ghi lựa chọn vào RTC memory rồi
 khởi động lại. Mặc định là raw.
@@ -56,8 +56,8 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `02` | SET_PATH | đường (0 raw, 1 pipeline); khác đường đang chạy thì máy khởi động lại sau ACK |
 | `03` | UPLOAD | slot, 0, offset (2), dữ liệu ảnh (tối đa 4096) |
 | `04` | DRAW | slot, index profile, nguồn mặt phẳng cũ (0 đang hiện, 1 slot, 2 đảo bit, 3 bằng khung mới), slot cũ, vào chế độ partial, `PT_SCAN`, kéo viền màn, kiểu window (0 theo x/y/rộng/cao, 1 cả màn, 2 vùng khung mới khác mặt phẳng cũ; mặt phẳng cũ bằng khung mới thì cả màn; vùng trống thì không vẽ), x, y, rộng, cao (2 byte mỗi số). Chỉ đường raw |
-| `05` | SUBMIT | slot, ý định (0 `AUTO`, 1 `TEXT`, 2 `UI`, 3 `PAGE`), cờ (bit 0 hoãn dọn, bit 1 trước khi ngủ). Đường raw bỏ ý định và cờ, vẽ theo gói DRAW gần nhất |
-| `06` | PLAY | ms giữa hai khung (2), số vòng (0 = mãi), ý định, cờ, số slot, các slot |
+| `05` | SUBMIT | slot, intent (0 `AUTO`, 1 `TEXT`, 2 `UI`, 3 `PAGE`), cờ (bit 0 hoãn dọn, bit 1 trước khi ngủ). Đường raw bỏ intent và cờ, vẽ theo gói DRAW gần nhất |
+| `06` | PLAY | ms giữa hai khung (2), số vòng (0 = mãi), intent, cờ, số slot, các slot |
 | `07` | STOP | trống |
 | `08` | POWER_OFF | trống: tắt nguồn analog ngay; 4 byte: số ms không vẽ thì tự tắt (mặc định 4000, 0 = chỉ tắt bằng gói này). Chỉ đường raw |
 | `09` | PROFILE_LOAD | gói profile `.inkw` do `tools/profile_gen.py` sinh. Sai mã nhận dạng, phiên bản, độ dài hoặc CRC thì trả lỗi, giữ profile tạm cũ. Profile tạm là index cuối trong INFO |
@@ -66,10 +66,13 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `0C` | OTP_DUMP | trống; trả các gói OTP rồi ACK. Chỉ đường raw |
 | `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau; rồi (không bắt buộc) số khung từ lúc tắt source tới lúc tắt gate khi POF (lệnh PFS `0x03`, 1–4). Máy khởi động lại thì về `0A`, theo profile, 1 khung. Cả hai đường |
 
-Khối cài đặt (trong SET_OPTIONS và INFO): với mỗi mục đích theo thứ tự `TEXT`, `UI`, `PAGE`, dọn mạnh, dọn nhanh, dọn
-tâm viền, dọn quanh viền, dọn nhẹ: số dải, 9 dải (°C có dấu 1 byte, id profile 2 byte), vào chế độ partial, `PT_SCAN`,
-kéo viền màn, trọng số nợ, đánh dấu cờ viền (chỉ `TEXT`, `UI`, `PAGE` dùng). Sau đó: `auto_ui_percent`, `debt_soft`, `debt_page`, `debt_ceiling`, `debt_ceiling_max`,
-3 byte 0, `edge_ms`, `light_ms`, `strong_ms`, `power_off_ms` (4 byte mỗi số).
+Khối cài đặt (trong SET_OPTIONS và INFO): số thứ tự bản ghi là giá trị enum. Trước hết 4 bản ghi draw theo
+`ink_display_intent_t` (`AUTO`, `TEXT`, `UI`, `PAGE`; `AUTO` không dùng), rồi 6 bản ghi cleanup theo
+`ink_display_cleanup_t` (`INVALID`, `STRONG`, `FAST`, `EDGE_CENTER`, `EDGE_NEIGHBOR`, `LIGHT`; `INVALID` không dùng). Mỗi bản ghi:
+số dải, 9 dải (°C có dấu 1 byte, id profile 2 byte), vào chế độ partial, `scan_outside_window` (bit `PT_SCAN`), kéo viền màn,
+`debt_weight`, `marks_edges` (bản ghi cleanup ghi 0 hai trường này). Sau đó: `auto_ui_percent`, `debt_light`, `debt_page`,
+`debt_ceiling`, `debt_ceiling_max` (1 byte mỗi số), rồi `active_ms`, `edge_ms`, `light_ms`, `strong_ms`, `power_off_ms`
+(4 byte mỗi số).
 
 Gói máy gửi lên:
 
@@ -77,14 +80,14 @@ Gói máy gửi lên:
 |---|---|---|
 | `80` | ACK | mã lỗi (4) |
 | `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối cài đặt đang dùng; rồi byte 2 của PSR, VCOM_DC thay thế và số khung PFS đang đặt |
-| `82` | DRAWN | slot, việc đã làm, mục đích (255 ở đường raw), nhiệt độ, nhiệt độ hợp lệ, nợ lớn nhất, trần nợ, khung (1 = lần vẽ một khung đã giao, 0 = lượt dọn hoặc tắt nguồn), id profile (2), 0 (2), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có cờ viền, input ms, queue ms, diff ms, spi µs, panel µs, after µs, bật nguồn µs (4 mỗi số) |
+| `82` | DRAWN | slot, việc đã làm (`ink_display_action_t`), `intent` (255 khi không phải DRAW), nhiệt độ, nhiệt độ hợp lệ, nợ lớn nhất, trần nợ, khung (1 = lần vẽ một khung đã giao, 0 = lượt dọn hoặc tắt nguồn), id profile (2), `cleanup` (1; `INVALID` = 0 khi không phải CLEANUP), 0 (1), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có cờ viền, input ms, queue ms, decide ms, spi µs, panel µs, post-scan µs, bật nguồn µs (4 mỗi số) |
 | `83` | GESTURE | modifier, nút, loại cử chỉ, 0, thời điểm edge ms (4) |
 | `84` | TEMP | °C, 0, 0, 0, lỗi (4) |
 | `85` | LOG | một dòng chữ |
 | `86` | OTP | offset (2), dữ liệu đọc bằng lệnh `0xA2`; nhiều gói cho tới hết dải TR8 |
 
-Việc đã làm trong DRAWN: 0 không vẽ, 1 vẽ theo preset của ý định (hoặc vẽ raw), 2 dọn mạnh, 3 dọn nhanh, 4 dọn tâm
-viền, 5 dọn quanh viền, 6 dọn nhẹ, 7 tắt nguồn.
+Việc đã làm trong DRAWN theo `ink_display_action_t`: 0 `INVALID`, 1 `NONE` (không vẽ), 2 `DRAW` (vẽ theo draw preset của
+`intent`, hoặc vẽ raw), 3 `CLEANUP` (loại cleanup nằm ở byte `cleanup`), 4 `POWER_OFF` (tắt nguồn).
 
 Chuỗi ảnh: khung sau được giao sau khi khung trước vẽ xong cộng thêm số ms của PLAY, nên không khung nào bị bỏ. Ở đường
 pipeline, gói DRAWN của các lượt dọn không tính là "khung trước vẽ xong".
@@ -96,13 +99,13 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | Bài | Đường | Trả lời |
 |---|---|---|
 | Loại bóng mờ | raw | Ô lật 10 lần cùng chỗ bằng một profile: bóng là viền, xám trong vùng, hay cả màn xám dần |
-| Dọn viền theo cờ | pipeline | Lật ô với ý định `UI`, nghỉ: lượt dọn tâm và quanh viền có xoá viền không; số điểm có cờ so với viền thấy trên ảnh chụp; DRF dọn dưới 100 ms không |
+| Dọn viền theo cờ | pipeline | Lật ô với intent `UI`, nghỉ: lượt dọn tâm và quanh viền có xoá viền không; số điểm có cờ so với viền thấy trên ảnh chụp; DRF dọn dưới 100 ms không |
 | Dọn viền nhiều ô | pipeline | Như bài trên với nhiều ô khác cỡ, khác chỗ, lật lần lượt hoặc cùng lúc: cờ thưa có bỏ sót viền ở ô nhỏ, ô gần nhau không |
 | PSR byte 2 và tắt nguồn | pipeline | Trang chữ có nợ, nghỉ qua dọn viền, dọn nhẹ, tắt nguồn, với các giá trị PSR byte 2: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
 | VCOM và vùng đứng yên | raw | Nửa trắng, nửa đen đứng yên, ô giữa lật nhiều lần với window cả màn, quét VCOM_DC từ `00` (−0,1 V) tới `13` (−2,0 V) PSR byte 2 (có TIEG 0) và PFS 1–4 khung: vùng đứng yên có đổi màu dần trong lúc chạy, lúc tắt nguồn và sau đó không |
 | Chữ cho `TEXT` | raw | Trang chữ cuộn bằng profile chọn: profile nào cho chữ rõ nhất trong 0,3–0,4 s |
 | Thang dọn | pipeline | Lật nhiều lần rồi nghỉ qua cả ba bậc: đúng thứ tự, đúng thời điểm, đúng nợ sau mỗi bậc |
-| Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn diff (policy, trạng thái từng điểm trong PSRAM, mặt phẳng cũ) mất bao lâu |
+| Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn decide (policy, `pixel_state` trong PSRAM, old plane) mất bao lâu |
 | `PT_SCAN` | raw | Vẽ ô A, rồi vẽ ô B ở chỗ khác với `PT_SCAN` 1 và 0: ô A có bị kéo theo không |
 | Viền màn | raw | Vẽ cả màn trong và ngoài chế độ partial, có và không kéo viền: viền màn có đổi không |
 | Nhiệt độ | raw | Đọc cảm biến nhiều lần giữa các lần vẽ (REG = 1): số có hợp lý so với nhiệt kế không |
