@@ -22,7 +22,8 @@ State machine này nằm trong `session`, là core module: nhận event (nút, h
 
 ### Snapshot trong RTC memory
 
-RTC memory là vùng RAM nhỏ (8 KB) vẫn giữ dữ liệu khi deep sleep.
+RTC memory là vùng RAM nhỏ vẫn giữ dữ liệu khi deep sleep. Snapshot nằm trong RTC slow memory (8 KB, `RTC_DATA_ATTR`);
+RTC fast memory (8 KB) đang dùng làm heap.
 
 - Mỗi module xin một RTC slot riêng, cỡ cố định, có số version.
 - Wake thấy version của RTC slot nào không khớp thì chỉ bỏ RTC slot đó; module đó khởi động như mới, module khác không

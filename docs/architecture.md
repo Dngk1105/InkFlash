@@ -5,28 +5,30 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 
 ## Các module
 
-| Module | Việc | Task | Core module | Được gọi |
-|---|---|---|---|---|
-| `apps/` | Flashcard, Settings, menu: màn hình và luồng thao tác | main | | `system`, `study`, `display`, `ui` |
-| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
-| `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | `fsrs`, `record`; storage và đồng hồ qua port |
-| `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | `display_policy`, `frame_slots`, `hal`, `platform` |
-| `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Chỉ thư viện C chuẩn |
-| `frame_slots/` | Owner của 3 frame của `display`: acquire, submit, take, shown frame, đếm frame bị drop | main, display (caller giữ lock) | Có | Chỉ thư viện C chuẩn |
-| `session/` | State machine của wake session | main | Có | Chỉ thư viện C chuẩn |
-| `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | `gesture`, `hal`, `platform` |
-| `gesture/` | Edge của nút, IMU → gesture | main | Có | Chỉ thư viện C chuẩn |
-| `keymap/` | Gesture → keymap intent theo keymap table của app; kiểm keymap table | main | Có | `gesture` (chỉ dùng kiểu gesture) |
-| `scene/` | Scene stack trong app | main | Có | Chỉ thư viện C chuẩn |
-| `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chỉ thư viện C chuẩn |
-| `ui/` | Canvas, font | main | Có | Chỉ thư viện C chuẩn |
-| `storage/` | Đọc ghi file trên LittleFS | main | | `platform` |
-| `platform/` | Log, config, giờ, timer, RTC memory | caller | | ESP-IDF |
-| `hal/` | Interface phần cứng | caller | | |
-| `drivers/` | Mỗi chip một component; driver panel mang danh sách profile waveform do `tools/profile_gen.py` sinh | caller | | Làm theo interface `hal` |
-| `bsp/` | Pin map, chọn driver theo board | boot | | `hal`, `drivers` |
+| Module | Việc | Task | Core module | Có code | Được gọi |
+|---|---|---|---|---|---|
+| `apps/` | Flashcard, Settings, menu: màn hình và luồng thao tác | main | | Chưa | `system`, `study`, `display`, `ui` |
+| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
+| `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
+| `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
+| `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Có | Chỉ thư viện C chuẩn |
+| `frame_slots/` | Owner của 3 frame của `display`: acquire, submit, take, shown frame, đếm frame bị drop | main, display (caller giữ lock) | Có | Có | Chỉ thư viện C chuẩn |
+| `session/` | State machine của wake session | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | Có | `gesture`, `hal`, `platform` |
+| `gesture/` | Edge của nút, IMU → gesture | main | Có | Có | Chỉ thư viện C chuẩn |
+| `keymap/` | Gesture → keymap intent theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
+| `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `ui/` | Canvas, font | main | Có | Có | Chỉ thư viện C chuẩn |
+| `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
+| `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
+| `hal/` | Interface phần cứng | caller | | Có | |
+| `drivers/` | Mỗi chip một component; driver panel mang danh sách profile waveform do `tools/profile_gen.py` sinh | caller | | Có | Làm theo interface `hal` |
+| `bsp/` | Pin map, chọn driver theo board | boot | | Có | `hal`, `drivers` |
 
-Module không có trong cột "Được gọi" của một module thì module đó không được gọi tới.
+Module không có trong cột "Được gọi" của một module thì module đó không được gọi tới. Cột "Có code" = "Chưa": kiến
+trúc đã chốt, chưa có component trong `components/`. `system/` có code nhưng mới gồm main queue, main task và khởi động
+`input`, `display`.
 
 ## Task
 

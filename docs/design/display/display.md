@@ -168,7 +168,7 @@ tâm (center); các pixel kề cạnh tâm được xử lý ở cleanup edge ne
 `debt_ceiling_max`, để người dùng ít bị ngắt giữa chừng; vượt ceiling trong active period thì cleanup fast thay cho
 cleanup strong. Idle quá `active_ms` thì debt ceiling về `debt_ceiling`.
 
-Deep sleep làm mất PSRAM, và RTC memory (16 KB) không chứa nổi 100 KB. Vì vậy panel phải sạch trước khi ngủ (flag
+Deep sleep làm mất PSRAM, và RTC memory (8 KB slow + 8 KB fast) không chứa nổi 100 KB. Vì vậy panel phải sạch trước khi ngủ (flag
 `BEFORE_SLEEP`), và sau wake mọi pixel bắt đầu với debt 0, đúng với panel thật.
 
 Đo trên BB0 (CPU 240 MHz, `-O2`, PSRAM 80 MHz): đổi cả một trang chữ thì so frame, cập nhật pixel_state và dựng old
