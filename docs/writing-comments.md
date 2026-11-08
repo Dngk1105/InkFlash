@@ -134,16 +134,21 @@ Ví dụ trong bảng chỉ minh hoạ mẫu viết, không phải việc có th
 ### Cách viết
 
 - Mẫu: `TAG(scope): <việc>.` hoặc `TAG: <việc>.` `scope` nên có, là `id` của module trong glossary (`display`,
-  `frame_slots`, `drv_uc8253`...), để lọc trong TODO Tree. `terms.py check` chỉ bắt buộc dấu `:` sau tag.
+  `frame_slots`, `drv_uc8253`...), để lọc trong Better Todo Tree. `terms.py check` chỉ bắt buộc dấu `:` sau tag.
 - Nội dung kiểm được: có số, điều kiện, hoặc tên hàm. "fix later" không đủ.
 - Làm xong việc thì xoá tag trong cùng commit. `WARN` và `NOTE` giữ lâu dài.
-- Cần tag mới: thêm vào bảng trên, vào `TAGS` trong `tools/terms.py`, và vào `todo-tree.general.tags` trong
-  `.vscode/settings.json`, trong cùng commit. Tag không có trong TODO Tree sẽ không hiện ở sidebar.
+- Cần tag mới: thêm vào bảng trên, vào `TAGS` trong `tools/terms.py`, vào `better-todo-tree.general.tags` và
+  `better-todo-tree.highlights.customHighlight` trong `.vscode/settings.json`, trong cùng commit. Tag không có trong
+  `general.tags` sẽ không hiện ở sidebar.
 
-### Theo dõi tag bằng TODO Tree
+### Theo dõi tag bằng Better Todo Tree
 
-Cài extension `Gruntfuggly.todo-tree`. Cấu hình đã có trong `.vscode/settings.json`.
+Cài extension `FanaticPythoner.better-todo-tree` (bản fork còn bảo trì của Todo Tree; bản gốc trên Open VSX dừng ở 2022).
+Cấu hình nằm trong `.vscode/settings.json`, key `better-todo-tree.*`.
 
-- Sidebar TODO Tree liệt kê tag theo nhóm 9 tag ở bảng trên, kèm số lượng.
+- Sidebar liệt kê tag theo nhóm 9 tag ở bảng trên, kèm số lượng.
+- Màu là 8 màu accent của Solarized (dùng chung cho Solarized Light và Dark), `NOTE` dùng base0 `#839496`. Tag in
+  đậm, nền cùng màu độ mờ 15 %. Nhóm màu: đỏ/hồng/cam/vàng là lỗi và rủi ro (`FIXME`, `BUG`, `WARN`, `HACK`); xanh
+  dương/tím/xanh lá là việc (`TODO`, `REVIEW`, `EXTEND`); xanh ngọc/xám là thông tin (`PERF`, `NOTE`).
 - Chỉ quét `main/`, `components/`, `templates/`, `tools/*.py`, `test/`. Docs không bị quét, vì docs có ví dụ tag.
 - Tag nằm trong comment Doxygen nhiều dòng (` * TODO(...)`) cũng được nhận.
