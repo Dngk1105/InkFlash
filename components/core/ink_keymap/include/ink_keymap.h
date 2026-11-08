@@ -2,34 +2,34 @@
 #pragma once
 
 /*
- * Gesture -> keymap intent through the scene table and the app table. Stateless: system owns the tables.
+ * Gesture -> command through the scene table and the app table. Stateless: system owns the tables.
  * Pure C (C23).
  */
 #include "ink_gesture.h"
 
 #include <stdint.h>
 
-/* ---- Keymap intent ---- */
+/* ---- Command ---- */
 /*
- * WARN: keymap tables store these as numbers. Shared intents take only the free codes 4..15; app intents start at
- * INK_KEYMAP_INTENT_APP_BASE, e.g. (ink_keymap_intent_t)(INK_KEYMAP_INTENT_APP_BASE + 1).
+ * WARN: keymap tables store these as numbers. Shared commands take only the free codes 4..15; app commands start at
+ * INK_KEYMAP_COMMAND_APP_BASE, e.g. (ink_keymap_command_t)(INK_KEYMAP_COMMAND_APP_BASE + 1).
  */
 
 typedef enum : uint8_t {
-    INK_KEYMAP_INTENT_NEXT     = 0,
-    INK_KEYMAP_INTENT_PREV     = 1,
-    INK_KEYMAP_INTENT_SELECT   = 2,
-    INK_KEYMAP_INTENT_BACK     = 3,
-    INK_KEYMAP_INTENT_APP_BASE = 16,
-} ink_keymap_intent_t;
+    INK_KEYMAP_COMMAND_NEXT     = 0,
+    INK_KEYMAP_COMMAND_PREV     = 1,
+    INK_KEYMAP_COMMAND_SELECT   = 2,
+    INK_KEYMAP_COMMAND_BACK     = 3,
+    INK_KEYMAP_COMMAND_APP_BASE = 16,
+} ink_keymap_command_t;
 
 /* ---- Keymap table ---- */
 
 #define INK_KEYMAP_ENTRY_MAX 32
 
 typedef struct {
-    ink_gesture_t       gesture;
-    ink_keymap_intent_t intent;
+    ink_gesture_t        gesture;
+    ink_keymap_command_t command;
 } ink_keymap_entry_t;
 
 /** App table, or scene table (only the entries that differ from the app table). The caller owns and edits it. */
@@ -52,14 +52,14 @@ typedef enum : uint8_t {
 /* ---- API ---- */
 
 /**
- * @brief Look up the keymap intent of a gesture: scene table first, then app table.
+ * @brief Look up the command of a gesture: scene table first, then app table.
  * @par Called from
  * Main task (system), for every gesture except HOLD_AB_SHORT and HOLD_AB_LONG.
  * @param scene May be NULL.
  * @return false if neither table maps the gesture (the gesture is dropped), or a pointer is NULL.
  */
 bool ink_keymap_lookup(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, const ink_gesture_t *gesture,
-                       ink_keymap_intent_t *out_intent);
+                       ink_keymap_command_t *out_command);
 
 /**
  * @brief Validate the effective table (scene table over app table).

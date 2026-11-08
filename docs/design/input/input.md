@@ -3,7 +3,7 @@
 ## Vấn đề
 
 Máy chỉ có 2 nút (và IMU), nên mỗi nút phải mang nhiều nghĩa: bấm, giữ, bấm cả A và B. App không được biết nút nào;
-app chỉ nhận keymap intent như "lật thẻ", "chấm Good". Người dùng muốn tự gán gesture nào làm chức năng nào. Quét nút
+app chỉ nhận command như "lật thẻ", "chấm Good". Người dùng muốn tự gán gesture nào làm chức năng nào. Quét nút
 liên tục thì CPU không ngủ được, tốn pin.
 
 ## Cách xử lý
@@ -24,8 +24,8 @@ Sơ đồ cùng thư mục, vẽ từ code ở commit ghi trong mỗi file, mở
 | Tầng | Đầu vào → đầu ra | Module |
 |---|---|---|
 | Gesture | Edge của nút lúc t, tín hiệu IMU → gesture (button × type) | `gesture` |
-| Keymap | Gesture → keymap intent, theo app và scene đang mở | `keymap` |
-| App | Keymap intent → hành động | app |
+| Keymap | Gesture → command, theo app và scene đang mở | `keymap` |
+| App | Command → hành động | app |
 
 ### `gesture` là core module
 
@@ -107,16 +107,16 @@ App Settings đổi gesture config bằng `ink_input_set_gesture_config()`. `sys
 |---|---|
 | `HOLD_AB_SHORT` | `system`: về menu. App không thấy, không gán lại được, nên người dùng luôn thoát được app. Đang ở menu thì bỏ qua |
 | `HOLD_AB_LONG` | `system`: tắt nguồn (ship mode). App không thấy, không gán lại được |
-| Mọi gesture khác | Tra keymap table ra keymap intent, đưa cho app đang mở. Gesture chưa gán thì bỏ |
+| Mọi gesture khác | Tra keymap table ra command, đưa cho app đang mở. Gesture chưa gán thì bỏ |
 
 ### Keymap table (`keymap`)
 
-- Mỗi app khai báo danh sách keymap intent của mình: mã, tên hiện trong app Settings, gesture mặc định.
-- Keymap intent chung (`NEXT`, `PREV`, `SELECT`, `BACK`) có mã cố định 0 đến 3, dùng chung mọi app. Keymap intent
-  riêng của app đánh mã từ 16 (`INK_KEYMAP_INTENT_APP_BASE`); 4 đến 15 để dành cho keymap intent chung thêm sau. Mã lưu
-  dạng số: keymap intent chung mới trùng mã riêng của app thì table đã lưu trỏ sai mà không báo lỗi.
-- Một keymap table là danh sách entry `{gesture, keymap intent}`, tối đa 32 entry (`INK_KEYMAP_ENTRY_MAX`). Một keymap
-  intent gán được nhiều gesture; một gesture chỉ trỏ tới một keymap intent.
+- Mỗi app khai báo danh sách command của mình: mã, tên hiện trong app Settings, gesture mặc định.
+- Command chung (`NEXT`, `PREV`, `SELECT`, `BACK`) có mã cố định 0 đến 3, dùng chung mọi app. Command
+  riêng của app đánh mã từ 16 (`INK_KEYMAP_COMMAND_APP_BASE`); 4 đến 15 để dành cho command chung thêm sau. Mã lưu
+  dạng số: command chung mới trùng mã riêng của app thì table đã lưu trỏ sai mà không báo lỗi.
+- Một keymap table là danh sách entry `{gesture, command}`, tối đa 32 entry (`INK_KEYMAP_ENTRY_MAX`). Một
+  command gán được nhiều gesture; một gesture chỉ trỏ tới một command.
 - Keymap table theo app (app table). Scene cần nghĩa riêng thì app khai báo thêm scene table, chỉ gồm các entry khác
   app table. `keymap` tra scene table trước, không có thì tra app table.
 - Khi lưu, `ink_keymap_validate()` kiểm effective table (scene table gộp với app table): không entry nào gán

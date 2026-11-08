@@ -20,12 +20,12 @@ Settings là một app như mọi app khác. Settings đọc và ghi cấu hình
 | Hàm | Khi nào được gọi |
 |---|---|
 | `start(snapshot)` | Mở app; `snapshot` rỗng nếu mở mới, có thì khôi phục chỗ cũ |
-| `intent(i)` | Có keymap intent (lật, chấm điểm, `BACK`...) |
+| `command(c)` | Có command (lật, chấm điểm, `BACK`...) |
 | `draw(canvas)` | Cần vẽ lại |
 | `save(snapshot)` | Trước khi ngủ hoặc chuyển app |
 | `stop()` | Đóng app, giải phóng bộ nhớ đã cấp ở `start` |
 
-App chạy trên main task và chỉ nhận keymap intent, không biết nút nào. Ngoài 5 hàm, app khai báo danh sách keymap intent
+App chạy trên main task và chỉ nhận command, không biết nút nào. Ngoài 5 hàm, app khai báo danh sách command
 của mình kèm gesture mặc định (app table), và scene table cho scene nào cần nghĩa riêng; Settings đọc danh sách này để
 người dùng gán lại gesture. App chỉ gọi `system`, `study`, `display`, `ui`; không gọi thẳng `storage` hay phần cứng.
 

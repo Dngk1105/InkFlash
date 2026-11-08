@@ -358,10 +358,10 @@ terms:
     avoid: [bảng gán]
     symbols: [ink_keymap_table_t]
   - id: keymap_intent
-    term: keymap intent
-    meaning: 'lệnh keymap tra ra từ gesture rồi đưa cho app: NEXT, PREV, SELECT, BACK (0-3), mã riêng của app từ APP_BASE (16). Khác intent của display.'
-    avoid: []
-    symbols: [ink_keymap_intent_t]
+    term: command
+    meaning: 'lệnh keymap tra ra từ gesture rồi đưa cho app: NEXT, PREV, SELECT, BACK (0-3), mã riêng của app từ APP_BASE (16). Khác intent của display (lý do vẽ).'
+    avoid: [keymap intent]
+    symbols: [ink_keymap_command_t]
 
   # ---- Wake session ----
   - id: deep_sleep

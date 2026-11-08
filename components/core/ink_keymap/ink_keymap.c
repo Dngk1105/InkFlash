@@ -16,11 +16,11 @@ static bool gesture_is_reserved(const ink_gesture_t *g) {
 
 /* ---- Lookup ---- */
 
-static bool table_find(const ink_keymap_table_t *table, const ink_gesture_t *gesture, ink_keymap_intent_t *out_intent) {
+static bool table_find(const ink_keymap_table_t *table, const ink_gesture_t *gesture, ink_keymap_command_t *out_command) {
     if (table == nullptr) { return false; }
     for (uint8_t i = 0; i < table->count && i < INK_KEYMAP_ENTRY_MAX; i++) {
         if (gesture_equal(&table->entries[i].gesture, gesture)) {
-            *out_intent = table->entries[i].intent;
+            *out_command = table->entries[i].command;
             return true;
         }
     }
@@ -28,9 +28,9 @@ static bool table_find(const ink_keymap_table_t *table, const ink_gesture_t *ges
 }
 
 bool ink_keymap_lookup(const ink_keymap_table_t *scene, const ink_keymap_table_t *app, const ink_gesture_t *gesture,
-                       ink_keymap_intent_t *out_intent) {
-    if (gesture == nullptr || out_intent == nullptr) { return false; }
-    return table_find(scene, gesture, out_intent) || table_find(app, gesture, out_intent);
+                       ink_keymap_command_t *out_command) {
+    if (gesture == nullptr || out_command == nullptr) { return false; }
+    return table_find(scene, gesture, out_command) || table_find(app, gesture, out_command);
 }
 
 /* ---- Validate ---- */
@@ -58,14 +58,14 @@ ink_keymap_error_t ink_keymap_validate(const ink_keymap_table_t *scene, const in
     /* BACK must be reachable: a BACK entry of the scene table, or a BACK entry of the app table the scene does
      * not override. */
     for (uint8_t i = 0; i < app->count; i++) {
-        ink_keymap_intent_t effective;
-        if (ink_keymap_lookup(scene, app, &app->entries[i].gesture, &effective) && effective == INK_KEYMAP_INTENT_BACK) {
+        ink_keymap_command_t effective;
+        if (ink_keymap_lookup(scene, app, &app->entries[i].gesture, &effective) && effective == INK_KEYMAP_COMMAND_BACK) {
             return INK_KEYMAP_OK;
         }
     }
     if (scene != nullptr) {
         for (uint8_t i = 0; i < scene->count; i++) {
-            if (scene->entries[i].intent == INK_KEYMAP_INTENT_BACK) { return INK_KEYMAP_OK; }
+            if (scene->entries[i].command == INK_KEYMAP_COMMAND_BACK) { return INK_KEYMAP_OK; }
         }
     }
     return INK_KEYMAP_ERROR_NO_BACK;

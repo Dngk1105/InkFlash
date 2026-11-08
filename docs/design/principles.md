@@ -14,7 +14,7 @@ queue, driver là shell module mỏng bọc bên ngoài.
 |---|---|---|
 | `session` | State machine của wake session: wake → active → save → deep sleep | `system`: main queue, gọi driver nguồn |
 | `gesture` | Edge của nút, IMU → gesture | `input`: interrupt GPIO, timer |
-| `keymap` | Gesture → keymap intent theo keymap table | `system`: giữ và lưu keymap table |
+| `keymap` | Gesture → command theo keymap table | `system`: giữ và lưu keymap table |
 | `study` | Hàng thẻ đến hạn, chấm điểm | Port nối storage và đồng hồ |
 | `display_policy`, `frame_slots` | So frame, debt và edge flag của từng pixel, chọn decision, cleanup stage; owner của frame | `display`: display task, gọi driver, timer cleanup |
 

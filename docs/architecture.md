@@ -16,7 +16,7 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `session/` | State machine của wake session | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | Có | `gesture`, `hal`, `platform` |
 | `gesture/` | Edge của nút, IMU → gesture | main | Có | Có | Chỉ thư viện C chuẩn |
-| `keymap/` | Gesture → keymap intent theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
+| `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
 | `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `ui/` | Canvas, font | main | Có | Có | Chỉ thư viện C chuẩn |
@@ -40,7 +40,7 @@ trúc đã chốt, chưa có component trong `components/`. `system/` có code n
 
 ## Hai luồng chính
 
-**Lật thẻ:** interrupt nút → main queue → `input` gọi `gesture` ra gesture → `keymap` ra keymap intent → app đổi
+**Lật thẻ:** interrupt nút → main queue → `input` gọi `gesture` ra gesture → `keymap` ra command → app đổi
 scene, vẽ canvas → submit frame cho display task → `display` chọn preset theo intent của frame → driver vẽ. Khi idle,
 `display` chạy cleanup edge, cleanup light, rồi tắt analog power.
 
