@@ -23,6 +23,28 @@
     ".clangd": "yaml",
     "*.h": "c"
   },
+  "doxdocgen.generic.order": ["brief", "custom", "param", "return"],
+  "doxdocgen.generic.briefTemplate": "@brief {text}",
+  "doxdocgen.generic.generateSmartText": false,
+  "doxdocgen.generic.customTags": ["@par Called from", ""],
+  "doxdocgen.generic.paramTemplate": "@param {param} ",
+  "doxdocgen.generic.returnTemplate": "@retval {type} ",
+  "doxdocgen.generic.includeTypeAtReturn": false,
+  "doxdocgen.generic.boolReturnsTrueFalse": true,
+  "todo-tree.general.tags": ["TODO", "FIXME", "REVIEW", "EXTEND", "WARN"],
+  "todo-tree.regex.regex": "((//|#|<!--|;|/\\*|^\\s*\\*|^)\\s*($TAGS))",
+  "todo-tree.filtering.includeGlobs": ["**/main/**", "**/components/**", "**/templates/**", "**/tools/*.py", "**/test/**"],
+  "todo-tree.filtering.excludeGlobs": ["**/build/**", "**/build-host/**", "**/managed_components/**"],
+  "todo-tree.tree.showCountsInTree": true,
+  "todo-tree.tree.groupedByTag": true,
+  "todo-tree.highlights.defaultHighlight": { "type": "tag", "gutterIcon": true },
+  "todo-tree.highlights.customHighlight": {
+    "TODO": { "icon": "checklist", "foreground": "#268BD2", "iconColour": "#268BD2" },
+    "FIXME": { "icon": "bug", "foreground": "#DC322F", "iconColour": "#DC322F" },
+    "REVIEW": { "icon": "eye", "foreground": "#6C71C4", "iconColour": "#6C71C4" },
+    "EXTEND": { "icon": "plug", "foreground": "#859900", "iconColour": "#859900" },
+    "WARN": { "icon": "alert", "foreground": "#CB4B16", "iconColour": "#CB4B16" }
+  },
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
   },

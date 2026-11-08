@@ -71,6 +71,37 @@ Hàm, struct, enum trong `include/*.h` dùng `/** */` ngay trên khai báo. clan
 - Hàm `static` và biến trong `.c` dùng `/* */` ngắn, theo luật chung.
 - `tools/terms.py check` báo lỗi khi hàm public thiếu `/** */`, thiếu `@brief`, hoặc trả mã lỗi mà thiếu `@retval`.
 
+### Sinh khung comment bằng doxdocgen
+
+Extension `cschlosser.doxdocgen` đã cấu hình trong `.vscode/settings.json`.
+
+1. Đặt con trỏ ở dòng trống ngay trên khai báo hàm.
+2. Gõ `/**`, rồi nhấn `Enter`.
+3. Điền chữ vào khung vừa sinh. Xoá `@param` khi tên và kiểu đã đủ nghĩa. Thêm một dòng `@retval` cho mỗi mã lỗi.
+
+Khung sinh cho `ink_frame_slots_init(ink_frame_slots_state_t *state)`:
+
+```c
+/**
+ * @brief
+ * @par Called from
+ *
+ * @param state
+ * @retval
+ */
+```
+
+- doxdocgen tự bỏ qua attribute `[[nodiscard]]` trước kiểu trả về.
+- Hàm trả `bool` sinh sẵn `@retval true` và `@retval false`.
+- Hàm trả giá trị không phải mã lỗi: đổi `@retval` thành `@return`.
+
+### Xem comment khi hover
+
+clangd (`esp-clangd 21.1.3`) hiện comment `/** */` khi hover vào hàm, struct, enum, field.
+
+- clangd 21 hiện `@brief`, `@param`, `@retval` dạng chữ thô, không định dạng. Tuỳ chọn `Documentation: CommentFormat` không có trong clangd 21 (đã thử: báo `Unknown Config key`). Vì vậy mỗi thẻ viết một dòng.
+- Hover thường vào struct không liệt kê field. Giữ `Ctrl` rồi hover vào tên kiểu (ví dụ `ink_frame_slots_state_t`) để xem toàn bộ định nghĩa, gồm mọi field và comment `/**< */`. `Alt+F12` (Peek Definition) mở định nghĩa ngay tại chỗ.
+
 ## Tag việc dở
 
 Docs chỉ mô tả kiến trúc hiện tại. Việc còn thiếu, lỗi đã biết, chỗ cần duyệt, điểm mở rộng ghi bằng comment có tag, ngay tại dòng code liên quan.
@@ -89,3 +120,11 @@ Ví dụ trong bảng chỉ minh hoạ mẫu viết, không phải việc có th
 - Nội dung phải kiểm được: có số, điều kiện, hoặc tên hàm. Viết "fix later" là sai.
 - Tag khác (`XXX`, `HACK`, `BUG`, `NOTE`) bị `terms.py check` báo lỗi.
 - Làm xong việc thì xoá tag trong cùng commit.
+
+### Theo dõi tag bằng TODO Tree
+
+Cài extension `Gruntfuggly.todo-tree`. Cấu hình đã có trong `.vscode/settings.json`.
+
+- Sidebar TODO Tree liệt kê tag theo nhóm `TODO`, `FIXME`, `REVIEW`, `EXTEND`, `WARN`, kèm số lượng.
+- Chỉ quét `main/`, `components/`, `templates/`, `tools/*.py`, `test/`. Docs không bị quét, vì docs có ví dụ tag.
+- Tag nằm trong comment Doxygen nhiều dòng (` * TODO(...)`) cũng được nhận.
