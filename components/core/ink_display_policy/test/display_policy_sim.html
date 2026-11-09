@@ -261,6 +261,7 @@ const INK_DISPLAY_CLEANUP_FAST = 2;
 const INK_DISPLAY_CLEANUP_EDGE_CENTER = 3;
 const INK_DISPLAY_CLEANUP_EDGE_NEIGHBOR = 4;
 const INK_DISPLAY_CLEANUP_LIGHT = 5;
+const INK_DISPLAY_CLEANUP_COUNT = 6;
 const INK_DISPLAY_ACTION_INVALID = 0;
 const INK_DISPLAY_ACTION_NONE = 1;
 const INK_DISPLAY_ACTION_DRAW = 2;
@@ -268,6 +269,7 @@ const INK_DISPLAY_ACTION_CLEANUP = 3;
 const INK_DISPLAY_ACTION_POWER_OFF = 4;
 const INK_DISPLAY_POLICY_OLD_SHOWN = 0;
 const INK_DISPLAY_POLICY_OLD_INVERTED = 1;
+const INK_DISPLAY_POLICY_OLD_SELECTED = 2;
 const CLEANUP_NAMES = ["?", "cleanup strong", "cleanup fast", "cleanup edge center", "cleanup edge neighbor", "cleanup light"];
 const INTENT_NAMES = ["AUTO", "TEXT", "UI", "PAGE"];
 
@@ -674,6 +676,12 @@ function decision_cleanup(cleanup, window)
     return {action: INK_DISPLAY_ACTION_CLEANUP, intent: INK_DISPLAY_INTENT_AUTO, cleanup, window, old_plane: INK_DISPLAY_POLICY_OLD_INVERTED};
 }
 
+/* Cleanup fast: chỉ pixel bẩn bị kéo; cleanup_plane() dựng old plane, cleanup_done() xoá chúng. */
+function decision_fast(window)
+{
+    return {action: INK_DISPLAY_ACTION_CLEANUP, intent: INK_DISPLAY_INTENT_AUTO, cleanup: INK_DISPLAY_CLEANUP_FAST, window, old_plane: INK_DISPLAY_POLICY_OLD_SELECTED};
+}
+
 function decide_clean(state, cleanup, out_decision)
 {
     clear_pixels(state);
@@ -714,7 +722,12 @@ function ink_display_policy_decide(state, shown, next, request, now_ms, out_deci
     state.priv.after_wake = false;
 
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state.priv.ceiling)) {
-        decide_clean(state, active ? INK_DISPLAY_CLEANUP_FAST : INK_DISPLAY_CLEANUP_STRONG, out_decision);
+        if (!active) {
+            decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
+            return INK_DISPLAY_POLICY_OK;
+        }
+        add_debt(state, shown, next, changed, weight > 0 ? weight : 1);
+        Object.assign(out_decision, decision_fast(window));
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent === INK_DISPLAY_INTENT_PAGE && state.priv.max_debt >= config.debt_page) {
@@ -769,13 +782,16 @@ function ink_display_policy_idle(state, now_ms, out_idle)
     return INK_DISPLAY_POLICY_OK;
 }
 
-/* Cleanup idle() trả ra; FAST chỉ đến từ decide(). */
-function idle_cleanup(cleanup)
+/* Cleanup idle đến từ idle(); FAST chỉ đến từ decide(). */
+function cleanup_valid(cleanup)
 {
-    return cleanup === INK_DISPLAY_CLEANUP_EDGE_CENTER
-        || cleanup === INK_DISPLAY_CLEANUP_EDGE_NEIGHBOR
-        || cleanup === INK_DISPLAY_CLEANUP_LIGHT
-        || cleanup === INK_DISPLAY_CLEANUP_STRONG;
+    return cleanup > INK_DISPLAY_CLEANUP_INVALID && cleanup < INK_DISPLAY_CLEANUP_COUNT;
+}
+
+/* Pixel có debt hoặc edge flag; cleanup fast kéo đúng các pixel này. */
+function dirty(pixel)
+{
+    return debt_of(pixel) > 0 || flag_of(pixel) !== FLAG_NONE;
 }
 
 function near_matching_center(state, shown, x, y)
@@ -801,6 +817,8 @@ function selected_for(state, shown, cleanup, x, y)
             return flag_of(pixel) === FLAG_NONE && near_matching_center(state, shown, x, y);
         case INK_DISPLAY_CLEANUP_LIGHT:
             return debt_of(pixel) >= state.priv.config.debt_light;
+        case INK_DISPLAY_CLEANUP_FAST:
+            return dirty(pixel);
         default:
             return true; /* CLEANUP_STRONG */
     }
@@ -808,7 +826,7 @@ function selected_for(state, shown, cleanup, x, y)
 
 function ink_display_policy_cleanup_plane(state, shown, cleanup, out_old, out_window)
 {
-    if (state === null || shown === null || out_old === null || out_window === null || !idle_cleanup(cleanup)) {
+    if (state === null || shown === null || out_old === null || out_window === null || !cleanup_valid(cleanup)) {
         return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
     }
     const config = state.priv.config;
@@ -828,7 +846,7 @@ function ink_display_policy_cleanup_plane(state, shown, cleanup, out_old, out_wi
 
 function ink_display_policy_cleanup_done(state, cleanup)
 {
-    if (state === null || !idle_cleanup(cleanup)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    if (state === null || !cleanup_valid(cleanup)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
     const count = pixel_count(state.priv.config);
     const pixels = state.priv.pixels;
     switch (cleanup) {
@@ -846,6 +864,14 @@ function ink_display_policy_cleanup_done(state, cleanup)
             }
             recompute_max_debt(state);
             state.priv.stages_done |= STAGE_LIGHT;
+            break;
+        case INK_DISPLAY_CLEANUP_FAST:
+            for (let i = 0; i < count; i++) {
+                if (!dirty(pixels[i])) { continue; }
+                set_flag(state, i, FLAG_NONE);
+                set_debt(pixels, i, 0);
+            }
+            recompute_max_debt(state);
             break;
         default: /* CLEANUP_STRONG */
             clear_pixels(state);
@@ -943,12 +969,19 @@ function shell_submit()
         shell_log("không vẽ: khung giống hệt");
     } else {
         let plane_old = live.shown;
-        if (decision.old_plane === INK_DISPLAY_POLICY_OLD_INVERTED || live.shown === null) {
+        const window = {...decision.window};
+        const selected = decision.old_plane === INK_DISPLAY_POLICY_OLD_SELECTED;
+        if (selected) {
+            /* Cleanup fast: frame mới, đảo bit ở pixel bẩn. */
+            plane_old = new Uint8Array(frame_bytes());
+            ink_display_policy_cleanup_plane(live.state, live.next, decision.cleanup, plane_old, window);
+        } else if (decision.old_plane === INK_DISPLAY_POLICY_OLD_INVERTED || live.shown === null) {
             plane_old = new Uint8Array(frame_bytes());
             invert_into(live.next, plane_old);
         }
-        shell_drive(live.next, plane_old, decision.window);
-        shell_report(work_name(decision.action, decision.intent, decision.cleanup), decision.window);
+        shell_drive(live.next, plane_old, window);
+        if (selected) { ink_display_policy_cleanup_done(live.state, decision.cleanup); }
+        shell_report(work_name(decision.action, decision.intent, decision.cleanup), window);
     }
     live.shown_buffer.set(live.next);
     live.shown = live.shown_buffer;
@@ -1310,6 +1343,19 @@ function idle_at(now_ms)
     return idle;
 }
 
+/* flip_cell_past_ceiling() của test C: lật (4, 4) bằng UI tới trần 8 trong active period. */
+function flip_cell_past_ceiling()
+{
+    for (let i = 0; i < 4; i++) {
+        t.now_ms += 100;
+        if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
+        expect_equal(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_UI, 0).action);
+    }
+    t.now_ms += 100;
+    set_black(t.next, 4, 4);
+    return draw_next(INK_DISPLAY_INTENT_UI, 0);
+}
+
 function black_box(x, y)
 {
     t.next.fill(0xFF);
@@ -1454,21 +1500,33 @@ const TESTS = {
         expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
         expect_equal(0, ink_display_policy_max_debt(t.state));
     },
-    test_exceeding_ceiling_while_active_draws_clean_fast() {
+    test_exceeding_ceiling_while_active_draws_cleanup_fast() {
         const config = default_config();
         config.debt_ceiling_max = config.debt_ceiling;
         start(config);
-        for (let i = 0; i < 4; i++) {
-            t.now_ms += 100;
-            if (i % 2 === 0) { set_black(t.next, 4, 4); } else { set_white(t.next, 4, 4); }
-            expect_equal(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_UI, 0).action);
-        }
-        t.now_ms += 100;
-        set_black(t.next, 4, 4);
-        const decision = draw_next(INK_DISPLAY_INTENT_UI, 0);
-        expect_cleanup(INK_DISPLAY_CLEANUP_FAST, decision);
-        expect_equal(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+        const decision = flip_cell_past_ceiling();
+        expect_equal(INK_DISPLAY_ACTION_CLEANUP, decision.action);
+        expect_equal(INK_DISPLAY_CLEANUP_FAST, decision.cleanup);
+        expect_equal(INK_DISPLAY_POLICY_OLD_SELECTED, decision.old_plane);
+    },
+    test_cleanup_fast_drives_dirty_pixels_only() {
+        const config = default_config();
+        config.debt_ceiling_max = config.debt_ceiling;
+        set_black(t.shown, 16, 6);
+        set_black(t.next, 16, 6);
+        start(config);
+        flip_cell_past_ceiling();
+
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_CLEANUP_FAST, t.old, window));
+        expect_equal(true, is_white_test(t.shown, 4, 4) !== is_white_test(t.old, 4, 4));
+        expect_equal(is_white_test(t.shown, 16, 6), is_white_test(t.old, 16, 6));
+        expect_equal(0, window.x);
+        expect_equal(8, window.width);
+
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_CLEANUP_FAST));
         expect_equal(0, ink_display_policy_max_debt(t.state));
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
     },
     test_ceiling_grows_while_active_and_resets_after_rest() {
         start(default_config());
@@ -1690,12 +1748,12 @@ const TESTS = {
         expect_equal(WIDTH, window.width);
         expect_equal(HEIGHT, window.height);
     },
-    test_cleanup_rejects_non_idle_cleanup() {
+    test_cleanup_rejects_invalid_cleanup() {
         start(default_config());
         const window = {};
         expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_CLEANUP_INVALID, t.old, window));
-        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_CLEANUP_FAST, t.old, window));
-        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_CLEANUP_FAST));
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_CLEANUP_COUNT, t.old, window));
+        expect_equal(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_CLEANUP_INVALID));
     },
     test_draw_decision_has_no_cleanup() {
         start(default_config());

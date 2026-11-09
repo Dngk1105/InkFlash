@@ -7937,7 +7937,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <ul>
           <li>New = old thì pixel chạy LUT giữ màu; new = old đảo bit thì pixel bị kéo về màu của bit new.</li>
           <li>Vẽ theo intent: old plane là shown frame.</li>
-          <li>Cleanup cả panel: old plane là frame mới đảo bit, nên mọi pixel bị kéo.</li>
+          <li>Cleanup strong: old plane là frame mới đảo bit, nên mọi pixel bị kéo.</li>
+          <li>Cleanup fast: new plane là frame mới, old plane đảo bit ở pixel có debt hoặc edge flag.</li>
           <li>Cleanup khi idle: new plane là shown frame, old plane đảo bit ở pixel được cleanup.</li>
         </ul>
       </div>

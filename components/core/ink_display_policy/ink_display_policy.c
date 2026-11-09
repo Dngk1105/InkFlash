@@ -412,7 +412,17 @@ static ink_display_policy_decision_t decision_cleanup(ink_display_cleanup_t clea
     };
 }
 
-/* Whole-panel cleanup (STRONG or FAST) with an inverted old plane; all debt and edge flags back to 0. */
+/* Cleanup fast: only dirty pixels are driven; cleanup_plane() builds the old plane, cleanup_done() clears them. */
+static ink_display_policy_decision_t decision_fast(ink_display_rect_t window) {
+    return (ink_display_policy_decision_t){
+        .action    = INK_DISPLAY_ACTION_CLEANUP,
+        .cleanup   = INK_DISPLAY_CLEANUP_FAST,
+        .window    = window,
+        .old_plane = INK_DISPLAY_POLICY_OLD_SELECTED,
+    };
+}
+
+/* Whole-panel cleanup strong with an inverted old plane; all debt and edge flags back to 0. */
 static void decide_clean(ink_display_policy_state_t *state, ink_display_cleanup_t cleanup, ink_display_policy_decision_t *out_decision) {
     clear_pixels(state);
     state->priv.shown_valid = true;
@@ -454,7 +464,16 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     state->priv.after_wake                = false;
 
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state->priv.ceiling)) {
-        decide_clean(state, active ? INK_DISPLAY_CLEANUP_FAST : INK_DISPLAY_CLEANUP_STRONG, out_decision);
+        if (!active) {
+            decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
+            return INK_DISPLAY_POLICY_OK;
+        }
+        /* Changed pixels get debt (at least 1), so cleanup_plane() selects them with the other dirty pixels; clean
+         * pixels around them (text) are not driven. */
+        /* REVIEW(display_policy): local cleanup fast with clean_full50 is not benched yet; rerun the cell flip test
+         * on BB0 (whole-panel clean_full100 greyed the text, 2026-11-09). */
+        add_debt(state, shown, next, changed, weight > 0 ? weight : 1);
+        *out_decision = decision_fast(window);
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent == INK_DISPLAY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
@@ -515,12 +534,14 @@ ink_display_policy_error_t ink_display_policy_idle(const ink_display_policy_stat
     return INK_DISPLAY_POLICY_OK;
 }
 
-/* Cleanups that idle() returns; FAST comes only from decide(). */
-static bool idle_cleanup(ink_display_cleanup_t cleanup) {
-    return cleanup == INK_DISPLAY_CLEANUP_EDGE_CENTER
-        || cleanup == INK_DISPLAY_CLEANUP_EDGE_NEIGHBOR
-        || cleanup == INK_DISPLAY_CLEANUP_LIGHT
-        || cleanup == INK_DISPLAY_CLEANUP_STRONG;
+/* Idle cleanups come from idle(); FAST comes only from decide(). */
+static bool cleanup_valid(ink_display_cleanup_t cleanup) {
+    return cleanup > INK_DISPLAY_CLEANUP_INVALID && cleanup < INK_DISPLAY_CLEANUP_COUNT;
+}
+
+/* Pixel with debt or an edge flag; cleanup fast drives exactly these. */
+static bool dirty(uint8_t pixel) {
+    return debt_of(pixel) > 0 || flag_of(pixel) != FLAG_NONE;
 }
 
 /* White pixels next to a dark-edge center, black pixels next to a light-edge center (US 11,568,827, col. 12). */
@@ -546,6 +567,8 @@ static bool selected_for(const ink_display_policy_state_t *state, const uint8_t 
             return flag_of(pixel) == FLAG_NONE && near_matching_center(state, shown, x, y);
         case INK_DISPLAY_CLEANUP_LIGHT:
             return debt_of(pixel) >= state->priv.config.debt_light;
+        case INK_DISPLAY_CLEANUP_FAST:
+            return dirty(pixel);
         default:
             return true; /* CLEANUP_STRONG */
     }
@@ -554,7 +577,7 @@ static bool selected_for(const ink_display_policy_state_t *state, const uint8_t 
 ink_display_policy_error_t ink_display_policy_cleanup_plane(const ink_display_policy_state_t *state, const uint8_t *shown,
                                                             ink_display_cleanup_t cleanup, uint8_t *out_old,
                                                             ink_display_rect_t *out_window) {
-    if (state == nullptr || shown == nullptr || out_old == nullptr || out_window == nullptr || !idle_cleanup(cleanup)) {
+    if (state == nullptr || shown == nullptr || out_old == nullptr || out_window == nullptr || !cleanup_valid(cleanup)) {
         return INK_DISPLAY_POLICY_ERROR_ARGUMENT;
     }
     const ink_display_policy_config_t *config = &state->priv.config;
@@ -573,7 +596,7 @@ ink_display_policy_error_t ink_display_policy_cleanup_plane(const ink_display_po
 }
 
 ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_state_t *state, ink_display_cleanup_t cleanup) {
-    if (state == nullptr || !idle_cleanup(cleanup)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
+    if (state == nullptr || !cleanup_valid(cleanup)) { return INK_DISPLAY_POLICY_ERROR_ARGUMENT; }
     const size_t count = pixel_count(&state->priv.config);
     switch (cleanup) {
         case INK_DISPLAY_CLEANUP_EDGE_CENTER:
@@ -590,6 +613,15 @@ ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_st
             }
             recompute_max_debt(state);
             state->priv.stages_done |= STAGE_LIGHT;
+            break;
+        case INK_DISPLAY_CLEANUP_FAST:
+            for (size_t i = 0; i < count; i++) {
+                uint8_t *pixel = &state->priv.pixel_state[i];
+                if (!dirty(*pixel)) { continue; }
+                set_flag(state, pixel, FLAG_NONE);
+                set_debt(pixel, 0);
+            }
+            recompute_max_debt(state);
             break;
         default: /* CLEANUP_STRONG */
             clear_pixels(state);

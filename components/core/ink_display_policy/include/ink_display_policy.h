@@ -34,6 +34,7 @@ enum : uint8_t {
 typedef enum : uint8_t {
     INK_DISPLAY_POLICY_OLD_SHOWN,    /**< shown frame */
     INK_DISPLAY_POLICY_OLD_INVERTED, /**< new frame inverted: every pixel is driven */
+    INK_DISPLAY_POLICY_OLD_SELECTED, /**< ink_display_policy_cleanup_plane() on the new frame, then cleanup_done() */
 } ink_display_policy_old_plane_t;
 
 typedef struct {
@@ -63,7 +64,7 @@ typedef struct {
     ink_display_action_t           action;  /**< NONE, DRAW or CLEANUP */
     ink_display_intent_t           intent;  /**< DRAW: resolved intent (TEXT, UI, PAGE); AUTO otherwise */
     ink_display_cleanup_t          cleanup; /**< CLEANUP: STRONG or FAST; INVALID otherwise */
-    ink_display_rect_t             window;  /**< whole panel for a cleanup; size 0 for NONE */
+    ink_display_rect_t             window;  /**< STRONG: whole panel; FAST: changed window, cleanup_plane() widens it; NONE: 0 */
     ink_display_policy_old_plane_t old_plane;
 } ink_display_policy_decision_t;
 
@@ -74,6 +75,10 @@ typedef struct {
     uint32_t              wait_ms; /**< INK_DISPLAY_POLICY_WAIT_FOREVER when no stage is left */
 } ink_display_policy_idle_t;
 
+/* EXTEND(display_policy): per-pixel charge deviation for compensation push (US 10,672,350 "impulse bank"): signed
+ * int8 next to pixel_state, 2 ms units of VSH/VSL, 0 = fully driven and balanced; each draw adds the impulse of the LUT
+ * the pixel ran, a push profile pays back -deviation for selected pixels only. Bits 6-7 of pixel_state are too small;
+ * could replace debt. Not agreed yet; see the review list at the end of display.md. */
 typedef struct {
     struct {
         ink_display_policy_config_t config;
@@ -137,23 +142,25 @@ typedef struct {
                                                                  ink_display_policy_idle_t *out_idle);
 
 /**
- * @brief Build the old plane for an idle cleanup (EDGE_CENTER, EDGE_NEIGHBOR, LIGHT, STRONG): copy `shown`, then
- *        invert the pixels being cleaned (cleanup strong: every pixel).
- *        The new plane of the cleanup is `shown`.
+ * @brief Build the old plane for an idle cleanup (EDGE_CENTER, EDGE_NEIGHBOR, LIGHT, STRONG) or for cleanup fast:
+ *        copy `shown`, then invert the pixels being cleaned (cleanup strong: every pixel; cleanup fast: every pixel
+ *        with debt or an edge flag, which includes the pixels the frame changes). The new plane is `shown`.
  * @par Called from
- * Display task, after idle.
+ * Display task, after idle, or after a decide with old plane INK_DISPLAY_POLICY_OLD_SELECTED.
+ * @param shown Frame the panel shows after the cleanup: the shown frame, or the new frame for cleanup fast.
  * @param out_window Bounds of the cleaned pixels, x edges aligned; size 0 if there are none.
- * @retval INK_DISPLAY_POLICY_ERROR_ARGUMENT a pointer is NULL or cleanup is not an idle cleanup.
+ * @retval INK_DISPLAY_POLICY_ERROR_ARGUMENT a pointer is NULL or cleanup is INVALID.
  */
 [[nodiscard]] ink_display_policy_error_t ink_display_policy_cleanup_plane(const ink_display_policy_state_t *state, const uint8_t *shown,
                                                                           ink_display_cleanup_t cleanup, uint8_t *out_old,
                                                                           ink_display_rect_t *out_window);
 
 /**
- * @brief Idle cleanup `cleanup` finished (or had no pixels): clear the cleaned edge flags and debt, mark the stage done.
+ * @brief Cleanup `cleanup` finished (or had no pixels): clear the cleaned edge flags and debt; an idle cleanup also
+ *        marks its stage done.
  * @par Called from
  * Display task.
- * @retval INK_DISPLAY_POLICY_ERROR_ARGUMENT a pointer is NULL or cleanup is not an idle cleanup.
+ * @retval INK_DISPLAY_POLICY_ERROR_ARGUMENT a pointer is NULL or cleanup is INVALID.
  */
 [[nodiscard]] ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_state_t *state, ink_display_cleanup_t cleanup);
 

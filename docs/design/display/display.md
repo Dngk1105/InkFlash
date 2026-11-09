@@ -112,17 +112,23 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 |---|---|---|---|
 | Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
 | `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
-| `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới đảo bit | Cả panel |
+| `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới, đảo bit ở pixel có debt hoặc edge flag (gồm pixel frame này đổi) | Bao các pixel đó |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
 | `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
 
-Cleanup fast dùng profile `clean_full100` (320 ms): mọi pixel lắc về màu ngược rồi về màu của nó, cân bằng điện tích
-ngay trong lần đó. Panel chớp một lần, nhưng nhanh hơn cleanup strong gần 8 lần ở 30 °C. Đo trên BB0: `tr8` cả panel
-(kéo một chiều) làm vùng không đổi đậm dần sau mỗi lần cleanup, nên không dùng làm cleanup fast.
+Cleanup fast chỉ kéo pixel bẩn (có debt hoặc edge flag) và vẽ luôn frame mới. Policy cộng debt cho pixel frame này
+đổi trước, nên chúng nằm trong số pixel bẩn. Pixel sạch (chữ đứng yên quanh ô vừa lật) giữ LUT giữ màu 0 V, nên
+không bị lắc. Đo trên BB0 (2026-11-09): cleanup fast cả panel bằng `clean_full100` làm chữ đứng yên quanh ô lật nhiều
+lần xám tới mức không đọc được.
 
-Drive border bật ở cleanup strong, cleanup fast và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả
-trong partial mode. `TEXT`, `UI` và các cleanup stage để border nổi.
+Cleanup fast dùng profile `clean_full50` (640 ms): pixel được chọn lắc 15 LUT frame về màu ngược rồi 15 LUT frame về
+màu của nó, 50 Hz, cân bằng điện tích ngay trong lần đó. Mỗi chiều bằng một lần kéo của `tr8`; `clean_full100` chỉ
+bằng một nửa. Đo trên BB0: `tr8` (kéo một chiều) làm vùng không đổi đậm dần sau mỗi lần cleanup, nên không dùng làm
+cleanup fast.
+
+Drive border bật ở cleanup strong và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả trong partial
+mode. `TEXT`, `UI`, cleanup fast và các cleanup stage để border nổi.
 
 Cleanup strong và cleanup fast đọc lại nhiệt độ trước khi vẽ; bảng `READS_TEMPERATURE` trong `ink_display.c` giữ
 điều này theo loại cleanup.
@@ -142,7 +148,7 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
-| 5 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast; ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
+| 5 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
 | 6 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
 | 7 | Còn lại | Preset của intent, chỉ changed window |
 
@@ -309,7 +315,8 @@ Danh sách profile:
 | 13 | `lut10f50` | Pixel đổi màu kéo 10 LUT frame, 50 Hz; giữ màu 0 V | 240 ms | `UI` |
 | 21 | `clean_edge` | Pixel được chọn lắc 2–1–1–1–1–2 LUT frame, kết thúc ở màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup edge neighbor |
 | 22 | `clean_light` | Pixel được chọn: 4 LUT frame về màu ngược, rồi 4 LUT frame về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup light |
-| 24 | `clean_full100` | Pixel được chọn: 15 LUT frame về màu ngược, rồi 15 LUT frame về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Cleanup edge center, cleanup fast |
+| 24 | `clean_full100` | Pixel được chọn: 15 LUT frame về màu ngược, rồi 15 LUT frame về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Cleanup edge center |
+| 29 | `clean_full50` | Như `clean_full100`, 50 Hz (cùng waveform với id 23 đã bỏ) | 640 ms | Cleanup fast |
 
 Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử bằng bench rồi bỏ; kết quả đo ở
 `docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong
