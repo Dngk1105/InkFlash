@@ -237,6 +237,10 @@ def check_profile(profile, warnings):
     tables = dict(zip(TABLE_NAMES, profile["tables"]))
     if profile["copied"] and profile["source"] != SOURCE_CUSTOM:
         return
+    # EXTEND(profile_gen): this balance counts LUT frames, valid only inside one profile. A pixel changed by one
+    # profile and changed back by another with a different frame rate (UI 75 Hz, TEXT 65 Hz) drifts. For per-pixel
+    # charge in display_policy: export the impulse of the 4 source LUTs in ms (frames * 1000 / frame_rate_hz,
+    # VSH +, VSL -) with each profile.
     # chép OTP rồi sửa bảng: LUTWK, LUTKW vẫn của hãng nên không bắt cân bằng
     cycle = table_charge(tables["WK"]) + table_charge(tables["KW"])
     if cycle != 0 and not profile["copied"] and not profile["allow_unbalanced"]:

@@ -22,7 +22,7 @@ typedef enum : uint8_t {
 typedef enum : uint8_t {
     INK_DISPLAY_CLEANUP_INVALID = 0,
     INK_DISPLAY_CLEANUP_STRONG,        /**< whole panel, inverted old plane */
-    INK_DISPLAY_CLEANUP_FAST,          /**< whole panel, short profile; debt ceiling exceeded during an active period */
+    INK_DISPLAY_CLEANUP_FAST,          /**< pixels with debt or an edge flag; debt ceiling exceeded during an active period */
     INK_DISPLAY_CLEANUP_EDGE_CENTER,   /**< cleanup stage 1: pixels with an edge flag */
     INK_DISPLAY_CLEANUP_EDGE_NEIGHBOR, /**< cleanup stage 1, after edge center: neighbors of flagged pixels */
     INK_DISPLAY_CLEANUP_LIGHT,         /**< cleanup stage 2: pixels with debt >= debt_light */

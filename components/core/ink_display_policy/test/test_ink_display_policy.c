@@ -276,10 +276,8 @@ static void test_exceeding_ceiling_draws_cleanup_strong_and_clears_debt(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
 
-static void test_exceeding_ceiling_while_active_draws_cleanup_fast(void) {
-    ink_display_policy_config_t config = default_config();
-    config.debt_ceiling_max            = config.debt_ceiling; /* ceiling does not rise */
-    start(&config);
+/* Flip (4, 4) with UI until the ceiling of 8 is reached during an active period; s_shown has the next frame. */
+static ink_display_policy_decision_t flip_cell_past_ceiling(void) {
     for (int i = 0; i < 4; i++) {
         s_now_ms += 100;
         if (i % 2 == 0) {
@@ -291,10 +289,37 @@ static void test_exceeding_ceiling_while_active_draws_cleanup_fast(void) {
     }
     s_now_ms += 100;
     set_black(s_next, 4, 4);
-    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_INTENT_UI, 0);
-    expect_decision_cleanup(INK_DISPLAY_CLEANUP_FAST, decision);
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_INVERTED, decision.old_plane);
+    return draw_next(INK_DISPLAY_INTENT_UI, 0);
+}
+
+static void test_exceeding_ceiling_while_active_draws_cleanup_fast(void) {
+    ink_display_policy_config_t config = default_config();
+    config.debt_ceiling_max            = config.debt_ceiling; /* ceiling does not rise */
+    start(&config);
+    const ink_display_policy_decision_t decision = flip_cell_past_ceiling();
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_CLEANUP, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, decision.cleanup);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_SELECTED, decision.old_plane);
+}
+
+static void test_cleanup_fast_drives_dirty_pixels_only(void) {
+    ink_display_policy_config_t config = default_config();
+    config.debt_ceiling_max            = config.debt_ceiling;
+    set_black(s_shown, 16, 6); /* text far from the cell: clean after the first cleanup strong */
+    set_black(s_next, 16, 6);
+    start(&config);
+    (void)flip_cell_past_ceiling();
+
+    ink_display_rect_t window;
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 4, 4), is_white(s_old, 4, 4));
+    TEST_ASSERT_EQUAL(is_white(s_shown, 16, 6), is_white(s_old, 16, 6));
+    TEST_ASSERT_EQUAL_UINT16(0, window.x);
+    TEST_ASSERT_EQUAL_UINT16(8, window.width);
+
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
+    TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
 }
 
 static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
@@ -534,15 +559,15 @@ static void test_idle_handles_clock_wrap(void) {
 
 /* ---- Old plane of a cleanup ---- */
 
-static void test_cleanup_rejects_non_idle_cleanup(void) {
+static void test_cleanup_rejects_invalid_cleanup(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     ink_display_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT,
                       ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_INVALID, s_old, &window));
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT,
-                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
-    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+                      ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_COUNT, s_old, &window));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_ERROR_ARGUMENT, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_INVALID));
 }
 
 static void test_draw_decision_has_no_cleanup(void) {
@@ -656,6 +681,7 @@ int main(void) {
     RUN_TEST(test_debt_adds_weight_on_changed_pixels_only);
     RUN_TEST(test_exceeding_ceiling_draws_cleanup_strong_and_clears_debt);
     RUN_TEST(test_exceeding_ceiling_while_active_draws_cleanup_fast);
+    RUN_TEST(test_cleanup_fast_drives_dirty_pixels_only);
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
     RUN_TEST(test_page_with_high_debt_draws_cleanup_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
@@ -671,7 +697,7 @@ int main(void) {
     RUN_TEST(test_active_period_without_edge_stage);
     RUN_TEST(test_zero_active_ms_keeps_ceiling);
     RUN_TEST(test_idle_handles_clock_wrap);
-    RUN_TEST(test_cleanup_rejects_non_idle_cleanup);
+    RUN_TEST(test_cleanup_rejects_invalid_cleanup);
     RUN_TEST(test_draw_decision_has_no_cleanup);
     RUN_TEST(test_cleanup_plane_inverts_flagged_centers_only);
     RUN_TEST(test_cleanup_plane_neighbor_inverts_cardinal_neighbors_of_centers);

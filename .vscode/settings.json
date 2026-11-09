@@ -139,5 +139,6 @@
   },
   "yaml.schemas": {
     "https://www.schemastore.org/clangd.json": "file:///e%3A/ESP32_projects/InkFlash/.clangd"
-  }
+  },
+  "better-todo-tree.tree.scanMode": "workspace"
 }

@@ -20,6 +20,8 @@
     {"id": 22, "name": "clean_light", "base": "TR8", "frame_rate_hz": 200,
      "tables": {"KW": [["VSH", 4], ["VSL", 4]], "WK": [["VSL", 4], ["VSH", 4]]}},
     {"id": 24, "name": "clean_full100", "base": "TR8", "frame_rate_hz": 100,
+     "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}},
+    {"id": 29, "name": "clean_full50", "base": "TR8", "frame_rate_hz": 50,
      "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}}
   ],
   "presets": {
@@ -28,7 +30,7 @@
     "page": {"bands": [[127, 9]], "partial_mode": true, "scan_outside_window": true, "drive_border": true},
     "cleanup_strong": {"bands": [[5, 1], [10, 2], [15, 3], [20, 4], [30, 5], [80, 6], [92, 7], [100, 8], [127, 9]],
                      "partial_mode": false, "scan_outside_window": true, "drive_border": true},
-    "cleanup_fast": {"bands": [[127, 24]], "partial_mode": false, "scan_outside_window": true, "drive_border": true},
+    "cleanup_fast": {"bands": [[127, 29]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
     "cleanup_edge_center": {"bands": [[127, 24]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
     "cleanup_edge_neighbor": {"bands": [[127, 21]], "partial_mode": true, "scan_outside_window": true, "drive_border": false},
     "cleanup_light": {"bands": [[127, 22]], "partial_mode": true, "scan_outside_window": true, "drive_border": false}

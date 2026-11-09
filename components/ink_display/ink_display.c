@@ -384,13 +384,25 @@ static bool draw_frame(const frame_t *frame, ink_display_report_t *report) {
     report->cleanup = decision.cleanup;
     if (decision.action == INK_DISPLAY_ACTION_NONE) { return true; }
 
-    const uint8_t *plane_old = shown;
-    if (decision.old_plane == INK_DISPLAY_POLICY_OLD_INVERTED || shown == nullptr) {
+    const uint8_t     *plane_old = shown;
+    ink_display_rect_t window    = decision.window;
+    const bool         selected  = decision.old_plane == INK_DISPLAY_POLICY_OLD_SELECTED;
+    if (selected) {
+        /* Cleanup fast: the new frame with the dirty pixels inverted. */
+        if (ink_display_policy_cleanup_plane(&s_policy, frame->buffer, decision.cleanup, s_old_plane, &window) != INK_DISPLAY_POLICY_OK) {
+            report->error = ESP_ERR_INVALID_STATE; /* treated like a failed draw: the next decide is cleanup strong */
+            return true;
+        }
+        plane_old = s_old_plane;
+    } else if (decision.old_plane == INK_DISPLAY_POLICY_OLD_INVERTED || shown == nullptr) {
         invert_into(frame->buffer, s_old_plane);
         plane_old = s_old_plane;
     }
     const setup_t setup = decision.action == INK_DISPLAY_ACTION_DRAW ? draw_setup(decision.intent) : cleanup_setup(decision.cleanup);
-    report->error       = drive(setup, frame->buffer, plane_old, decision.window, report);
+    report->error       = drive(setup, frame->buffer, plane_old, window, report);
+    if (selected && report->error == ESP_OK && ink_display_policy_cleanup_done(&s_policy, decision.cleanup) != INK_DISPLAY_POLICY_OK) {
+        ESP_LOGE(TAG, "cleanup done");
+    }
     return true;
 }
 
