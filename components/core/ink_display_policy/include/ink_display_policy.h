@@ -94,6 +94,7 @@ typedef struct {
         bool                        has_frame;   /**< last_frame_ms is valid */
         bool                        shown_valid; /**< the panel shows exactly the caller's `shown` frame */
         bool                        after_wake;  /**< `shown` is the background frame drawn before sleep */
+        ink_display_rect_t          fast_window; /**< window of the last cleanup fast decision; FAST cleans only inside it */
     } priv;
 } ink_display_policy_state_t;
 
@@ -145,7 +146,8 @@ typedef struct {
 /**
  * @brief Build the old plane for an idle cleanup (EDGE_CENTER, EDGE_NEIGHBOR, LIGHT, STRONG) or for cleanup fast:
  *        copy `shown`, then invert the pixels being cleaned (cleanup strong: every pixel; cleanup fast: every pixel
- *        with debt or an edge flag, which includes the pixels the frame changes). The new plane is `shown`.
+ *        with debt or an edge flag inside the window of the decision, which includes the pixels the frame changes). The new
+ *        plane is `shown`.
  * @par Called from
  * Display task, after idle, or after a decide with old plane INK_DISPLAY_POLICY_OLD_SELECTED.
  * @param shown Frame the panel shows after the cleanup: the shown frame, or the new frame for cleanup fast.

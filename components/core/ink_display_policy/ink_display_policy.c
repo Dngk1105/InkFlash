@@ -430,7 +430,8 @@ static ink_display_policy_decision_t decision_cleanup(ink_display_cleanup_t clea
     };
 }
 
-/* Cleanup fast: only dirty pixels are driven; cleanup_plane() builds the old plane, cleanup_done() clears them. */
+/* Cleanup fast: only dirty pixels inside `window` are driven; cleanup_plane() builds the old plane, cleanup_done()
+ * clears them. Dirty pixels outside (text drawn earlier with debt 1) are left for the idle stages. */
 static ink_display_policy_decision_t decision_fast(ink_display_rect_t window) {
     return (ink_display_policy_decision_t){
         .action    = INK_DISPLAY_ACTION_CLEANUP,
@@ -438,6 +439,11 @@ static ink_display_policy_decision_t decision_fast(ink_display_rect_t window) {
         .window    = window,
         .old_plane = INK_DISPLAY_POLICY_OLD_SELECTED,
     };
+}
+
+static void decide_fast(ink_display_policy_state_t *state, ink_display_rect_t window, ink_display_policy_decision_t *out_decision) {
+    state->priv.fast_window = window;
+    *out_decision           = decision_fast(window);
 }
 
 /* Whole-panel cleanup strong with an inverted old plane; all debt and edge flags back to 0. */
@@ -484,7 +490,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     if (!after_wake && (request.flags & INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW) != 0) {
         /* The app opened or closed a layer: drive the whole window, not only the pixels that changed colour. */
         mark_window_dirty(state, shown, next, window, weight > 0 ? weight : 1);
-        *out_decision = decision_fast(window);
+        decide_fast(state, window, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state->priv.ceiling)) {
@@ -497,7 +503,7 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
         /* REVIEW(display_policy): local cleanup fast with clean_full50 is not benched yet; rerun the cell flip test
          * on BB0 (whole-panel clean_full100 greyed the text, 2026-11-09). */
         add_debt(state, shown, next, changed, weight > 0 ? weight : 1);
-        *out_decision = decision_fast(window);
+        decide_fast(state, window, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     if (intent == INK_DISPLAY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
@@ -563,7 +569,11 @@ static bool cleanup_valid(ink_display_cleanup_t cleanup) {
     return cleanup > INK_DISPLAY_CLEANUP_INVALID && cleanup < INK_DISPLAY_CLEANUP_COUNT;
 }
 
-/* Pixel with debt or an edge flag; cleanup fast drives exactly these. */
+static bool in_rect(ink_display_rect_t rect, uint32_t x, uint32_t y) {
+    return x >= rect.x && x < (uint32_t)rect.x + rect.width && y >= rect.y && y < (uint32_t)rect.y + rect.height;
+}
+
+/* Pixel with debt or an edge flag; cleanup fast drives these inside its window. */
 static bool dirty(uint8_t pixel) {
     return debt_of(pixel) > 0 || flag_of(pixel) != FLAG_NONE;
 }
@@ -592,7 +602,7 @@ static bool selected_for(const ink_display_policy_state_t *state, const uint8_t 
         case INK_DISPLAY_CLEANUP_LIGHT:
             return debt_of(pixel) >= state->priv.config.debt_light;
         case INK_DISPLAY_CLEANUP_FAST:
-            return dirty(pixel);
+            return dirty(pixel) && in_rect(state->priv.fast_window, x, y);
         default:
             return true; /* CLEANUP_STRONG */
     }
@@ -638,15 +648,19 @@ ink_display_policy_error_t ink_display_policy_cleanup_done(ink_display_policy_st
             recompute_max_debt(state);
             state->priv.stages_done |= STAGE_LIGHT;
             break;
-        case INK_DISPLAY_CLEANUP_FAST:
-            for (size_t i = 0; i < count; i++) {
-                uint8_t *pixel = &state->priv.pixel_state[i];
-                if (!dirty(*pixel)) { continue; }
-                set_flag(state, pixel, FLAG_NONE);
-                set_debt(pixel, 0);
+        case INK_DISPLAY_CLEANUP_FAST: {
+            const ink_display_rect_t window = state->priv.fast_window;
+            for (uint32_t y = window.y; y < (uint32_t)window.y + window.height; y++) {
+                for (uint32_t x = window.x; x < (uint32_t)window.x + window.width; x++) {
+                    uint8_t *pixel = pixel_state(state, x, y);
+                    if (!dirty(*pixel)) { continue; }
+                    set_flag(state, pixel, FLAG_NONE);
+                    set_debt(pixel, 0);
+                }
             }
             recompute_max_debt(state);
             break;
+        }
         default: /* CLEANUP_STRONG */
             clear_pixels(state);
             state->priv.stages_done |= STAGE_EDGE | STAGE_LIGHT | STAGE_STRONG;
