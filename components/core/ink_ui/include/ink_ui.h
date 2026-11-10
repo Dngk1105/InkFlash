@@ -14,46 +14,46 @@
 
 typedef enum : uint8_t {
     INK_UI_OK = 0,
-    INK_UI_ERROR_ARGUMENT,
-    INK_UI_ERROR_FORMAT, /**< pixel format of the frame is not supported, or the frame is too large */
+    INK_UI_ERROR_ARGUMENT, /**< pointer is NULL, size is 0, or value out of range */
+    INK_UI_ERROR_FORMAT,   /**< pixel format of the frame is not supported, or the frame is too large */
 } ink_ui_error_t;
 
 /* ---- Geometry ---- */
 
 /** Rectangle; empty when width or height is <= 0. */
 typedef struct {
-    int16_t x;
-    int16_t y;
-    int16_t width;
-    int16_t height;
+    int16_t x;      /**< top-left x in canvas coordinates, px */
+    int16_t y;      /**< top-left y in canvas coordinates, px */
+    int16_t width;  /**< width, px */
+    int16_t height; /**< height, px */
 } ink_ui_rect_t;
 
 typedef struct {
-    int16_t width;
-    int16_t height;
+    int16_t width;  /**< width, px */
+    int16_t height; /**< height, px */
 } ink_ui_size_t;
 
 /** Clockwise rotation of the canvas against the native panel orientation. */
 typedef enum : uint8_t {
-    INK_UI_ROTATION_0 = 0,
-    INK_UI_ROTATION_90,
-    INK_UI_ROTATION_180,
-    INK_UI_ROTATION_270,
+    INK_UI_ROTATION_0 = 0, /**< 0° (native panel orientation) */
+    INK_UI_ROTATION_90,    /**< 90° clockwise */
+    INK_UI_ROTATION_180,   /**< 180° clockwise */
+    INK_UI_ROTATION_270,   /**< 270° clockwise */
 } ink_ui_rotation_t;
 
 typedef enum : uint8_t {
     INK_UI_ALIGN_START = 0, /**< left or top */
-    INK_UI_ALIGN_CENTER,
-    INK_UI_ALIGN_END, /**< right or bottom */
+    INK_UI_ALIGN_CENTER,    /**< centered along the axis */
+    INK_UI_ALIGN_END,       /**< right or bottom */
 } ink_ui_align_t;
 
 /* ---- Paint ---- */
 
 /** Wanted color; the canvas maps it to the pixel format of the frame. */
 typedef struct {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
+    uint8_t red;   /**< red channel, 0..255 */
+    uint8_t green; /**< green channel, 0..255 */
+    uint8_t blue;  /**< blue channel, 0..255 */
 } ink_ui_color_t;
 
 typedef enum : uint8_t {
@@ -62,8 +62,8 @@ typedef enum : uint8_t {
 } ink_ui_paint_mode_t;
 
 typedef struct {
-    ink_ui_color_t      color;
-    ink_ui_paint_mode_t mode;
+    ink_ui_color_t      color; /**< color used in COPY mode */
+    ink_ui_paint_mode_t mode;  /**< COPY or XOR */
 } ink_ui_paint_t;
 
 #define INK_UI_PAINT_BLACK \
@@ -176,17 +176,17 @@ void ink_ui_line(ink_ui_canvas_t *canvas, int16_t x0, int16_t y0, int16_t x1, in
 /** Pixel layout of a bitmap.
  * WARN: append only. */
 typedef enum : uint8_t {
-    INK_UI_BITMAP_FORMAT_INVALID = 0,
-    INK_UI_BITMAP_FORMAT_MASK1, /**< 1 bit per pixel, row by row, each row padded to a byte, leftmost pixel in the most
-                                     significant bit; 1 = drawn with the paint, 0 = left untouched */
+    INK_UI_BITMAP_FORMAT_INVALID = 0, /**< 0 is invalid */
+    INK_UI_BITMAP_FORMAT_MASK1,       /**< 1 bit per pixel, row by row, each row padded to a byte, leftmost pixel in the most
+                                           significant bit; 1 = drawn with the paint, 0 = left untouched */
     /* EXTEND(ui): gray and color images add their formats here. */
 } ink_ui_bitmap_format_t;
 
 typedef struct {
-    uint16_t               width;
-    uint16_t               height;
-    ink_ui_bitmap_format_t format;
-    const uint8_t         *data;
+    uint16_t               width;  /**< width, px */
+    uint16_t               height; /**< height, px */
+    ink_ui_bitmap_format_t format; /**< pixel layout of the data */
+    const uint8_t         *data;   /**< bitmap bytes, row by row */
 } ink_ui_bitmap_t;
 
 /**
@@ -208,7 +208,7 @@ extern const ink_ui_font_t ink_ui_font_unifont_vi_16; /**< GNU Unifont, 16 px li
 extern const ink_ui_font_t ink_ui_font_fixed_10;      /**< X11 6x10, 10 px line, Latin-1 only */
 
 typedef struct {
-    const ink_ui_font_t *font;
+    const ink_ui_font_t *font;      /**< font used to measure and draw */
     ink_ui_align_t       align;     /**< horizontal position of each line in the rect */
     uint8_t              max_lines; /**< 0 = as many as needed (measure) or as many as fit the rect (draw) */
     int8_t               line_gap;  /**< extra px between lines; may be negative */
@@ -257,8 +257,8 @@ typedef enum : uint8_t {
 
 /** Length of one slot along the split axis: `fixed` px plus a share of the free space proportional to `flex`. */
 typedef struct {
-    int16_t fixed;
-    uint8_t flex; /**< 0 = no share */
+    int16_t fixed; /**< fixed part, px */
+    uint8_t flex;  /**< 0 = no share */
 } ink_ui_length_t;
 
 /**

@@ -15,6 +15,8 @@ static const char *TAG = "ink_demo";
 #define GRID_CELLS   6  /* cells of the ruler screen: 2 columns × 3 rows */
 #define PHASE_GAP_MS 20 /* wait between the two frames of the two-phase screen; see screen_two_phase() */
 
+/* ---- State ---- */
+
 static ink_ui_canvas_t s_canvas;
 static bool            s_started;
 static uint8_t         s_screen;   /* 0 .. SCREEN_COUNT - 1 */
@@ -246,6 +248,7 @@ static bool begin_frame(void) {
     return true;
 }
 
+/* Submit the drawn frame to the display task with the given intent and flags. */
 static void end_frame(ink_display_intent_t intent, uint8_t flags) {
     uint8_t        *frame = ink_ui_canvas_frame(&s_canvas, nullptr);
     const esp_err_t error = ink_display_submit(frame, ink_platform_now_ms(), intent, flags);
@@ -255,6 +258,7 @@ static void end_frame(ink_display_intent_t intent, uint8_t flags) {
 
 /* ---- Screens ---- */
 
+/* Screen 1: stroke samples, dither ramp, lines and bitmap. */
 static void screen_primitives(void) {
     if (!begin_frame()) { return; }
     const ink_ui_rect_t   body      = draw_page("1/4 Primitive, paint");
@@ -268,6 +272,7 @@ static void screen_primitives(void) {
     end_frame(INK_DISPLAY_INTENT_PAGE, 0);
 }
 
+/* Screen 2: text alignments, wrapped paragraph and truncated text with ellipsis. */
 static void screen_text(void) {
     if (!begin_frame()) { return; }
     const ink_ui_rect_t   body      = draw_page("2/4 Chữ tiếng Việt");
@@ -280,6 +285,7 @@ static void screen_text(void) {
     end_frame(INK_DISPLAY_INTENT_PAGE, 0);
 }
 
+/* Screen 3: grid layout with ruler split and inverted selection using XOR. */
 static void screen_rulers(void) {
     if (!begin_frame()) { return; }
     const ink_ui_rect_t body = draw_page("3/4 Thước, XOR");
@@ -307,6 +313,7 @@ static void screen_two_phase(void) {
     end_frame(INK_DISPLAY_INTENT_TEXT, 0);
 }
 
+/* Dispatch the current screen index to its drawing function. */
 static void show_screen(void) {
     ESP_LOGI(TAG, "screen %d/%d", s_screen + 1, SCREEN_COUNT);
     switch (s_screen) {

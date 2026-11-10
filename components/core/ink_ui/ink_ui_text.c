@@ -22,6 +22,7 @@ typedef struct {
 
 /* ---- Leaf functions ---- */
 
+/* Byte length of a UTF-8 character from its leading byte (1 to 4). */
 static size_t utf8_char_len(char first) {
     const uint8_t c = (uint8_t)first;
     if ((c & 0x80) == 0) { return 1; }
@@ -31,6 +32,7 @@ static size_t utf8_char_len(char first) {
     return 1;
 }
 
+/* Measure the width in px of a UTF-8 text span of length bytes using the backend. */
 static int16_t measure_span(ink_ui_canvas_t *canvas, const char *text, size_t length) {
     if (length == 0) { return 0; }
     char buf[128];

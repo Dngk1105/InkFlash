@@ -9,6 +9,8 @@ void setUp(void) {
 void tearDown(void) {
 }
 
+/* Purpose: positive insets must shrink a rect and negative insets must grow it around the same center.
+ * Does: insets a 100 × 80 px rect by (5, 10) and (-5, -10), verifying the resulting positions and dimensions. */
 static void test_rect_inset_normal(void) {
     const ink_ui_rect_t rect   = {.x = 10, .y = 20, .width = 100, .height = 80};
     const ink_ui_rect_t shrunk = ink_ui_rect_inset(rect, 5, 10);
@@ -24,6 +26,8 @@ static void test_rect_inset_normal(void) {
     TEST_ASSERT_EQUAL_INT16(100, grown.height);
 }
 
+/* Purpose: insets larger than half the rect size must clamp width and height to zero.
+ * Does: insets a 20 × 30 px rect by (15, 20) and checks width and height are 0. */
 static void test_rect_inset_oversized(void) {
     const ink_ui_rect_t rect   = {.x = 10, .y = 20, .width = 20, .height = 30};
     const ink_ui_rect_t shrunk = ink_ui_rect_inset(rect, 15, 20);
@@ -33,6 +37,8 @@ static void test_rect_inset_oversized(void) {
     TEST_ASSERT_TRUE(shrunk.height >= 0);
 }
 
+/* Purpose: splitting a row into fixed and flex slots must distribute remaining space proportionally after gaps and fixed lengths.
+ * Does: splits a 100 × 20 px rect into fixed 20 px and flex 1:3 slots with a 4 px gap, checking resulting x and width of each slot. */
 static void test_rect_split_row_example1(void) {
     const ink_ui_rect_t   rect      = {.x = 0, .y = 0, .width = 100, .height = 20};
     const ink_ui_length_t lengths[] = {{.fixed = 20}, {.flex = 1}, {.flex = 3}};
@@ -53,6 +59,9 @@ static void test_rect_split_row_example1(void) {
     }
 }
 
+/* Purpose: splitting along the column axis must divide height and vertical positions identically to row splitting.
+ * Does: splits a 40 × 100 px rect into fixed 20 px and flex 1:3 slots with a 4 px gap along the column axis, verifying y positions and
+ * heights. */
 static void test_rect_split_column(void) {
     const ink_ui_rect_t   rect      = {.x = 10, .y = 5, .width = 40, .height = 100};
     const ink_ui_length_t lengths[] = {{.fixed = 20}, {.flex = 1}, {.flex = 3}};
@@ -73,6 +82,8 @@ static void test_rect_split_column(void) {
     }
 }
 
+/* Purpose: integer division remainder in flex distribution must be absorbed by the last flex slot.
+ * Does: splits a 100 px row equally across three flex 1 slots without gaps, checking widths are 33, 33, and 34 px. */
 static void test_rect_split_rounding_remainder(void) {
     const ink_ui_rect_t   rect      = {.x = 0, .y = 0, .width = 100, .height = 10};
     const ink_ui_length_t lengths[] = {{.flex = 1}, {.flex = 1}, {.flex = 1}};
@@ -85,6 +96,8 @@ static void test_rect_split_rounding_remainder(void) {
     TEST_ASSERT_EQUAL_INT16(34, out[2].width);
 }
 
+/* Purpose: a fixed slot that does not fit must not spill outside the rect.
+ * Does: splits a 50 px row into three 30 px fixed slots and checks slot widths are cut to 30, 20, and 0 px. */
 static void test_rect_split_fixed_overflow(void) {
     const ink_ui_rect_t   rect      = {.x = 0, .y = 0, .width = 50, .height = 10};
     const ink_ui_length_t lengths[] = {{.fixed = 30}, {.fixed = 30}, {.fixed = 30}};
@@ -100,6 +113,8 @@ static void test_rect_split_fixed_overflow(void) {
     TEST_ASSERT_EQUAL_INT16(0, out[2].width);
 }
 
+/* Purpose: splitting must safely do nothing when count is zero, lengths is NULL, or out_rects is NULL.
+ * Does: calls ink_ui_rect_split with zero count, NULL lengths, and NULL out_rects, verifying output rects are untouched. */
 static void test_rect_split_null_or_zero(void) {
     ink_ui_rect_t out[2] = {
         {.x = 1, .y = 2, .width = 3, .height = 4},
@@ -116,6 +131,8 @@ static void test_rect_split_null_or_zero(void) {
     ink_ui_rect_split((ink_ui_rect_t){0, 0, 50, 50}, INK_UI_AXIS_ROW, 0, lengths, 2, nullptr);
 }
 
+/* Purpose: rect alignment must place a box correctly at START, CENTER, and END along both horizontal and vertical axes.
+ * Does: aligns a 40 × 20 px box inside a 100 × 80 px rect at start, center, and end, checking resulting x, y, width, and height. */
 static void test_rect_align_both_axes(void) {
     const ink_ui_rect_t outer = {.x = 10, .y = 20, .width = 100, .height = 80};
     const ink_ui_size_t size  = {.width = 40, .height = 20};

@@ -9,6 +9,8 @@
 #include "esp_err.h"
 #include "ink_gesture.h"
 
+/* ---- API ---- */
+
 /**
  * @brief Set up the canvas and draw the first test screen.
  * @par Called from

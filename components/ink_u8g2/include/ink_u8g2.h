@@ -9,12 +9,16 @@
 #include "u8g2.h"
 #include <stdint.h>
 
+/* ---- Types ---- */
+
 /** One virtual screen.
  * WARN: do not copy or move after init; U8g2 keeps a pointer to `info`. */
 typedef struct {
     u8g2_t              u8g2; /**< pass to u8g2_* calls */
-    u8x8_display_info_t info;
+    u8x8_display_info_t info; /**< display info referenced by U8g2 */
 } ink_u8g2_screen_t;
+
+/* ---- API ---- */
 
 /**
  * @brief Set up a virtual screen of `width` × `height` px with no frame bound yet.

@@ -25,6 +25,9 @@ void setUp(void) {
 void tearDown(void) {
 }
 
+/* Purpose: canvas init must validate non-NULL pointers, non-zero dimensions, and supported pixel format (K1 only).
+ * Does: passes NULL pointers, zero width/height, and an invalid pixel format to ink_ui_canvas_init(), then checks that valid parameters
+ * return INK_UI_OK. */
 static void test_init_validation(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_ERROR_ARGUMENT, ink_ui_canvas_init(nullptr, &s_info_k1, INK_UI_ROTATION_0));
@@ -42,6 +45,8 @@ static void test_init_validation(void) {
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
 }
 
+/* Purpose: drawing operations on an initialized canvas without a bound frame must be safe and do nothing.
+ * Does: calls fill, stroke, line, and bitmap on an unbound canvas and verifies no crash or illegal memory access occurs. */
 static void test_unbound_draw_safe(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -56,6 +61,8 @@ static void test_unbound_draw_safe(void) {
     ink_ui_bitmap(&canvas, 0, 0, &bitmap, INK_UI_PAINT_BLACK);
 }
 
+/* Purpose: filling a rectangle with black paint must clear the corresponding bits in the K1 frame.
+ * Does: fills an 8 × 1 px rect with INK_UI_PAINT_BLACK on a white frame and verifies byte 0 is 0x00 while all other bytes stay 0xFF. */
 static void test_example2_fill_black(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -70,6 +77,9 @@ static void test_example2_fill_black(void) {
     for (size_t i = 1; i < sizeof(frame); i++) { TEST_ASSERT_EQUAL_HEX8(0xFF, frame[i]); }
 }
 
+/* Purpose: a 90° clockwise canvas must swap bounds and map (0, 0) to the panel's top-right corner.
+ * Does: initializes a 90° rotated canvas, checks swapped bounds, draws pixel (0, 0) in black, and verifies native byte 29 bit 0 is cleared
+ * to 0xFE. */
 static void test_example3_rotation_90(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_90));
@@ -92,6 +102,9 @@ static void test_example3_rotation_90(void) {
     }
 }
 
+/* Purpose: XOR paint mode must be self-inverting so applying it twice restores the original frame content.
+ * Does: fills a 40 × 40 px rect with INK_UI_PAINT_XOR on a pattern buffer, checks that the buffer changed, fills the same rect again, and
+ * verifies it matches the original. */
 static void test_example4_xor_twice(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -111,6 +124,8 @@ static void test_example4_xor_twice(void) {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(original, frame, sizeof(frame));
 }
 
+/* Purpose: canvas rotation must map pixel (0, 0) to the correct panel corner for all four rotations.
+ * Does: draws pixel (0, 0) in black on rotations 0°, 90°, 180°, and 270°, checking target bytes and bit masks (0x7F, 0xFE, 0xFE, 0x7F). */
 static void test_pixel_all_four_rotations(void) {
     const ink_ui_rotation_t rots[4] = {INK_UI_ROTATION_0, INK_UI_ROTATION_90, INK_UI_ROTATION_180, INK_UI_ROTATION_270};
     /* Native target:
@@ -134,6 +149,9 @@ static void test_pixel_all_four_rotations(void) {
     }
 }
 
+/* Purpose: draw operations must be confined to the clip window, and an empty clip rect must reset clipping to canvas bounds.
+ * Does: sets clip to [8, 0, 8, 1], fills [0, 0, 24, 1] with black, verifies only byte 1 changes, resets clip with an empty rect, and
+ * verifies filling [0, 0, 8, 1] clears byte 0. */
 static void test_clip_window(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -157,6 +175,8 @@ static void test_clip_window(void) {
     TEST_ASSERT_EQUAL_HEX8(0x00, frame[0]);
 }
 
+/* Purpose: shapes with negative coordinates or sizes exceeding canvas bounds must clip cleanly without buffer overflow.
+ * Does: surrounds a frame with guard bytes, draws fills, strokes, and lines crossing boundaries, and asserts guard bytes remain intact. */
 static void test_overflow_and_negative_coords_guarded(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -178,6 +198,8 @@ static void test_overflow_and_negative_coords_guarded(void) {
     for (size_t i = GUARD_BYTES + FRAME_BYTES; i < sizeof(buffer); i++) { TEST_ASSERT_EQUAL_HEX8(GUARD_PATTERN, buffer[i]); }
 }
 
+/* Purpose: gray fills must produce Bayer dither patterns whose white pixel proportion matches the brightness level.
+ * Does: fills 32 × 32 px areas with gray levels 0, 255, and 128, verifying population counts of 0, 1024, and exactly 512 white pixels. */
 static void test_dither_bayer(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -214,6 +236,9 @@ static void test_dither_bayer(void) {
     TEST_ASSERT_EQUAL_UINT32(512, ones_128);
 }
 
+/* Purpose: a 1 px outline stroke must leave inner pixels untouched, and XOR stroke twice must restore original pixels.
+ * Does: strokes a 24 × 10 px rect on a white frame, verifies inner byte 1 stays 0xFF while borders change, then strokes XOR twice with
+ * rounded corners and verifies restoration. */
 static void test_stroke_1px_outline_and_xor(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -240,6 +265,8 @@ static void test_stroke_1px_outline_and_xor(void) {
     TEST_ASSERT_EQUAL_HEX8_ARRAY(original, frame, sizeof(frame));
 }
 
+/* Purpose: MASK1 bitmaps must draw only set bits with the specified paint and leave zero bits untouched.
+ * Does: draws an 8 × 1 px bitmap with bit pattern 0xA0 in black paint onto a 0xFF frame and verifies byte 0 becomes 0x5F. */
 static void test_bitmap_mask1(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
@@ -260,6 +287,9 @@ static void test_bitmap_mask1(void) {
     TEST_ASSERT_EQUAL_HEX8(0x5F, frame[0]);
 }
 
+/* Purpose: rendering strokes, dither ramps, and text together must produce a valid visual frame exportable as PBM.
+ * Does: draws a border, 5-level dither ramp, and 3-line Vietnamese text to a canvas, then exports the inverted frame bytes to a P4 PBM
+ * file. */
 static void test_preview_pbm(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));

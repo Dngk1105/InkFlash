@@ -6,6 +6,8 @@
 #define MAX_TILES       255        /* u8x8_display_info_t keeps tile counts in uint8_t; one tile = 8 px */
 #define MAX_FRAME_BYTES UINT16_MAX /* u8g2_ll_hvline_horizontal_right_lsb() computes the byte offset in uint16_t */
 
+/* ---- Virtual screen ---- */
+
 bool ink_u8g2_screen_init(ink_u8g2_screen_t *screen, uint16_t width, uint16_t height, uint8_t quarter_turns) {
     if (screen == nullptr || width == 0 || height == 0 || quarter_turns > 3) { return false; }
     const uint32_t tile_width  = ((uint32_t)width + 7) / 8;
