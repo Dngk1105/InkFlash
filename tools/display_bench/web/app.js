@@ -889,6 +889,20 @@ async function runStepsPlan(plan) {
     }
 }
 
+/* Bài nhiều bước pipeline: mỗi bước một gói SUBMIT với ý định và cờ riêng, chờ khung vẽ xong rồi nghỉ. */
+async function runPipelineStepsPlan(plan) {
+    app.run.settings.intent = plan.steps.map((step) => INTENT_NAMES[step.intent]).join(' → ');
+    for (const [index, step] of plan.steps.entries()) {
+        const slot = TEST_FIRST_SLOT + step.frame;
+        await ensureUploaded(slot);
+        app.pendingPreview.set(slot, app.slots[slot].frame);
+        if (step.label) { log(`[web] bước ${index + 1}/${plan.steps.length}: ${step.label}`); }
+        await app.link.command(Command.SUBMIT, new Writer().u8(slot).u8(step.intent).u8(step.flags ?? 0).result());
+        await waitForDraws(app.run, index + 1);
+        await delay(step.delayMs ?? 0);
+    }
+}
+
 async function playChunks(slots, plan, intent, flags) {
     for (let start = 0; start < slots.length; start += 64) {
         if (start > 0) {
@@ -974,6 +988,8 @@ async function runSelectedTest() {
             await runHoldPowerPlan(plan, slots);
         } else if (raw && plan.steps) {
             await runStepsPlan(plan);
+        } else if (plan.steps) {
+            await runPipelineStepsPlan(plan);
         } else if (raw) {
             await runRawPlan(plan, slots);
         } else {

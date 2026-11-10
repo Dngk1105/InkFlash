@@ -104,6 +104,7 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | PSR byte 2 và tắt nguồn | pipeline | Trang chữ có debt, nghỉ qua cleanup edge, cleanup light, tắt nguồn, với các giá trị PSR byte 2: hạt có tự xám sau khi tắt nguồn không, và có xám khi nguồn vẫn bật không |
 | VCOM và vùng đứng yên | raw | Nửa trắng, nửa đen đứng yên, ô giữa lật nhiều lần với window cả màn, quét VCOM_DC từ `00` (−0,1 V) tới `13` (−2,0 V) PSR byte 2 (có TIEG 0) và PFS 1–4 frame: vùng đứng yên có đổi màu dần trong lúc chạy, lúc tắt nguồn và sau đó không |
 | Chữ dưới lớp đè | raw | Ô đen đè lên trang chữ: chữ cũ còn hiện vì điểm đen giữ đen không được kéo (LUT KK 0 V), vì đen cũ đã nhạt, hay vì điện trường lan từ điểm bên cạnh; vẽ ô bằng `TEXT` có đủ không |
+| Lớp đè và `REDRAW_WINDOW` | pipeline | Hai ô đen đè lên trang chữ, một ô không cờ, một ô có cờ `REDRAW_WINDOW`: cờ có xoá chữ cũ trong ô không, và cleanup fast có chỉ kéo window của ô không |
 | Chữ cho `TEXT` | raw | Trang chữ cuộn bằng profile chọn: profile nào cho chữ rõ nhất trong 0,3–0,4 s |
 | Cleanup stage | pipeline | Lật nhiều lần rồi nghỉ qua cả ba bậc: đúng thứ tự, đúng thời điểm, đúng debt sau mỗi bậc |
 | Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn decide (policy, `pixel_state` trong PSRAM, old plane) mất bao lâu |

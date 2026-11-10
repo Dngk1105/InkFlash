@@ -129,7 +129,7 @@ function frameWithBoxes(orientation, boxes) {
  * build(values, orientation) trả {frames, order (index trong frames), intervalMs, repeat, note?, raw?, oldSource?,
  * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, powerOffFrames?, special?, steps?}. steps: các lần vẽ raw
  * theo thứ tự, mỗi lần {frame, raw, oldSource?, oldFrame?, label?, delayMs?}; oldFrame là index khung làm mặt phẳng cũ
- * khi oldSource là SLOT. psrSecond, vcomOverride, powerOffFrames:
+ * khi oldSource là SLOT. Ở đường pipeline, mỗi bước là một gói SUBMIT {frame, intent, flags, label?, delayMs?}. psrSecond, vcomOverride, powerOffFrames:
  * gói SET_PANEL trang gửi trước khi chạy (255 = VCOM_DC theo profile). `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
  */
 const flips = (count) => Array.from({length: count}, (_, index) => (index + 1) % 2);
@@ -392,6 +392,42 @@ export const TESTS = [
                     {frame: 4, label: 'ô dưới (TEXT)', raw: {profile: values.text, ...partial}},
                 ],
                 note: 'Chụp ngay sau bước cuối, rồi chụp lại sau 1–2 phút, cùng góc, cùng đèn. So chữ cũ trong ba ô và hình vuông dưới mỗi ô.',
+            };
+        },
+    },
+    {
+        id: 'overlay_redraw',
+        name: 'Lớp đè và REDRAW_WINDOW',
+        path: 'pipeline',
+        description: 'Trang chữ vẽ bằng ý định TEXT, rồi hai ô đen đè lên chữ bằng ý định UI: ô trái giao không cờ, ô phải giao với cờ REDRAW_WINDOW. Mọi khung có cờ hoãn dọn, nên không bậc dọn nào chạy và vết còn nguyên để so. Ô trái còn chữ cũ, ô phải sạch: cờ làm đúng việc. Xem thêm window của gói DRAWN ở bước ô phải: nó phải chỉ bao ô phải.',
+        params: [
+            {key: 'fontSize', label: 'Cỡ chữ (điểm)', value: 22, min: 10, max: 40},
+            {key: 'rest', label: 'ms nghỉ sau khi vẽ chữ', value: 5000, min: 0, max: 600000, step: 500},
+        ],
+        build(values, orientation) {
+            const {width, height} = viewSize(orientation);
+            const boxWidth = Math.round(width * 0.3);
+            const boxHeight = Math.round(height * 0.22);
+            const left = {x: Math.round(width * 0.08), y: Math.round(height * 0.3), width: boxWidth, height: boxHeight};
+            const right = {x: Math.round(width * 0.58), y: left.y, width: boxWidth, height: boxHeight};
+            const text = textPage(orientation, 0, values.fontSize);
+            const withLeft = text.slice();
+            fillViewRect(withLeft, orientation, left.x, left.y, left.width, left.height, false);
+            const withBoth = withLeft.slice();
+            fillViewRect(withBoth, orientation, right.x, right.y, right.width, right.height, false);
+            const defer = SubmitFlag.DEFER_CLEANUP;
+            return {
+                frames: [createFrame(true), text, withLeft, withBoth],
+                order: [0, 1, 2, 3],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'màn trắng (TEXT)', intent: Intent.TEXT, flags: defer, delayMs: 1000},
+                    {frame: 1, label: 'trang chữ (TEXT)', intent: Intent.TEXT, flags: defer, delayMs: values.rest},
+                    {frame: 2, label: 'ô trái (UI, không cờ)', intent: Intent.UI, flags: defer, delayMs: 1000},
+                    {frame: 3, label: 'ô phải (UI, REDRAW_WINDOW)', intent: Intent.UI, flags: defer | SubmitFlag.REDRAW_WINDOW},
+                ],
+                note: 'Chụp ngay sau bước cuối và sau 1 phút. Ghi lại window và profile của gói DRAWN ở bước ô phải.',
             };
         },
     },
