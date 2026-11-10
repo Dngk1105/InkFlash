@@ -85,6 +85,12 @@ Flag đi kèm frame:
 |---|---|
 | `DEFER_CLEANUP` | Không chạy cleanup stage nào cho tới frame sau không có flag này. Debt ceiling vẫn áp dụng; tắt analog power vẫn chạy |
 | `BEFORE_SLEEP` | Frame là background frame. Còn debt thì vẽ bằng cleanup strong; vẽ xong thì tắt analog power |
+| `REDRAW_WINDOW` | App vừa mở hoặc đóng một lớp đè lên nội dung. Display kéo mọi pixel trong changed window bằng cleanup fast, không chỉ pixel đổi màu |
+
+Ví dụ cho `REDRAW_WINDOW`: popup đen đè lên trang chữ. App đặt flag ở frame mở popup (khối đen che chữ) và ở frame đóng
+popup (trang chữ hiện lại). Không có flag, pixel chữ vốn đã đen mà popup cũng đen thì đi đen → đen. Pixel không đổi màu
+chạy LUT giữ màu KK, mà KK của `lut10f50` là 0 V, nên mực cũ không bị kéo và chữ cũ hiện nhạt trong khối đen (đo trên BB0,
+để yên vài giờ thì tự mất). Có flag, cleanup fast lắc cả pixel đen → đen, chữ cũ biến mất.
 
 ## Một lần gọi driver
 
@@ -112,7 +118,7 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 |---|---|---|---|
 | Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
 | `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
-| `CLEANUP_FAST` | Vượt debt ceiling trong active period | Frame mới, đảo bit ở pixel có debt hoặc edge flag (gồm pixel frame này đổi) | Bao các pixel đó |
+| `CLEANUP_FAST` | Vượt debt ceiling trong active period; frame có flag `REDRAW_WINDOW` | Frame mới, đảo bit ở pixel có debt hoặc edge flag (gồm pixel frame này đổi) | Bao các pixel đó |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
 | `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
@@ -148,9 +154,10 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
-| 5 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
-| 6 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
-| 7 | Còn lại | Preset của intent, chỉ changed window |
+| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó cùng các pixel bẩn khác |
+| 6 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
+| 7 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
+| 8 | Còn lại | Preset của intent, chỉ changed window |
 
 Sau wake, display coi background frame là shown frame: máy đã vẽ nó ngay trước deep sleep, và panel e-ink giữ hình khi
 mất nguồn. Driver nhận background frame làm old plane ở lần vẽ đó, nên panel không chớp.

@@ -150,7 +150,7 @@ terms:
     symbols: [ink_display_policy_intent_t, ink_display_intent_t]
   - id: flag
     term: flag
-    meaning: 'bit đi kèm frame khi submit (DEFER_CLEANUP, BEFORE_SLEEP).'
+    meaning: 'bit đi kèm frame khi submit (DEFER_CLEANUP, BEFORE_SLEEP, REDRAW_WINDOW).'
     avoid: [cờ đi kèm]
   - id: debt
     term: debt
