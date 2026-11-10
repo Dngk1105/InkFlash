@@ -310,6 +310,7 @@ static void test_cleanup_fast_drives_dirty_pixels_only(void) {
     start(&config);
     (void)flip_cell_past_ceiling();
 
+    const uint32_t     flagged_before = ink_display_policy_flagged_count(&s_state);
     ink_display_rect_t window;
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
     TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 4, 4), is_white(s_old, 4, 4));
@@ -319,7 +320,28 @@ static void test_cleanup_fast_drives_dirty_pixels_only(void) {
 
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
-    TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
+    /* edge flags in the rows above and below the cell lie outside the changed window: left for the idle edge stage */
+    TEST_ASSERT_EQUAL_UINT32(flagged_before, ink_display_policy_flagged_count(&s_state));
+}
+
+static void test_cleanup_fast_leaves_dirty_pixels_outside_window(void) {
+    ink_display_policy_config_t config = default_config();
+    config.debt_ceiling_max            = config.debt_ceiling;
+    start(&config);
+    s_now_ms += 5000;
+    set_black(s_next, 16, 6); /* text drawn with TEXT: debt 1, far from the cell */
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_TEXT, 0).action);
+    (void)flip_cell_past_ceiling();
+
+    ink_display_rect_t window;
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 4, 4), is_white(s_old, 4, 4));
+    TEST_ASSERT_EQUAL(is_white(s_shown, 16, 6), is_white(s_old, 16, 6));
+    TEST_ASSERT_EQUAL_UINT16(0, window.x);
+    TEST_ASSERT_EQUAL_UINT16(8, window.width);
+
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    TEST_ASSERT_EQUAL_UINT8(1, ink_display_policy_max_debt(&s_state));
 }
 
 static void test_ceiling_grows_while_active_and_resets_after_rest(void) {
@@ -761,6 +783,7 @@ int main(void) {
     RUN_TEST(test_exceeding_ceiling_draws_cleanup_strong_and_clears_debt);
     RUN_TEST(test_exceeding_ceiling_while_active_draws_cleanup_fast);
     RUN_TEST(test_cleanup_fast_drives_dirty_pixels_only);
+    RUN_TEST(test_cleanup_fast_leaves_dirty_pixels_outside_window);
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
     RUN_TEST(test_page_with_high_debt_draws_cleanup_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);

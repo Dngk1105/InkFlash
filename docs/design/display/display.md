@@ -118,14 +118,16 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 |---|---|---|---|
 | Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
 | `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
-| `CLEANUP_FAST` | Vượt debt ceiling trong active period; frame có flag `REDRAW_WINDOW` | Frame mới, đảo bit ở pixel có debt hoặc edge flag (gồm pixel frame này đổi) | Bao các pixel đó |
+| `CLEANUP_FAST` | Vượt debt ceiling trong active period; frame có flag `REDRAW_WINDOW` | Frame mới, đảo bit ở pixel có debt hoặc edge flag trong changed window (gồm pixel frame này đổi) | Bao các pixel đó |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
 | `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
 
-Cleanup fast chỉ kéo pixel bẩn (có debt hoặc edge flag) và vẽ luôn frame mới. Policy cộng debt cho pixel frame này
-đổi trước, nên chúng nằm trong số pixel bẩn. Pixel sạch (chữ đứng yên quanh ô vừa lật) giữ LUT giữ màu 0 V, nên
-không bị lắc. Đo trên BB0 (2026-11-09): cleanup fast cả panel bằng `clean_full100` làm chữ đứng yên quanh ô lật nhiều
+Cleanup fast chỉ kéo pixel bẩn (có debt hoặc edge flag) nằm trong changed window, và vẽ luôn frame mới. Policy cộng
+debt cho pixel frame này đổi trước, nên chúng nằm trong số pixel bẩn. Pixel sạch (chữ đứng yên quanh ô vừa lật) giữ
+LUT giữ màu 0 V, nên không bị lắc. Pixel bẩn ngoài window cũng không bị lắc: vẽ một trang chữ bằng `TEXT` đã cộng
+debt 1 cho mọi pixel chữ, nên không giới hạn window thì mỗi lần cleanup fast lắc cả trang. Các pixel đó, và edge
+flag ngay ngoài window, để các cleanup stage xử lý. Đo trên BB0 (2026-11-09): cleanup fast cả panel bằng `clean_full100` làm chữ đứng yên quanh ô lật nhiều
 lần xám tới mức không đọc được.
 
 Cleanup fast dùng profile `clean_full50` (640 ms): pixel được chọn lắc 15 LUT frame về màu ngược rồi 15 LUT frame về
@@ -154,7 +156,7 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
-| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó cùng các pixel bẩn khác |
+| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó |
 | 6 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
 | 7 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
 | 8 | Còn lại | Preset của intent, chỉ changed window |
