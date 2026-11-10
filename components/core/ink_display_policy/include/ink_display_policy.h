@@ -28,6 +28,7 @@ typedef enum : uint8_t {
 enum : uint8_t {
     INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP = 1 << 0, /**< no cleanup stage until a frame without this flag */
     INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP  = 1 << 1, /**< background frame before sleep: any debt left -> cleanup strong */
+    INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW = 1 << 2, /**< layer opened or closed: cleanup fast drives every pixel of the changed window */
 };
 
 /** Old plane of a draw. */

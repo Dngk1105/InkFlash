@@ -371,6 +371,85 @@ static void test_before_sleep_cleans_only_when_dirty(void) {
     expect_decision_cleanup(INK_DISPLAY_CLEANUP_STRONG, draw_next(INK_DISPLAY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP));
 }
 
+/* ---- REDRAW_WINDOW ---- */
+
+/* Shown frame: black at (2,2) (3,2) and far away (16,6). Next frame adds black (5,2). Returns the decision of next. */
+static ink_display_policy_decision_t redraw_after_adding_black(uint8_t flags) {
+    const ink_display_policy_config_t config = default_config();
+    set_black(s_shown, 2, 2);
+    set_black(s_shown, 3, 2);
+    set_black(s_shown, 16, 6);
+    start(&config);
+    memcpy(s_next, s_shown, SIZE);
+    set_black(s_next, 5, 2);
+    s_now_ms += 100;
+    return draw_next(INK_DISPLAY_INTENT_UI, flags);
+}
+
+static void test_redraw_window_draws_cleanup_fast_with_selected_plane(void) {
+    const ink_display_policy_decision_t decision = redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_CLEANUP, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, decision.cleanup);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_SELECTED, decision.old_plane);
+    TEST_ASSERT_EQUAL_UINT16(0, decision.window.x);
+    TEST_ASSERT_EQUAL_UINT16(8, decision.window.width);
+    TEST_ASSERT_EQUAL_UINT16(2, decision.window.y);
+    TEST_ASSERT_EQUAL_UINT16(1, decision.window.height);
+}
+
+static void test_redraw_window_inverts_unchanged_pixels_inside_window_only(void) {
+    (void)redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    ink_display_rect_t window;
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 2, 2), is_white(s_old, 2, 2)); /* black -> black, unchanged */
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 3, 2), is_white(s_old, 3, 2));
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 7, 2), is_white(s_old, 7, 2)); /* white -> white, in window, outside changed bounds */
+    TEST_ASSERT_NOT_EQUAL(is_white(s_shown, 5, 2), is_white(s_old, 5, 2)); /* changed pixel */
+    TEST_ASSERT_EQUAL(is_white(s_shown, 16, 6), is_white(s_old, 16, 6));   /* outside window */
+    TEST_ASSERT_EQUAL(is_white(s_shown, 2, 3), is_white(s_old, 2, 3));     /* row outside window */
+    TEST_ASSERT_EQUAL_UINT16(8, window.width);
+}
+
+static void test_redraw_window_debt_is_cleared_by_cleanup_done(void) {
+    (void)redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    TEST_ASSERT_EQUAL_UINT8(2, ink_display_policy_max_debt(&s_state)); /* UI weight 2 on every pixel of the window */
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
+    TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
+}
+
+static void test_redraw_window_not_requested_draws_changed_pixels_only(void) {
+    const ink_display_policy_decision_t decision = redraw_after_adding_black(0);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_SHOWN, decision.old_plane);
+}
+
+static void test_before_sleep_beats_redraw_window_when_dirty(void) {
+    const ink_display_policy_decision_t first = redraw_after_adding_black(0); /* leaves debt */
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, first.action);
+    set_black(s_next, 6, 2);
+    s_now_ms += 100;
+    expect_decision_cleanup(INK_DISPLAY_CLEANUP_STRONG,
+                            draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW | INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP));
+}
+
+static void test_redraw_window_with_identical_frame_draws_nothing(void) {
+    (void)redraw_after_adding_black(0);
+    s_now_ms += 100;
+    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_NONE, decision.action);
+}
+
+static void test_redraw_window_after_wake_draws_whole_screen_with_intent(void) {
+    const ink_display_policy_config_t config = default_config();
+    start(&config);
+    ink_display_policy_assume_shown(&s_state);
+    set_black(s_next, 5, 2);
+    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, decision.action);
+    TEST_ASSERT_EQUAL_UINT16(WIDTH, decision.window.width);
+}
+
 /* ---- Edge flags ---- */
 
 static void test_marks_dark_edge_around_box_that_turns_white(void) {
@@ -685,6 +764,13 @@ int main(void) {
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
     RUN_TEST(test_page_with_high_debt_draws_cleanup_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
+    RUN_TEST(test_redraw_window_draws_cleanup_fast_with_selected_plane);
+    RUN_TEST(test_redraw_window_inverts_unchanged_pixels_inside_window_only);
+    RUN_TEST(test_redraw_window_debt_is_cleared_by_cleanup_done);
+    RUN_TEST(test_redraw_window_not_requested_draws_changed_pixels_only);
+    RUN_TEST(test_before_sleep_beats_redraw_window_when_dirty);
+    RUN_TEST(test_redraw_window_with_identical_frame_draws_nothing);
+    RUN_TEST(test_redraw_window_after_wake_draws_whole_screen_with_intent);
     RUN_TEST(test_marks_dark_edge_around_box_that_turns_white);
     RUN_TEST(test_intent_without_edge_flags_marks_nothing_but_adds_debt);
     RUN_TEST(test_marks_light_edge_next_to_pixel_that_turns_black);

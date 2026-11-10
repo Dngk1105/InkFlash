@@ -255,6 +255,24 @@ static void add_debt(ink_display_policy_state_t *state, const uint8_t *shown, co
     }
 }
 
+/*
+ * REDRAW_WINDOW: every pixel of `window` gets debt `weight`, changed or not, and cleanup_plane() then selects all of them.
+ * An unchanged black pixel runs the hold LUT (0 V on lut10f50), so only this shake pulls old ink out of a layer's black.
+ * Changed pixels lose their old edge flag (the waveform just drove them); unchanged ones keep it.
+ */
+static void mark_window_dirty(ink_display_policy_state_t *state, const uint8_t *shown, const uint8_t *next, ink_display_rect_t window,
+                              uint32_t weight) {
+    const ink_display_policy_config_t *config = &state->priv.config;
+    for (uint32_t y = window.y; y < (uint32_t)window.y + window.height; y++) {
+        for (uint32_t x = window.x; x < (uint32_t)window.x + window.width; x++) {
+            uint8_t *state_pixel = pixel_state(state, x, y);
+            if (is_white(config, shown, x, y) != is_white(config, next, x, y)) { set_flag(state, state_pixel, FLAG_NONE); }
+            set_debt(state_pixel, debt_of(*state_pixel) + weight);
+            if (debt_of(*state_pixel) > state->priv.max_debt) { state->priv.max_debt = debt_of(*state_pixel); }
+        }
+    }
+}
+
 /* ---- Edge flags (US 11,568,827, col. 11) ---- */
 
 static const int32_t s_cardinal[4][2] = {
@@ -463,6 +481,12 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     const uint32_t             weight     = config->debt_weights[intent];
     state->priv.after_wake                = false;
 
+    if (!after_wake && (request.flags & INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW) != 0) {
+        /* The app opened or closed a layer: drive the whole window, not only the pixels that changed colour. */
+        mark_window_dirty(state, shown, next, window, weight > 0 ? weight : 1);
+        *out_decision = decision_fast(window);
+        return INK_DISPLAY_POLICY_OK;
+    }
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state->priv.ceiling)) {
         if (!active) {
             decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);

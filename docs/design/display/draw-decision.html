@@ -7927,6 +7927,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <ul>
           <li>Quyết định nằm trong ink_display_policy_decide(), core module có host test. Decision tạo bằng decision_none/draw/cleanup, nên action luôn khớp intent hoặc cleanup.</li>
           <li>CLEANUP_STRONG và CLEANUP_FAST vẽ luôn frame này, không cleanup trước rồi mới vẽ.</li>
+          <li>Flag REDRAW_WINDOW (app mở hoặc đóng một lớp): sau bước "Lần vẽ đầu sau wake" và trước bước "Vượt debt ceiling", policy cộng debt cho mọi pixel trong changed window rồi trả CLEANUP_FAST, bất kể active period. Sơ đồ chưa có node riêng cho nhánh này.</li>
           <li>Old plane của mọi cleanup cả panel là frame mới đảo bit, nên mọi pixel bị kéo về đúng màu.</li>
         </ul>
       </div>

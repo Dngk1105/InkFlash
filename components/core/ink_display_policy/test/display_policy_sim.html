@@ -180,6 +180,7 @@
                     <select id="intentSelect"><option value="0">AUTO</option><option value="1">TEXT</option><option value="2" selected>UI</option><option value="3">PAGE</option></select>
                     <label for="deferCheck">Hoãn dọn</label><input id="deferCheck" type="checkbox">
                     <label for="sleepCheck">Trước khi ngủ</label><input id="sleepCheck" type="checkbox">
+                    <label for="redrawCheck">Vẽ lại window</label><input id="redrawCheck" type="checkbox">
                 </div>
                 <div class="row">
                     <button class="primary" id="submitButton">Giao khung</button>
@@ -254,6 +255,7 @@ const INK_DISPLAY_INTENT_PAGE = 3;
 const INK_DISPLAY_INTENT_COUNT = 4;
 const INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP = 1 << 0;
 const INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP = 1 << 1;
+const INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW = 1 << 2;
 /* ink_display_types.h */
 const INK_DISPLAY_CLEANUP_INVALID = 0;
 const INK_DISPLAY_CLEANUP_STRONG = 1;
@@ -536,6 +538,25 @@ function add_debt(state, shown, next, bounds, weight)
     }
 }
 
+/*
+ * REDRAW_WINDOW: mọi pixel của `window` cộng debt `weight`, đổi màu hay không, rồi cleanup_plane() chọn hết.
+ * Pixel đen vẫn đen chạy LUT giữ màu (0 V trên lut10f50), nên chỉ cú lắc này mới kéo được mực cũ ra khỏi vùng đen của lớp.
+ * Pixel đổi màu mất edge flag cũ (waveform vừa kéo nó); pixel không đổi giữ flag.
+ */
+function mark_window_dirty(state, shown, next, window, weight)
+{
+    const config = state.priv.config;
+    const pixels = state.priv.pixels;
+    for (let y = window.y; y < window.y + window.height; y++) {
+        for (let x = window.x; x < window.x + window.width; x++) {
+            const state_pixel = pixel_state(state, x, y);
+            if (is_white(config, shown, x, y) !== is_white(config, next, x, y)) { set_flag(state, state_pixel, FLAG_NONE); }
+            set_debt(pixels, state_pixel, debt_of(pixels[state_pixel]) + weight);
+            if (debt_of(pixels[state_pixel]) > state.priv.max_debt) { state.priv.max_debt = debt_of(pixels[state_pixel]); }
+        }
+    }
+}
+
 /* ---- Cờ viền (US 11,568,827, cột 11) ---- */
 
 const s_cardinal = [[0, -1], [-1, 0], [1, 0], [0, 1]];
@@ -721,6 +742,12 @@ function ink_display_policy_decide(state, shown, next, request, now_ms, out_deci
     const weight = config.weights[intent];
     state.priv.after_wake = false;
 
+    if (!after_wake && (request.flags & INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW) !== 0) {
+        /* App mở hoặc đóng một lớp: kéo cả window, không chỉ pixel đổi màu. */
+        mark_window_dirty(state, shown, next, window, weight > 0 ? weight : 1);
+        Object.assign(out_decision, decision_fast(window));
+        return INK_DISPLAY_POLICY_OK;
+    }
     if (!after_wake && would_exceed(state, shown, next, changed, weight, state.priv.ceiling)) {
         if (!active) {
             decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
@@ -958,7 +985,8 @@ function invert_into(source, destination)
 function shell_submit()
 {
     const flags = (document.getElementById("deferCheck").checked ? INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP : 0)
-        | (document.getElementById("sleepCheck").checked ? INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP : 0);
+        | (document.getElementById("sleepCheck").checked ? INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP : 0)
+        | (document.getElementById("redrawCheck").checked ? INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW : 0);
     const request = {intent: Number(document.getElementById("intentSelect").value), flags};
     const decision = {};
     if (ink_display_policy_decide(live.state, live.shown, live.next, request, live.now_ms, decision) !== INK_DISPLAY_POLICY_OK) {
@@ -1328,6 +1356,19 @@ function draw_next(intent, flags)
     return decision;
 }
 
+/* Shown: đen ở (2,2) (3,2) và xa ở (16,6). Frame mới thêm đen (5,2). Trả decision của frame mới. */
+function redraw_after_adding_black(flags)
+{
+    set_black(t.shown, 2, 2);
+    set_black(t.shown, 3, 2);
+    set_black(t.shown, 16, 6);
+    start(default_config());
+    t.next.set(t.shown);
+    set_black(t.next, 5, 2);
+    t.now_ms += 100;
+    return draw_next(INK_DISPLAY_INTENT_UI, flags);
+}
+
 function start(config)
 {
     expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, config, t.pixels));
@@ -1562,6 +1603,60 @@ const TESTS = {
         expect_equal(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
         set_black(t.next, 12, 2);
         expect_cleanup(INK_DISPLAY_CLEANUP_STRONG, draw_next(INK_DISPLAY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP));
+    },
+    test_redraw_window_draws_cleanup_fast_with_selected_plane() {
+        const decision = redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+        expect_equal(INK_DISPLAY_ACTION_CLEANUP, decision.action);
+        expect_equal(INK_DISPLAY_CLEANUP_FAST, decision.cleanup);
+        expect_equal(INK_DISPLAY_POLICY_OLD_SELECTED, decision.old_plane);
+        expect_equal(0, decision.window.x);
+        expect_equal(8, decision.window.width);
+        expect_equal(2, decision.window.y);
+        expect_equal(1, decision.window.height);
+    },
+    test_redraw_window_inverts_unchanged_pixels_inside_window_only() {
+        redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+        const window = {};
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(t.state, t.shown, INK_DISPLAY_CLEANUP_FAST, t.old, window));
+        expect_equal(true, is_white_test(t.shown, 2, 2) !== is_white_test(t.old, 2, 2));
+        expect_equal(true, is_white_test(t.shown, 3, 2) !== is_white_test(t.old, 3, 2));
+        expect_equal(true, is_white_test(t.shown, 7, 2) !== is_white_test(t.old, 7, 2));
+        expect_equal(true, is_white_test(t.shown, 5, 2) !== is_white_test(t.old, 5, 2));
+        expect_equal(is_white_test(t.shown, 16, 6), is_white_test(t.old, 16, 6));
+        expect_equal(is_white_test(t.shown, 2, 3), is_white_test(t.old, 2, 3));
+        expect_equal(8, window.width);
+    },
+    test_redraw_window_debt_is_cleared_by_cleanup_done() {
+        redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+        expect_equal(2, ink_display_policy_max_debt(t.state));
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(t.state, INK_DISPLAY_CLEANUP_FAST));
+        expect_equal(0, ink_display_policy_max_debt(t.state));
+        expect_equal(0, ink_display_policy_flagged_count(t.state));
+    },
+    test_redraw_window_not_requested_draws_changed_pixels_only() {
+        const decision = redraw_after_adding_black(0);
+        expect_equal(INK_DISPLAY_ACTION_DRAW, decision.action);
+        expect_equal(INK_DISPLAY_POLICY_OLD_SHOWN, decision.old_plane);
+    },
+    test_before_sleep_beats_redraw_window_when_dirty() {
+        expect_equal(INK_DISPLAY_ACTION_DRAW, redraw_after_adding_black(0).action);
+        set_black(t.next, 6, 2);
+        t.now_ms += 100;
+        expect_cleanup(INK_DISPLAY_CLEANUP_STRONG,
+                       draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW | INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP));
+    },
+    test_redraw_window_with_identical_frame_draws_nothing() {
+        redraw_after_adding_black(0);
+        t.now_ms += 100;
+        expect_equal(INK_DISPLAY_ACTION_NONE, draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW).action);
+    },
+    test_redraw_window_after_wake_draws_whole_screen_with_intent() {
+        expect_equal(INK_DISPLAY_POLICY_OK, ink_display_policy_init(t.state, default_config(), t.pixels));
+        ink_display_policy_assume_shown(t.state);
+        set_black(t.next, 5, 2);
+        const decision = draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+        expect_equal(INK_DISPLAY_ACTION_DRAW, decision.action);
+        expect_equal(WIDTH, decision.window.width);
     },
     test_marks_dark_edge_around_box_that_turns_white() {
         black_box(4, 3);
