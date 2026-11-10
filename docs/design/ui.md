@@ -5,8 +5,8 @@
 App cần vẽ chữ, hình và bố cục lên frame mà không viết lại cùng một đoạn code ở mỗi màn. Ba việc lặp lại nhiều nhất:
 ghi từng bit vào frame, xuống dòng chữ khi cỡ chữ hoặc bề rộng đổi, và tính toạ độ bằng tay.
 
-Ví dụ: app Flashcard lật thẻ. App vẽ khung thẻ rồi submit với intent `UI`. Sau đó app vẽ chữ vào chính frame đó rồi
-submit với intent `TEXT`. Người dùng thấy khung hiện trước, chữ hiện sau. Thứ tự này do app chọn, vì chỉ app biết nội
+Ví dụ: app Flashcard lật thẻ. App vẽ viền thẻ rồi submit với intent `UI`. Sau đó app vẽ chữ vào chính frame đó rồi
+submit với intent `TEXT`. Người dùng thấy viền hiện trước, chữ hiện sau. Thứ tự này do app chọn, vì chỉ app biết nội
 dung nào cần nhanh và nội dung nào cần rõ.
 
 Panel cũng có thể đổi: cỡ khác, chiều khác, sau này có thể nhiều mức xám hoặc có màu. Code của app không được viết
@@ -72,7 +72,7 @@ Việt.
 ### U8g2 nằm sau API của `ui`
 
 `ui` dùng thư viện U8g2 để vẽ primitive và chữ lên frame `K1`. App chỉ gọi hàm `ink_ui_*` và không thấy kiểu nào của
-U8g2. Đổi thư viện vẽ, hoặc thêm cách vẽ cho pixel format khác, không đụng tới app.
+U8g2. Đổi thư viện vẽ, hoặc thêm backend vẽ cho pixel format khác, không đụng tới app.
 
 | Khối | Việc |
 |---|---|
