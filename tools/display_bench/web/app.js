@@ -870,6 +870,24 @@ async function runRawPlan(plan, slots) {
     await playChunks(slots.slice(1), plan, 0, 0);
 }
 
+/* Bài nhiều bước raw: mỗi bước một gói DRAW với cách vẽ riêng (profile, mặt phẳng cũ, window), chờ vẽ xong rồi nghỉ. */
+async function runStepsPlan(plan) {
+    const base = rawSettingsFor(plan);
+    app.run.settings.raw = base;
+    app.run.settings.rawProfile = plan.steps.map((step) => profileName(step.raw?.profile ?? base.profile)).join(' → ');
+    for (const [index, step] of plan.steps.entries()) {
+        const slot = TEST_FIRST_SLOT + step.frame;
+        const oldSlot = step.oldFrame === undefined ? 0 : TEST_FIRST_SLOT + step.oldFrame;
+        await ensureUploaded(slot);
+        if (step.oldFrame !== undefined) { await ensureUploaded(oldSlot); }
+        app.pendingPreview.set(slot, app.slots[slot].frame);
+        if (step.label) { log(`[web] bước ${index + 1}/${plan.steps.length}: ${step.label}`); }
+        await app.link.command(Command.DRAW, drawPayload(slot, {...base, ...step.raw}, step.oldSource ?? OldSource.SHOWN, oldSlot, step.window ?? null));
+        await waitForDraws(app.run, index + 1);
+        await delay(step.delayMs ?? 0);
+    }
+}
+
 async function playChunks(slots, plan, intent, flags) {
     for (let start = 0; start < slots.length; start += 64) {
         if (start > 0) {
@@ -953,6 +971,8 @@ async function runSelectedTest() {
             await runTemperaturePlan(plan, slots);
         } else if (plan.special === 'hold_power') {
             await runHoldPowerPlan(plan, slots);
+        } else if (raw && plan.steps) {
+            await runStepsPlan(plan);
         } else if (raw) {
             await runRawPlan(plan, slots);
         } else {
