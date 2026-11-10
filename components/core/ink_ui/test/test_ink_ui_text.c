@@ -28,6 +28,8 @@ void setUp(void) {
 void tearDown(void) {
 }
 
+/* Purpose: font line height must return a positive pixel value for both GNU Unifont and Fixed fonts.
+ * Does: calls ink_ui_text_line_height for unifont_vi_16 (16 px) and fixed_10, asserting both return heights greater than zero. */
 static void test_line_height_positive(void) {
     const int16_t h_unifont = ink_ui_text_line_height(&s_canvas, &ink_ui_font_unifont_vi_16);
     TEST_ASSERT_TRUE(h_unifont > 0);
@@ -37,6 +39,8 @@ static void test_line_height_positive(void) {
     TEST_ASSERT_TRUE(h_fixed > 0);
 }
 
+/* Purpose: GNU Unifont font data must include glyphs for all Vietnamese accented vowels and consonants.
+ * Does: measures each Vietnamese character individually with ink_ui_text_measure and asserts its width is greater than zero. */
 static void test_vietnamese_glyphs_present(void) {
     const char               *viet_chars = "ăâđêôơư áàảãạ ấầẩẫậ ắằẳẵặ ếềểễệ ốồổỗộ ớờởỡợ ứừửữự ýỳỷỹỵ ĂÂĐÊÔƠƯ";
     const ink_ui_text_style_t style      = {
@@ -73,6 +77,8 @@ static void test_vietnamese_glyphs_present(void) {
     }
 }
 
+/* Purpose: measuring text with large width must produce a single line, while narrow width must wrap text into multiple lines.
+ * Does: measures a phrase at 1000 px and half width, asserting the narrow measure has greater height and width within limit. */
 static void test_example5_measure_wrap(void) {
     const char               *text  = "Xin chào thế giới";
     const ink_ui_text_style_t style = {
@@ -94,6 +100,8 @@ static void test_example5_measure_wrap(void) {
     TEST_ASSERT_TRUE(multi_sz.width <= narrow_w);
 }
 
+/* Purpose: newline characters in text must force line breaks regardless of available width.
+ * Does: measures a 3-line string separated by newlines with 500 px width and asserts total height equals three line heights. */
 static void test_newline_forces_break(void) {
     const char               *text  = "Dòng 1\nDòng 2\nDòng 3";
     const ink_ui_text_style_t style = {
@@ -107,6 +115,8 @@ static void test_newline_forces_break(void) {
     TEST_ASSERT_EQUAL_INT16(lh * 3, sz.height);
 }
 
+/* Purpose: words wider than available width must break between characters without splitting multi-byte UTF-8 sequences.
+ * Does: measures a 14-letter Vietnamese word with 40 px width, checking height exceeds one line and width stays within 40 px. */
 static void test_long_word_breaks_between_utf8_chars(void) {
     /* Long word in Vietnamese without spaces, wider than 40 px */
     const char               *long_word = "Nghiêngnghiêng";
@@ -122,6 +132,8 @@ static void test_long_word_breaks_between_utf8_chars(void) {
     TEST_ASSERT_TRUE(sz.width <= 40);
 }
 
+/* Purpose: style max_lines must limit the measured height to at most that number of lines.
+ * Does: measures a 5-line string with max_lines set to 2 and verifies height equals exactly two line heights. */
 static void test_max_lines_limits_measure(void) {
     const char   *text = "Một\nHai\nBa\nBốn\nNăm";
     const int16_t lh   = ink_ui_text_line_height(&s_canvas, &ink_ui_font_unifont_vi_16);
@@ -136,6 +148,8 @@ static void test_max_lines_limits_measure(void) {
     TEST_ASSERT_EQUAL_INT16(lh * 2, sz2.height);
 }
 
+/* Purpose: drawing text into a rect shorter than total text height must draw only lines that fit within the rect.
+ * Does: draws 4 lines into a rect sized for 2 lines and verifies the returned drawn size height equals two line heights. */
 static void test_draw_capped_by_rect_height(void) {
     const char               *text  = "Dòng 1\nDòng 2\nDòng 3\nDòng 4";
     const int16_t             lh    = ink_ui_text_line_height(&s_canvas, &ink_ui_font_unifont_vi_16);
@@ -151,6 +165,8 @@ static void test_draw_capped_by_rect_height(void) {
     TEST_ASSERT_EQUAL_INT16(lh * 2, drawn_sz.height);
 }
 
+/* Purpose: drawing text that fits entirely within a rect must return the exact same size as ink_ui_text_measure.
+ * Does: measures and draws a short phrase inside a 200 × 100 px rect, checking width and height match between measure and draw. */
 static void test_draw_matches_measure_when_fits(void) {
     const char               *text  = "Vừa vặn trong khung";
     const ink_ui_text_style_t style = {
@@ -166,6 +182,9 @@ static void test_draw_matches_measure_when_fits(void) {
     TEST_ASSERT_EQUAL_INT16(measured.height, drawn.height);
 }
 
+/* Purpose: ink_ui_text_draw must not modify any pixels outside the specified bounding rectangle.
+ * Does: fills a frame with 0xFF, draws text inside a rect, verifies all outer rows and columns stay 0xFF, and verifies inner pixels
+ * changed. */
 static void test_draw_pixels_only_inside_rect(void) {
     memset(s_frame, 0xFF, sizeof(s_frame));
 

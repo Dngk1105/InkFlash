@@ -95,12 +95,14 @@ static void fill_solid(ink_ui_canvas_t *canvas, ink_ui_rect_t rect, uint8_t radi
     }
 }
 
+/* Draw one pixel in the current draw color; ignored when outside bounds. */
 static void draw_canvas_pixel(ink_ui_canvas_t *canvas, int16_t x, int16_t y) {
     const ink_ui_rect_t bounds = ink_ui_canvas_bounds(canvas);
     if (x < bounds.x || x >= bounds.x + bounds.width || y < bounds.y || y >= bounds.y + bounds.height) { return; }
     u8g2_DrawPixel(&ui_screen(canvas)->u8g2, (u8g2_uint_t)x, (u8g2_uint_t)y);
 }
 
+/* Draw a horizontal line clipped to bounds in the current draw color. */
 static void draw_canvas_hline(ink_ui_canvas_t *canvas, int16_t x0, int16_t x1, int16_t y) {
     if (x1 < x0) { return; }
     const ink_ui_rect_t bounds = ink_ui_canvas_bounds(canvas);
@@ -110,6 +112,7 @@ static void draw_canvas_hline(ink_ui_canvas_t *canvas, int16_t x0, int16_t x1, i
     if (x0 <= x1) { u8g2_DrawHLine(&ui_screen(canvas)->u8g2, (u8g2_uint_t)x0, (u8g2_uint_t)y, (u8g2_uint_t)(x1 - x0 + 1)); }
 }
 
+/* Draw a vertical line clipped to bounds in the current draw color. */
 static void draw_canvas_vline(ink_ui_canvas_t *canvas, int16_t x, int16_t y0, int16_t y1) {
     if (y1 < y0) { return; }
     const ink_ui_rect_t bounds = ink_ui_canvas_bounds(canvas);
@@ -119,6 +122,7 @@ static void draw_canvas_vline(ink_ui_canvas_t *canvas, int16_t x, int16_t y0, in
     if (y0 <= y1) { u8g2_DrawVLine(&ui_screen(canvas)->u8g2, (u8g2_uint_t)x, (u8g2_uint_t)y0, (u8g2_uint_t)(y1 - y0 + 1)); }
 }
 
+/* Draw the 8 symmetric corner pixels of rounded corners for stroke_ring(). */
 static void draw_corner_pixels(ink_ui_canvas_t *canvas, int16_t cx0, int16_t cy0, int16_t cx1, int16_t cy1, int16_t dx, int16_t dy) {
     draw_canvas_pixel(canvas, (int16_t)(cx1 + dx), (int16_t)(cy0 - dy));
     draw_canvas_pixel(canvas, (int16_t)(cx0 - dx), (int16_t)(cy0 - dy));
@@ -193,6 +197,7 @@ static void stroke_ring(ink_ui_canvas_t *canvas, ink_ui_rect_t ring, uint8_t rad
     }
 }
 
+/* Clip segment (x0, y0)-(x1, y1) to canvas bounds using Cohen-Sutherland and draw with U8g2. */
 static void draw_clipped_line(ink_ui_canvas_t *canvas, int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
     const ink_ui_rect_t bounds = ink_ui_canvas_bounds(canvas);
     if (bounds.width <= 0 || bounds.height <= 0) { return; }
