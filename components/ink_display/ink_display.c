@@ -174,7 +174,22 @@ esp_err_t ink_display_set_options(const ink_display_options_t *options) {
     return ESP_OK;
 }
 
-/* ---- Acquire and submit (main task) ---- */
+/* ---- Frame info, acquire and submit (main task) ---- */
+
+static_assert(INK_DISPLAY_FLAG_DEFER_CLEANUP == INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP, "frame flag differs from policy flag");
+static_assert(INK_DISPLAY_FLAG_BEFORE_SLEEP == INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP, "frame flag differs from policy flag");
+static_assert(INK_DISPLAY_FLAG_REDRAW_WINDOW == INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW, "frame flag differs from policy flag");
+
+esp_err_t ink_display_frame_info(ink_display_frame_info_t *out_info) {
+    if (s_task == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (out_info == nullptr) { return ESP_ERR_INVALID_ARG; }
+    *out_info = (ink_display_frame_info_t){
+        .width  = s_device.capabilities.width,
+        .height = s_device.capabilities.height,
+        .format = s_device.capabilities.pixel_format,
+    };
+    return ESP_OK;
+}
 
 uint8_t *ink_display_acquire(void) {
     if (s_task == nullptr) { return nullptr; }
@@ -513,6 +528,8 @@ static esp_err_t check_config(const ink_display_config_t *config) {
     ESP_RETURN_ON_FALSE(
         capabilities->profile_count > 0 && capabilities->profiles && capabilities->draw_defaults && capabilities->cleanup_defaults,
         ESP_ERR_INVALID_ARG, TAG, "no profile");
+    /* EXTEND(display): frames and policy assume K1; other pixel formats need their own frame size and policy. */
+    ESP_RETURN_ON_FALSE(capabilities->pixel_format == INK_DISPLAY_PIXEL_FORMAT_K1, ESP_ERR_INVALID_ARG, TAG, "pixel format");
     const bool options_ok = config->options == nullptr || options_valid(config->options, capabilities);
     ESP_RETURN_ON_FALSE(options_ok, ESP_ERR_INVALID_ARG, TAG, "options");
     return ESP_OK;

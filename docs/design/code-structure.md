@@ -17,15 +17,20 @@ components/
   core/                C thuần, không include gì của ESP-IDF
     ink_session/ ink_gesture/ ink_keymap/ ink_scene/ ink_study/ ink_fsrs/ ink_record/ ink_ui/ ink_display_policy/
   ink_system/ ink_display/ ink_storage/ ink_platform/
+  ink_u8g2/            component bọc thư viện U8g2
+  ink_demo/            vẽ thử ink_ui trên board (tạm)
   ink_hal/             interface phần cứng
   ink_bsp/             pin map theo board
   drivers/ink_drv_<chip>/
   apps/ink_app_<tên>/
+third_party/           mã nguồn ngoài, mỗi thư viện một git submodule; tools/check.py không quét
+  u8g2/
 templates/             project ESP-IDF riêng chứa khối mẫu, build được
 test/
   host/                project CMake build khối C thuần bằng gcc trên PC
   vectors/             test vector dùng chung mọi nền tảng
-tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile waveform)
+tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile waveform),
+                       u8g2_font.py (chép một font của U8g2 ra file .c)
 ```
 
 Tên thư mục của component chính là tên component (luật của ESP-IDF), nên thư mục cũng mang tiền tố `ink_`.
@@ -71,6 +76,7 @@ Ví dụ: `refresh` trong `ink_drv_uc8253.c` đọc như danh sách bước: và
 | Luật | Cách ép |
 |---|---|
 | Khối trong `core/` không dùng ESP-IDF | Host test biên dịch chúng bằng gcc trên PC; include header IDF là lỗi build |
+| Mã nguồn ngoài chỉ vào firmware qua một component bọc | Component bọc gọi `ink_third_party_component(...)`: liệt kê từng file được biên dịch, không áp `-pedantic` cho mã ngoài; khối khác include header `ink_<tên>.h` của component bọc |
 | App không gọi `storage` hay `hal` | CMake của app không khai báo hai khối này; include là lỗi build |
 | Chỉ `bsp` biết chân GPIO | Pin map nằm trong component `bsp`, không công khai |
 | Caller giữ struct state của core module nhưng không đụng field bên trong | Field nội bộ gom trong struct con `priv`; `tools/check.py` báo lỗi khi `.priv` hoặc `->priv` xuất hiện ngoài thư mục của core module |

@@ -1,6 +1,7 @@
 # Thiết kế: docs/design/code-structure.md
 #
-# Host test: build mọi khối C thuần (component gọi ink_core_component) bằng gcc trên PC, kèm test trong <khối>/test/.
+# Host test: build mọi khối C thuần (component gọi ink_core_component) và mọi component bọc mã ngoài chúng dùng
+# (ink_third_party_component) bằng gcc trên PC, kèm test trong <khối>/test/.
 # Unity lấy từ mã nguồn có sẵn trong ESP-IDF, nên cần biến môi trường IDF_PATH.
 cmake_minimum_required(VERSION 3.22)
 project(inkflash_host C)
@@ -24,8 +25,9 @@ file(GLOB_RECURSE INK_COMPONENT_LISTS
 enable_testing()
 foreach(list_file ${INK_COMPONENT_LISTS})
     file(READ "${list_file}" content)
-    string(FIND "${content}" "ink_core_component(" pos)
-    if(pos EQUAL -1)
+    string(FIND "${content}" "ink_core_component(" core_pos)
+    string(FIND "${content}" "ink_third_party_component(" third_party_pos)
+    if(core_pos EQUAL -1 AND third_party_pos EQUAL -1)
         continue()
     endif()
     get_filename_component(dir "${list_file}" DIRECTORY)

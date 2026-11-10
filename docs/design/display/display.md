@@ -44,6 +44,36 @@ Các sơ đồ nằm cùng thư mục, vẽ từ file này, mở bằng trình d
 Người dùng bấm nhanh hơn tốc độ panel thì các frame pending ở giữa bị drop; chỉ frame mới nhất được vẽ. Giữa hai lần
 bấm, display task chạy các cleanup stage (mục "Cleanup khi idle").
 
+## Hợp đồng giữa app và display
+
+Ví dụ: đổi panel 240 × 416 sang panel khác cỡ, hoặc đổi controller. Driver, profile và policy đổi theo. App và `ui`
+không đổi, vì chúng chỉ biết bốn thứ dưới đây.
+
+| Thứ | Nội dung | Chiều |
+|---|---|---|
+| Frame info | Rộng, cao theo chiều gốc của panel; pixel format | Display → app, đọc một lần sau khi display khởi động |
+| Frame | Ảnh cả màn theo đúng frame info | App vẽ vào frame đã acquire |
+| Intent | Loại nội dung của frame (mục "Intent") | App → display, lúc submit |
+| Flag | Yêu cầu thêm cho frame (mục "Intent") | App → display, lúc submit |
+
+Luật giữ hợp đồng này ổn định:
+
+- App nói frame chứa gì, không nói vẽ thế nào. Waveform, profile, window, nhiệt độ và debt không xuất hiện ở phía app.
+- Phần cứng báo khả năng lên trên bằng dữ liệu: driver khai kích thước và pixel format trong capabilities, display
+  đưa chúng cho app qua frame info.
+- Mở rộng bằng cách nối thêm giá trị: intent, flag và pixel format chỉ được thêm vào cuối, không đổi nghĩa giá trị cũ.
+- Options và report là đường riêng để tinh chỉnh và đo. Chỉ `system`, Settings và firmware bench dùng.
+
+Pixel format hiện có một giá trị: `K1`, 1 bit mỗi pixel, bit 1 là trắng, ghi theo từng hàng, pixel trái nhất ở bit
+cao nhất. Display từ chối khởi động với driver khai pixel format khác.
+
+Header chia theo người dùng:
+
+| Header | Dành cho | Có gì |
+|---|---|---|
+| `ink_display_frame.h` | App và mọi code vẽ | Frame info, acquire, submit, flag |
+| `ink_display.h` | `system`, Settings, firmware bench | Khởi động display, options, report; kèm mọi thứ của header trên |
+
 ## Chuyển frame giữa main task và display task
 
 Ví dụ: app lật thẻ. Main task acquire một frame. Frame này đã có sẵn ảnh của lần submit gần nhất, nên app chỉ vẽ phần

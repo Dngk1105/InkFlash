@@ -8,7 +8,7 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | Module | Việc | Task | Core module | Có code | Được gọi |
 |---|---|---|---|---|---|
 | `apps/` | Flashcard, Settings, menu: màn hình và luồng thao tác | main | | Chưa | `system`, `study`, `display`, `ui` |
-| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform` |
+| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform`, `demo` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
 | `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Có | Chỉ thư viện C chuẩn |
@@ -19,7 +19,9 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
 | `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
-| `ui/` | Canvas, font | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `ui/` | Họa cụ để app vẽ lên frame: canvas, primitive, paint, chữ, thước | main | Có | Có | `u8g2`; `display_policy` (chỉ dùng kiểu frame info) |
+| `u8g2/` | Component bọc thư viện U8g2 trong `third_party/`: chọn file biên dịch, dựng màn ảo trỏ vào frame | caller | | Có | U8g2 |
+| `demo/` | Vẽ thử `ui` trên board, tạm tới khi có app đầu tiên | main | | Có | `ui`, `display`, `gesture` (chỉ dùng kiểu gesture) |
 | `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
 | `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
 | `hal/` | Interface phần cứng | caller | | Có | |
@@ -60,7 +62,8 @@ Mỗi file tự đứng được; chỉ mở file khớp với vấn đề.
 | Main task bận lâu, muốn tạo task mới, race condition, stack để RAM nội hay PSRAM | [design/tasks.md](design/tasks.md) |
 | Nút, gesture, A+B, double press, IMU, lần bấm đánh thức, gán gesture → chức năng | [design/input/input.md](design/input/input.md) |
 | Đi ngủ, wake không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
-| Panel vẽ chậm, chớp, ghosting, viền xám, intent của app, cleanup khi idle, đổi waveform (profile, LUT), viết hoặc sửa driver panel, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
+| Panel vẽ chậm, chớp, ghosting, viền xám, intent của app, hợp đồng giữa app và display, đổi panel hoặc controller, cleanup khi idle, đổi waveform (profile, LUT), viết hoặc sửa driver panel, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
+| App vẽ chữ, hình, bố cục lên frame; chữ không xuống dòng; đổi font; vẽ sai chiều; đổi thư viện vẽ; thêm pixel format | [design/ui.md](design/ui.md) |
 | Thêm app, scene, mục menu, `BACK`, Settings | [design/app-framework.md](design/app-framework.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |
