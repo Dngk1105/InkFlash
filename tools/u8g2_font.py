@@ -60,6 +60,7 @@ def main():
         '#include "ink_ui.h"',
         "",
         "/* clang-format off */",
+        '#pragma GCC diagnostic ignored "-Woverlength-strings"',
         f"static const uint8_t data[{size}] =",
     ]
     out += ["    " + line for line in lines[:-1]] + ["    " + lines[-1] + ";", "/* clang-format on */", "", f"const ink_ui_font_t {symbol} = {{.data = data}};", ""]

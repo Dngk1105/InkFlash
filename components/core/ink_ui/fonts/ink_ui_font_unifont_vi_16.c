@@ -5,6 +5,7 @@
 #include "ink_ui.h"
 
 /* clang-format off */
+#pragma GCC diagnostic ignored "-Woverlength-strings"
 static const uint8_t data[15244] =
     "\240\0\3\2\5\5\4\5\6\20\20\0\376\12\376\13\377\1\233\3\63\16\233 \6\0\240G\1!\10A"
     "\61DqH\4\42\10\205(F\221\271\5#\17F%D\325\323\60$Q\313\60D=\1$\22G%"
