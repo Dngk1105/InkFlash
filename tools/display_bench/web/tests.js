@@ -127,7 +127,9 @@ function frameWithBoxes(orientation, boxes) {
  * params: {key, label, value, min, max, step?} cho số; {type: 'profile', value: tên profile mặc định}; {type: 'bool'};
  * {type: 'select', options: [{value, label}], value}.
  * build(values, orientation) trả {frames, order (index trong frames), intervalMs, repeat, note?, raw?, oldSource?,
- * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, powerOffFrames?, special?}. psrSecond, vcomOverride, powerOffFrames:
+ * intent?, flags?, optionsPatch?, psrSecond?, vcomOverride?, powerOffFrames?, special?, steps?}. steps: các lần vẽ raw
+ * theo thứ tự, mỗi lần {frame, raw, oldSource?, oldFrame?, label?, delayMs?}; oldFrame là index khung làm mặt phẳng cũ
+ * khi oldSource là SLOT. psrSecond, vcomOverride, powerOffFrames:
  * gói SET_PANEL trang gửi trước khi chạy (255 = VCOM_DC theo profile). `path` của bài: 'raw', 'pipeline', hoặc không có (đường nào cũng được).
  */
 const flips = (count) => Array.from({length: count}, (_, index) => (index + 1) % 2);
@@ -342,6 +344,54 @@ export const TESTS = [
                 intent: Intent.TEXT,
                 flags: SubmitFlag.DEFER_CLEANUP,
                 note: 'Cờ hoãn dọn bật để lượt dọn không xen vào số đo.',
+            };
+        },
+    },
+    {
+        id: 'overlay_text',
+        name: 'Chữ dưới lớp đè',
+        path: 'raw',
+        description: 'Trang chữ vẽ bằng profile TEXT, nghỉ, rồi ba ô đen đè lên chữ. Ô trái (UI): chỉ điểm đổi màu bị kéo, như đường vẽ hiện nay. Ô phải (UI, cùng lần vẽ với ô trái): mọi điểm trong ô bị kéo, kể cả điểm chữ vốn đã đen. Ô dưới (TEXT): chỉ điểm đổi màu bị kéo. Dưới mỗi ô có một hình vuông đen đặc. Chữ cũ hiện trong ô trái mà không hiện trong ô phải: nguyên nhân là điểm đen giữ đen không được kéo (LUT KK 0 V). Hình vuông nhạt cả lòng: đen cũ đã nhạt; chỉ nhạt viền: điện trường lan từ điểm bên cạnh (light edge).',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'text', label: 'Profile chữ (TEXT)', type: 'profile', value: 'tr8'},
+            {key: 'ui', label: 'Profile ô (UI)', type: 'profile', value: 'lut10f50'},
+            {key: 'fontSize', label: 'Cỡ chữ (điểm)', value: 22, min: 10, max: 40},
+            {key: 'rest', label: 'ms nghỉ sau khi vẽ chữ', value: 5000, min: 0, max: 600000, step: 500},
+        ],
+        build(values, orientation) {
+            const {width, height} = viewSize(orientation);
+            const boxWidth = Math.round(width * 0.3);
+            const boxHeight = Math.round(height * 0.22);
+            const left = {x: Math.round(width * 0.08), y: Math.round(height * 0.2), width: boxWidth, height: boxHeight};
+            const right = {x: Math.round(width * 0.58), y: left.y, width: boxWidth, height: boxHeight};
+            const bottom = {x: Math.round((width - boxWidth) / 2), y: Math.round(height * 0.6), width: boxWidth, height: boxHeight};
+            const text = textPage(orientation, 0, values.fontSize);
+            for (const box of [left, right, bottom]) {
+                const size = Math.round(boxHeight * 0.45);
+                fillViewRect(text, orientation, box.x + Math.round((box.width - size) / 2), box.y + Math.round((box.height - size) / 2), size, size, false);
+            }
+            const covered = text.slice();
+            for (const box of [left, right]) { fillViewRect(covered, orientation, box.x, box.y, box.width, box.height, false); }
+            /* Mặt phẳng cũ của lần vẽ hai ô: bằng trang chữ, riêng ô phải trắng (đảo bit của ô đen), nên mọi điểm trong ô phải bị kéo. */
+            const oldForCover = text.slice();
+            fillViewRect(oldForCover, orientation, right.x, right.y, right.width, right.height, true);
+            const allCovered = covered.slice();
+            fillViewRect(allCovered, orientation, bottom.x, bottom.y, bottom.width, bottom.height, false);
+            const partial = {windowKind: WindowKind.CHANGED, partialMode: true, scanOutsideWindow: true, driveBorder: false};
+            return {
+                frames: [createFrame(true), text, oldForCover, covered, allCovered],
+                order: [0, 1, 3, 4],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED,
+                        raw: {profile: values.clean, windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true}},
+                    {frame: 1, label: 'vẽ trang chữ', raw: {profile: values.text, ...partial}, delayMs: values.rest},
+                    {frame: 3, label: 'ô trái và ô phải (UI)', oldSource: OldSource.SLOT, oldFrame: 2, raw: {profile: values.ui, ...partial}, delayMs: 1000},
+                    {frame: 4, label: 'ô dưới (TEXT)', raw: {profile: values.text, ...partial}},
+                ],
+                note: 'Chụp ngay sau bước cuối, rồi chụp lại sau 1–2 phút, cùng góc, cùng đèn. So chữ cũ trong ba ô và hình vuông dưới mỗi ô.',
             };
         },
     },
