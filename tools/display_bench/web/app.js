@@ -227,7 +227,7 @@ function renderPathControls() {
     const raw = app.info?.path !== 'pipeline';
     for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border', 'raw-power-off-ms', 'apply-raw-power',
         'power-off', 'old-source', 'old-slot', 'read-temperature', 'dump-otp']) { $(id).disabled = !raw; }
-    for (const id of ['apply-options', 'reset-options', 'submit-intent', 'submit-defer', 'submit-sleep']) { $(id).disabled = raw; }
+    for (const id of ['apply-options', 'reset-options', 'submit-intent', 'submit-defer', 'submit-sleep', 'submit-redraw']) { $(id).disabled = raw; }
 }
 
 async function applyPath() {
@@ -334,7 +334,8 @@ async function readTemperature() {
 
 function readSubmitForm() {
     app.settings.intent = Number($('submit-intent').value);
-    app.settings.flags = ($('submit-defer').checked ? SubmitFlag.DEFER_CLEANUP : 0) | ($('submit-sleep').checked ? SubmitFlag.BEFORE_SLEEP : 0);
+    app.settings.flags = ($('submit-defer').checked ? SubmitFlag.DEFER_CLEANUP : 0) | ($('submit-sleep').checked ? SubmitFlag.BEFORE_SLEEP : 0)
+        | ($('submit-redraw').checked ? SubmitFlag.REDRAW_WINDOW : 0);
 }
 
 const OPTION_FIELDS = [
@@ -1239,7 +1240,7 @@ function setupControls() {
     $('dump-otp').addEventListener('click', dumpOtp);
     $('apply-psr-second').addEventListener('click', applyPanel);
     for (const id of ['raw-profile', 'raw-window-kind', 'draw-window-kind', 'raw-partial-mode', 'raw-pt-scan', 'raw-drive-border']) { $(id).addEventListener('change', readRawForm); }
-    for (const id of ['submit-intent', 'submit-defer', 'submit-sleep']) { $(id).addEventListener('change', readSubmitForm); }
+    for (const id of ['submit-intent', 'submit-defer', 'submit-sleep', 'submit-redraw']) { $(id).addEventListener('change', readSubmitForm); }
 
     fillSelect($('vcom-override'), VCOM_OPTIONS, VCOM_FROM_PROFILE);
     fillSelect($('psr-second'), PSR_SECOND_OPTIONS, 0x0a);

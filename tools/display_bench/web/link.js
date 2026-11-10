@@ -30,7 +30,7 @@ export const Cleanup = Object.freeze({INVALID: 0, STRONG: 1, FAST: 2, EDGE_CENTE
 export const CLEANUP_NAMES = ['–', 'dọn mạnh', 'dọn nhanh', 'dọn tâm viền', 'dọn quanh viền', 'dọn nhẹ'];
 export const Action = Object.freeze({INVALID: 0, NONE: 1, DRAW: 2, CLEANUP: 3, POWER_OFF: 4});
 export const ACTION_NAMES = ['không hợp lệ', 'không vẽ', 'vẽ', 'dọn', 'tắt nguồn'];
-export const SubmitFlag = Object.freeze({DEFER_CLEANUP: 1, BEFORE_SLEEP: 2});
+export const SubmitFlag = Object.freeze({DEFER_CLEANUP: 1, BEFORE_SLEEP: 2, REDRAW_WINDOW: 4});
 export const MAX_BANDS = 9;
 export const SOURCE_CUSTOM = 255;
 
