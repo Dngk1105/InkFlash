@@ -432,6 +432,54 @@ export const TESTS = [
         },
     },
     {
+        id: 'strong_profile',
+        name: 'Cleanup strong mạnh hơn',
+        path: 'raw',
+        description: 'Dọn trắng, vẽ trang chữ, rồi lật hai ô đen trên chữ nhiều lần bằng profile UI để tạo bóng và lệch điện áp. Cuối cùng chạy profile cleanup strong cần thử (cả màn, frame mới đảo bit) lên trang chữ có một dải đen đặc ở dưới. Xem: bóng hai ô còn trong vùng chữ không, chữ cũ còn hiện trong dải đen không, dải đen có nhạt dần về phía FPC không. Nạp profile ứng viên bằng PROFILE_LOAD rồi chọn nó ở ô "Profile cleanup strong".',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'text', label: 'Profile chữ (TEXT)', type: 'profile', value: 'tr8'},
+            {key: 'ui', label: 'Profile lật ô (UI)', type: 'profile', value: 'lut10f50'},
+            {key: 'strong', label: 'Profile cleanup strong', type: 'profile', value: 'tr4'},
+            {key: 'flips', label: 'Số lần lật ô', value: 20, min: 2, max: 200, step: 2},
+            {key: 'interval', label: 'ms giữa hai lần lật', value: 500, min: 0, max: 10000, step: 100},
+            {key: 'fontSize', label: 'Cỡ chữ (điểm)', value: 22, min: 10, max: 40},
+        ],
+        build(values, orientation) {
+            const {width, height} = viewSize(orientation);
+            const boxWidth = Math.round(width * 0.36);
+            const boxHeight = Math.round(height * 0.22);
+            const text = textPage(orientation, 0, values.fontSize);
+            const boxes = text.slice();
+            fillViewRect(boxes, orientation, Math.round(width * 0.08), Math.round(height * 0.15), boxWidth, boxHeight, false);
+            fillViewRect(boxes, orientation, Math.round(width * 0.56), Math.round(height * 0.15), boxWidth, boxHeight, false);
+            /* Khung cuối: cùng trang chữ, thêm dải đen đặc đè lên phần chữ chưa từng bị ô che. */
+            const target = text.slice();
+            fillViewRect(target, orientation, 0, Math.round(height * 0.62), width, Math.round(height * 0.3), false);
+            const partial = {windowKind: WindowKind.CHANGED, partialMode: true, scanOutsideWindow: true, driveBorder: false};
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            const flips = Array.from({length: values.flips}, (_, index) => ({
+                frame: index % 2 === 0 ? 2 : 1,
+                label: `lật ô ${index + 1}`,
+                raw: {profile: values.ui, ...partial},
+                delayMs: values.interval,
+            }));
+            return {
+                frames: [createFrame(true), text, boxes, target],
+                order: [0, 1, ...flips.map((step) => step.frame), 3],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                    {frame: 1, label: 'vẽ trang chữ', raw: {profile: values.text, ...partial}, delayMs: 1000},
+                    ...flips,
+                    {frame: 3, label: 'cleanup strong', oldSource: OldSource.INVERTED, raw: {profile: values.strong, ...whole}},
+                ],
+                note: 'Số lần lật chẵn nên trước bước cuối màn đang hiện trang chữ. Chụp thẳng góc ngay sau bước cuối và sau 1 phút, cùng đèn. Chạy lần lượt tr4 (mốc) và từng ứng viên, ghi thời gian panel của bước cuối.',
+            };
+        },
+    },
+    {
         id: 'pt_scan',
         name: 'PT_SCAN',
         path: 'raw',

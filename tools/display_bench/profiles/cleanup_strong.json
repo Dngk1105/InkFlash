@@ -1,0 +1,1076 @@
+{
+ "design": "docs/design/display/display.md",
+ "about": "Ứng viên cleanup strong cho bài 'Cleanup strong mạnh hơn' của bench: bảng TR4 (20–30 °C) chèn thêm chu kỳ lắc trước pha cuối, mọi điểm đều bị kéo như OTP, DRF dưới 4 s. Sinh .inkw: python tools/profile_gen.py --source tools/display_bench/profiles/cleanup_strong.json --blob <tên> -o tools/display_bench/profiles/<tên>.inkw",
+ "otp": "otp_bb0.hex",
+ "retired_ids": [
+  10,
+  11,
+  12,
+  14,
+  15,
+  16,
+  17,
+  20,
+  23,
+  25,
+  26,
+  27,
+  28
+ ],
+ "profiles": [
+  {
+   "id": 1,
+   "name": "tr0",
+   "copy": "TR0"
+  },
+  {
+   "id": 2,
+   "name": "tr1",
+   "copy": "TR1"
+  },
+  {
+   "id": 3,
+   "name": "tr2",
+   "copy": "TR2"
+  },
+  {
+   "id": 4,
+   "name": "tr3",
+   "copy": "TR3"
+  },
+  {
+   "id": 5,
+   "name": "tr4",
+   "copy": "TR4"
+  },
+  {
+   "id": 6,
+   "name": "tr5",
+   "copy": "TR5"
+  },
+  {
+   "id": 7,
+   "name": "tr6",
+   "copy": "TR6"
+  },
+  {
+   "id": 8,
+   "name": "tr7",
+   "copy": "TR7"
+  },
+  {
+   "id": 9,
+   "name": "tr8",
+   "copy": "TR8"
+  },
+  {
+   "id": 13,
+   "name": "lut10f50",
+   "base": "TR8",
+   "frame_rate_hz": 50,
+   "drive_frames": 10
+  },
+  {
+   "id": 21,
+   "name": "clean_edge",
+   "base": "TR8",
+   "frame_rate_hz": 200,
+   "tables": {
+    "KW": [
+     [
+      "VSH",
+      2
+     ],
+     [
+      "VSL",
+      1
+     ],
+     [
+      "VSH",
+      1
+     ],
+     [
+      "VSL",
+      1
+     ],
+     [
+      "VSH",
+      1
+     ],
+     [
+      "VSL",
+      2
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      2
+     ],
+     [
+      "VSH",
+      1
+     ],
+     [
+      "VSL",
+      1
+     ],
+     [
+      "VSH",
+      1
+     ],
+     [
+      "VSL",
+      1
+     ],
+     [
+      "VSH",
+      2
+     ]
+    ]
+   }
+  },
+  {
+   "id": 22,
+   "name": "clean_light",
+   "base": "TR8",
+   "frame_rate_hz": 200,
+   "tables": {
+    "KW": [
+     [
+      "VSH",
+      4
+     ],
+     [
+      "VSL",
+      4
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      4
+     ],
+     [
+      "VSH",
+      4
+     ]
+    ]
+   }
+  },
+  {
+   "id": 24,
+   "name": "clean_full100",
+   "base": "TR8",
+   "frame_rate_hz": 100,
+   "tables": {
+    "KW": [
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ]
+    ]
+   }
+  },
+  {
+   "id": 29,
+   "name": "clean_full50",
+   "base": "TR8",
+   "frame_rate_hz": 50,
+   "tables": {
+    "KW": [
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ]
+    ]
+   }
+  },
+  {
+   "id": 30,
+   "name": "strong_1x30",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "tables": {
+    "WW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "KW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ],
+    "KK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ]
+   }
+  },
+  {
+   "id": 31,
+   "name": "strong_2x15",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "tables": {
+    "WW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "KW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ],
+    "KK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ]
+   }
+  },
+  {
+   "id": 32,
+   "name": "strong_3x10",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "tables": {
+    "WW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "KW": [
+     [
+      "VSH",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      20
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ],
+    "KK": [
+     [
+      "VSL",
+      20
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      10
+     ],
+     [
+      "VSL",
+      10
+     ],
+     [
+      "VSH",
+      20
+     ]
+    ]
+   }
+  },
+  {
+   "id": 33,
+   "name": "strong_1x15t30",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "tables": {
+    "WW": [
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      30
+     ]
+    ],
+    "KW": [
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      30
+     ]
+    ],
+    "WK": [
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      30
+     ]
+    ],
+    "KK": [
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      20
+     ],
+     [
+      "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSH",
+      15
+     ],
+     [
+      "VSL",
+      15
+     ],
+     [
+      "VSH",
+      30
+     ]
+    ]
+   }
+  }
+ ],
+ "presets": {
+  "text": {
+   "bands": [
+    [
+     127,
+     9
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  },
+  "ui": {
+   "bands": [
+    [
+     127,
+     13
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  },
+  "page": {
+   "bands": [
+    [
+     127,
+     9
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": true
+  },
+  "cleanup_strong": {
+   "bands": [
+    [
+     5,
+     1
+    ],
+    [
+     10,
+     2
+    ],
+    [
+     15,
+     3
+    ],
+    [
+     20,
+     4
+    ],
+    [
+     30,
+     5
+    ],
+    [
+     80,
+     6
+    ],
+    [
+     92,
+     7
+    ],
+    [
+     100,
+     8
+    ],
+    [
+     127,
+     9
+    ]
+   ],
+   "partial_mode": false,
+   "scan_outside_window": true,
+   "drive_border": true
+  },
+  "cleanup_fast": {
+   "bands": [
+    [
+     127,
+     29
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  },
+  "cleanup_edge_center": {
+   "bands": [
+    [
+     127,
+     24
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  },
+  "cleanup_edge_neighbor": {
+   "bands": [
+    [
+     127,
+     21
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  },
+  "cleanup_light": {
+   "bands": [
+    [
+     127,
+     22
+    ]
+   ],
+   "partial_mode": true,
+   "scan_outside_window": true,
+   "drive_border": false
+  }
+ }
+}
