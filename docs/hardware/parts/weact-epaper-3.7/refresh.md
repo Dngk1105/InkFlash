@@ -169,6 +169,7 @@ Nhìn bằng mắt và chụp ảnh. Profile ứng viên ở `tools/display_benc
 | Dải xám dither sau cleanup strong | `tr4` chèn chu kỳ lắc ngược chiều giữa pixel về trắng và pixel về đen | Dither nhoè thành xám nhạt: pixel cạnh nhau mang điện áp ngược dấu suốt các chu kỳ thêm |
 | Như trên | `tr4` chèn chu kỳ lắc cùng chiều ở cả bốn bảng | Không khác `tr4`. Cleanup strong giữ `tr4` |
 | Khối đen cả chiều dài panel | `tr4` và mọi ứng viên | Đen nhạt dần về phía cạnh có cáp FPC, như nhau ở mọi profile. Chưa rõ do góc nhìn và đèn hay do phần điện |
+| Dải xám dither, xoay máy 180° và xoay ảnh theo, cùng đèn | `tr4` | Vùng nhạt vẫn ở phía cáp FPC, không theo hướng chụp: do panel hoặc phần điện, không phải góc nhìn. Bài đổi UD (hướng quét gate) chưa chạy |
 
 ## Khuyến nghị trong spec
 
