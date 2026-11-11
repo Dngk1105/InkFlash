@@ -314,13 +314,14 @@ function pixel_count(config)
 function clear_pixels(state)
 {
     state.priv.pixels.fill(0, 0, pixel_count(state.priv.config));
+    state.priv.fast_count = 0;
     state.priv.flagged_count = 0;
     state.priv.max_debt = 0;
 }
 
 function new_state()
 {
-    return {priv: {config: null, pixels: null, flagged_count: 0, last_frame_ms: 0, max_debt: 0, ceiling: 0, stages_done: 0,
+    return {priv: {config: null, pixels: null, flagged_count: 0, last_frame_ms: 0, max_debt: 0, ceiling: 0, fast_count: 0, stages_done: 0,
         edge_center_done: false, defer: false, has_frame: false, shown_valid: false, after_wake: false,
         fast_window: {x: 0, y: 0, width: 0, height: 0}}};
 }
@@ -705,18 +706,25 @@ function decision_fast(window)
     return {action: INK_DISPLAY_ACTION_CLEANUP, intent: INK_DISPLAY_INTENT_AUTO, cleanup: INK_DISPLAY_CLEANUP_FAST, window, old_plane: INK_DISPLAY_POLICY_OLD_SELECTED};
 }
 
-function decide_fast(state, window, out_decision)
-{
-    state.priv.fast_window = {...window};
-    Object.assign(out_decision, decision_fast(window));
-}
-
 function decide_clean(state, cleanup, out_decision)
 {
     clear_pixels(state);
     state.priv.shown_valid = true;
     state.priv.after_wake = false;
     Object.assign(out_decision, decision_cleanup(cleanup, whole_screen(state.priv.config)));
+}
+
+/* Cleanup fast, hoặc cleanup strong khi đã đủ fast_limit lần cleanup fast từ lần cleanup strong gần nhất. */
+function decide_fast(state, window, out_decision)
+{
+    const limit = state.priv.config.fast_limit;
+    if (limit !== 0 && state.priv.fast_count >= limit) {
+        decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
+        return;
+    }
+    state.priv.fast_count++;
+    state.priv.fast_window = {...window};
+    Object.assign(out_decision, decision_fast(window));
 }
 
 function has_dirt(state)
@@ -939,7 +947,8 @@ const live = {
         marks_edges: [false, false, true, false], /* ink_display_default_options: chỉ UI */
         auto_ui_percent: 10,         /* DEFAULT_AUTO_UI_PERCENT */
         debt_light: 2, debt_page: 6, debt_ceiling: 8, debt_ceiling_max: 15,
-        active_ms: 2000, edge_ms: 2000, light_ms: 10000, strong_ms: 60000,
+        active_ms: 2000, edge_ms: 0, light_ms: 0, strong_ms: 20000, /* DEFAULT_EDGE_MS, _LIGHT_MS, _STRONG_MS */
+        fast_limit: 4,               /* DEFAULT_FAST_LIMIT */
     },
     power_off_ms: 4000,              /* DEFAULT_POWER_OFF_MS */
     state: new_state(),
@@ -1216,7 +1225,7 @@ const CONFIG_FIELDS = [
     ["weights.1", "trọng số TEXT"], ["weights.2", "trọng số UI"], ["weights.3", "trọng số PAGE"],
     ["marks_edges.1", "cờ viền TEXT (0/1)"], ["marks_edges.2", "cờ viền UI (0/1)"], ["marks_edges.3", "cờ viền PAGE (0/1)"], ["auto_ui_percent", "auto_ui_percent"],
     ["debt_light", "debt_light"], ["debt_page", "debt_page"], ["debt_ceiling", "debt_ceiling"], ["debt_ceiling_max", "debt_ceiling_max"],
-    ["active_ms", "active_ms"], ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["power_off_ms", "(vỏ) power_off_ms"],
+    ["active_ms", "active_ms"], ["edge_ms", "edge_ms"], ["light_ms", "light_ms"], ["strong_ms", "strong_ms"], ["fast_limit", "fast_limit"], ["power_off_ms", "(vỏ) power_off_ms"],
 ];
 
 function config_value(key)
@@ -1351,7 +1360,7 @@ function expect_less_or_equal(threshold, actual) { if (!(actual <= threshold)) {
 function default_config()
 {
     return {width: WIDTH, height: HEIGHT, x_align: 8, weights: [0, 1, 2, 1], marks_edges: [false, true, true, true], auto_ui_percent: 10, debt_light: 2, debt_page: 6,
-        debt_ceiling: 8, debt_ceiling_max: 15, active_ms: 2000, edge_ms: 2000, light_ms: 10000, strong_ms: 60000};
+        debt_ceiling: 8, debt_ceiling_max: 15, active_ms: 2000, edge_ms: 2000, light_ms: 10000, strong_ms: 60000, fast_limit: 4};
 }
 
 function set_black(frame, x, y) { frame[y * ROW_BYTES + Math.floor(x / 8)] &= ~(0x80 >> (x % 8)) & 0xFF; }

@@ -24,10 +24,12 @@ static const char *TAG = "ink_display";
 #define DEFAULT_DEBT_CEILING     8
 #define DEFAULT_DEBT_CEILING_MAX 15
 #define DEFAULT_ACTIVE_MS        2000
-#define DEFAULT_EDGE_MS          2000
-#define DEFAULT_LIGHT_MS         10000
-#define DEFAULT_STRONG_MS        60000
-#define DEFAULT_POWER_OFF_MS     4000
+/* NOTE: stages 1-2 off by default: on BB0 (2026-11-12) cleanup edge left grey columns that cleanup strong did not fully erase. */
+#define DEFAULT_EDGE_MS      0
+#define DEFAULT_LIGHT_MS     0
+#define DEFAULT_STRONG_MS    20000
+#define DEFAULT_POWER_OFF_MS 4000
+#define DEFAULT_FAST_LIMIT   4
 
 #define DEFAULT_CELSIUS     25    /* sensor not read yet */
 #define MIN_TRUSTED_CELSIUS (-10) /* readings outside this range are treated as sensor errors */
@@ -100,6 +102,7 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
         .light_ms         = DEFAULT_LIGHT_MS,
         .strong_ms        = DEFAULT_STRONG_MS,
         .power_off_ms     = DEFAULT_POWER_OFF_MS,
+        .fast_limit       = DEFAULT_FAST_LIMIT,
     };
     if (capabilities == nullptr || capabilities->draw_defaults == nullptr || capabilities->cleanup_defaults == nullptr) { return options; }
     static const uint8_t debt_weights[INK_DISPLAY_INTENT_COUNT] = {
@@ -135,6 +138,7 @@ static ink_display_policy_config_t policy_config(const ink_hal_display_capabilit
         .edge_ms          = options->edge_ms,
         .light_ms         = options->light_ms,
         .strong_ms        = options->strong_ms,
+        .fast_limit       = options->fast_limit,
     };
     for (int intent = INK_DISPLAY_INTENT_TEXT; intent < INK_DISPLAY_INTENT_COUNT; intent++) {
         config.debt_weights[intent] = options->draw_presets[intent].debt_weight;

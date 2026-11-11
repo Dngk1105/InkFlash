@@ -34,9 +34,10 @@ static size_t pixel_count(const ink_display_policy_config_t *config) {
     return (size_t)config->width * config->height;
 }
 
-/* Every pixel: debt 0, no edge flag; restart the cleanup stages. */
+/* Every pixel: debt 0, no edge flag; restart the cleanup stages and the cleanup fast count. */
 static void clear_pixels(ink_display_policy_state_t *state) {
     memset(state->priv.pixel_state, 0, pixel_count(&state->priv.config));
+    state->priv.fast_count    = 0;
     state->priv.flagged_count = 0;
     state->priv.max_debt      = 0;
 }
@@ -441,17 +442,25 @@ static ink_display_policy_decision_t decision_fast(ink_display_rect_t window) {
     };
 }
 
-static void decide_fast(ink_display_policy_state_t *state, ink_display_rect_t window, ink_display_policy_decision_t *out_decision) {
-    state->priv.fast_window = window;
-    *out_decision           = decision_fast(window);
-}
-
 /* Whole-panel cleanup strong with an inverted old plane; all debt and edge flags back to 0. */
 static void decide_clean(ink_display_policy_state_t *state, ink_display_cleanup_t cleanup, ink_display_policy_decision_t *out_decision) {
     clear_pixels(state);
     state->priv.shown_valid = true;
     state->priv.after_wake  = false;
     *out_decision           = decision_cleanup(cleanup, whole_screen(&state->priv.config));
+}
+
+/* Cleanup fast, or cleanup strong once fast_limit cleanup fast ran since the last cleanup strong: cleanup fast zeroes
+ * debt without fully cleaning, so only cleanup strong may reset the count. */
+static void decide_fast(ink_display_policy_state_t *state, ink_display_rect_t window, ink_display_policy_decision_t *out_decision) {
+    const uint8_t limit = state->priv.config.fast_limit;
+    if (limit != 0 && state->priv.fast_count >= limit) {
+        decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
+        return;
+    }
+    state->priv.fast_count++;
+    state->priv.fast_window = window;
+    *out_decision           = decision_fast(window);
 }
 
 static bool has_dirt(const ink_display_policy_state_t *state) {
