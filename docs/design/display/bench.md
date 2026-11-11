@@ -64,7 +64,7 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `0A` | SET_OPTIONS | options của `ink_display`, cùng bố cục với khối options trong INFO. Chỉ đường pipeline |
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần cleanup strong) |
 | `0C` | OTP_DUMP | trống; trả các gói OTP rồi ACK. Chỉ đường raw |
-| `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau; rồi (không bắt buộc) số frame từ lúc tắt source tới lúc tắt gate khi POF (lệnh PFS `0x03`, 1–4). Máy khởi động lại thì về `0A`, theo profile, 1 frame. Cả hai đường |
+| `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau; rồi (không bắt buộc) số frame từ lúc tắt source tới lúc tắt gate khi POF (lệnh PFS `0x03`, 1–4); rồi (không bắt buộc) hướng quét gate: 0 = quét lên (UD = 1, mặc định), 1 = quét xuống (UD = 0), có tác dụng từ lần vẽ sau. Đổi hướng quét thì ảnh lật trên dưới và RAM không còn khớp với panel, nên lần vẽ sau phải là cả màn với old plane đảo bit. Máy khởi động lại thì về `0A`, theo profile, 1 frame, quét lên. Cả hai đường |
 
 Khối options (trong SET_OPTIONS và INFO): số thứ tự bản ghi là giá trị enum. Trước hết 4 bản ghi draw theo
 `ink_display_intent_t` (`AUTO`, `TEXT`, `UI`, `PAGE`; `AUTO` không dùng), rồi 6 bản ghi cleanup theo
@@ -79,7 +79,7 @@ Gói máy gửi lên:
 | Loại | Tên | Payload |
 |---|---|---|
 | `80` | ACK | mã lỗi (4) |
-| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối options đang dùng; rồi byte 2 của PSR, VCOM_DC thay thế và số frame PFS đang đặt |
+| `81` | INFO | đường, rộng (2), cao (2), x_align, số slot, số profile (gồm profile tạm ở cuối), bản firmware (độ dài + chữ), rồi mỗi profile: id (2), thời gian một lần vẽ ms (2), nguồn (0–8 = TR0–TR8, 255 = vẽ tay), tên (độ dài + chữ); rồi khối options đang dùng; rồi byte 2 của PSR, VCOM_DC thay thế, số frame PFS và hướng quét gate (1 = quét xuống) đang đặt |
 | `82` | DRAWN | slot, việc đã làm (`ink_display_action_t`), `intent` (255 khi không phải DRAW), nhiệt độ, nhiệt độ hợp lệ, debt lớn nhất, debt ceiling, frame (1 = lần vẽ một frame đã giao, 0 = cleanup hoặc tắt nguồn), id profile (2), `cleanup` (1; `INVALID` = 0 khi không phải CLEANUP), 0 (1), lỗi (4), x, y, rộng, cao (2 mỗi số), số điểm có edge flag, input ms, queue ms, decide ms, spi µs, panel µs, post-scan µs, bật nguồn µs (4 mỗi số) |
 | `83` | GESTURE | modifier, nút, loại gesture, 0, thời điểm edge ms (4) |
 | `84` | TEMP | °C, 0, 0, 0, lỗi (4) |

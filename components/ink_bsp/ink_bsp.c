@@ -111,6 +111,15 @@ uint8_t ink_bsp_display_vcom_override(void) {
     return ink_drv_uc8253_vcom_override(&s_display_driver);
 }
 
+esp_err_t ink_bsp_display_set_scan_down(bool scan_down) {
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
+    return ink_drv_uc8253_set_scan_down(&s_display_driver, scan_down);
+}
+
+bool ink_bsp_display_scan_down(void) {
+    return ink_drv_uc8253_scan_down(&s_display_driver);
+}
+
 esp_err_t ink_bsp_display_set_power_off_frames(uint8_t frames) {
     ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
     return ink_drv_uc8253_set_power_off_frames(&s_display_driver, frames);

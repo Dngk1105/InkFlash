@@ -61,6 +61,7 @@ typedef struct {
     bool                            ram_swapped;       /**< odd DRF count since reset: 0x10 is the NEW area */
     bool                            needs_reset;       /**< previous draw failed midway: RAM swap state unknown */
     uint8_t                         psr_second;        /**< PSR byte 2 sent to the controller */
+    bool                            scan_down;         /**< PSR byte 1 UD = 0 sent: gates scan down */
     uint8_t                         power_off_frames;  /**< PFS sent: frames from source off to gate off */
     uint8_t                         vcom_override;     /**< command 0x82 byte replacing the profile's; 0xFF = none */
 
@@ -73,6 +74,8 @@ typedef struct {
     char                     temporary_name[INK_DRV_UC8253_NAME_BYTES];
     bool                     psr_second_pending;
     uint8_t                  psr_second_request;
+    bool                     scan_down_pending;
+    bool                     scan_down_request;
     bool                     power_off_frames_pending;
     uint8_t                  power_off_frames_request;
     bool                     vcom_override_pending;
@@ -148,6 +151,24 @@ esp_err_t ink_drv_uc8253_set_vcom_override(ink_drv_uc8253_t *driver, uint8_t val
  * @return VCOM_DC byte, or INK_DRV_UC8253_VCOM_FROM_PROFILE.
  */
 uint8_t ink_drv_uc8253_vcom_override(ink_drv_uc8253_t *driver);
+
+/**
+ * @brief Set the gate scan direction (PSR byte 1 bit UD); sent to the controller before the next draw. Default false
+ *        (scan up, UD = 1). The image then lands mirrored top to bottom, and the next draw must drive every pixel.
+ *        Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_ARG driver is NULL.
+ */
+esp_err_t ink_drv_uc8253_set_scan_down(ink_drv_uc8253_t *driver, bool scan_down);
+
+/**
+ * @brief Get the scan direction set most recently, even if not yet sent to the controller.
+ * @par Called from
+ * Any task.
+ * @return true = scan down (UD = 0).
+ */
+bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver);
 
 /**
  * @brief Set the frames from source off to gate off at POF (PFS command `0x03`); sent to the controller before the

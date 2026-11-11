@@ -101,6 +101,23 @@ esp_err_t ink_bsp_display_set_vcom_override(uint8_t value);
 uint8_t ink_bsp_display_vcom_override(void);
 
 /**
+ * @brief Set the display gate scan direction, effective from the next draw; the image lands mirrored top to bottom.
+ *        Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_STATE not initialized.
+ */
+esp_err_t ink_bsp_display_set_scan_down(bool scan_down);
+
+/**
+ * @brief Get the display gate scan direction set most recently.
+ * @par Called from
+ * Any task, after ink_bsp_init.
+ * @return true = scan down (UD = 0); false = scan up, the default.
+ */
+bool ink_bsp_display_scan_down(void);
+
+/**
  * @brief Set the frames from source off to gate off at display power off (1-4), effective from the next draw or power off.
  *        Bench firmware only.
  * @par Called from

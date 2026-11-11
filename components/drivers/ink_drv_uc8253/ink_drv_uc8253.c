@@ -39,6 +39,7 @@ static const char *TAG = "ink_drv_uc8253";
 
 /* PSR as in GxEPD2: KW, scan up, shift right; REG bit (D5) = 1 selects register LUTs for every draw. */
 #define PSR_REGISTER   0x3F
+#define PSR_UD         0x08 /* PSR byte 1 D3: 1 = scan up (default), 0 = scan down (commands.md) */
 #define PSR_SOFT_RESET 0x1E /* RST_N (D0) = 0: soft reset; image RAM becomes garbage (image-memory.md) */
 
 #define PWR_SOURCE_INTERNAL 0x03 /* PWR byte 1: internal power, default value (commands.md) */
@@ -180,6 +181,7 @@ static esp_err_t read_after_command(ink_drv_uc8253_t *driver, uint8_t command, b
 
 /* PSR (0x00): byte 1 selects the waveform source and soft reset; byte 2 is driver->psr_second. */
 static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
+    if (driver->scan_down) { setting &= (uint8_t)~PSR_UD; }
     const uint8_t psr[2] = {setting, driver->psr_second};
     return send_command(driver, CMD_PSR, psr, sizeof(psr));
 }
@@ -352,6 +354,21 @@ static esp_err_t apply_psr_second(ink_drv_uc8253_t *driver) {
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
+/* Scan direction set by another task: sent before a draw. */
+static esp_err_t apply_scan_down(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool pending        = driver->scan_down_pending;
+    const bool value          = driver->scan_down_request;
+    driver->scan_down_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->scan_down) { return ESP_OK; }
+    driver->scan_down = value;
+    /* WARN: image RAM rows now land on mirrored panel rows, so RAM no longer matches what the panel shows; the next
+     * draw must drive every pixel (whole panel, inverted old plane). */
+    driver->ram_trusted = false;
+    return send_panel_setting(driver, PSR_REGISTER);
+}
+
 /* PFS set by another task: sent before a draw or POF. */
 static esp_err_t apply_power_off_frames(ink_drv_uc8253_t *driver) {
     taskENTER_CRITICAL(&driver->request_lock);
@@ -408,6 +425,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
     if (driver->needs_reset) { ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset"); }
     apply_temporary(driver);
     ESP_RETURN_ON_ERROR(apply_psr_second(driver), TAG, "psr");
+    ESP_RETURN_ON_ERROR(apply_scan_down(driver), TAG, "ud");
     ESP_RETURN_ON_ERROR(apply_power_off_frames(driver), TAG, "pfs");
     apply_vcom_override(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
@@ -550,6 +568,22 @@ esp_err_t ink_drv_uc8253_set_psr_second(ink_drv_uc8253_t *driver, uint8_t value)
 uint8_t ink_drv_uc8253_psr_second(ink_drv_uc8253_t *driver) {
     taskENTER_CRITICAL(&driver->request_lock);
     const uint8_t value = driver->psr_second_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
+}
+
+esp_err_t ink_drv_uc8253_set_scan_down(ink_drv_uc8253_t *driver, bool scan_down) {
+    ESP_RETURN_ON_FALSE(driver, ESP_ERR_INVALID_ARG, TAG, "ud");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->scan_down_request = scan_down;
+    driver->scan_down_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool value = driver->scan_down_request;
     taskEXIT_CRITICAL(&driver->request_lock);
     return value;
 }

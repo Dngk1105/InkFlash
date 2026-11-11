@@ -77,6 +77,8 @@
                     <select id="vcom-override"></select>
                     <label for="power-off-frames">PFS (lệnh <code>0x03</code>): tắt gate sau source</label>
                     <select id="power-off-frames"><option value="1">1 khung (mặc định)</option><option value="2">2 khung</option><option value="3">3 khung</option><option value="4">4 khung</option></select>
+                    <label for="scan-down">Hướng quét gate (PSR byte 1, bit UD)</label>
+                    <select id="scan-down"><option value="0">Quét lên, UD = 1 (mặc định)</option><option value="1">Quét xuống, UD = 0: ảnh lật trên dưới</option></select>
                 </div>
                 <div class="row">
                     <button id="apply-psr-second">Đặt</button>
