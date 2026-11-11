@@ -7,6 +7,10 @@
 
 #define MAX_LINES 32 /* lines kept per layout; text beyond is treated as cut. NOTE: layout_t lives on the caller's stack */
 
+/* Longest line in bytes, with the NUL; U8g2 takes NUL-terminated strings, so each line is copied to the stack first.
+ * 255 bytes = 85 Vietnamese characters of 3 bytes; a 416 px line holds 52 characters of the 16 px font. */
+#define SPAN_BYTES 256
+
 /* One line: bytes [start, start + length) of the text, without the space or newline that ended it. */
 typedef struct {
     const char *start;
@@ -32,14 +36,26 @@ static size_t utf8_char_len(char first) {
     return 1;
 }
 
-/* Measure the width in px of a UTF-8 text span of length bytes using the backend. */
+/* Copy bytes [text, text + length) into `buffer` as a NUL-terminated string. A span that does not fit `capacity` is
+ * cut at a UTF-8 character boundary, never inside a character. Returns the bytes copied, without the NUL. */
+static size_t copy_span(char *buffer, size_t capacity, const char *text, size_t length) {
+    if (length >= capacity) {
+        length = capacity - 1;
+        while (length > 0 && ((uint8_t)text[length] & 0xC0) == 0x80) { length--; }
+    }
+    memcpy(buffer, text, length);
+    buffer[length] = '\0';
+    return length;
+}
+
+/* Width in px of a UTF-8 span in the selected font. A span too long for one line buffer reports INT16_MAX, so the
+ * line breaker never keeps a line that draw_line() could not copy whole. */
 static int16_t measure_span(ink_ui_canvas_t *canvas, const char *text, size_t length) {
     if (length == 0) { return 0; }
-    char buf[128];
-    if (length >= sizeof(buf)) { length = sizeof(buf) - 1; }
-    memcpy(buf, text, length);
-    buf[length] = '\0';
-    return (int16_t)u8g2_GetUTF8Width(&ui_screen(canvas)->u8g2, buf);
+    if (length >= SPAN_BYTES) { return INT16_MAX; }
+    char span[SPAN_BYTES];
+    copy_span(span, sizeof(span), text, length);
+    return (int16_t)u8g2_GetUTF8Width(&ui_screen(canvas)->u8g2, span);
 }
 
 /* Select `font` in the backend: transparent glyph background, y = top of the line. */
@@ -102,11 +118,10 @@ static void break_lines(ink_ui_canvas_t *canvas, const char *text, int16_t max_w
                 if (last_end != nullptr) {
                     next_line = word_start;
                 } else {
-                    const char *cp      = word_start;
-                    const char *prev_cp = cp;
+                    const char *cp = word_start;
                     cp += utf8_char_len(*cp);
-                    prev_cp   = cp;
-                    int16_t w = measure_span(canvas, word_start, (size_t)(cp - word_start));
+                    const char *prev_cp = cp;
+                    int16_t     w       = measure_span(canvas, word_start, (size_t)(cp - word_start));
 
                     while (*cp != '\0' && *cp != ' ' && *cp != '\n') {
                         const size_t  char_len = utf8_char_len(*cp);
@@ -244,22 +259,14 @@ static void draw_line(ink_ui_canvas_t *canvas, const line_t *line, int16_t left,
 
     if (cx1 > cx0 && cy1 > cy0) { u8g2_SetClipWindow(u8g2, (u8g2_uint_t)cx0, (u8g2_uint_t)cy0, (u8g2_uint_t)cx1, (u8g2_uint_t)cy1); }
 
-    char   buf[128];
-    size_t len = line->length;
-    if (with_ellipsis) {
-        const char  *ellipsis = u8g2_IsGlyph(u8g2, 0x2026) ? "\xE2\x80\xA6" : "...";
-        const size_t elen     = strlen(ellipsis);
-        if (len + elen >= sizeof(buf)) { len = sizeof(buf) - 1 - elen; }
-        memcpy(buf, line->start, len);
-        memcpy(buf + len, ellipsis, elen);
-        buf[len + elen] = '\0';
-    } else {
-        if (len >= sizeof(buf)) { len = sizeof(buf) - 1; }
-        memcpy(buf, line->start, len);
-        buf[len] = '\0';
-    }
+    const char  *ellipsis        = u8g2_IsGlyph(u8g2, 0x2026) ? "\xE2\x80\xA6" : "...";
+    const size_t ellipsis_length = with_ellipsis ? strlen(ellipsis) : 0;
+    char         span[SPAN_BYTES];
+    const size_t copied = copy_span(span, sizeof(span) - ellipsis_length, line->start, line->length);
+    memcpy(span + copied, ellipsis, ellipsis_length);
+    span[copied + ellipsis_length] = '\0';
 
-    u8g2_DrawUTF8(u8g2, (u8g2_uint_t)x, (u8g2_uint_t)top, buf);
+    u8g2_DrawUTF8(u8g2, (u8g2_uint_t)x, (u8g2_uint_t)top, span);
     u8g2_SetClipWindow(u8g2, old_x0, old_y0, old_x1, old_y1);
 }
 

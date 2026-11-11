@@ -226,6 +226,54 @@ static void test_draw_pixels_only_inside_rect(void) {
     TEST_ASSERT_TRUE(changed);
 }
 
+/* Purpose: a line longer than 127 bytes must be measured and drawn whole; 3-byte Vietnamese characters reach that
+ * length on a canvas rotated to 416 px.
+ * Does: rotates the canvas by 90 degrees, lays out 50 copies of one 3-byte character (150 bytes, no space) in 416 px
+ * and checks that the result is one line 50 characters wide, measured and drawn alike. */
+static void test_line_longer_than_127_bytes_stays_whole(void) {
+    static uint8_t  frame[FRAME_BYTES];
+    ink_ui_canvas_t canvas;
+    TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info, INK_UI_ROTATION_90));
+    memset(frame, 0xFF, sizeof(frame));
+    ink_ui_canvas_bind(&canvas, frame);
+
+    const ink_ui_text_style_t style         = {.font = &ink_ui_font_unifont_vi_16};
+    const char               *one_character = "\xE1\xBA\xBF"; /* U+1EBF */
+    char                      text[50 * 3 + 1];
+    for (int i = 0; i < 50; i++) { memcpy(text + i * 3, one_character, 3); }
+    text[50 * 3] = '\0';
+
+    const ink_ui_size_t one      = ink_ui_text_measure(&canvas, one_character, PANEL_HEIGHT, &style);
+    const ink_ui_size_t measured = ink_ui_text_measure(&canvas, text, PANEL_HEIGHT, &style);
+    TEST_ASSERT_TRUE(one.width > 0);
+    TEST_ASSERT_EQUAL_INT16(50 * one.width, measured.width);
+    TEST_ASSERT_EQUAL_INT16(one.height, measured.height);
+
+    const ink_ui_rect_t rect  = {.x = 0, .y = 0, .width = PANEL_HEIGHT, .height = 32};
+    const ink_ui_size_t drawn = ink_ui_text_draw(&canvas, rect, text, &style, INK_UI_PAINT_BLACK);
+    TEST_ASSERT_EQUAL_INT16(measured.width, drawn.width);
+    TEST_ASSERT_EQUAL_INT16(measured.height, drawn.height);
+}
+
+/* Purpose: a word with no break point that is longer than one line buffer (255 bytes) must still be laid out without
+ * cutting a UTF-8 character.
+ * Does: lays out 120 copies of one 3-byte character (360 bytes) in 240 px and checks every line is at most 240 px
+ * wide and a whole number of characters wide. */
+static void test_word_longer_than_line_buffer_breaks_cleanly(void) {
+    const ink_ui_text_style_t style         = {.font = &ink_ui_font_unifont_vi_16};
+    const char               *one_character = "\xE1\xBA\xBF";
+    char                      text[120 * 3 + 1];
+    for (int i = 0; i < 120; i++) { memcpy(text + i * 3, one_character, 3); }
+    text[120 * 3] = '\0';
+
+    const ink_ui_size_t one      = ink_ui_text_measure(&s_canvas, one_character, PANEL_WIDTH, &style);
+    const ink_ui_size_t measured = ink_ui_text_measure(&s_canvas, text, PANEL_WIDTH, &style);
+    const int16_t       per_line = (int16_t)(PANEL_WIDTH / one.width);
+    const int16_t       lines    = (int16_t)((120 + per_line - 1) / per_line);
+    TEST_ASSERT_EQUAL_INT16(per_line * one.width, measured.width);
+    TEST_ASSERT_EQUAL_INT16(lines * one.height, measured.height);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_line_height_positive);
@@ -237,5 +285,7 @@ int main(void) {
     RUN_TEST(test_draw_capped_by_rect_height);
     RUN_TEST(test_draw_matches_measure_when_fits);
     RUN_TEST(test_draw_pixels_only_inside_rect);
+    RUN_TEST(test_line_longer_than_127_bytes_stays_whole);
+    RUN_TEST(test_word_longer_than_line_buffer_breaks_cleanly);
     return UNITY_END();
 }
