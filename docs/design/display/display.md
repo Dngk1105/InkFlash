@@ -147,7 +147,7 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 | Preset | Dùng cho | Old plane | Window |
 |---|---|---|---|
 | Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
-| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
+| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, lần cleanup fast thứ `fast_limit` + 1, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
 | `CLEANUP_FAST` | Vượt debt ceiling trong active period; frame có flag `REDRAW_WINDOW` | Frame mới, đảo bit ở pixel có debt hoặc edge flag trong changed window (gồm pixel frame này đổi) | Bao các pixel đó |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
@@ -186,8 +186,8 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
-| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó |
-| 6 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
+| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó. Đã đủ `fast_limit` lần cleanup fast thì cleanup strong |
+| 6 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn), hoặc cleanup strong nếu đã đủ `fast_limit` lần cleanup fast; ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
 | 7 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
 | 8 | Còn lại | Preset của intent, chỉ changed window |
 
@@ -223,6 +223,11 @@ tâm (center); các pixel kề cạnh tâm được xử lý ở cleanup edge ne
 `debt_ceiling_max`, để người dùng ít bị ngắt giữa chừng; vượt ceiling trong active period thì cleanup fast thay cho
 cleanup strong. Idle quá `active_ms` thì debt ceiling về `debt_ceiling`.
 
+**Cleanup strong là cách làm sạch chính.** Cleanup fast đưa debt của pixel nó kéo về 0, nhưng không làm sạch bằng
+cleanup strong: mực vẫn có thể lệch điện áp. Vì vậy policy đếm số lần cleanup fast từ lần cleanup strong gần nhất. Đã
+đủ `fast_limit` lần thì lần cần cleanup fast tiếp theo (dòng 5 và 6 của bảng decision) chạy cleanup strong, kể cả
+trong active period. Mọi cleanup strong đưa bộ đếm về 0.
+
 Deep sleep làm mất PSRAM, và RTC memory (8 KB slow + 8 KB fast) không chứa nổi 100 KB. Vì vậy panel phải sạch trước khi ngủ (flag
 `BEFORE_SLEEP`), và sau wake mọi pixel bắt đầu với debt 0, đúng với panel thật.
 
@@ -244,6 +249,10 @@ bắt đầu lại. Idle càng lâu thì cleanup càng mạnh, vì người dùn
 | 2 | Idle `light_ms`, debt lớn nhất ≥ `debt_light` | Cleanup light các pixel có debt ≥ `debt_light`; debt của chúng về 0 | DRF dưới 100 ms |
 | 3 | Idle `strong_ms`, còn debt hoặc còn edge flag | Cleanup strong một lần; mọi debt và edge flag về 0 | Theo band nhiệt độ |
 
+- Mặc định chỉ stage 3 chạy, sau 20 s idle; stage 1 và 2 có thời gian 0 nên không chạy. Đo trên BB0 (2026-11-12): sau
+  cleanup edge, các vùng đen và vùng dither có vệt xám dạng cột dọc, và một lần cleanup strong không xoá hết vệt đó.
+  Profile của hai stage này kéo về màu đích quá ngắn ở cuối (`clean_edge` 10 ms, `clean_light` 20 ms), nên pixel
+  không về đủ đen hoặc đủ trắng.
 - Mỗi stage chạy tối đa một lần trong một idle period. Stage có thời gian 0 thì bỏ.
 - DRF không ngắt được. Frame mới tới giữa hai cleanup thì dừng các stage và vẽ frame đó. Lần lật trùng lúc cleanup
   chậm thêm tối đa một DRF cleanup, nên profile của cleanup edge neighbor và cleanup light phải có DRF dưới 100 ms.
@@ -420,7 +429,8 @@ sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_s
 | `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Debt ceiling sau idle, và debt ceiling lớn nhất trong active period | 8, 15 |
 | `active_ms` | Frame tới trong khoảng này sau frame trước là active period: debt ceiling tăng 1, vượt ceiling thì cleanup fast; 0 = tắt | 2 s |
-| `edge_ms`, `light_ms`, `strong_ms` | Thời gian idle của ba cleanup stage; 0 = bỏ stage đó | 2 s, 10 s, 60 s |
+| `edge_ms`, `light_ms`, `strong_ms` | Thời gian idle của ba cleanup stage; 0 = bỏ stage đó | 0, 0, 20 s (stage 1–2 tắt, xem mục "Cleanup khi idle") |
+| `fast_limit` | Số lần cleanup fast tối đa giữa hai lần cleanup strong; 0 = không giới hạn | 4 |
 | `power_off_ms` | Không có DRF trong khoảng này thì tắt analog power; 0 = chỉ tắt trước khi ngủ | 4 s |
 
 Các mặc định về debt và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.
