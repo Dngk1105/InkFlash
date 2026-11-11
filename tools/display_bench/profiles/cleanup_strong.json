@@ -1,6 +1,6 @@
 {
  "design": "docs/design/display/display.md",
- "about": "Ứng viên cleanup strong cho bài 'Cleanup strong mạnh hơn' của bench: bảng TR4 (20–30 °C) chèn thêm chu kỳ lắc trước pha cuối, mọi điểm đều bị kéo như OTP, DRF dưới 4 s. Sinh .inkw: python tools/profile_gen.py --source tools/display_bench/profiles/cleanup_strong.json --blob <tên> -o tools/display_bench/profiles/<tên>.inkw",
+ "about": "Ứng viên cleanup strong cho bài 'Cleanup strong mạnh hơn' của bench: bảng TR4 (20–30 °C) chèn thêm chu kỳ lắc trước pha cuối. Chu kỳ lắc giống hệt nhau ở cả bốn bảng (mọi pixel lắc cùng chiều, như pha giữa của TR4), để pixel cạnh nhau không mang điện áp ngược dấu: bản lắc ngược chiều (id 30–33) làm nhoè dither trên BB0 ngày 2026-11-12. DRF dưới 4 s. Sinh .inkw: python tools/profile_gen.py --source tools/display_bench/profiles/cleanup_strong.json --blob <tên> -o tools/display_bench/profiles/<tên>.inkw",
  "otp": "otp_bb0.hex",
  "retired_ids": [
   10,
@@ -215,8 +215,8 @@
    }
   },
   {
-   "id": 30,
-   "name": "strong_1x30",
+   "id": 34,
+   "name": "sp_1x30",
    "base": "TR4",
    "frame_rate_hz": 50,
    "tables": {
@@ -298,20 +298,12 @@
     ],
     "WK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -326,7 +318,15 @@
       30
      ],
      [
+      "0",
+      2
+     ],
+     [
       "VSL",
+      30
+     ],
+     [
+      "VSH",
       30
      ],
      [
@@ -336,20 +336,12 @@
     ],
     "KK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -364,7 +356,15 @@
       30
      ],
      [
+      "0",
+      2
+     ],
+     [
       "VSL",
+      30
+     ],
+     [
+      "VSH",
       30
      ],
      [
@@ -375,8 +375,8 @@
    }
   },
   {
-   "id": 31,
-   "name": "strong_2x15",
+   "id": 35,
+   "name": "sp_2x15",
    "base": "TR4",
    "frame_rate_hz": 50,
    "tables": {
@@ -474,20 +474,12 @@
     ],
     "WK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -499,7 +491,11 @@
      ],
      [
       "VSH",
-      15
+      30
+     ],
+     [
+      "0",
+      2
      ],
      [
       "VSL",
@@ -511,6 +507,10 @@
      ],
      [
       "VSL",
+      15
+     ],
+     [
+      "VSH",
       15
      ],
      [
@@ -520,20 +520,12 @@
     ],
     "KK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -545,7 +537,11 @@
      ],
      [
       "VSH",
-      15
+      30
+     ],
+     [
+      "0",
+      2
      ],
      [
       "VSL",
@@ -557,6 +553,10 @@
      ],
      [
       "VSL",
+      15
+     ],
+     [
+      "VSH",
       15
      ],
      [
@@ -567,8 +567,8 @@
    }
   },
   {
-   "id": 32,
-   "name": "strong_3x10",
+   "id": 36,
+   "name": "sp_3x10",
    "base": "TR4",
    "frame_rate_hz": 50,
    "tables": {
@@ -682,20 +682,12 @@
     ],
     "WK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -707,7 +699,11 @@
      ],
      [
       "VSH",
-      10
+      30
+     ],
+     [
+      "0",
+      2
      ],
      [
       "VSL",
@@ -727,6 +723,10 @@
      ],
      [
       "VSL",
+      10
+     ],
+     [
+      "VSH",
       10
      ],
      [
@@ -736,20 +736,12 @@
     ],
     "KK": [
      [
+      "0",
+      20
+     ],
+     [
       "VSL",
       20
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -761,7 +753,11 @@
      ],
      [
       "VSH",
-      10
+      30
+     ],
+     [
+      "0",
+      2
      ],
      [
       "VSL",
@@ -781,6 +777,10 @@
      ],
      [
       "VSL",
+      10
+     ],
+     [
+      "VSH",
       10
      ],
      [
@@ -791,8 +791,8 @@
    }
   },
   {
-   "id": 33,
-   "name": "strong_1x15t30",
+   "id": 37,
+   "name": "sp_1x15t30",
    "base": "TR4",
    "frame_rate_hz": 50,
    "tables": {
@@ -803,7 +803,7 @@
      ],
      [
       "0",
-      20
+      30
      ],
      [
       "VSL",
@@ -841,7 +841,7 @@
      ],
      [
       "0",
-      20
+      30
      ],
      [
       "VSL",
@@ -874,20 +874,12 @@
     ],
     "WK": [
      [
+      "0",
+      30
+     ],
+     [
       "VSL",
       30
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -899,10 +891,18 @@
      ],
      [
       "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
       15
      ],
      [
-      "VSL",
+      "VSH",
       15
      ],
      [
@@ -912,20 +912,12 @@
     ],
     "KK": [
      [
+      "0",
+      30
+     ],
+     [
       "VSL",
       30
-     ],
-     [
-      "0",
-      20
-     ],
-     [
-      "VSH",
-      30
-     ],
-     [
-      "0",
-      2
      ],
      [
       "VSL",
@@ -937,10 +929,18 @@
      ],
      [
       "VSH",
+      30
+     ],
+     [
+      "0",
+      2
+     ],
+     [
+      "VSL",
       15
      ],
      [
-      "VSL",
+      "VSH",
       15
      ],
      [
