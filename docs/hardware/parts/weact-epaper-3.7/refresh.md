@@ -157,6 +157,19 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl` ở nhánh `ben
 | Bài "VCOM và vùng đứng yên", đổi PFS (`0x03`) 1–4 khung | `tr8`, PSR byte 2 `0x0A` | Không phân biệt được bằng mắt. Driver giữ 1 khung (mặc định) |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
+## Đo cleanup trên BB0, 2026-11-12
+
+Nhìn bằng mắt và chụp ảnh. Profile ứng viên ở `tools/display_bench/profiles/cleanup_strong.json` (nhánh `bench`).
+
+| Bài | Cấu hình | Kết quả |
+|---|---|---|
+| Màn vẽ thử `ink_demo`, nghỉ qua cleanup edge | `clean_full100` (center), `clean_edge` (neighbor) | Vùng đen và vùng dither có vệt xám dạng cột dọc; một lần cleanup strong sau đó không xoá hết vệt |
+| Trang mới vẽ bằng `PAGE`, không cờ `REDRAW_WINDOW`, ô đen đè lên chỗ trang trước có chữ | `tr8`, chế độ partial | Chữ của trang trước hiện mờ trong ô đen |
+| Bài "Cleanup strong mạnh hơn": lật hai ô đen trên chữ 20 lần bằng `lut10f50`, rồi cleanup strong | `tr4` so với `tr4` chèn thêm chu kỳ lắc (DRF 3,5–3,7 s) | Không khác nhau: `tr4` đã xoá sạch bóng ô và chữ cũ |
+| Dải xám dither sau cleanup strong | `tr4` chèn chu kỳ lắc ngược chiều giữa pixel về trắng và pixel về đen | Dither nhoè thành xám nhạt: pixel cạnh nhau mang điện áp ngược dấu suốt các chu kỳ thêm |
+| Như trên | `tr4` chèn chu kỳ lắc cùng chiều ở cả bốn bảng | Không khác `tr4`. Cleanup strong giữ `tr4` |
+| Khối đen cả chiều dài panel | `tr4` và mọi ứng viên | Đen nhạt dần về phía cạnh có cáp FPC, như nhau ở mọi profile. Chưa rõ do góc nhìn và đèn hay do phần điện |
+
 ## Khuyến nghị trong spec
 
 
