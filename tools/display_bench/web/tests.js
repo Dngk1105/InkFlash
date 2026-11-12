@@ -595,7 +595,10 @@ export const TESTS = [
         name: 'Dải xám dither',
         path: 'raw',
         description: 'Một khung có dải xám từ trắng tới đen, mỗi dải một cách dither, vẽ cả màn bằng mặt phẳng cũ đảo bit. Chấm cách nào trông mịn nhất.',
-        params: [{key: 'profile', label: 'Profile', type: 'profile', value: 'tr4'}],
+        params: [
+            {key: 'profile', label: 'Profile', type: 'profile', value: 'tr4'},
+            {key: 'reverse', label: 'Đảo chiều dải: 0 = trắng bên trái, 1 = đen bên trái', value: 0, min: 0, max: 1},
+        ],
         build(values, orientation) {
             const {width, height} = viewSize(orientation);
             const methods = [DitherMethod.THRESHOLD, DitherMethod.FLOYD_STEINBERG, DitherMethod.ATKINSON, DitherMethod.BAYER_4, DitherMethod.BAYER_8];
@@ -604,7 +607,10 @@ export const TESTS = [
             methods.forEach((method, index) => {
                 const gray = new Float32Array(width * height).fill(1);
                 for (let y = index * band; y < (index + 1) * band - 2; y++) {
-                    for (let x = 0; x < width; x++) { gray[y * width + x] = 1 - x / (width - 1); }
+                    for (let x = 0; x < width; x++) {
+                        const ramp = x / (width - 1);
+                        gray[y * width + x] = values.reverse ? ramp : 1 - ramp;
+                    }
                 }
                 const part = grayToFrame(gray, orientation, method);
                 for (let i = 0; i < frame.length; i++) { frame[i] &= part[i]; }
