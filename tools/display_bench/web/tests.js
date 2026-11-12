@@ -630,6 +630,33 @@ export const TESTS = [
         },
     },
     {
+        id: 'scan_order_block',
+        name: 'Khối đen theo thứ tự quét',
+        path: 'raw',
+        description: 'Hai khối đen trên nền trắng, mỗi khối một nửa số cột, vẽ cả màn bằng một profile (old plane đảo bit). Khối A ở các hàng RAM đầu (0–160): sau nó còn nhiều hàng trắng được quét. Khối B ở các hàng RAM cuối (256–406): sau nó gần như không còn hàng nào. Giả thuyết: điểm đen bị kéo về trắng bởi điện áp của các hàng trắng quét sau nó trên cùng đường source, nên khối A nhạt dần về phía hàng sau, khối B đều. Ảnh luôn theo hàng RAM: hàng 0 ở trên khi UD = 1.',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'profile', label: 'Profile vẽ khối', type: 'profile', value: 'tr4'},
+        ],
+        build(values) {
+            const blocks = createFrame(true);
+            fillViewRect(blocks, Orientation.PORTRAIT, 20, 10, 90, 150, false);
+            fillViewRect(blocks, Orientation.PORTRAIT, 130, 256, 90, 150, false);
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            return {
+                frames: [createFrame(true), blocks],
+                order: [0, 1],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                    {frame: 1, label: 'vẽ hai khối', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+                ],
+                note: 'So nửa trên và nửa dưới của khối A, rồi của khối B. Chạy lại với UD = 0: nếu giả thuyết đúng thì khối A vẫn nhạt về phía hàng RAM sau (lúc này ở phía trên panel).',
+            };
+        },
+    },
+    {
         id: 'button_latency',
         name: 'Độ trễ nút',
         description: 'Nạp các trang số lớn rồi chờ. Bấm A sang trang sau, B về trang trước; cột input là từ lúc bấm tới lúc vẽ. Dùng đường pipeline để giống app thật.',
