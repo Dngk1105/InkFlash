@@ -110,6 +110,7 @@ Mỗi bài trả lời một câu hỏi mà thiết kế đang chờ số đo. B
 | Thời gian policy | pipeline | Đổi cả màn liên tục: đoạn decide (policy, `pixel_state` trong PSRAM, old plane) mất bao lâu |
 | Cleanup strong mạnh hơn | raw | Lật hai ô đen trên trang chữ nhiều lần bằng profile `UI`, rồi chạy profile cleanup strong cần thử lên trang chữ có khối đen ở dưới: profile nào xoá hết bóng ô và chữ cũ trong khối đen với DRF dưới 4 s. Ứng viên ở `tools/display_bench/profiles/cleanup_strong.json` (bảng TR4 chèn thêm chu kỳ lắc, giống hệt nhau ở cả bốn bảng nên mọi pixel lắc cùng chiều), nạp bằng gói PROFILE_LOAD |
 | Khối đen theo thứ tự quét | raw | Hai khối đen trên nền trắng, khối A ở các hàng RAM đầu, khối B ở các hàng RAM cuối, vẽ cả màn bằng một profile: điểm đen có bị kéo nhạt bởi các hàng trắng quét sau nó trên cùng đường source không (khối A nhạt dần, khối B đều), có theo hàng RAM khi đổi UD không, và frame rate (`tr4_75hz`) có giảm không |
+| Độ đen theo số điểm đen trên hàng | raw | Cột đen chạy suốt chiều cao, một nửa số hàng đen kín, nửa kia trắng: điểm đen có nhạt hơn khi cả hàng đen (nguồn VSH sụt theo số điểm cần kéo về đen) không, và có theo vị trí không |
 | `PT_SCAN` | raw | Vẽ ô A, rồi vẽ ô B ở chỗ khác với `PT_SCAN` 1 và 0: ô A có bị kéo theo không |
 | Border | raw | Vẽ cả màn trong và ngoài chế độ partial, có và không kéo viền: border có đổi không |
 | Nhiệt độ | raw | Đọc cảm biến nhiều lần giữa các lần vẽ (REG = 1): số có hợp lý so với nhiệt kế không |

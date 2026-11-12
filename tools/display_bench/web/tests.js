@@ -6,7 +6,7 @@
  * Đường raw: trang gửi gói DRAW cho khung đầu rồi PLAY phần còn lại. Đường pipeline: trang gửi PLAY.
  * Mỗi bài trả lời một câu trong bảng "Bài đo" của docs/design/display/bench.md.
  */
-import {Orientation, createFrame, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
+import {Orientation, PANEL_WIDTH, PANEL_HEIGHT, createFrame, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
 import {Intent, SubmitFlag} from './link.js';
 
 /* Slot 0–47 cho ảnh người dùng, 48–63 cho bài test. */
@@ -659,6 +659,35 @@ export const TESTS = [
                     {frame: 1, label: 'vẽ hai khối', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
                 ],
                 note: 'So nửa trên và nửa dưới của khối A, rồi của khối B. Chạy lại với UD = 0: nếu giả thuyết đúng thì khối A vẫn nhạt về phía hàng RAM sau (lúc này ở phía trên panel).',
+            };
+        },
+    },
+    {
+        id: 'row_load',
+        name: 'Độ đen theo số điểm đen trên hàng',
+        path: 'raw',
+        description: 'Cột đen 80 điểm chạy suốt chiều cao panel. Ở một nửa số hàng, phần còn lại của hàng cũng đen (hàng đen kín); ở nửa kia, phần còn lại trắng. Vẽ cả màn bằng một profile, old plane đảo bit. Giả thuyết: hàng càng nhiều điểm đen thì nguồn VSH càng sụt, điểm đen càng nhạt; khi đó đoạn cột đen nằm trong vùng hàng đen kín nhạt hơn đoạn nằm trong vùng hàng trắng. Đảo vị trí để loại ảnh hưởng của vị trí.',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'profile', label: 'Profile vẽ', type: 'profile', value: 'tr4'},
+            {key: 'swap', label: 'Đảo: 0 = hàng đen kín ở hàng RAM đầu, 1 = ở hàng RAM cuối', value: 0, min: 0, max: 1},
+        ],
+        build(values) {
+            const frame = createFrame(true);
+            const half = PANEL_HEIGHT / 2;
+            fillViewRect(frame, Orientation.PORTRAIT, 0, 0, 80, PANEL_HEIGHT, false);
+            fillViewRect(frame, Orientation.PORTRAIT, 80, values.swap ? half : 0, PANEL_WIDTH - 80, half, false);
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            return {
+                frames: [createFrame(true), frame],
+                order: [0, 1],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                    {frame: 1, label: 'vẽ cột đen và vùng đen kín', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+                ],
+                note: 'So độ đen của cột đen (80 điểm bên trái) ở hai nửa: nửa có hàng đen kín và nửa có hàng trắng. Chạy với đảo = 0 và 1.',
             };
         },
     },
