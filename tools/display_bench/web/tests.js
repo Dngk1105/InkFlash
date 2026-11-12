@@ -668,18 +668,19 @@ export const TESTS = [
         id: 'ui_gray_row',
         name: 'Hàng ô xám của màn mẫu UI',
         path: 'raw',
-        description: 'Năm ô cạnh nhau như hàng 2 màn 1/4 của ink_demo: độ sáng 0, 64, 128, 192, 255, tô bằng dither clustered-dot 4×4 của ink_ui, viền 1 điểm. Vẽ cả màn bằng profile chính (old plane đảo bit), rồi tuỳ chọn thêm một lượt profile chốt. Ô đen (độ sáng 0) có nhạt dần như trên firmware chính không, và lượt chốt có sửa được không.',
+        description: 'Năm ô cạnh nhau như hàng 2 màn 1/4 của ink_demo, mặc định đặt sát phía cáp FPC (hàng RAM cuối), nơi hiện tượng nhạt dần xuất hiện: độ sáng 0, 64, 128, 192, 255, tô bằng dither clustered-dot 4×4 của ink_ui, viền 1 điểm. Vẽ cả màn bằng profile chính (old plane đảo bit), rồi tuỳ chọn thêm một lượt profile chốt. Ô đen (độ sáng 0) có nhạt dần như trên firmware chính không, và lượt chốt có sửa được không.',
         params: [
             {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
             {key: 'profile', label: 'Profile chính', type: 'profile', value: 'tr4'},
             {key: 'finish', label: 'Thêm lượt chốt: 0 = không, 1 = có', value: 0, min: 0, max: 1},
             {key: 'finishProfile', label: 'Profile chốt', type: 'profile', value: 'tr8'},
+            {key: 'top', label: 'Hàng RAM trên cùng của ô (hàng 415 ở phía cáp FPC)', value: 320, min: 0, max: 330, step: 10},
         ],
         build(values) {
             /* Ma trận ngưỡng clustered-dot 4×4 giống ink_ui_canvas.c; trắng khi độ sáng > ngưỡng × 16 + 8. */
             const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
             const frame = createFrame(true);
-            const top = 140;
+            const top = values.top;
             const boxHeight = 84;
             const boxWidth = 40;
             [0, 64, 128, 192, 255].forEach((brightness, index) => {
