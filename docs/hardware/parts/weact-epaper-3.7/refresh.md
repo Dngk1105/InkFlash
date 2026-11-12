@@ -168,8 +168,17 @@ Nhìn bằng mắt và chụp ảnh. Profile ứng viên ở `tools/display_benc
 | Bài "Cleanup strong mạnh hơn": lật hai ô đen trên chữ 20 lần bằng `lut10f50`, rồi cleanup strong | `tr4` so với `tr4` chèn thêm chu kỳ lắc (DRF 3,5–3,7 s) | Không khác nhau: `tr4` đã xoá sạch bóng ô và chữ cũ |
 | Dải xám dither sau cleanup strong | `tr4` chèn chu kỳ lắc ngược chiều giữa pixel về trắng và pixel về đen | Dither nhoè thành xám nhạt: pixel cạnh nhau mang điện áp ngược dấu suốt các chu kỳ thêm |
 | Như trên | `tr4` chèn chu kỳ lắc cùng chiều ở cả bốn bảng | Không khác `tr4`. Cleanup strong giữ `tr4` |
-| Khối đen cả chiều dài panel | `tr4` và mọi ứng viên | Đen nhạt dần về phía cạnh có cáp FPC, như nhau ở mọi profile. Chưa rõ do góc nhìn và đèn hay do phần điện |
-| Dải xám dither, xoay máy 180° và xoay ảnh theo, cùng đèn | `tr4` | Vùng nhạt vẫn ở phía cáp FPC, không theo hướng chụp: do panel hoặc phần điện, không phải góc nhìn. Bài đổi UD (hướng quét gate) chưa chạy |
+| Bài "Dải xám dither" (5 dải: ngưỡng, Floyd–Steinberg, Atkinson, Bayer 4×4, Bayer 8×8), vẽ cả màn | `tr4` | Đoạn đen của dải ngưỡng nhạt dần về phía chỗ chuyển sang trắng; đầu xa vẫn đen rõ |
+| Như trên, chỉ vẽ một số dải | `tr4` | Dải ngưỡng một mình, hoặc cùng Atkinson: đen đều. Cùng Floyd–Steinberg, Bayer 4×4 hoặc Bayer 8×8: nhạt. Đoạn nhạt nằm ở các hàng mà dải dither bên cạnh ở mức xám khoảng 50 % (gần bàn cờ) |
+| Đen đặc không có dither cùng hàng: cả màn đen, hai khối đen trên nền trắng, cột đen cạnh vùng hàng đen kín | `tr4` | Đen đều |
+| Dải xám dither, các biến thể | `tr4` | Không đổi khi vẽ lại cùng ảnh (không do ảnh trước), khi đổi UD, khi thêm 2 frame 0 V cuối sóng (`tr4_z2`). Đoạn nhạt có ở hướng xoay này mà không có ở hướng kia; chưa giải thích |
+| Dải xám dither, đổi frame rate cùng thời gian vẽ | `tr4` ở 25 Hz, 100 Hz | 25 Hz nhạt hơn; 100 Hz làm vùng trắng lốm đốm xám |
+| Dải xám dither, VCOM_DC từ `13` (−2,0 V) về `05` (−0,6 V) | `tr4` | Đen chung nhạt dần theo VCOM_DC; đoạn nhạt không mất |
+| Dải xám dither, TCON (`0x60`) | `tr4`, `00` tới `55` | TCON dài hơn `22` làm đoạn đen nhạt hơn; ngắn hơn (`11`, `00`) đỡ không đáng kể |
+
+Giả thuyết đang dùng, chưa đo trực tiếp: ở hàng có dither gần bàn cờ, mỗi lần chuyển hàng khoảng một nửa số đường source đổi giữa
+VSL và VSH, nguồn VSH/VSL sụt và điểm đen trên cùng hàng không kịp nạp đủ trong lúc gate mở. Đen đặc và khối lớn không làm
+đường source đổi giữa các hàng nên không bị.
 
 ## Khuyến nghị trong spec
 
