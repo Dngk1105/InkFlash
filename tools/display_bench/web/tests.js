@@ -61,6 +61,26 @@ const SAMPLE_TEXT = [
     'Viền xám xuất hiện ở mép vùng partial vẽ nhiều lần.',
 ];
 
+/* Năm ô như hàng 2 màn 1/4 của ink_demo, bắt đầu ở hàng RAM `top`: độ sáng 0, 64, 128, 192, 255, dither
+ * clustered-dot 4×4 (ma trận giống ink_ui_canvas.c; trắng khi độ sáng > ngưỡng × 16 + 8), viền 1 điểm. */
+function uiGrayRow(top) {
+    const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
+    const frame = createFrame(true);
+    const boxHeight = 84;
+    const boxWidth = 40;
+    [0, 64, 128, 192, 255].forEach((brightness, index) => {
+        const left = 10 + index * 46;
+        for (let y = top; y < top + boxHeight; y++) {
+            for (let x = left; x < left + boxWidth; x++) {
+                const edge = y === top || y === top + boxHeight - 1 || x === left || x === left + boxWidth - 1;
+                const white = !edge && brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
+                setPanelPixel(frame, x, y, white);
+            }
+        }
+    });
+    return frame;
+}
+
 function textPage(orientation, firstLine, fontSize) {
     return frameFromCanvas(orientation, (context, width, height) => {
         context.font = `${fontSize}px "Segoe UI", system-ui, sans-serif`;
@@ -677,22 +697,7 @@ export const TESTS = [
             {key: 'top', label: 'Hàng RAM trên cùng của ô (hàng 415 ở phía cáp FPC)', value: 320, min: 0, max: 330, step: 10},
         ],
         build(values) {
-            /* Ma trận ngưỡng clustered-dot 4×4 giống ink_ui_canvas.c; trắng khi độ sáng > ngưỡng × 16 + 8. */
-            const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
-            const frame = createFrame(true);
-            const top = values.top;
-            const boxHeight = 84;
-            const boxWidth = 40;
-            [0, 64, 128, 192, 255].forEach((brightness, index) => {
-                const left = 10 + index * 46;
-                for (let y = top; y < top + boxHeight; y++) {
-                    for (let x = left; x < left + boxWidth; x++) {
-                        const edge = y === top || y === top + boxHeight - 1 || x === left || x === left + boxWidth - 1;
-                        const white = !edge && brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
-                        setPanelPixel(frame, x, y, white);
-                    }
-                }
-            });
+            const frame = uiGrayRow(values.top);
             const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
             const steps = [
                 {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
@@ -708,6 +713,29 @@ export const TESTS = [
                 repeat: 1,
                 steps,
                 note: 'So ô đen thứ nhất: đầu trên và đầu dưới có đen như nhau không. Chạy với lượt chốt = 0 rồi = 1.',
+            };
+        },
+    },
+    {
+        id: 'ui_gray_row_pipeline',
+        name: 'Hàng ô xám qua display (cleanup strong)',
+        path: 'pipeline',
+        description: 'Như bài "Hàng ô xám của màn mẫu UI" nhưng đi qua display và policy như firmware chính: vẽ hàng ô (PAGE), về trắng (PAGE), rồi vẽ lại hàng ô với cờ BEFORE_SLEEP để policy chọn cleanup strong. Bài raw đều mà bài này nhạt: lỗi nằm ở đường display, không ở profile hay nội dung.',
+        params: [
+            {key: 'top', label: 'Hàng RAM trên cùng của ô (hàng 415 ở phía cáp FPC)', value: 320, min: 0, max: 330, step: 10},
+        ],
+        build(values) {
+            return {
+                frames: [uiGrayRow(values.top), createFrame(true)],
+                order: [0, 1, 0],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'hàng ô xám (PAGE)', intent: Intent.PAGE, flags: SubmitFlag.DEFER_CLEANUP, delayMs: 1500},
+                    {frame: 1, label: 'màn trắng (PAGE)', intent: Intent.PAGE, flags: SubmitFlag.DEFER_CLEANUP, delayMs: 1500},
+                    {frame: 0, label: 'hàng ô xám, cleanup strong (BEFORE_SLEEP)', intent: Intent.PAGE, flags: SubmitFlag.BEFORE_SLEEP},
+                ],
+                note: 'Gói DRAWN của bước cuối phải là CLEANUP STRONG. So ô đen với bài raw cùng vị trí.',
             };
         },
     },
