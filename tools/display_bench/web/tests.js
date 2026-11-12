@@ -757,6 +757,45 @@ export const TESTS = [
         },
     },
     {
+        id: 'toggle_above',
+        name: 'Ô đen dưới vùng mẫu',
+        path: 'raw',
+        description: 'Vùng trên (hàng RAM 32–299, cả bề ngang) tô một mẫu; dưới đó là ô đen ở góc phải như hàng cuối màn 1/4 (hàng 320–407, sát cáp FPC). Mẫu: 0 trắng, 1 đen đặc, 2 sọc dọc 1 điểm (đường source không đổi mức giữa các hàng), 3 sọc ngang 1 điểm (mọi đường source đổi mức ở mỗi hàng), 4 bàn cờ. Nếu ô đen nhạt khi mẫu là 3 hoặc 4 mà đều khi 1 hoặc 2, thì độ nhạt đến từ số lần đường source đổi mức ở các hàng quét trước.',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'profile', label: 'Profile vẽ', type: 'profile', value: 'tr4'},
+            {key: 'pattern', label: 'Mẫu vùng trên: 0 trắng, 1 đen, 2 sọc dọc, 3 sọc ngang, 4 bàn cờ', value: 4, min: 0, max: 4},
+        ],
+        build(values) {
+            const frame = createFrame(true);
+            const black = [
+                () => false,
+                () => true,
+                (x) => x % 2 === 0,
+                (x, y) => y % 2 === 0,
+                (x, y) => (x + y) % 2 === 0,
+            ][values.pattern];
+            for (let y = 32; y < 300; y++) {
+                for (let x = 0; x < PANEL_WIDTH; x++) { if (black(x, y)) { setPanelPixel(frame, x, y, false); } }
+            }
+            for (let y = 320; y < 408; y++) {
+                for (let x = 164; x < 232; x++) { setPanelPixel(frame, x, y, false); }
+            }
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            return {
+                frames: [createFrame(true), frame],
+                order: [0, 1],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                    {frame: 1, label: 'vẽ vùng mẫu và ô đen', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+                ],
+                note: 'Chạy lần lượt mẫu 1, 2, 3, 4. So ô đen dưới cùng (đầu trên và đầu dưới, có vệt dọc không).',
+            };
+        },
+    },
+    {
         id: 'demo_screen1',
         name: 'Màn 1/4 của ink_demo (gần đúng)',
         path: 'raw',
