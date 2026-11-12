@@ -184,6 +184,7 @@ static esp_err_t read_after_command(ink_drv_uc8253_t *driver, uint8_t command, b
 /* PSR (0x00): byte 1 selects the waveform source and soft reset; byte 2 is driver->psr_second. */
 static esp_err_t send_panel_setting(ink_drv_uc8253_t *driver, uint8_t setting) {
     if (driver->scan_down) { setting &= (uint8_t)~PSR_UD; }
+    if (driver->psr_first != INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER) { setting = driver->psr_first; }
     const uint8_t psr[2] = {setting, driver->psr_second};
     return send_command(driver, CMD_PSR, psr, sizeof(psr));
 }
@@ -377,6 +378,19 @@ static esp_err_t apply_scan_down(ink_drv_uc8253_t *driver) {
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
+/* PSR byte 1 override set by another task: sent before a draw. */
+static esp_err_t apply_psr_first(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool    pending     = driver->psr_first_pending;
+    const uint8_t value       = driver->psr_first_request;
+    driver->psr_first_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->psr_first) { return ESP_OK; }
+    driver->psr_first   = value;
+    driver->ram_trusted = false; /* RES or UD may change where RAM rows land */
+    return send_panel_setting(driver, PSR_REGISTER);
+}
+
 /* BTST (0x06): phases A and B keep the default, phase C (booster while running) is driver->btst_c (p.19). */
 static esp_err_t send_booster(ink_drv_uc8253_t *driver) {
     const uint8_t btst[3] = {INK_DRV_UC8253_BTST_DEFAULT, INK_DRV_UC8253_BTST_DEFAULT, driver->btst_c};
@@ -468,6 +482,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
     ESP_RETURN_ON_ERROR(apply_scan_down(driver), TAG, "ud");
     ESP_RETURN_ON_ERROR(apply_tcon(driver), TAG, "tcon");
     ESP_RETURN_ON_ERROR(apply_btst(driver), TAG, "btst");
+    ESP_RETURN_ON_ERROR(apply_psr_first(driver), TAG, "psr1");
     ESP_RETURN_ON_ERROR(apply_power_off_frames(driver), TAG, "pfs");
     apply_vcom_override(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
@@ -626,6 +641,22 @@ esp_err_t ink_drv_uc8253_set_scan_down(ink_drv_uc8253_t *driver, bool scan_down)
 bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver) {
     taskENTER_CRITICAL(&driver->request_lock);
     const bool value = driver->scan_down_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
+}
+
+esp_err_t ink_drv_uc8253_set_psr_first(ink_drv_uc8253_t *driver, uint8_t value) {
+    ESP_RETURN_ON_FALSE(driver && (value == INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER || (value & 0x01) != 0), ESP_ERR_INVALID_ARG, TAG, "psr1");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->psr_first_request = value;
+    driver->psr_first_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+uint8_t ink_drv_uc8253_psr_first(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const uint8_t value = driver->psr_first_request;
     taskEXIT_CRITICAL(&driver->request_lock);
     return value;
 }

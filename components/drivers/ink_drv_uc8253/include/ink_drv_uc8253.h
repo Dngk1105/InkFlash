@@ -24,6 +24,7 @@
 #define INK_DRV_UC8253_OTP_BYTES                (0x2A + 9 * 0xE9) /* bank 0 from key A5 to the end of band TR8 (waveform.md) */
 #define INK_DRV_UC8253_PSR_SECOND_DEFAULT       0x0A              /* TIEG 0, NORG 1, VC_LUTZ 0: least darkening after POF (refresh.md) */
 #define INK_DRV_UC8253_VCOM_FROM_PROFILE        0xFF              /* keep the profile's VCOM_DC */
+#define INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER    0x00              /* PSR byte 1 override off: RST_N = 0 is never a valid override */
 #define INK_DRV_UC8253_BTST_DEFAULT             0x17              /* UC8253 BTST default per phase: strength 3, GDR off 6.58 µs (p.19) */
 #define INK_DRV_UC8253_TCON_DEFAULT             0x22              /* UC8253 TCON default: S2G, G2S 12 × 650 ns (p.31) */
 #define INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT 1                 /* UC8253 PFS default: gate off 1 frame after source */
@@ -66,6 +67,7 @@ typedef struct {
     bool                            scan_down;         /**< PSR byte 1 UD = 0 sent: gates scan down */
     uint8_t                         tcon;              /**< TCON sent: S2G (high nibble), G2S (low nibble) */
     uint8_t                         btst_c;            /**< BTST phase C byte sent: booster strength and GDR off time */
+    uint8_t                         psr_first;         /**< PSR byte 1 override; INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER = none */
     uint8_t                         power_off_frames;  /**< PFS sent: frames from source off to gate off */
     uint8_t                         vcom_override;     /**< command 0x82 byte replacing the profile's; 0xFF = none */
 
@@ -84,6 +86,8 @@ typedef struct {
     uint8_t                  tcon_request;
     bool                     btst_c_pending;
     uint8_t                  btst_c_request;
+    bool                     psr_first_pending;
+    uint8_t                  psr_first_request;
     bool                     power_off_frames_pending;
     uint8_t                  power_off_frames_request;
     bool                     vcom_override_pending;
@@ -177,6 +181,24 @@ esp_err_t ink_drv_uc8253_set_scan_down(ink_drv_uc8253_t *driver, bool scan_down)
  * @return true = scan down (UD = 0).
  */
 bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver);
+
+/**
+ * @brief Replace PSR byte 1 (RES, REG, KW/R, UD, SHL, SHD_N, RST_N; commands.md) with `value` from the next draw;
+ *        INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER restores the driver's own. REG = 0 makes the controller use its OTP
+ *        waveform instead of the loaded profile. Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_ARG driver is NULL, or `value` is not the "from driver" value and has RST_N (bit 0) = 0.
+ */
+esp_err_t ink_drv_uc8253_set_psr_first(ink_drv_uc8253_t *driver, uint8_t value);
+
+/**
+ * @brief Get the PSR byte 1 override set most recently, even if not yet sent to the controller.
+ * @par Called from
+ * Any task.
+ * @return PSR byte 1, or INK_DRV_UC8253_PSR_FIRST_FROM_DRIVER.
+ */
+uint8_t ink_drv_uc8253_psr_first(ink_drv_uc8253_t *driver);
 
 /**
  * @brief Set phase C of BTST (command 0x06): booster driving strength (bits 5-3, 0 weakest to 7 strongest) and GDR

@@ -79,6 +79,8 @@
                     <select id="power-off-frames"><option value="1">1 khung (mặc định)</option><option value="2">2 khung</option><option value="3">3 khung</option><option value="4">4 khung</option></select>
                     <label for="scan-down">Hướng quét gate (PSR byte 1, bit UD)</label>
                     <select id="scan-down"><option value="0">Quét lên, UD = 1 (mặc định)</option><option value="1">Quét xuống, UD = 0: ảnh lật trên dưới</option></select>
+                    <label for="psr-first">PSR byte 1 (lệnh <code>0x00</code>): RES, REG, hướng quét</label>
+                    <select id="psr-first"><option value="0">Theo driver (3F: RES 00, REG 1, quét lên)</option><option value="255">FF: RES 11 (480 × 240), REG 1, quét lên</option><option value="247">F7: RES 11, REG 1, quét xuống</option><option value="223">DF: RES 11, REG 0 (sóng OTP), quét lên</option><option value="215">D7: RES 11, REG 0, quét xuống (mã mẫu của hãng)</option><option value="31">1F: RES 00, REG 0 (sóng OTP), quét lên</option></select>
                     <label for="btst-c">BTST (lệnh <code>0x06</code>) pha C: tăng áp khi đang chạy</label>
                     <select id="btst-c"><option value="23">17: độ mạnh 3, tắt GDR 6,58 µs (mặc định)</option><option value="39">27: độ mạnh 5, tắt GDR 6,58 µs</option><option value="55">37: độ mạnh 7, tắt GDR 6,58 µs</option><option value="63">3F: độ mạnh 8, tắt GDR 6,58 µs</option><option value="61">3D: độ mạnh 8, tắt GDR 1,54 µs</option><option value="60">3C: độ mạnh 8, tắt GDR 0,80 µs</option></select>
                     <label for="tcon">TCON (lệnh <code>0x60</code>): khoảng hở gate/source</label>

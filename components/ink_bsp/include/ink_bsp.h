@@ -118,6 +118,23 @@ esp_err_t ink_bsp_display_set_scan_down(bool scan_down);
 bool ink_bsp_display_scan_down(void);
 
 /**
+ * @brief Replace PSR byte 1 of the display controller from the next draw; 0 = the driver's own. Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_ARG `value` is not 0 and has bit 0 clear.
+ * @retval ESP_ERR_INVALID_STATE not initialized.
+ */
+esp_err_t ink_bsp_display_set_psr_first(uint8_t value);
+
+/**
+ * @brief Get the PSR byte 1 override set most recently.
+ * @par Called from
+ * Any task, after ink_bsp_init.
+ * @return PSR byte 1; 0 = the driver's own.
+ */
+uint8_t ink_bsp_display_psr_first(void);
+
+/**
  * @brief Set phase C of the display booster soft start (BTST byte 3), effective from the next power on. Bench firmware only.
  * @par Called from
  * Any task.

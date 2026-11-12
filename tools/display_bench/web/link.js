@@ -130,6 +130,7 @@ function parseInfo(payload) {
     info.scanDown = reader.u8();
     info.tcon = reader.u8();
     info.btstC = reader.u8();
+    info.psrFirst = reader.u8();
     return info;
 }
 

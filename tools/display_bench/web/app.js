@@ -67,6 +67,7 @@ const app = {
         scanDown: null,     /* hướng quét gate: 1 = quét xuống (UD = 0), 0 = quét lên (mặc định) */
         tcon: null,         /* byte TCON: S2G nibble cao, G2S nibble thấp */
         btstC: null,        /* byte 3 của BTST: độ mạnh tăng áp khi chạy, thời gian tắt GDR */
+        psrFirst: null,     /* PSR byte 1 thay thế; 0 = theo driver */
     },
     run: null, /* {label, testId, params, startedAt, drawn: [], settings} */
     pendingPreview: new Map(), /* slot → frame vừa giao, để cập nhật màn đang hiện khi có DRAWN */
@@ -161,6 +162,7 @@ async function onConnected() {
     app.settings.scanDown = info.scanDown;
     app.settings.tcon = info.tcon;
     app.settings.btstC = info.btstC;
+    app.settings.psrFirst = info.psrFirst;
     renderPanel();
     app.settings.raw.profile = profileIndexForPreset(app.settings.options?.drawPresets[Intent.TEXT]) ?? 0;
     $('device-summary').textContent = `${info.width}×${info.height} · ${info.path} · ${info.firmware}`;
@@ -301,9 +303,9 @@ const VCOM_FROM_PROFILE = 255;
 function vcomName(value) { return value === VCOM_FROM_PROFILE ? 'theo profile' : hexByte(value); }
 
 function renderPanel() {
-    const {psrSecond, vcomOverride, powerOffFrames, scanDown, tcon, btstC} = app.settings;
+    const {psrSecond, vcomOverride, powerOffFrames, scanDown, tcon, btstC, psrFirst} = app.settings;
     $('psr-second-value').textContent = psrSecond === null ? ''
-        : `máy đang dùng PSR ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung, ${scanName(scanDown)}, TCON ${hexByte(tcon ?? 0x22)}, BTST C ${hexByte(btstC ?? 0x17)}`;
+        : `máy đang dùng PSR ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung, ${scanName(scanDown)}, TCON ${hexByte(tcon ?? 0x22)}, BTST C ${hexByte(btstC ?? 0x17)}, PSR byte 1 ${psrFirst ? hexByte(psrFirst) : 'theo driver'}`;
     const select = (id, value) => {
         if (value !== null && [...$(id).options].some((option) => Number(option.value) === value)) { $(id).value = String(value); }
     };
@@ -313,6 +315,7 @@ function renderPanel() {
     select('scan-down', scanDown);
     select('tcon', tcon);
     select('btst-c', btstC);
+    select('psr-first', psrFirst);
 }
 
 function scanName(value) { return value ? 'quét xuống (UD = 0)' : 'quét lên (UD = 1)'; }
@@ -320,17 +323,18 @@ function scanName(value) { return value ? 'quét xuống (UD = 0)' : 'quét lên
 /* Gói SET_PANEL: PSR byte 2, VCOM_DC thay thế, số khung PFS, hướng quét gate. Giá trị bỏ trống thì giữ giá trị máy đang dùng. */
 async function setPanel({psrSecond = app.settings.psrSecond ?? 0x0a, vcomOverride = app.settings.vcomOverride ?? VCOM_FROM_PROFILE,
     powerOffFrames = app.settings.powerOffFrames ?? 1, scanDown = app.settings.scanDown ?? 0, tcon = app.settings.tcon ?? 0x22,
-    btstC = app.settings.btstC ?? 0x17}) {
-    await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).u8(powerOffFrames).u8(scanDown).u8(tcon).u8(btstC).result());
-    Object.assign(app.settings, {psrSecond, vcomOverride, powerOffFrames, scanDown, tcon, btstC});
+    btstC = app.settings.btstC ?? 0x17, psrFirst = app.settings.psrFirst ?? 0}) {
+    await app.link.command(Command.SET_PANEL, new Writer().u8(psrSecond).u8(vcomOverride).u8(powerOffFrames).u8(scanDown).u8(tcon).u8(btstC).u8(psrFirst).result());
+    Object.assign(app.settings, {psrSecond, vcomOverride, powerOffFrames, scanDown, tcon, btstC, psrFirst});
     renderPanel();
-    log(`[web] PSR byte 2 = ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung, ${scanName(scanDown)}, TCON ${hexByte(tcon)}, BTST C ${hexByte(btstC)}; có tác dụng từ lần vẽ sau`);
+    log(`[web] PSR byte 2 = ${hexByte(psrSecond)}, VCOM_DC ${vcomName(vcomOverride)}, PFS ${powerOffFrames} khung, ${scanName(scanDown)}, TCON ${hexByte(tcon)}, BTST C ${hexByte(btstC)}, PSR byte 1 ${psrFirst ? hexByte(psrFirst) : 'theo driver'}; có tác dụng từ lần vẽ sau`);
 }
 
 async function applyPanel() {
     await guarded(() => setPanel({psrSecond: Number($('psr-second').value), vcomOverride: Number($('vcom-override').value),
         powerOffFrames: Number($('power-off-frames').value), scanDown: Number($('scan-down').value),
-        tcon: Number($('tcon').value), btstC: Number($('btst-c').value)}));
+        tcon: Number($('tcon').value), btstC: Number($('btst-c').value),
+        psrFirst: Number($('psr-first').value)}));
 }
 
 async function readTemperature() {
@@ -645,6 +649,7 @@ function snapshotSettings() {
         scanDown: app.settings.scanDown,
         tcon: app.settings.tcon,
         btstC: app.settings.btstC,
+        psrFirst: app.settings.psrFirst,
     };
 }
 
