@@ -120,6 +120,15 @@ bool ink_bsp_display_scan_down(void) {
     return ink_drv_uc8253_scan_down(&s_display_driver);
 }
 
+esp_err_t ink_bsp_display_set_btst_c(uint8_t value) {
+    ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
+    return ink_drv_uc8253_set_btst_c(&s_display_driver, value);
+}
+
+uint8_t ink_bsp_display_btst_c(void) {
+    return ink_drv_uc8253_btst_c(&s_display_driver);
+}
+
 esp_err_t ink_bsp_display_set_tcon(uint8_t value) {
     ESP_RETURN_ON_FALSE(s_initialized, ESP_ERR_INVALID_STATE, TAG, "not init");
     return ink_drv_uc8253_set_tcon(&s_display_driver, value);

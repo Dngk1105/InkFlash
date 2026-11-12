@@ -168,6 +168,7 @@ static void send_info(uint8_t seq) {
     put_u8(&writer, ink_bsp_display_power_off_frames());
     put_u8(&writer, ink_bsp_display_scan_down() ? 1 : 0);
     put_u8(&writer, ink_bsp_display_tcon());
+    put_u8(&writer, ink_bsp_display_btst_c());
     bench_link_send(BENCH_INFO, seq, writer.bytes, writer.length);
 }
 
@@ -419,14 +420,15 @@ static esp_err_t handle_otp_dump(uint8_t seq) {
     return ESP_OK;
 }
 
-/* PSR byte 2, rồi VCOM_DC thay thế, số khung PFS, hướng quét gate (1 = quét xuống, UD = 0) và byte TCON nếu gói có. */
+/* PSR byte 2, rồi VCOM_DC thay thế, số khung PFS, hướng quét gate (1 = quét xuống, UD = 0) byte TCON và byte 3 của BTST nếu gói có. */
 static esp_err_t handle_set_panel(const uint8_t *payload, size_t length) {
     ESP_RETURN_ON_FALSE(length >= 1, ESP_ERR_INVALID_ARG, TAG, "panel");
     ESP_RETURN_ON_ERROR(ink_bsp_display_set_psr_second(payload[0]), TAG, "psr");
     if (length >= 2) { ESP_RETURN_ON_ERROR(ink_bsp_display_set_vcom_override(payload[1]), TAG, "vcom"); }
     if (length >= 3) { ESP_RETURN_ON_ERROR(ink_bsp_display_set_power_off_frames(payload[2]), TAG, "pfs"); }
     if (length >= 4) { ESP_RETURN_ON_ERROR(ink_bsp_display_set_scan_down(payload[3] != 0), TAG, "ud"); }
-    return length >= 5 ? ink_bsp_display_set_tcon(payload[4]) : ESP_OK;
+    if (length >= 5) { ESP_RETURN_ON_ERROR(ink_bsp_display_set_tcon(payload[4]), TAG, "tcon"); }
+    return length >= 6 ? ink_bsp_display_set_btst_c(payload[5]) : ESP_OK;
 }
 
 static void handle_read_temperature(uint8_t seq) {

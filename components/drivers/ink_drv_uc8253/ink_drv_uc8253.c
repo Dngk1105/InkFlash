@@ -23,6 +23,7 @@ static const char *TAG = "ink_drv_uc8253";
 #define CMD_POF    0x02
 #define CMD_PFS    0x03
 #define CMD_PON    0x04
+#define CMD_BTST   0x06
 #define CMD_DTM1   0x10
 #define CMD_DRF    0x12
 #define CMD_DTM2   0x13
@@ -215,6 +216,10 @@ static esp_err_t reset_controller(ink_drv_uc8253_t *driver) {
     ESP_RETURN_ON_ERROR(send_power_off_sequence(driver), TAG, "pfs");
     /* Soft reset restores TCON to its default; resend only a bench value */
     if (driver->tcon != INK_DRV_UC8253_TCON_DEFAULT) { ESP_RETURN_ON_ERROR(send_command(driver, CMD_TCON, &driver->tcon, 1), TAG, "tcon"); }
+    if (driver->btst_c != INK_DRV_UC8253_BTST_DEFAULT) {
+        const uint8_t btst[3] = {INK_DRV_UC8253_BTST_DEFAULT, INK_DRV_UC8253_BTST_DEFAULT, driver->btst_c};
+        ESP_RETURN_ON_ERROR(send_command(driver, CMD_BTST, btst, sizeof(btst)), TAG, "btst");
+    }
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
@@ -372,6 +377,26 @@ static esp_err_t apply_scan_down(ink_drv_uc8253_t *driver) {
     return send_panel_setting(driver, PSR_REGISTER);
 }
 
+/* BTST (0x06): phases A and B keep the default, phase C (booster while running) is driver->btst_c (p.19). */
+static esp_err_t send_booster(ink_drv_uc8253_t *driver) {
+    const uint8_t btst[3] = {INK_DRV_UC8253_BTST_DEFAULT, INK_DRV_UC8253_BTST_DEFAULT, driver->btst_c};
+    return send_command(driver, CMD_BTST, btst, sizeof(btst));
+}
+
+/* BTST phase C set by another task: sent before a draw, while analog power is off. */
+static esp_err_t apply_btst(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const bool    pending  = driver->btst_c_pending;
+    const uint8_t value    = driver->btst_c_request;
+    driver->btst_c_pending = false;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    if (!pending || value == driver->btst_c) { return ESP_OK; }
+    driver->btst_c = value;
+    /* NOTE: the booster takes BTST at power on; turn analog power off so the next PON uses it. */
+    if (driver->power_on) { ESP_RETURN_ON_ERROR(send_power_off(driver), TAG, "pof"); }
+    return send_booster(driver);
+}
+
 /* TCON set by another task: sent before a draw. */
 static esp_err_t apply_tcon(ink_drv_uc8253_t *driver) {
     taskENTER_CRITICAL(&driver->request_lock);
@@ -442,6 +467,7 @@ static esp_err_t draw_planes(ink_drv_uc8253_t *driver, const uint8_t *plane_new,
     ESP_RETURN_ON_ERROR(apply_psr_second(driver), TAG, "psr");
     ESP_RETURN_ON_ERROR(apply_scan_down(driver), TAG, "ud");
     ESP_RETURN_ON_ERROR(apply_tcon(driver), TAG, "tcon");
+    ESP_RETURN_ON_ERROR(apply_btst(driver), TAG, "btst");
     ESP_RETURN_ON_ERROR(apply_power_off_frames(driver), TAG, "pfs");
     apply_vcom_override(driver);
     const ink_drv_uc8253_profile_t *profile = profile_at(driver, index);
@@ -604,6 +630,22 @@ bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver) {
     return value;
 }
 
+esp_err_t ink_drv_uc8253_set_btst_c(ink_drv_uc8253_t *driver, uint8_t value) {
+    ESP_RETURN_ON_FALSE(driver && value <= 0x3F, ESP_ERR_INVALID_ARG, TAG, "btst");
+    taskENTER_CRITICAL(&driver->request_lock);
+    driver->btst_c_request = value;
+    driver->btst_c_pending = true;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return ESP_OK;
+}
+
+uint8_t ink_drv_uc8253_btst_c(ink_drv_uc8253_t *driver) {
+    taskENTER_CRITICAL(&driver->request_lock);
+    const uint8_t value = driver->btst_c_request;
+    taskEXIT_CRITICAL(&driver->request_lock);
+    return value;
+}
+
 esp_err_t ink_drv_uc8253_set_tcon(ink_drv_uc8253_t *driver, uint8_t value) {
     ESP_RETURN_ON_FALSE(driver, ESP_ERR_INVALID_ARG, TAG, "tcon");
     taskENTER_CRITICAL(&driver->request_lock);
@@ -689,6 +731,8 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
         .request_lock             = portMUX_INITIALIZER_UNLOCKED,
         .psr_second               = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
         .psr_second_request       = INK_DRV_UC8253_PSR_SECOND_DEFAULT,
+        .btst_c                   = INK_DRV_UC8253_BTST_DEFAULT,
+        .btst_c_request           = INK_DRV_UC8253_BTST_DEFAULT,
         .tcon                     = INK_DRV_UC8253_TCON_DEFAULT,
         .tcon_request             = INK_DRV_UC8253_TCON_DEFAULT,
         .power_off_frames         = INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT,

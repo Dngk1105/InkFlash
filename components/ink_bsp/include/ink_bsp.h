@@ -118,6 +118,23 @@ esp_err_t ink_bsp_display_set_scan_down(bool scan_down);
 bool ink_bsp_display_scan_down(void);
 
 /**
+ * @brief Set phase C of the display booster soft start (BTST byte 3), effective from the next power on. Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_ARG bits 7-6 of `value` are set.
+ * @retval ESP_ERR_INVALID_STATE not initialized.
+ */
+esp_err_t ink_bsp_display_set_btst_c(uint8_t value);
+
+/**
+ * @brief Get the display BTST phase C byte set most recently.
+ * @par Called from
+ * Any task, after ink_bsp_init.
+ * @return BTST phase C byte; 0x17 by default.
+ */
+uint8_t ink_bsp_display_btst_c(void);
+
+/**
  * @brief Set the display TCON byte (gate/source non-overlap), effective from the next draw. Bench firmware only.
  * @par Called from
  * Any task.

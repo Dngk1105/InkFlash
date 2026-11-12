@@ -129,6 +129,7 @@ function parseInfo(payload) {
     info.powerOffFrames = reader.u8();
     info.scanDown = reader.u8();
     info.tcon = reader.u8();
+    info.btstC = reader.u8();
     return info;
 }
 
