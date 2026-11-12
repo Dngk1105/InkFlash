@@ -6,7 +6,7 @@
  * Đường raw: trang gửi gói DRAW cho khung đầu rồi PLAY phần còn lại. Đường pipeline: trang gửi PLAY.
  * Mỗi bài trả lời một câu trong bảng "Bài đo" của docs/design/display/bench.md.
  */
-import {Orientation, PANEL_WIDTH, PANEL_HEIGHT, createFrame, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
+import {Orientation, PANEL_WIDTH, PANEL_HEIGHT, createFrame, setPanelPixel, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
 import {Intent, SubmitFlag} from './link.js';
 
 /* Slot 0–47 cho ảnh người dùng, 48–63 cho bài test. */
@@ -661,6 +661,52 @@ export const TESTS = [
                     {frame: 1, label: 'vẽ hai khối', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
                 ],
                 note: 'So nửa trên và nửa dưới của khối A, rồi của khối B. Chạy lại với UD = 0: nếu giả thuyết đúng thì khối A vẫn nhạt về phía hàng RAM sau (lúc này ở phía trên panel).',
+            };
+        },
+    },
+    {
+        id: 'ui_gray_row',
+        name: 'Hàng ô xám của màn mẫu UI',
+        path: 'raw',
+        description: 'Năm ô cạnh nhau như hàng 2 màn 1/4 của ink_demo: độ sáng 0, 64, 128, 192, 255, tô bằng dither clustered-dot 4×4 của ink_ui, viền 1 điểm. Vẽ cả màn bằng profile chính (old plane đảo bit), rồi tuỳ chọn thêm một lượt profile chốt. Ô đen (độ sáng 0) có nhạt dần như trên firmware chính không, và lượt chốt có sửa được không.',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'profile', label: 'Profile chính', type: 'profile', value: 'tr4'},
+            {key: 'finish', label: 'Thêm lượt chốt: 0 = không, 1 = có', value: 0, min: 0, max: 1},
+            {key: 'finishProfile', label: 'Profile chốt', type: 'profile', value: 'tr8'},
+        ],
+        build(values) {
+            /* Ma trận ngưỡng clustered-dot 4×4 giống ink_ui_canvas.c; trắng khi độ sáng > ngưỡng × 16 + 8. */
+            const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
+            const frame = createFrame(true);
+            const top = 140;
+            const boxHeight = 84;
+            const boxWidth = 40;
+            [0, 64, 128, 192, 255].forEach((brightness, index) => {
+                const left = 10 + index * 46;
+                for (let y = top; y < top + boxHeight; y++) {
+                    for (let x = left; x < left + boxWidth; x++) {
+                        const edge = y === top || y === top + boxHeight - 1 || x === left || x === left + boxWidth - 1;
+                        const white = !edge && brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
+                        setPanelPixel(frame, x, y, white);
+                    }
+                }
+            });
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            const steps = [
+                {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                {frame: 1, label: 'vẽ hàng ô xám', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+            ];
+            if (values.finish) {
+                steps.push({frame: 1, label: 'lượt chốt', oldSource: OldSource.INVERTED, raw: {profile: values.finishProfile, ...whole}, delayMs: 500});
+            }
+            return {
+                frames: [createFrame(true), frame],
+                order: steps.map((step) => step.frame),
+                intervalMs: 0,
+                repeat: 1,
+                steps,
+                note: 'So ô đen thứ nhất: đầu trên và đầu dưới có đen như nhau không. Chạy với lượt chốt = 0 rồi = 1.',
             };
         },
     },
