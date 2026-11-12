@@ -81,6 +81,78 @@ function uiGrayRow(top) {
     return frame;
 }
 
+/* Gần đúng màn 1/4 của ink_demo (khung 240 × 416, ROTATION_0): body (8, 32, 224, 376) chia 4 hàng cao 88, cách 8.
+ * `parts` cộng: 1 thanh tiêu đề (không chữ), 2 hàng khung viền, 4 hàng ô xám, 8 hàng đường chéo, 16 hàng cuối
+ * (ô xám 128 bo góc 10, mũi tên đen, ô đen có mũi tên trắng). Dither clustered-dot giống ink_ui_canvas.c. */
+function demoScreen1(parts) {
+    const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
+    const frame = createFrame(true);
+    const set = (x, y, white) => {
+        if (x >= 0 && x < PANEL_WIDTH && y >= 0 && y < PANEL_HEIGHT) { setPanelPixel(frame, x, y, white); }
+    };
+    const gray = (x, y, brightness) => brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
+    const fill = (x0, y0, w, h, colorAt, radius = 0) => {
+        for (let y = y0; y < y0 + h; y++) {
+            for (let x = x0; x < x0 + w; x++) {
+                if (radius > 0) {
+                    const cx = x < x0 + radius ? x0 + radius - 0.5 : x >= x0 + w - radius ? x0 + w - radius - 0.5 : x;
+                    const cy = y < y0 + radius ? y0 + radius - 0.5 : y >= y0 + h - radius ? y0 + h - radius - 0.5 : y;
+                    if ((x - cx) ** 2 + (y - cy) ** 2 > radius * radius) { continue; }
+                }
+                set(x, y, colorAt(x, y));
+            }
+        }
+    };
+    const stroke = (x0, y0, w, h, t) => {
+        fill(x0, y0, w, t, () => false);
+        fill(x0, y0 + h - t, w, t, () => false);
+        fill(x0, y0, t, h, () => false);
+        fill(x0 + w - t, y0, t, h, () => false);
+    };
+    const line = (x0, y0, x1, y1, t) => {
+        const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+        for (let i = 0; i <= steps; i++) {
+            const x = Math.round(x0 + ((x1 - x0) * i) / steps);
+            const y = Math.round(y0 + ((y1 - y0) * i) / steps);
+            for (let d = 0; d < t; d++) { set(x, y - Math.floor(t / 2) + d, false); }
+        }
+    };
+    /* Mũi tên 16 × 16 chỉ sang phải: thân 6 điểm cao, đầu tam giác. */
+    const arrow = (x0, y0, white) => {
+        for (let y = 0; y < 16; y++) {
+            for (let x = 0; x < 16; x++) {
+                const body = x < 9 && y >= 5 && y < 11;
+                const head = x >= 9 && Math.abs(y - 7.5) <= 15 - x;
+                if (body || head) { set(x0 + x, y0 + y, white); }
+            }
+        }
+    };
+    const rows = [32, 128, 224, 320];
+    if (parts & 1) { fill(0, 0, PANEL_WIDTH, 24, () => false); }
+    if (parts & 2) {
+        [[8, 1], [64, 2], [120, 4], [176, 3]].forEach(([x, t]) => stroke(x, rows[0], 51, 88, t));
+    }
+    if (parts & 4) {
+        [0, 64, 128, 192, 255].forEach((brightness, i) => {
+            const x = 8 + i * 46;
+            fill(x, rows[1], 40, 88, (px, py) => gray(px, py, brightness));
+            stroke(x, rows[1], 40, 88, 1);
+        });
+    }
+    if (parts & 8) {
+        line(8, rows[2], 231, rows[2] + 87, 1);
+        line(231, rows[2], 8, rows[2] + 87, 3);
+        line(8, rows[2] + 44, 231, rows[2] + 44, 2);
+    }
+    if (parts & 16) {
+        fill(8, rows[3], 70, 88, (px, py) => gray(px, py, 128), 10);
+        arrow(86 + 27, rows[3] + 36, false);
+        fill(164, rows[3], 68, 88, () => false);
+        arrow(164 + 26, rows[3] + 36, true);
+    }
+    return frame;
+}
+
 function textPage(orientation, firstLine, fontSize) {
     return frameFromCanvas(orientation, (context, width, height) => {
         context.font = `${fontSize}px "Segoe UI", system-ui, sans-serif`;
@@ -681,6 +753,31 @@ export const TESTS = [
                     {frame: 1, label: 'vẽ hai khối', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
                 ],
                 note: 'So nửa trên và nửa dưới của khối A, rồi của khối B. Chạy lại với UD = 0: nếu giả thuyết đúng thì khối A vẫn nhạt về phía hàng RAM sau (lúc này ở phía trên panel).',
+            };
+        },
+    },
+    {
+        id: 'demo_screen1',
+        name: 'Màn 1/4 của ink_demo (gần đúng)',
+        path: 'raw',
+        description: 'Vẽ lại gần đúng màn 1/4 của ink_demo (thanh tiêu đề không chữ, khung viền, ô xám clustered-dot, đường chéo, hàng cuối có ô đen) bằng một profile, cả màn, old plane đảo bit. Ô đen hàng cuối và vùng dưới đường chéo có nhạt như trên firmware chính không. Bỏ bớt phần bằng "Phần được vẽ" để tìm phần gây nhạt.',
+        params: [
+            {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
+            {key: 'profile', label: 'Profile vẽ', type: 'profile', value: 'tr4'},
+            {key: 'parts', label: 'Phần được vẽ (cộng: 1 tiêu đề, 2 khung viền, 4 ô xám, 8 đường chéo, 16 hàng cuối)', value: 31, min: 1, max: 31},
+        ],
+        build(values) {
+            const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            return {
+                frames: [createFrame(true), demoScreen1(values.parts)],
+                order: [0, 1],
+                intervalMs: 0,
+                repeat: 1,
+                steps: [
+                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                    {frame: 1, label: 'vẽ màn 1/4', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+                ],
+                note: 'Cầm máy dựng dọc, cáp ở dưới. So ô đen hàng cuối với firmware chính.',
             };
         },
     },
