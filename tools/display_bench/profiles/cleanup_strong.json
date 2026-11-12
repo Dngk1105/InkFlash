@@ -1840,6 +1840,69 @@
      ]
     ]
    }
+  },
+  {
+   "id": 42,
+   "name": "push_k10",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "allow_unbalanced": true,
+   "tables": {
+    "KK": [
+     [
+      "VSH",
+      10
+     ]
+    ],
+    "WW": [
+     [
+      "0",
+      10
+     ]
+    ]
+   }
+  },
+  {
+   "id": 43,
+   "name": "push_k20",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "allow_unbalanced": true,
+   "tables": {
+    "KK": [
+     [
+      "VSH",
+      20
+     ]
+    ],
+    "WW": [
+     [
+      "0",
+      20
+     ]
+    ]
+   }
+  },
+  {
+   "id": 44,
+   "name": "push_kw10",
+   "base": "TR4",
+   "frame_rate_hz": 50,
+   "allow_unbalanced": true,
+   "tables": {
+    "KK": [
+     [
+      "VSH",
+      10
+     ]
+    ],
+    "WW": [
+     [
+      "VSL",
+      10
+     ]
+    ]
+   }
   }
  ],
  "presets": {

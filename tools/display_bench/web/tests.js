@@ -765,6 +765,8 @@ export const TESTS = [
             {key: 'clean', label: 'Profile dọn trắng', type: 'profile', value: 'tr4'},
             {key: 'profile', label: 'Profile vẽ', type: 'profile', value: 'tr4'},
             {key: 'pattern', label: 'Mẫu vùng trên: 0 trắng, 1 đen, 2 sọc dọc, 3 sọc ngang, 4 bàn cờ', value: 4, min: 0, max: 4},
+            {key: 'push', label: 'Đẩy bù sau khi vẽ: 0 = không, 1 = có', value: 0, min: 0, max: 1},
+            {key: 'pushProfile', label: 'Profile đẩy bù (nạp push_*.inkw)', type: 'profile', value: 'tmp'},
         ],
         build(values) {
             const frame = createFrame(true);
@@ -782,15 +784,18 @@ export const TESTS = [
                 for (let x = 164; x < 232; x++) { setPanelPixel(frame, x, y, false); }
             }
             const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
+            const steps = [
+                {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
+                {frame: 1, label: 'vẽ vùng mẫu và ô đen', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
+            ];
+            /* Đẩy bù: old plane bằng frame mới, nên mọi điểm chạy bảng giữ màu (KK, WW) của profile đẩy. */
+            if (values.push) { steps.push({frame: 1, label: 'đẩy bù', oldSource: OldSource.SAME, raw: {profile: values.pushProfile, ...whole}, delayMs: 500}); }
             return {
                 frames: [createFrame(true), frame],
-                order: [0, 1],
+                order: steps.map((step) => step.frame),
                 intervalMs: 0,
                 repeat: 1,
-                steps: [
-                    {frame: 0, label: 'dọn trắng cả màn', oldSource: OldSource.INVERTED, raw: {profile: values.clean, ...whole}},
-                    {frame: 1, label: 'vẽ vùng mẫu và ô đen', oldSource: OldSource.INVERTED, raw: {profile: values.profile, ...whole}, delayMs: 1000},
-                ],
+                steps,
                 note: 'Chạy lần lượt mẫu 1, 2, 3, 4. So ô đen dưới cùng (đầu trên và đầu dưới, có vệt dọc không).',
             };
         },
