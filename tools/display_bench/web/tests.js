@@ -598,6 +598,7 @@ export const TESTS = [
         params: [
             {key: 'profile', label: 'Profile', type: 'profile', value: 'tr4'},
             {key: 'reverse', label: 'Đảo chiều dải: 0 = trắng bên trái, 1 = đen bên trái', value: 0, min: 0, max: 1},
+            {key: 'bands', label: 'Dải được vẽ (cộng: 1 ngưỡng, 2 Floyd–Steinberg, 4 Atkinson, 8 Bayer 4×4, 16 Bayer 8×8)', value: 31, min: 1, max: 31},
         ],
         build(values, orientation) {
             const {width, height} = viewSize(orientation);
@@ -605,6 +606,7 @@ export const TESTS = [
             const frame = createFrame(true);
             const band = Math.floor(height / methods.length);
             methods.forEach((method, index) => {
+                if ((values.bands & (1 << index)) === 0) { return; } /* dải không chọn để trắng */
                 const gray = new Float32Array(width * height).fill(1);
                 for (let y = index * band; y < (index + 1) * band - 2; y++) {
                     for (let x = 0; x < width; x++) {
