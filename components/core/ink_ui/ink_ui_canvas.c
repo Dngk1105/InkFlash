@@ -43,24 +43,26 @@ static bool paint_is_dithered(ink_ui_paint_t paint) {
     return b > 0 && b < 255;
 }
 
-/* Fill `rect` (clipped to the canvas bounds) with a 4 × 4 ordered dither of `brightness`: the share of white pixels
- * grows with brightness, the pattern is anchored at the canvas origin so neighboring fills line up. */
+/* Fill `rect` (clipped to the canvas bounds) with a 4 × 4 clustered-dot dither of `brightness`: white pixels grow as
+ * one cluster from the middle of each cell, the pattern is anchored at the canvas origin so neighboring fills line up.
+ * NOTE: clustered, not Bayer: on BB0 a checkerboard-like dither made black on the same rows fade, because many source
+ * lines switch level at every row (refresh.md, 2026-11-12). */
 static void fill_dither(ink_ui_canvas_t *canvas, ink_ui_rect_t rect, uint8_t brightness) {
     const ink_ui_rect_t bounds = ink_ui_canvas_bounds(canvas);
     const ink_ui_rect_t area   = rect_intersect(rect, bounds);
     if (rect_is_empty(area)) { return; }
 
-    static const uint8_t s_bayer4x4[4][4] = {
-        {0,  8,  2,  10},
-        {12, 4,  14, 6 },
-        {3,  11, 1,  9 },
-        {15, 7,  13, 5 },
+    static const uint8_t s_cluster4x4[4][4] = {
+        {12, 5,  6, 13},
+        {4,  0,  1, 7 },
+        {11, 3,  2, 8 },
+        {15, 10, 9, 14},
     };
 
     u8g2_t *u8g2 = &ui_screen(canvas)->u8g2;
     for (int16_t y = area.y; y < area.y + area.height; y++) {
         for (int16_t x = area.x; x < area.x + area.width; x++) {
-            const uint8_t threshold = (uint8_t)(s_bayer4x4[y & 3][x & 3] * 16 + 8);
+            const uint8_t threshold = (uint8_t)(s_cluster4x4[y & 3][x & 3] * 16 + 8);
             const uint8_t color     = brightness > threshold ? 1 : 0;
             u8g2_SetDrawColor(u8g2, color);
             u8g2_DrawPixel(u8g2, (u8g2_uint_t)x, (u8g2_uint_t)y);
