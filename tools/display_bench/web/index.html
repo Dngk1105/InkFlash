@@ -79,6 +79,8 @@
                     <select id="power-off-frames"><option value="1">1 khung (mặc định)</option><option value="2">2 khung</option><option value="3">3 khung</option><option value="4">4 khung</option></select>
                     <label for="scan-down">Hướng quét gate (PSR byte 1, bit UD)</label>
                     <select id="scan-down"><option value="0">Quét lên, UD = 1 (mặc định)</option><option value="1">Quét xuống, UD = 0: ảnh lật trên dưới</option></select>
+                    <label for="tcon">TCON (lệnh <code>0x60</code>): khoảng hở gate/source</label>
+                    <select id="tcon"><option value="0">00: S2G, G2S 2,6 µs</option><option value="17">11: S2G, G2S 5,2 µs</option><option value="34">22: S2G, G2S 7,8 µs (mặc định)</option><option value="51">33: S2G, G2S 10,4 µs</option><option value="68">44: S2G, G2S 13,0 µs</option><option value="85">55: S2G, G2S 15,6 µs</option></select>
                 </div>
                 <div class="row">
                     <button id="apply-psr-second">Đặt</button>

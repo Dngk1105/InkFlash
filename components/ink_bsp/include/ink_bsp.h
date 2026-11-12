@@ -118,6 +118,22 @@ esp_err_t ink_bsp_display_set_scan_down(bool scan_down);
 bool ink_bsp_display_scan_down(void);
 
 /**
+ * @brief Set the display TCON byte (gate/source non-overlap), effective from the next draw. Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_STATE not initialized.
+ */
+esp_err_t ink_bsp_display_set_tcon(uint8_t value);
+
+/**
+ * @brief Get the display TCON byte set most recently.
+ * @par Called from
+ * Any task, after ink_bsp_init.
+ * @return TCON byte; 0x22 by default.
+ */
+uint8_t ink_bsp_display_tcon(void);
+
+/**
  * @brief Set the frames from source off to gate off at display power off (1-4), effective from the next draw or power off.
  *        Bench firmware only.
  * @par Called from

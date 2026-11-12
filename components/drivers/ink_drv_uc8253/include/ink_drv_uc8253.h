@@ -24,6 +24,7 @@
 #define INK_DRV_UC8253_OTP_BYTES                (0x2A + 9 * 0xE9) /* bank 0 from key A5 to the end of band TR8 (waveform.md) */
 #define INK_DRV_UC8253_PSR_SECOND_DEFAULT       0x0A              /* TIEG 0, NORG 1, VC_LUTZ 0: least darkening after POF (refresh.md) */
 #define INK_DRV_UC8253_VCOM_FROM_PROFILE        0xFF              /* keep the profile's VCOM_DC */
+#define INK_DRV_UC8253_TCON_DEFAULT             0x22              /* UC8253 TCON default: S2G, G2S 12 × 650 ns (p.31) */
 #define INK_DRV_UC8253_POWER_OFF_FRAMES_DEFAULT 1                 /* UC8253 PFS default: gate off 1 frame after source */
 
 typedef struct {
@@ -62,6 +63,7 @@ typedef struct {
     bool                            needs_reset;       /**< previous draw failed midway: RAM swap state unknown */
     uint8_t                         psr_second;        /**< PSR byte 2 sent to the controller */
     bool                            scan_down;         /**< PSR byte 1 UD = 0 sent: gates scan down */
+    uint8_t                         tcon;              /**< TCON sent: S2G (high nibble), G2S (low nibble) */
     uint8_t                         power_off_frames;  /**< PFS sent: frames from source off to gate off */
     uint8_t                         vcom_override;     /**< command 0x82 byte replacing the profile's; 0xFF = none */
 
@@ -76,6 +78,8 @@ typedef struct {
     uint8_t                  psr_second_request;
     bool                     scan_down_pending;
     bool                     scan_down_request;
+    bool                     tcon_pending;
+    uint8_t                  tcon_request;
     bool                     power_off_frames_pending;
     uint8_t                  power_off_frames_request;
     bool                     vcom_override_pending;
@@ -169,6 +173,24 @@ esp_err_t ink_drv_uc8253_set_scan_down(ink_drv_uc8253_t *driver, bool scan_down)
  * @return true = scan down (UD = 0).
  */
 bool ink_drv_uc8253_scan_down(ink_drv_uc8253_t *driver);
+
+/**
+ * @brief Set TCON (command 0x60): source-to-gate (high nibble) and gate-to-source (low nibble) non-overlap, each
+ *        (n + 1) × 4 × 650 ns; sent to the controller before the next draw. Default INK_DRV_UC8253_TCON_DEFAULT.
+ *        Bench firmware only.
+ * @par Called from
+ * Any task.
+ * @retval ESP_ERR_INVALID_ARG driver is NULL.
+ */
+esp_err_t ink_drv_uc8253_set_tcon(ink_drv_uc8253_t *driver, uint8_t value);
+
+/**
+ * @brief Get the TCON byte set most recently, even if not yet sent to the controller.
+ * @par Called from
+ * Any task.
+ * @return TCON byte.
+ */
+uint8_t ink_drv_uc8253_tcon(ink_drv_uc8253_t *driver);
 
 /**
  * @brief Set the frames from source off to gate off at POF (PFS command `0x03`); sent to the controller before the
