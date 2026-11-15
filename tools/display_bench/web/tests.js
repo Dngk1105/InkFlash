@@ -6,7 +6,7 @@
  * Đường raw: trang gửi gói DRAW cho khung đầu rồi PLAY phần còn lại. Đường pipeline: trang gửi PLAY.
  * Mỗi bài trả lời một câu trong bảng "Bài đo" của docs/design/display/bench.md.
  */
-import {Orientation, PANEL_WIDTH, PANEL_HEIGHT, createFrame, setPanelPixel, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
+import {Orientation, PANEL_WIDTH, PANEL_HEIGHT, createFrame, setViewPixel, fillViewRect, frameFromCanvas, grayToFrame, DitherMethod, viewSize} from './frames.js';
 import {Intent, SubmitFlag} from './link.js';
 
 /* Slot 0–47 cho ảnh người dùng, 48–63 cho bài test. */
@@ -74,7 +74,7 @@ function uiGrayRow(top) {
             for (let x = left; x < left + boxWidth; x++) {
                 const edge = y === top || y === top + boxHeight - 1 || x === left || x === left + boxWidth - 1;
                 const white = !edge && brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
-                setPanelPixel(frame, x, y, white);
+                setViewPixel(frame, Orientation.PORTRAIT, x, y, white);
             }
         }
     });
@@ -88,7 +88,7 @@ function demoScreen1(parts) {
     const CLUSTER = [[12, 5, 6, 13], [4, 0, 1, 7], [11, 3, 2, 8], [15, 10, 9, 14]];
     const frame = createFrame(true);
     const set = (x, y, white) => {
-        if (x >= 0 && x < PANEL_WIDTH && y >= 0 && y < PANEL_HEIGHT) { setPanelPixel(frame, x, y, white); }
+        setViewPixel(frame, Orientation.PORTRAIT, x, y, white);
     };
     const gray = (x, y, brightness) => brightness > CLUSTER[y & 3][x & 3] * 16 + 8;
     const fill = (x0, y0, w, h, colorAt, radius = 0) => {
@@ -778,10 +778,10 @@ export const TESTS = [
                 (x, y) => (x + y) % 2 === 0,
             ][values.pattern];
             for (let y = 32; y < 300; y++) {
-                for (let x = 0; x < PANEL_WIDTH; x++) { if (black(x, y)) { setPanelPixel(frame, x, y, false); } }
+                for (let x = 0; x < PANEL_WIDTH; x++) { if (black(x, y)) { setViewPixel(frame, Orientation.PORTRAIT, x, y, false); } }
             }
             for (let y = 320; y < 408; y++) {
-                for (let x = 164; x < 232; x++) { setPanelPixel(frame, x, y, false); }
+                for (let x = 164; x < 232; x++) { setViewPixel(frame, Orientation.PORTRAIT, x, y, false); }
             }
             const whole = {windowKind: WindowKind.WHOLE, partialMode: false, scanOutsideWindow: true, driveBorder: true};
             const steps = [

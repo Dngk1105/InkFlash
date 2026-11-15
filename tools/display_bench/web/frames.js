@@ -2,8 +2,9 @@
 
 /*
  * Khung 1 bit theo bố cục của interface màn (ink_hal_display.h): bit 1 = trắng, gói theo hàng, điểm trái nhất ở bit
- * cao nhất, mỗi hàng width / 8 byte, toạ độ theo hướng gốc của panel (240 × 416). Hướng nhìn ngang chép từ put_pixel()
- * trong ink_ui.c, để ảnh trên trang khớp ảnh app sẽ vẽ.
+ * cao nhất, mỗi hàng width / 8 byte, toạ độ theo hướng gốc của panel (240 × 416). Trên panel thật UC8253 (UD=1, SHL=1)
+ * dựng dọc cáp FPC ở dưới, cột 0 nằm ở mép phải và cột 239 ở mép trái. viewToPanel() chuyển toạ độ hướng nhìn
+ * (x = 0 ở bên trái) sang toạ độ cột của panel để ảnh không bị lật gương.
  */
 
 /* ---- Cỡ màn ---- */
@@ -27,7 +28,7 @@ export function viewSize(orientation) {
 export function viewToPanel(orientation, x, y) {
     if (orientation === Orientation.LANDSCAPE_90) { return {column: y, row: PANEL_HEIGHT - 1 - x}; }
     if (orientation === Orientation.LANDSCAPE_270) { return {column: PANEL_WIDTH - 1 - y, row: x}; }
-    return {column: x, row: y};
+    return {column: PANEL_WIDTH - 1 - x, row: y};
 }
 
 /* ---- Đọc ghi điểm ---- */
@@ -77,7 +78,9 @@ export function viewRectToPanel(orientation, rect) {
 
 /* Window của panel → hình chữ nhật trong hướng nhìn (để vẽ khung window lên ảnh xem trước). */
 export function panelRectToView(orientation, rect) {
-    if (orientation === Orientation.PORTRAIT) { return {...rect}; }
+    if (orientation === Orientation.PORTRAIT) {
+        return {x: PANEL_WIDTH - rect.x - rect.width, y: rect.y, width: rect.width, height: rect.height};
+    }
     if (orientation === Orientation.LANDSCAPE_90) {
         return {x: PANEL_HEIGHT - rect.y - rect.height, y: rect.x, width: rect.height, height: rect.width};
     }
