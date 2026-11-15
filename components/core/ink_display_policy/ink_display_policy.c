@@ -496,8 +496,15 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
     const uint32_t             weight     = config->debt_weights[intent];
     state->priv.after_wake                = false;
 
-    if (!after_wake && (request.flags & INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW) != 0) {
-        /* The app opened or closed a layer: drive the whole window, not only the pixels that changed colour. */
+    if (intent == INK_DISPLAY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
+        /* PAGE debt reached debt_page: clean the whole panel before it accumulates further. */
+        decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
+        return INK_DISPLAY_POLICY_OK;
+    }
+    if (!after_wake && ((request.flags & INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW) != 0 || intent == INK_DISPLAY_INTENT_PAGE)) {
+        /* The app opened or closed a layer, or switched page: drive the whole window, not only the pixels that changed
+         * colour. A PAGE draw with the old plane = shown frame leaves unchanged black pixels undriven and faint next to
+         * driven ones, so the other page shows through. decide_fast() turns this into cleanup strong at fast_limit. */
         mark_window_dirty(state, shown, next, window, weight > 0 ? weight : 1);
         decide_fast(state, window, out_decision);
         return INK_DISPLAY_POLICY_OK;
@@ -513,10 +520,6 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
          * on BB0 (whole-panel clean_full100 greyed the text, 2026-11-09). */
         add_debt(state, shown, next, changed, weight > 0 ? weight : 1);
         decide_fast(state, window, out_decision);
-        return INK_DISPLAY_POLICY_OK;
-    }
-    if (intent == INK_DISPLAY_INTENT_PAGE && state->priv.max_debt >= config->debt_page) {
-        decide_clean(state, INK_DISPLAY_CLEANUP_STRONG, out_decision);
         return INK_DISPLAY_POLICY_OK;
     }
     add_debt(state, shown, next, changed, weight);

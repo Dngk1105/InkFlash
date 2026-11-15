@@ -42,7 +42,7 @@ Thời gian một lần vẽ theo intent:
 |---|---|---|---|
 | `UI` | `lut10f50` | 240 ms | Con trỏ, mục chọn, nút nhỏ |
 | `TEXT` | `tr8` | 340 ms | Trang chữ để đọc |
-| `PAGE` | `tr8`, cleanup strong nếu debt lớn nhất ≥ 6 | 340 ms hoặc khoảng 2,8 s | Sang scene khác |
+| `PAGE` | Cleanup fast cả changed window (`clean_full50`); cleanup strong nếu debt lớn nhất ≥ 6 hoặc đã đủ 4 lần cleanup fast | 640 ms hoặc khoảng 2,8 s | Sang scene khác |
 
 Display tự làm mọi việc làm sạch. App không vẽ frame trắng rồi frame đen để "xoá bóng", và không tự đặt timer để làm sạch.
 Hai việc đó cộng debt và gây chớp thừa.
@@ -123,7 +123,7 @@ Người dùng chấp nhận chớp khi đang không nhìn kỹ, và khó chịu
 | Màn chớp khi | Ai gây | App làm gì |
 |---|---|---|
 | Idle 20 s mà còn debt | Display | Không làm gì: đây là cách làm sạch chính |
-| `PAGE` khi debt lớn nhất ≥ 6 | Display | Dùng `PAGE` cho lần đổi scene, nơi chớp ít gây khó chịu |
+| `PAGE` khi debt lớn nhất ≥ 6, hoặc lần cleanup fast thứ 5 | Display | Dùng `PAGE` cho lần đổi scene, nơi chớp ít gây khó chịu |
 | Pixel vượt debt ceiling ngoài active period | Display | Giảm số pixel đổi mỗi lần bấm (mục trên) |
 | Lần cleanup fast thứ 5 kể từ cleanup strong gần nhất | Display | Không đặt `REDRAW_WINDOW` cho thay đổi thường |
 | Trước khi ngủ, còn debt | `system` | Không làm gì |
