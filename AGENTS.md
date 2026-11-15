@@ -24,6 +24,7 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 - Terminal ESP-IDF trên máy này: trong PowerShell chạy `. C:\Espressif\tools\Microsoft.v6.1.PowerShell_profile.ps1`
   (profile của EIM). Không dùng `C:\esp\v6.1\esp-idf\export.ps1`: nó tìm venv Python ở chỗ của cách cài cũ, nên lỗi.
 - MCP `esp-idf`: `build_project` từng treo 30 phút ở lần build đầu. Build lần đầu thì chạy `idf.py` trực tiếp, chạy nền.
+- Kiểm thử hiển thị e-ink bằng camera (iPhone qua Lightning/Webcam): gọi `python tools/vision_test/capture.py -o <subpath> --json`, xem ảnh trả về bằng tool đọc file/image để đối chiếu màn hình thực tế. Phân tích chỉ số định lượng (tương phản, độ nét, ghosting debt) bằng `python tools/vision_test/analyze.py -i <image.jpg> --json`. Xem hướng dẫn tại `tools/vision_test/README.md`.
 
 ## Viết comment, docs, chat
 

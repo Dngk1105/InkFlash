@@ -89,3 +89,4 @@ build-host/
 .cache/
 .claude/
 .claude/agy-runs/
+tools/vision_test/captures/
