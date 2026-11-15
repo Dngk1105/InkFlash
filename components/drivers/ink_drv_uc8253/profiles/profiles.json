@@ -22,7 +22,7 @@
     {"id": 24, "name": "clean_full100", "base": "TR8", "frame_rate_hz": 100,
      "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}},
     {"id": 29, "name": "clean_full50", "base": "TR8", "frame_rate_hz": 50,
-     "tables": {"KW": [["VSH", 15], ["VSL", 15]], "WK": [["VSL", 15], ["VSH", 15]]}},
+     "tables": {"KW": [["VSL", 10], ["0", 20]], "WK": [["VSL", 10], ["VSH", 20]]}},
     {"id": 42, "name": "push_k10", "base": "TR4", "frame_rate_hz": 50, "allow_unbalanced": true,
      "tables": {"KK": [["VSH", 10]], "WW": [["0", 10]]}}
   ],

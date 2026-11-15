@@ -161,10 +161,15 @@ debt 1 cho mọi pixel chữ, nên không giới hạn window thì mỗi lần c
 flag ngay ngoài window, để các cleanup stage xử lý. Đo trên BB0 (2026-11-09): cleanup fast cả panel bằng `clean_full100` làm chữ đứng yên quanh ô lật nhiều
 lần xám tới mức không đọc được.
 
-Cleanup fast dùng profile `clean_full50` (640 ms): pixel được chọn lắc 15 LUT frame về màu ngược rồi 15 LUT frame về
-màu của nó, 50 Hz, cân bằng điện tích ngay trong lần đó. Mỗi chiều bằng một lần kéo của `tr8`; `clean_full100` chỉ
-bằng một nửa. Đo trên BB0: `tr8` (kéo một chiều) làm vùng không đổi đậm dần sau mỗi lần cleanup, nên không dùng làm
-cleanup fast.
+Cleanup fast dùng profile `clean_full50` (640 ms, 50 Hz). Pixel được chọn lắc cùng chiều: 10 LUT frame mọi pixel cùng
+nhận VSL (về trắng), rồi 20 LUT frame pixel về đen nhận VSH, pixel về trắng đứng 0 V. Bảng về đen (+10) và bảng về
+trắng (−10) bù nhau, nên một pixel đổi màu qua lại không tích điện. Đo trên BB0: `tr8` (kéo một chiều) làm vùng không
+đổi đậm dần sau mỗi lần cleanup, nên không dùng làm cleanup fast.
+
+Không lắc ngược pha (pixel về đen và pixel về trắng nhận điện áp ngược dấu cùng lúc). Đo trên BB0 (2026-11-16): với
+bảng ngược pha, window có dither diện rộng làm đường source đổi VSH ↔ VSL ở gần như mỗi hàng suốt lần vẽ, và cả window
+không về đúng màu (màn gần như trắng). Số đo ở `docs/hardware/parts/weact-epaper-3.7/refresh.md`, mục "Cleanup fast
+trên vùng dither".
 
 Drive border bật ở cleanup strong và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả trong partial
 mode. `TEXT`, `UI`, cleanup fast và các cleanup stage để border nổi.
@@ -381,7 +386,8 @@ Danh sách profile:
 | 21 | `clean_edge` | Pixel được chọn lắc 2–1–1–1–1–2 LUT frame, kết thúc ở màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup edge neighbor |
 | 22 | `clean_light` | Pixel được chọn: 4 LUT frame về màu ngược, rồi 4 LUT frame về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup light |
 | 24 | `clean_full100` | Pixel được chọn: 15 LUT frame về màu ngược, rồi 15 LUT frame về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Cleanup edge center |
-| 29 | `clean_full50` | Như `clean_full100`, 50 Hz (cùng waveform với id 23 đã bỏ) | 640 ms | Cleanup fast |
+| 29 | `clean_full50` | Mọi pixel được chọn 10 LUT frame VSL; rồi pixel về đen 20 LUT frame VSH, pixel về trắng 0 V; 50 Hz; giữ màu theo TR8 | 640 ms | Cleanup fast |
+| 42 | `push_k10` | Chỉ bảng giữ màu: KK 10 LUT frame VSH, WW 0 V; 50 Hz | 240 ms | Lượt đẩy sau cleanup strong |
 
 Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử bằng bench rồi bỏ; kết quả đo ở
 `docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong

@@ -12,7 +12,7 @@ nếu còn cũng chỉ nhỏ bằng mũi tên.
 Panel e-ink không giống LCD ở ba điểm:
 
 - Mỗi lần vẽ mất 240–340 ms, không phải 16 ms. Panel chỉ đổi khi được vẽ, và giữ hình khi mất nguồn.
-- Mỗi lần đổi màu, pixel giữ lại một ít điện tích và màu chưa tới đích (xám, viền, bóng ảnh cũ). Display ghi phần nợ
+- Mỗi lần đổi màu, pixel giữ lại một ít điện tích và màu chưa tới đích (xám, viền, bóng ảnh cũ). Display ghi phần còn thiếu
   này thành debt theo từng pixel, rồi làm sạch bằng cleanup. Cleanup mạnh nhất chớp cả màn.
 - Cách app vẽ quyết định mức debt và số lần chớp. Display không sửa được một thiết kế đổi quá nhiều pixel.
 
@@ -44,7 +44,7 @@ Thời gian một lần vẽ theo intent:
 | `TEXT` | `tr8` | 340 ms | Trang chữ để đọc |
 | `PAGE` | `tr8`, cleanup strong nếu debt lớn nhất ≥ 6 | 340 ms hoặc khoảng 2,8 s | Sang scene khác |
 
-Display tự làm mọi việc làm sạch. App không vẽ frame trắng rồi frame đen để "xoá bóng", và không tự hẹn giờ làm sạch.
+Display tự làm mọi việc làm sạch. App không vẽ frame trắng rồi frame đen để "xoá bóng", và không tự đặt timer để làm sạch.
 Hai việc đó cộng debt và gây chớp thừa.
 
 ### Một vòng vẽ của app
@@ -58,7 +58,7 @@ Ví dụ: người dùng bấm nút lật thẻ ở app Flashcard.
 
 Luật:
 
-- Vẽ lại đúng vùng đổi. Tô lại cả màn rồi vẽ lại y hệt cũng không sao, vì display so với shown frame và chỉ tính pixel
+- Chỉ vẽ lại phần nội dung đổi. Tô lại cả màn rồi vẽ lại y hệt cũng không sao, vì display so với shown frame và chỉ tính pixel
   đổi màu. Nhưng vẽ một pixel khác đi là cộng debt cho pixel đó.
 - Không lo submit dồn dập. Người dùng bấm nhanh hơn panel thì frame pending cũ bị drop; chỉ frame mới nhất được vẽ.
 - Submit frame giống hệt shown frame thì display không vẽ, không cộng debt.

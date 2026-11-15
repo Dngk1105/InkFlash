@@ -208,6 +208,29 @@ tiếp.
 giữ VSL; điện dung ký sinh giữa đường source và điểm ảnh làm điểm trắng ở cột đó nhận ít VSL hơn. Trên bốn màn của
 `ink_demo` không thấy vệt này bằng mắt.
 
+## Cleanup fast trên vùng dither, đo 2026-11-16
+
+Ví dụ: `ink_demo` bấm từ màn 2/4 (chữ) về màn 1/4 (ô đen lớn, dải dither 5 bậc, ô xám). Frame có flag `REDRAW_WINDOW`,
+nên display vẽ bằng cleanup fast, window 224 × 402. Với `clean_full50` cũ, màn gần như trắng: ô đen, dải dither và
+thanh tiêu đề không về đen. Không có lỗi driver, và old plane đúng là frame mới đảo bit trong cả window.
+
+Bấm nút bằng lệnh serial của firmware thử, chụp camera nắn phẳng, thang xám 0–255 (số thấp là tối):
+
+| Thử | Cấu hình `clean_full50` | Kết quả màn 1/4 |
+|---|---|---|
+| Đích 2/4 hoặc 3/4 (không dither), từ màn bất kỳ | Cũ: KW = [VSH 15, VSL 15], WK = [VSL 15, VSH 15] (ngược pha) | Đúng |
+| Đích 1/4, từ 2/4 hoặc 4/4 | Như trên | Gần như trắng |
+| Như trên, partial mode tắt; hoặc reset controller trước mỗi lần vẽ; hoặc tắt lượt đẩy sau cleanup strong | Như trên | Vẫn gần như trắng |
+| Màn 1/4 bỏ dải dither và ô xám | Như trên | Đúng |
+| Đích 1/4, có dither | KW = [VSL 15, 0 15], WK = [VSL 15, VSH 15] (cùng chiều, lệch −15 frame) | Đúng; ô đen trên 50, ô đen dưới 47, nền 208 |
+| Như trên | KW = [VSL 10, 0 20], WK = [VSL 10, VSH 20] (cùng chiều, cân bằng) | Đúng; ô đen trên 49, ô đen dưới 28, nền 210 |
+| Bấm qua lại 1/4 ↔ 2/4 tám lần | Cùng chiều, cân bằng | Cả hai màn sạch, không còn bóng màn trước; ô đen dưới 24, nền 194 |
+
+Kết luận đo được: bảng ngược pha hỏng khi window có dither diện rộng. Mỗi đường source khi đó đổi giữa VSH và VSL ở
+gần như mỗi hàng suốt 30 frame, cùng cơ chế với mục "Ô đen xám ở hàng quét sau" nhưng nặng hơn. Bảng cùng chiều chỉ
+đổi giữa VSH và 0 V ở pha thứ hai, và pha đầu không đổi mức giữa các hàng. Chưa đo bóng mờ dài hạn và ở nhiệt độ
+khác 25 °C.
+
 ## Khuyến nghị trong spec
 
 
