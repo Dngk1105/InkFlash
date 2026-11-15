@@ -1,0 +1,34 @@
+{
+  "preferred_device": "Iriun Webcam",
+  "camera_index": 1,
+  "fallback_to_any": true,
+  "default_output_dir": "tools/vision_test/captures",
+  "default_format": "jpg",
+  "resolution": "2560x1440",
+  "rotate": 0,
+  "enhance_contrast": false,
+  "warp_perspective": true,
+  "flat_field_correction": false,
+  "target_resolution": [
+    1248,
+    720
+  ],
+  "screen_quad": [
+    [
+      58.87437057495117,
+      346.8800354003906
+    ],
+    [
+      1435.3568115234375,
+      269.6682434082031
+    ],
+    [
+      1441.7889404296875,
+      1272.134765625
+    ],
+    [
+      80.74371859296483,
+      1191.0623324396784
+    ]
+  ]
+}
