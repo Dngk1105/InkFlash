@@ -58,12 +58,7 @@ Paint mang màu mong muốn, không mang bit. Canvas đổi màu đó thành pix
 | Độ sáng của màu | Tô chữ nhật | Viền, đường thẳng, chữ, bitmap |
 |---|---|---|
 | Đen hoặc trắng | Pixel đen hoặc trắng | Pixel đen hoặc trắng |
-| Mức giữa | Pattern dither clustered-dot 4 × 4 theo độ sáng | Đen nếu độ sáng dưới 50 %, còn lại trắng |
-
-Clustered-dot gom điểm trắng thành một cụm giữa mỗi ô 4 × 4, cụm lớn dần theo độ sáng, thay cho pattern bàn cờ của
-Bayer. Đo trên BB0 (2026-11-12): khối đen nằm cùng hàng với vùng dither gần bàn cờ thì nhạt dần, vì mỗi lần chuyển hàng
-nhiều đường source phải đổi mức (`docs/hardware/parts/weact-epaper-3.7/refresh.md`). Clustered-dot làm số đường
-source đổi mức mỗi hàng ở xám 50 % còn một nửa so với Bayer.
+| Mức giữa | Pattern dither 4 × 4 theo độ sáng | Đen nếu độ sáng dưới 50 %, còn lại trắng |
 
 Nhờ vậy app viết "xám 50 %" một lần. Panel 1 bit hiện pattern chấm; panel có pixel format khác sẽ hiện theo cách
 của pixel format đó mà app không đổi code.

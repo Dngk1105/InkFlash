@@ -198,9 +198,9 @@ static void test_overflow_and_negative_coords_guarded(void) {
     for (size_t i = GUARD_BYTES + FRAME_BYTES; i < sizeof(buffer); i++) { TEST_ASSERT_EQUAL_HEX8(GUARD_PATTERN, buffer[i]); }
 }
 
-/* Purpose: gray fills must produce clustered-dot dither patterns whose white pixel proportion matches the brightness level.
+/* Purpose: gray fills must produce Bayer dither patterns whose white pixel proportion matches the brightness level.
  * Does: fills 32 × 32 px areas with gray levels 0, 255, and 128, verifying population counts of 0, 1024, and exactly 512 white pixels. */
-static void test_dither_clustered(void) {
+static void test_dither_bayer(void) {
     ink_ui_canvas_t canvas;
     TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
 
@@ -234,26 +234,6 @@ static void test_dither_clustered(void) {
         for (int x = 0; x < 4; x++) { ones_128 += (uint32_t)__builtin_popcount(frame[y * ROW_BYTES + x]); }
     }
     TEST_ASSERT_EQUAL_UINT32(512, ones_128);
-}
-
-/* Purpose: gray 50 % must switch at most half of the columns between two rows (a checkerboard switches all of them),
- * since every switch is a source line changing level on the panel.
- * Does: fills 32 × 32 px with gray 128 and counts pixels that differ from the pixel below. */
-static void test_dither_clustered_limits_row_switches(void) {
-    ink_ui_canvas_t canvas;
-    TEST_ASSERT_EQUAL(INK_UI_OK, ink_ui_canvas_init(&canvas, &s_info_k1, INK_UI_ROTATION_0));
-    uint8_t frame[FRAME_BYTES];
-    ink_ui_canvas_bind(&canvas, frame);
-    memset(frame, 0x00, sizeof(frame));
-    ink_ui_fill(&canvas, (ink_ui_rect_t){0, 0, 32, 32}, 0, INK_UI_PAINT_GRAY(128));
-
-    uint32_t switches = 0;
-    for (int y = 0; y < 31; y++) {
-        for (int x = 0; x < 4; x++) {
-            switches += (uint32_t)__builtin_popcount((unsigned)(frame[y * ROW_BYTES + x] ^ frame[(y + 1) * ROW_BYTES + x]));
-        }
-    }
-    TEST_ASSERT_LESS_OR_EQUAL_UINT32(32 * 31 / 2, switches);
 }
 
 /* Purpose: a 1 px outline stroke must leave inner pixels untouched, and XOR stroke twice must restore original pixels.
@@ -359,8 +339,7 @@ int main(void) {
     RUN_TEST(test_pixel_all_four_rotations);
     RUN_TEST(test_clip_window);
     RUN_TEST(test_overflow_and_negative_coords_guarded);
-    RUN_TEST(test_dither_clustered);
-    RUN_TEST(test_dither_clustered_limits_row_switches);
+    RUN_TEST(test_dither_bayer);
     RUN_TEST(test_stroke_1px_outline_and_xor);
     RUN_TEST(test_bitmap_mask1);
     RUN_TEST(test_preview_pbm);
