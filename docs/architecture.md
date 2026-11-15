@@ -65,6 +65,7 @@ Mỗi file tự đứng được; chỉ mở file khớp với vấn đề.
 | Panel vẽ chậm, chớp, ghosting, viền xám, intent của app, hợp đồng giữa app và display, đổi panel hoặc controller, cleanup khi idle, đổi waveform (profile, LUT), viết hoặc sửa driver panel, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
 | App vẽ chữ, hình, bố cục lên frame; chữ không xuống dòng; đổi font; vẽ sai chiều; đổi thư viện vẽ; thêm pixel format | [design/ui.md](design/ui.md) |
 | Thêm app, scene, mục menu, `BACK`, Settings | [design/app-framework.md](design/app-framework.md) |
+| Thiết kế màn, bố cục, chọn intent và flag khi viết app, màn chớp hoặc còn bóng mờ vì cách app vẽ | [design/app-ui-guide.md](design/app-ui-guide.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |
 | Tạo module mới, đặt tên, repo xếp thế nào, mã lỗi, template, `tools/check.py` báo lỗi | [design/code-structure.md](design/code-structure.md) |

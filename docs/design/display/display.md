@@ -181,7 +181,7 @@ cleanup (đã gặp trên BB0 với band TR6).
 
 1. Profile theo band của preset `CLEANUP_STRONG`, old plane là frame mới đảo bit (như mọi cleanup cả panel).
 2. Lượt đẩy: profile theo band của preset `strong_push`, cùng window, old plane bằng chính frame mới.
-   Mọi pixel chạy bảng giữ màu. Profile `push_k10` cho pixel đen thêm 10 LUT frame VSH ở 50 Hz (khoảng 0,2 s) và để
+   Mọi pixel chạy bảng giữ màu. Profile `push_k10` cho pixel đen thêm 10 LUT frame VSH ở 50 Hz (DRF 240 ms) và để
    pixel trắng ở 0 V, nên chỉ điểm đen được kéo thêm.
 
 Lượt đẩy chạy sau cleanup strong ở mọi chỗ trong bảng preset, kể cả trước khi ngủ, và không chạy sau cleanup fast hay
