@@ -176,9 +176,37 @@ Nhìn bằng mắt và chụp ảnh. Profile ứng viên ở `tools/display_benc
 | Dải xám dither, VCOM_DC từ `13` (−2,0 V) về `05` (−0,6 V) | `tr4` | Đen chung nhạt dần theo VCOM_DC; đoạn nhạt không mất |
 | Dải xám dither, TCON (`0x60`) | `tr4`, `00` tới `55` | TCON dài hơn `22` làm đoạn đen nhạt hơn; ngắn hơn (`11`, `00`) đỡ không đáng kể |
 
-Giả thuyết đang dùng, chưa đo trực tiếp: ở hàng có dither gần bàn cờ, mỗi lần chuyển hàng khoảng một nửa số đường source đổi giữa
-VSL và VSH, nguồn VSH/VSL sụt và điểm đen trên cùng hàng không kịp nạp đủ trong lúc gate mở. Đen đặc và khối lớn không làm
-đường source đổi giữa các hàng nên không bị.
+## Ô đen xám ở hàng quét sau, đo 2026-11-12 tới 2026-11-16
+
+Ví dụ: màn 1/4 của `ink_demo` vẽ lúc khởi động bằng cleanup strong (`tr4`). Ô đen ở góc gần cáp FPC nhạt dần và có sọc
+ngang, trong khi ô đen ở xa cáp vẫn đen. Bài bench "Ô đen dưới vùng mẫu" tái hiện lỗi này: vùng trên (hàng RAM 32–299)
+tô một mẫu, ô đen nằm ở hàng 320–407, sát cáp.
+
+Số đo dưới đây lấy từ ảnh camera đã nắn phẳng (`tools/vision_test`), thang xám 0–255, số thấp là tối. Mỗi cấu hình chụp
+một lần; ánh sáng phòng làm số lệch vài đơn vị giữa các lần chụp.
+
+| Bài | Cấu hình | Kết quả |
+|---|---|---|
+| "Ô đen dưới vùng mẫu", vùng trên trắng, đen đặc, hoặc sọc dọc 1 điểm | `tr4` | Ô đen đều |
+| Như trên, vùng trên sọc ngang 1 điểm hoặc bàn cờ | `tr4` | Ô đen xám (76) |
+| Như trên, bàn cờ; BTST, TCON, VCOM_DC, UD, frame rate, nhiệt độ | `tr4` | Ô vẫn xám |
+| Như trên, bàn cờ; thêm một lượt vẽ riêng, mặt phẳng cũ bằng frame mới | `tr4`, rồi `push_k10` (KK: VSH 10 frame; WW: 0 V 10 frame; 50 Hz) | Ô đen (30); trắng giữ nguyên |
+| Như trên | `tr4`, rồi `push_k20` (VSH 20 frame) | Ô đen, như `push_k10` |
+| Như trên | `tr4`, rồi `push_kw10` (đen VSH, trắng VSL cùng lúc) | Ô nhạt hơn |
+| Như trên, gộp phần đẩy vào cuối sóng | `tr4_k10` (WK, KK thêm VSH 10 frame cuối), `tr4_k10b` (thêm VSL 10 frame đầu để cân bằng) | Ô đen (31), nhưng mọi vùng trắng tối đi khoảng 9: nhìn đục |
+| `ink_demo` màn 1/4 lúc khởi động | Cleanup strong `tr4` | Ô đen gần cáp 81, ô đen dưới 62, nền 199; ô gần cáp nhạt dần, có sọc |
+| Như trên | Cleanup strong `tr4`, rồi `push_k10` (nhánh thử `exp/push-pass`) | Ô đen gần cáp 33, ô đen dưới 30, nền 209; đen đều. Màn 2/4–4/4 vẽ bằng preset của intent sau đó vẫn sạch |
+
+Kết luận đo được: điểm đen bị xám khi các hàng quét trước nó làm đường source đổi mức nhiều lần (sọc ngang, bàn cờ,
+dither gần 50 %). Đen đặc và sọc dọc không làm đường source đổi giữa các hàng, nên không bị. Một lượt đẩy thêm VSH chỉ
+cho điểm đen, chạy riêng sau `tr4`, sửa được mà không làm đục vùng trắng. Cơ chế điện bên trong controller chưa đo trực
+tiếp.
+
+**Vệt dọc theo cột ô đen.** Ở cột có ô đen, điểm trắng tối hơn điểm trắng ở cột khác khoảng 4 (hàng 0–31) và 8–10 (hàng
+408–415). Vệt có cả khi chỉ vẽ `tr4`, không đẩy, và không đậm thêm khi có `push_k10`. Giả thuyết, chưa đo trực tiếp:
+ở 20 frame cuối của `tr4`, đường source của cột có ô đen đổi giữa VSH (hàng ô đen) và VSL (hàng trắng), còn ở cột khác
+giữ VSL; điện dung ký sinh giữa đường source và điểm ảnh làm điểm trắng ở cột đó nhận ít VSL hơn. Trên bốn màn của
+`ink_demo` không thấy vệt này bằng mắt.
 
 ## Khuyến nghị trong spec
 

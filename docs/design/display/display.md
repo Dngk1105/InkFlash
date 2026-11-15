@@ -152,6 +152,7 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
 | `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
+| `strong_push` | Lượt đẩy, ngay sau mỗi cleanup strong | Frame mới (old plane bằng new plane) | Cả panel |
 
 Cleanup fast chỉ kéo pixel bẩn (có debt hoặc edge flag) nằm trong changed window, và vẽ luôn frame mới. Policy cộng
 debt cho pixel frame này đổi trước, nên chúng nằm trong số pixel bẩn. Pixel sạch (chữ đứng yên quanh ô vừa lật) giữ
@@ -174,6 +175,21 @@ Cleanup strong và cleanup fast đọc lại nhiệt độ trước khi vẽ; b�
 Old plane của mọi cleanup cả panel là frame mới đảo bit, không bao giờ là shown frame. Khi đó mọi pixel được coi là
 đổi màu, nên panel kéo hết pixel về đúng màu. Dùng shown frame thì waveform chỉ kéo pixel đổi màu, và ảnh vẫn mờ sau
 cleanup (đã gặp trên BB0 với band TR6).
+
+**Lượt đẩy sau cleanup strong.** Ví dụ: màn có ô đen nằm dưới một vùng dither gần bàn cờ. Sau cleanup strong bằng
+`tr4`, ô đen ở các hàng quét sau (gần cáp FPC) chỉ xám, không đen. Vì vậy mỗi cleanup strong gồm hai lần gọi driver:
+
+1. Profile theo band của preset `CLEANUP_STRONG`, old plane là frame mới đảo bit (như mọi cleanup cả panel).
+2. Lượt đẩy: profile theo band của preset `strong_push`, cùng window, old plane bằng chính frame mới.
+   Mọi pixel chạy bảng giữ màu. Profile `push_k10` cho pixel đen thêm 10 LUT frame VSH ở 50 Hz (khoảng 0,2 s) và để
+   pixel trắng ở 0 V, nên chỉ điểm đen được kéo thêm.
+
+Lượt đẩy chạy sau cleanup strong ở mọi chỗ trong bảng preset, kể cả trước khi ngủ, và không chạy sau cleanup fast hay
+cleanup stage. Preset `strong_push` có danh sách band rỗng thì bỏ lượt đẩy. Lượt đẩy lỗi thì xử lý như lần vẽ lỗi:
+lần decide sau là cleanup strong. Hai lần gọi driver chung một report; id profile trong report là của lần 1.
+
+Không gộp phần đẩy vào cuối sóng cleanup strong: đo trên BB0, cách đó cũng làm ô đen đen, nhưng mọi vùng trắng tối
+đi và nhìn đục. Số đo ở `docs/hardware/parts/weact-epaper-3.7/refresh.md`, mục "Ô đen xám ở hàng quét sau".
 
 ## Decide
 
@@ -330,6 +346,7 @@ Capabilities của driver:
 | `x_align` | Mép trái và mép phải window là bội của số này |
 | `profiles` | Id, tên, source (band TR nào của OTP, hoặc `SOURCE_CUSTOM`) và thời gian một lần vẽ của từng profile |
 | `draw_defaults`, `cleanup_defaults` | Với mỗi intent (bỏ `AUTO`) và mỗi loại cleanup (bỏ `INVALID`): danh sách band → id profile, và draw config. Display dựng preset mặc định từ đây |
+| `strong_push_default` | Như trên, cho preset `strong_push` (lượt đẩy sau cleanup strong) |
 
 ## Profile waveform
 
@@ -425,6 +442,7 @@ sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_s
 | Option | Nghĩa | Mặc định |
 |---|---|---|
 | `draw_presets[intent]`, `cleanup_presets[cleanup]` | Danh sách band → id profile; draw config. Draw preset có thêm `debt_weight` và `marks_edges`. Id không còn trong danh sách thì dùng mặc định của driver cho intent hoặc cleanup đó | Mặc định của driver; debt weight `TEXT` 1, `UI` 2, `PAGE` 1; `marks_edges` chỉ `UI` |
+| `strong_push` | Preset của lượt đẩy sau cleanup strong (mục "Một lần gọi driver"); danh sách band rỗng = không đẩy | Mặc định của driver: `push_k10` cho mọi nhiệt độ |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
 | `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Debt ceiling sau idle, và debt ceiling lớn nhất trong active period | 8, 15 |
