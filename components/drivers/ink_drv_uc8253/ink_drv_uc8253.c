@@ -433,14 +433,15 @@ esp_err_t ink_drv_uc8253_init(ink_drv_uc8253_t *driver, const ink_drv_uc8253_con
     ESP_RETURN_ON_ERROR(reset_controller(driver), TAG, "reset");
 
     const ink_hal_display_capabilities_t capabilities = {
-        .width            = INK_DRV_UC8253_WIDTH,
-        .height           = INK_DRV_UC8253_HEIGHT,
-        .pixel_format     = INK_DISPLAY_PIXEL_FORMAT_K1,
-        .x_align          = X_ALIGN,
-        .profiles         = driver->profile_info,
-        .profile_count    = PROFILE_SLOTS,
-        .draw_defaults    = ink_drv_uc8253_draw_defaults,
-        .cleanup_defaults = ink_drv_uc8253_cleanup_defaults,
+        .width               = INK_DRV_UC8253_WIDTH,
+        .height              = INK_DRV_UC8253_HEIGHT,
+        .pixel_format        = INK_DISPLAY_PIXEL_FORMAT_K1,
+        .x_align             = X_ALIGN,
+        .profiles            = driver->profile_info,
+        .profile_count       = PROFILE_SLOTS,
+        .draw_defaults       = ink_drv_uc8253_draw_defaults,
+        .cleanup_defaults    = ink_drv_uc8253_cleanup_defaults,
+        .strong_push_default = &ink_drv_uc8253_strong_push_default,
     };
 
     *out_device = (ink_hal_display_device_t){

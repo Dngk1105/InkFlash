@@ -121,6 +121,7 @@ ink_display_options_t ink_display_default_options(const ink_hal_display_capabili
     for (int cleanup = INK_DISPLAY_CLEANUP_STRONG; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
         options.cleanup_presets[cleanup] = default_preset(&capabilities->cleanup_defaults[cleanup]);
     }
+    if (capabilities->strong_push_default != nullptr) { options.strong_push = default_preset(capabilities->strong_push_default); }
     return options;
 }
 
@@ -159,6 +160,7 @@ static bool options_valid(const ink_display_options_t *options, const ink_hal_di
     for (int cleanup = INK_DISPLAY_CLEANUP_STRONG; cleanup < INK_DISPLAY_CLEANUP_COUNT; cleanup++) {
         if (!bands_valid(&options->cleanup_presets[cleanup])) { return false; }
     }
+    if (options->strong_push.band_count > INK_HAL_DISPLAY_MAX_BANDS) { return false; } /* 0 = no push pass */
     static uint8_t                    probe_pixel;
     ink_display_policy_state_t        probe;
     const ink_display_policy_config_t config = policy_config(capabilities, options);
@@ -266,6 +268,7 @@ typedef struct {
     const ink_display_preset_t             *preset;
     const ink_hal_display_preset_default_t *fallback;
     bool                                    reads_temperature;
+    bool                                    pushes; /* push pass after the draw (cleanup strong) */
 } setup_t;
 
 /* Whole-panel cleanups read the temperature first: they follow a period with no fresh reading. */
@@ -283,6 +286,7 @@ static setup_t cleanup_setup(ink_display_cleanup_t cleanup) {
         .preset            = &s_options.cleanup_presets[cleanup],
         .fallback          = &s_device.capabilities.cleanup_defaults[cleanup],
         .reads_temperature = READS_TEMPERATURE[cleanup],
+        .pushes            = cleanup == INK_DISPLAY_CLEANUP_STRONG,
     };
 }
 
@@ -295,6 +299,17 @@ static size_t profile_for(const setup_t *setup, uint16_t *out_id) {
     if (band_profile(fallback->bands, fallback->band_count, s_celsius, out_id) && index_of(*out_id, &index)) { return index; }
     *out_id = s_device.capabilities.profiles[0].id;
     return 0;
+}
+
+/* Profile index of the push pass at the current temperature; false = no push pass (no band, or no known profile). */
+static bool push_profile(size_t *out_index) {
+    uint16_t                    id     = 0;
+    const ink_display_preset_t *preset = &s_options.strong_push;
+    if (band_profile(preset->bands, preset->band_count, s_celsius, &id) && index_of(id, out_index)) { return true; }
+    if (preset->band_count == 0) { return false; }
+    /* unknown profile id -> driver default; never the first profile: an OTP waveform would shake every pixel */
+    const ink_hal_display_preset_default_t *fallback = s_device.capabilities.strong_push_default;
+    return fallback != nullptr && band_profile(fallback->bands, fallback->band_count, s_celsius, &id) && index_of(id, out_index);
 }
 
 static void read_temperature(ink_display_report_t *report) {
@@ -375,8 +390,16 @@ static esp_err_t drive(setup_t setup, const uint8_t *plane_new, const uint8_t *p
     report->window     = window;
     const size_t index = profile_for(&setup, &report->profile_id);
     report->decide_us  = esp_timer_get_time();
-    const esp_err_t error =
+    esp_err_t error =
         s_device.operations->draw(s_device.context, plane_new, plane_old, window, index, &setup.preset->config, &report->driver);
+    /* Push pass (display.md, section on the push pass after cleanup strong): old plane = new plane, so every pixel runs its hold table;
+     * the push profile drives only black pixels. One report: timing and profile id stay those of the first draw. */
+    size_t push_index = 0;
+    if (error == ESP_OK && setup.pushes && push_profile(&push_index)) {
+        ink_hal_display_timing_t push_timing;
+        error = s_device.operations->draw(s_device.context, plane_new, plane_new, window, push_index, &s_options.strong_push.config,
+                                          &push_timing);
+    }
     s_power_on      = true;
     s_last_drive_ms = ink_platform_now_ms();
     return error;

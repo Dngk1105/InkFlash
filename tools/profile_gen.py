@@ -39,7 +39,7 @@ GROUP_COUNT = 6
 MAX_PHASE_FRAMES = 63
 LEVELS = {"0": 0, "VSH": 1, "VSL": 2, "VDHR": 3}
 
-PRESETS = ["text", "ui", "page", "cleanup_strong", "cleanup_fast", "cleanup_edge_center", "cleanup_edge_neighbor", "cleanup_light"]
+PRESETS = ["text", "ui", "page", "cleanup_strong", "cleanup_fast", "cleanup_edge_center", "cleanup_edge_neighbor", "cleanup_light", "strong_push"]
 # Khoá trong "presets" của profiles.json -> (mảng C, chỉ số enum trong ink_display_types.h).
 PRESET_SLOTS = {
     "text": ("draw", "INK_DISPLAY_INTENT_TEXT"),
@@ -51,6 +51,8 @@ PRESET_SLOTS = {
     "cleanup_edge_neighbor": ("cleanup", "INK_DISPLAY_CLEANUP_EDGE_NEIGHBOR"),
     "cleanup_light": ("cleanup", "INK_DISPLAY_CLEANUP_LIGHT"),
 }
+# Preset đứng riêng, không thuộc mảng nào: khoá -> tên biến C.
+SINGLE_PRESETS = {"strong_push": "ink_drv_uc8253_strong_push_default"}
 PRESET_ARRAYS = {"draw": "INK_DISPLAY_INTENT_COUNT", "cleanup": "INK_DISPLAY_CLEANUP_COUNT"}
 SOURCE_CUSTOM = 0xFF
 NAME_BYTES = 16
@@ -313,6 +315,12 @@ def c_profile(profile):
     )
 
 
+def preset_initializer(preset):
+    flags = (f".partial_mode = {str(preset['partial_mode']).lower()}, .scan_outside_window = {str(preset['scan_outside_window']).lower()}, "
+             f".drive_border = {str(preset['drive_border']).lower()}")
+    return f"{{.bands = s_{preset['name']}_bands, .band_count = {len(preset['bands'])}, .config = {{{flags}}}}}"
+
+
 def c_source(profiles, presets):
     lines = [HEADER, "\n", GENERATED, "#include \"ink_drv_uc8253_profiles.h\"\n", "\n"]
     lines.append("const ink_drv_uc8253_profile_t ink_drv_uc8253_profiles[INK_DRV_UC8253_PROFILE_COUNT] = {\n")
@@ -322,17 +330,15 @@ def c_source(profiles, presets):
         bands = ", ".join(f"{{.max_celsius = {celsius}, .profile_id = {profile_id}}}" for celsius, profile_id in preset["bands"])
         lines.append(f"static const ink_hal_display_band_t s_{preset['name']}_bands[] = {{{bands}}};\n")
     lines.append("\n")
+    by_name = {preset["name"]: preset for preset in presets}
     for array, count in PRESET_ARRAYS.items():
         lines.append(f"const ink_hal_display_preset_default_t ink_drv_uc8253_{array}_defaults[{count}] = {{\n")
-        for preset in presets:
-            slot_array, enum = PRESET_SLOTS[preset["name"]]
-            if slot_array != array:
-                continue
-            flags = (f".partial_mode = {str(preset['partial_mode']).lower()}, .scan_outside_window = {str(preset['scan_outside_window']).lower()}, "
-                     f".drive_border = {str(preset['drive_border']).lower()}")
-            lines.append(f"    [{enum}] = {{.bands = s_{preset['name']}_bands, .band_count = {len(preset['bands'])}, "
-                         f".config = {{{flags}}}}},\n")
+        for name, (slot_array, enum) in PRESET_SLOTS.items():
+            if slot_array == array:
+                lines.append(f"    [{enum}] = {preset_initializer(by_name[name])},\n")
         lines.append("};\n\n")
+    for name, variable in SINGLE_PRESETS.items():
+        lines.append(f"const ink_hal_display_preset_default_t {variable} = {preset_initializer(by_name[name])};\n\n")
     return "".join(lines).rstrip("\n") + "\n"
 
 
@@ -344,6 +350,7 @@ def h_source(profiles):
         "extern const ink_drv_uc8253_profile_t         ink_drv_uc8253_profiles[INK_DRV_UC8253_PROFILE_COUNT];\n"
         "extern const ink_hal_display_preset_default_t ink_drv_uc8253_draw_defaults[INK_DISPLAY_INTENT_COUNT];\n"
         "extern const ink_hal_display_preset_default_t ink_drv_uc8253_cleanup_defaults[INK_DISPLAY_CLEANUP_COUNT];\n"
+        + "".join(f"extern const ink_hal_display_preset_default_t {variable};\n" for variable in SINGLE_PRESETS.values())
     )
 
 

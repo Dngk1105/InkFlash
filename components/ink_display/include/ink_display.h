@@ -46,6 +46,7 @@ typedef struct {
     uint32_t                  strong_ms;
     uint32_t                  power_off_ms; /**< no DRF for this long -> analog power off; 0 = only before sleep */
     uint8_t                   fast_limit;   /**< see ink_display_policy_config_t */
+    ink_display_preset_t      strong_push;  /**< push pass right after each cleanup strong; band_count 0 = none */
 } ink_display_options_t;
 
 /* ---- Report ---- */

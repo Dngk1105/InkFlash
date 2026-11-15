@@ -55,8 +55,9 @@ typedef struct {
     uint8_t                                 x_align; /**< window left/right edges are multiples of this */
     const ink_hal_display_profile_info_t   *profiles;
     size_t                                  profile_count;
-    const ink_hal_display_preset_default_t *draw_defaults;    /**< INK_DISPLAY_INTENT_COUNT entries; AUTO unused */
-    const ink_hal_display_preset_default_t *cleanup_defaults; /**< INK_DISPLAY_CLEANUP_COUNT entries; INVALID unused */
+    const ink_hal_display_preset_default_t *draw_defaults;       /**< INK_DISPLAY_INTENT_COUNT entries; AUTO unused */
+    const ink_hal_display_preset_default_t *cleanup_defaults;    /**< INK_DISPLAY_CLEANUP_COUNT entries; INVALID unused */
+    const ink_hal_display_preset_default_t *strong_push_default; /**< push pass after cleanup strong; band_count 0 = none */
 } ink_hal_display_capabilities_t;
 
 typedef struct {
