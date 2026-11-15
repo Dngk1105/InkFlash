@@ -49,10 +49,11 @@ typedef struct {
     uint8_t  debt_page;                              /**< PAGE with max debt >= this -> cleanup strong */
     uint8_t  debt_ceiling;                           /**< debt ceiling after idle */
     uint8_t  debt_ceiling_max;                       /**< highest debt ceiling during an active period */
-    uint32_t active_ms; /**< frame arriving within this time after the previous one = active period: ceiling +1; 0 = off */
-    uint32_t edge_ms;   /**< cleanup stage 1 delay; 0 = skip */
-    uint32_t light_ms;  /**< cleanup stage 2 delay; 0 = skip */
-    uint32_t strong_ms; /**< cleanup stage 3 delay; 0 = skip */
+    uint32_t active_ms;  /**< frame arriving within this time after the previous one = active period: ceiling +1; 0 = off */
+    uint32_t edge_ms;    /**< cleanup stage 1 delay; 0 = skip */
+    uint32_t light_ms;   /**< cleanup stage 2 delay; 0 = skip */
+    uint32_t strong_ms;  /**< cleanup stage 3 delay; 0 = skip */
+    uint8_t  fast_limit; /**< cleanup fast decisions allowed between two cleanup strong; the next one is strong; 0 = no limit */
 } ink_display_policy_config_t;
 
 typedef struct {
@@ -88,6 +89,7 @@ typedef struct {
         uint32_t                    last_frame_ms;
         uint8_t                     max_debt;
         uint8_t                     ceiling;
+        uint8_t                     fast_count;  /**< cleanup fast decisions since the last cleanup strong */
         uint8_t                     stages_done; /**< one bit per cleanup stage done in this idle period */
         bool                        edge_center_done;
         bool                        defer;

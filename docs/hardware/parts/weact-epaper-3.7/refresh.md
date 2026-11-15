@@ -157,6 +157,80 @@ Kết quả thô: `tools/display_bench/results/2026-11-04.jsonl` ở nhánh `ben
 | Bài "VCOM và vùng đứng yên", đổi PFS (`0x03`) 1–4 khung | `tr8`, PSR byte 2 `0x0A` | Không phân biệt được bằng mắt. Driver giữ 1 khung (mặc định) |
 | Đẩy bù thử tay | `lut10f50` rồi `push5f50`, mặt phẳng cũ là slot trắng | Ô được đẩy sạch, không chớp, nhưng đậm hơn vùng xung quanh. Lần thử này đẩy mọi điểm đen trong ô, kể cả điểm đã đen đủ |
 
+## Đo cleanup trên BB0, 2026-11-12
+
+Nhìn bằng mắt và chụp ảnh. Profile ứng viên ở `tools/display_bench/profiles/cleanup_strong.json` (nhánh `bench`).
+
+| Bài | Cấu hình | Kết quả |
+|---|---|---|
+| Màn vẽ thử `ink_demo`, nghỉ qua cleanup edge | `clean_full100` (center), `clean_edge` (neighbor) | Vùng đen và vùng dither có vệt xám dạng cột dọc; một lần cleanup strong sau đó không xoá hết vệt |
+| Trang mới vẽ bằng `PAGE`, không cờ `REDRAW_WINDOW`, ô đen đè lên chỗ trang trước có chữ | `tr8`, chế độ partial | Chữ của trang trước hiện mờ trong ô đen |
+| Bài "Cleanup strong mạnh hơn": lật hai ô đen trên chữ 20 lần bằng `lut10f50`, rồi cleanup strong | `tr4` so với `tr4` chèn thêm chu kỳ lắc (DRF 3,5–3,7 s) | Không khác nhau: `tr4` đã xoá sạch bóng ô và chữ cũ |
+| Dải xám dither sau cleanup strong | `tr4` chèn chu kỳ lắc ngược chiều giữa pixel về trắng và pixel về đen | Dither nhoè thành xám nhạt: pixel cạnh nhau mang điện áp ngược dấu suốt các chu kỳ thêm |
+| Như trên | `tr4` chèn chu kỳ lắc cùng chiều ở cả bốn bảng | Không khác `tr4`. Cleanup strong giữ `tr4` |
+| Bài "Dải xám dither" (5 dải: ngưỡng, Floyd–Steinberg, Atkinson, Bayer 4×4, Bayer 8×8), vẽ cả màn | `tr4` | Đoạn đen của dải ngưỡng nhạt dần về phía chỗ chuyển sang trắng; đầu xa vẫn đen rõ |
+| Như trên, chỉ vẽ một số dải | `tr4` | Dải ngưỡng một mình, hoặc cùng Atkinson: đen đều. Cùng Floyd–Steinberg, Bayer 4×4 hoặc Bayer 8×8: nhạt. Đoạn nhạt nằm ở các hàng mà dải dither bên cạnh ở mức xám khoảng 50 % (gần bàn cờ) |
+| Đen đặc không có dither cùng hàng: cả màn đen, hai khối đen trên nền trắng, cột đen cạnh vùng hàng đen kín | `tr4` | Đen đều |
+| Dải xám dither, các biến thể | `tr4` | Không đổi khi vẽ lại cùng ảnh (không do ảnh trước), khi đổi UD, khi thêm 2 frame 0 V cuối sóng (`tr4_z2`). Đoạn nhạt có ở hướng xoay này mà không có ở hướng kia; chưa giải thích |
+| Dải xám dither, đổi frame rate cùng thời gian vẽ | `tr4` ở 25 Hz, 100 Hz | 25 Hz nhạt hơn; 100 Hz làm vùng trắng lốm đốm xám |
+| Dải xám dither, VCOM_DC từ `13` (−2,0 V) về `05` (−0,6 V) | `tr4` | Đen chung nhạt dần theo VCOM_DC; đoạn nhạt không mất |
+| Dải xám dither, TCON (`0x60`) | `tr4`, `00` tới `55` | TCON dài hơn `22` làm đoạn đen nhạt hơn; ngắn hơn (`11`, `00`) đỡ không đáng kể |
+
+## Ô đen xám ở hàng quét sau, đo 2026-11-12 tới 2026-11-16
+
+Ví dụ: màn 1/4 của `ink_demo` vẽ lúc khởi động bằng cleanup strong (`tr4`). Ô đen ở góc gần cáp FPC nhạt dần và có sọc
+ngang, trong khi ô đen ở xa cáp vẫn đen. Bài bench "Ô đen dưới vùng mẫu" tái hiện lỗi này: vùng trên (hàng RAM 32–299)
+tô một mẫu, ô đen nằm ở hàng 320–407, sát cáp.
+
+Số đo dưới đây lấy từ ảnh camera đã nắn phẳng (`tools/vision_test`), thang xám 0–255, số thấp là tối. Mỗi cấu hình chụp
+một lần; ánh sáng phòng làm số lệch vài đơn vị giữa các lần chụp.
+
+| Bài | Cấu hình | Kết quả |
+|---|---|---|
+| "Ô đen dưới vùng mẫu", vùng trên trắng, đen đặc, hoặc sọc dọc 1 điểm | `tr4` | Ô đen đều |
+| Như trên, vùng trên sọc ngang 1 điểm hoặc bàn cờ | `tr4` | Ô đen xám (76) |
+| Như trên, bàn cờ; BTST, TCON, VCOM_DC, UD, frame rate, nhiệt độ | `tr4` | Ô vẫn xám |
+| Như trên, bàn cờ; thêm một lượt vẽ riêng, mặt phẳng cũ bằng frame mới | `tr4`, rồi `push_k10` (KK: VSH 10 frame; WW: 0 V 10 frame; 50 Hz) | Ô đen (30); trắng giữ nguyên |
+| Như trên | `tr4`, rồi `push_k20` (VSH 20 frame) | Ô đen, như `push_k10` |
+| Như trên | `tr4`, rồi `push_kw10` (đen VSH, trắng VSL cùng lúc) | Ô nhạt hơn |
+| Như trên, gộp phần đẩy vào cuối sóng | `tr4_k10` (WK, KK thêm VSH 10 frame cuối), `tr4_k10b` (thêm VSL 10 frame đầu để cân bằng) | Ô đen (31), nhưng mọi vùng trắng tối đi khoảng 9: nhìn đục |
+| `ink_demo` màn 1/4 lúc khởi động | Cleanup strong `tr4` | Ô đen gần cáp 81, ô đen dưới 62, nền 199; ô gần cáp nhạt dần, có sọc |
+| Như trên | Cleanup strong `tr4`, rồi `push_k10` (nhánh thử `exp/push-pass`) | Ô đen gần cáp 33, ô đen dưới 30, nền 209; đen đều. Màn 2/4–4/4 vẽ bằng preset của intent sau đó vẫn sạch |
+
+Kết luận đo được: điểm đen bị xám khi các hàng quét trước nó làm đường source đổi mức nhiều lần (sọc ngang, bàn cờ,
+dither gần 50 %). Đen đặc và sọc dọc không làm đường source đổi giữa các hàng, nên không bị. Một lượt đẩy thêm VSH chỉ
+cho điểm đen, chạy riêng sau `tr4`, sửa được mà không làm đục vùng trắng. Cơ chế điện bên trong controller chưa đo trực
+tiếp.
+
+**Vệt dọc theo cột ô đen.** Ở cột có ô đen, điểm trắng tối hơn điểm trắng ở cột khác khoảng 4 (hàng 0–31) và 8–10 (hàng
+408–415). Vệt có cả khi chỉ vẽ `tr4`, không đẩy, và không đậm thêm khi có `push_k10`. Giả thuyết, chưa đo trực tiếp:
+ở 20 frame cuối của `tr4`, đường source của cột có ô đen đổi giữa VSH (hàng ô đen) và VSL (hàng trắng), còn ở cột khác
+giữ VSL; điện dung ký sinh giữa đường source và điểm ảnh làm điểm trắng ở cột đó nhận ít VSL hơn. Trên bốn màn của
+`ink_demo` không thấy vệt này bằng mắt.
+
+## Cleanup fast trên vùng dither, đo 2026-11-16
+
+Ví dụ: `ink_demo` bấm từ màn 2/4 (chữ) về màn 1/4 (ô đen lớn, dải dither 5 bậc, ô xám). Frame có flag `REDRAW_WINDOW`,
+nên display vẽ bằng cleanup fast, window 224 × 402. Với `clean_full50` cũ, màn gần như trắng: ô đen, dải dither và
+thanh tiêu đề không về đen. Không có lỗi driver, và old plane đúng là frame mới đảo bit trong cả window.
+
+Bấm nút bằng lệnh serial của firmware thử, chụp camera nắn phẳng, thang xám 0–255 (số thấp là tối):
+
+| Thử | Cấu hình `clean_full50` | Kết quả màn 1/4 |
+|---|---|---|
+| Đích 2/4 hoặc 3/4 (không dither), từ màn bất kỳ | Cũ: KW = [VSH 15, VSL 15], WK = [VSL 15, VSH 15] (ngược pha) | Đúng |
+| Đích 1/4, từ 2/4 hoặc 4/4 | Như trên | Gần như trắng |
+| Như trên, partial mode tắt; hoặc reset controller trước mỗi lần vẽ; hoặc tắt lượt đẩy sau cleanup strong | Như trên | Vẫn gần như trắng |
+| Màn 1/4 bỏ dải dither và ô xám | Như trên | Đúng |
+| Đích 1/4, có dither | KW = [VSL 15, 0 15], WK = [VSL 15, VSH 15] (cùng chiều, lệch −15 frame) | Đúng; ô đen trên 50, ô đen dưới 47, nền 208 |
+| Như trên | KW = [VSL 10, 0 20], WK = [VSL 10, VSH 20] (cùng chiều, cân bằng) | Đúng; ô đen trên 49, ô đen dưới 28, nền 210 |
+| Bấm qua lại 1/4 ↔ 2/4 tám lần | Cùng chiều, cân bằng | Cả hai màn sạch, không còn bóng màn trước; ô đen dưới 24, nền 194 |
+
+Kết luận đo được: bảng ngược pha hỏng khi window có dither diện rộng. Mỗi đường source khi đó đổi giữa VSH và VSL ở
+gần như mỗi hàng suốt 30 frame, cùng cơ chế với mục "Ô đen xám ở hàng quét sau" nhưng nặng hơn. Bảng cùng chiều chỉ
+đổi giữa VSH và 0 V ở pha thứ hai, và pha đầu không đổi mức giữa các hàng. Chưa đo bóng mờ dài hạn và ở nhiệt độ
+khác 25 °C.
+
 ## Khuyến nghị trong spec
 
 

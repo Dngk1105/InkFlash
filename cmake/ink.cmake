@@ -48,3 +48,39 @@ macro(ink_core_component)
         target_compile_options(${INK_CORE_NAME} PRIVATE -Wall -Wextra -Werror -pedantic)
     endif()
 endmacro()
+
+# Component bọc mã nguồn ngoài nằm trong third_party/ (docs/design/code-structure.md, mục Luật phụ thuộc).
+#   ink_third_party_component(SRCS ink_ten.c
+#                             THIRD_PARTY_DIR third_party/ten/src
+#                             THIRD_PARTY_SRCS a.c b.c
+#                             [DEFINITIONS TEN=1] [REQUIRES ink_khac])
+# SRCS là code của repo, biên dịch như mọi khối. THIRD_PARTY_SRCS là tên file trong THIRD_PARTY_DIR (tính từ gốc repo):
+# biên dịch theo gnu11 và tắt cảnh báo, vì mã ngoài không viết theo chuẩn của repo. DEFINITIONS áp cho cả khối dùng
+# header của mã ngoài. Trên PC, THIRD_PARTY_DIR là thư mục include dạng SYSTEM để -pedantic của khối gọi không soi vào.
+macro(ink_third_party_component)
+    cmake_parse_arguments(INK_TP "" "THIRD_PARTY_DIR" "SRCS;THIRD_PARTY_SRCS;DEFINITIONS;REQUIRES" ${ARGN})
+    set(INK_TP_DIR "${INK_ROOT_DIR}/${INK_TP_THIRD_PARTY_DIR}")
+    if(NOT EXISTS "${INK_TP_DIR}")
+        message(FATAL_ERROR "Thiếu ${INK_TP_DIR}: chạy git submodule update --init")
+    endif()
+    set(INK_TP_PATHS "")
+    foreach(src ${INK_TP_THIRD_PARTY_SRCS})
+        list(APPEND INK_TP_PATHS "${INK_TP_DIR}/${src}")
+    endforeach()
+    if(ESP_PLATFORM)
+        idf_component_register(SRCS ${INK_TP_SRCS} ${INK_TP_PATHS}
+                               INCLUDE_DIRS "include" "${INK_TP_DIR}"
+                               REQUIRES ${INK_TP_REQUIRES})
+        target_compile_definitions(${COMPONENT_LIB} PUBLIC ${INK_TP_DEFINITIONS})
+    else()
+        get_filename_component(INK_TP_NAME "${CMAKE_CURRENT_LIST_DIR}" NAME)
+        add_library(${INK_TP_NAME} STATIC ${INK_TP_SRCS} ${INK_TP_PATHS})
+        target_include_directories(${INK_TP_NAME} PUBLIC include)
+        target_include_directories(${INK_TP_NAME} SYSTEM PUBLIC "${INK_TP_DIR}")
+        target_compile_definitions(${INK_TP_NAME} PUBLIC ${INK_TP_DEFINITIONS})
+        target_link_libraries(${INK_TP_NAME} PUBLIC ${INK_TP_REQUIRES})
+        target_compile_options(${INK_TP_NAME} PRIVATE -Wall -Wextra -Werror)
+    endif()
+    # Sau idf_component_register: lúc ESP-IDF đọc CMakeLists ở chế độ script để lấy REQUIRES, lệnh này không chạy được.
+    set_source_files_properties(${INK_TP_PATHS} PROPERTIES COMPILE_OPTIONS "-std=gnu11;-w")
+endmacro()

@@ -3,7 +3,7 @@
 
 /*
  * Interface between display and the panel driver.
- * Frame layout: 1 bit per pixel (1 = white), row by row, leftmost pixel in the most significant bit.
+ * Frame layout: capabilities.pixel_format (ink_display_types.h).
  * Coordinates in native panel orientation, px. Only the display task calls `operations`.
  */
 #include "esp_err.h"
@@ -51,11 +51,13 @@ typedef struct {
 typedef struct {
     uint16_t                                width; /**< native panel width, px */
     uint16_t                                height;
+    ink_display_pixel_format_t              pixel_format;
     uint8_t                                 x_align; /**< window left/right edges are multiples of this */
     const ink_hal_display_profile_info_t   *profiles;
     size_t                                  profile_count;
-    const ink_hal_display_preset_default_t *draw_defaults;    /**< INK_DISPLAY_INTENT_COUNT entries; AUTO unused */
-    const ink_hal_display_preset_default_t *cleanup_defaults; /**< INK_DISPLAY_CLEANUP_COUNT entries; INVALID unused */
+    const ink_hal_display_preset_default_t *draw_defaults;       /**< INK_DISPLAY_INTENT_COUNT entries; AUTO unused */
+    const ink_hal_display_preset_default_t *cleanup_defaults;    /**< INK_DISPLAY_CLEANUP_COUNT entries; INVALID unused */
+    const ink_hal_display_preset_default_t *strong_push_default; /**< push pass after cleanup strong; band_count 0 = none */
 } ink_hal_display_capabilities_t;
 
 typedef struct {

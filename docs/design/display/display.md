@@ -44,6 +44,36 @@ Các sơ đồ nằm cùng thư mục, vẽ từ file này, mở bằng trình d
 Người dùng bấm nhanh hơn tốc độ panel thì các frame pending ở giữa bị drop; chỉ frame mới nhất được vẽ. Giữa hai lần
 bấm, display task chạy các cleanup stage (mục "Cleanup khi idle").
 
+## Hợp đồng giữa app và display
+
+Ví dụ: đổi panel 240 × 416 sang panel khác cỡ, hoặc đổi controller. Driver, profile và policy đổi theo. App và `ui`
+không đổi, vì chúng chỉ biết bốn thứ dưới đây.
+
+| Thứ | Nội dung | Chiều |
+|---|---|---|
+| Frame info | Rộng, cao theo chiều gốc của panel; pixel format | Display → app, đọc một lần sau khi display khởi động |
+| Frame | Ảnh cả màn theo đúng frame info | App vẽ vào frame đã acquire |
+| Intent | Loại nội dung của frame (mục "Intent") | App → display, lúc submit |
+| Flag | Yêu cầu thêm cho frame (mục "Intent") | App → display, lúc submit |
+
+Luật giữ hợp đồng này ổn định:
+
+- App nói frame chứa gì, không nói vẽ thế nào. Waveform, profile, window, nhiệt độ và debt không xuất hiện ở phía app.
+- Phần cứng báo khả năng lên trên bằng dữ liệu: driver khai kích thước và pixel format trong capabilities, display
+  đưa chúng cho app qua frame info.
+- Mở rộng bằng cách nối thêm giá trị: intent, flag và pixel format chỉ được thêm vào cuối, không đổi nghĩa giá trị cũ.
+- Options và report là đường riêng để tinh chỉnh và đo. Chỉ `system`, Settings và firmware bench dùng.
+
+Pixel format hiện có một giá trị: `K1`, 1 bit mỗi pixel, bit 1 là trắng, ghi theo từng hàng, pixel trái nhất ở bit
+cao nhất. Display từ chối khởi động với driver khai pixel format khác.
+
+Header chia theo người dùng:
+
+| Header | Dành cho | Có gì |
+|---|---|---|
+| `ink_display_frame.h` | App và mọi code vẽ | Frame info, acquire, submit, flag |
+| `ink_display.h` | `system`, Settings, firmware bench | Khởi động display, options, report; kèm mọi thứ của header trên |
+
 ## Chuyển frame giữa main task và display task
 
 Ví dụ: app lật thẻ. Main task acquire một frame. Frame này đã có sẵn ảnh của lần submit gần nhất, nên app chỉ vẽ phần
@@ -77,7 +107,7 @@ chọn intent của phần quan trọng hơn.
 | `AUTO` | Không muốn chọn | Window nhỏ hơn `auto_ui_percent` % diện tích panel thì là `UI`, còn lại là `TEXT` |
 | `TEXT` | Trang chữ người dùng sẽ đọc (mặt thẻ) | Chữ rõ; 0,3–0,4 s chấp nhận được |
 | `UI` | Con trỏ, mục chọn, nút: thành phần nhỏ người dùng không nhìn kỹ | Nhanh; chịu xám nhẹ, các cleanup stage làm sạch dần |
-| `PAGE` | Đổi cả màn (sang scene khác) | Như `TEXT`; debt đã cao thì cleanup strong ngay trong lần vẽ này |
+| `PAGE` | Đổi cả màn (sang scene khác) | Mọi pixel trong changed window được kéo (cleanup fast), để không còn bóng màn trước; debt đã cao thì cleanup strong |
 
 Flag đi kèm frame:
 
@@ -117,11 +147,12 @@ Policy tạo decision bằng hàm riêng cho từng action, không điền struc
 | Preset | Dùng cho | Old plane | Window |
 |---|---|---|---|
 | Draw `TEXT`, `UI`, `PAGE` | Vẽ frame theo intent | Shown frame | Changed window |
-| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
+| `CLEANUP_STRONG` | Cold boot, sau lỗi, vượt debt ceiling ngoài active period, lần cleanup fast thứ `fast_limit` + 1, `PAGE` khi debt vượt `debt_page`, stage cuối, trước khi ngủ | Frame mới đảo bit | Cả panel |
 | `CLEANUP_FAST` | Vượt debt ceiling trong active period; frame có flag `REDRAW_WINDOW` | Frame mới, đảo bit ở pixel có debt hoặc edge flag trong changed window (gồm pixel frame này đổi) | Bao các pixel đó |
 | `CLEANUP_EDGE_CENTER` | Cleanup stage 1 | Shown frame, đảo bit ở pixel có edge flag | Bao các pixel có edge flag |
 | `CLEANUP_EDGE_NEIGHBOR` | Cleanup stage 1, ngay sau edge center | Shown frame, đảo bit ở pixel kề cạnh pixel có edge flag | Bao các pixel đó |
 | `CLEANUP_LIGHT` | Cleanup stage 2 | Shown frame, đảo bit ở pixel có debt ≥ `debt_light` | Bao các pixel đó |
+| `strong_push` | Lượt đẩy, ngay sau mỗi cleanup strong | Frame mới (old plane bằng new plane) | Cả panel |
 
 Cleanup fast chỉ kéo pixel bẩn (có debt hoặc edge flag) nằm trong changed window, và vẽ luôn frame mới. Policy cộng
 debt cho pixel frame này đổi trước, nên chúng nằm trong số pixel bẩn. Pixel sạch (chữ đứng yên quanh ô vừa lật) giữ
@@ -130,10 +161,15 @@ debt 1 cho mọi pixel chữ, nên không giới hạn window thì mỗi lần c
 flag ngay ngoài window, để các cleanup stage xử lý. Đo trên BB0 (2026-11-09): cleanup fast cả panel bằng `clean_full100` làm chữ đứng yên quanh ô lật nhiều
 lần xám tới mức không đọc được.
 
-Cleanup fast dùng profile `clean_full50` (640 ms): pixel được chọn lắc 15 LUT frame về màu ngược rồi 15 LUT frame về
-màu của nó, 50 Hz, cân bằng điện tích ngay trong lần đó. Mỗi chiều bằng một lần kéo của `tr8`; `clean_full100` chỉ
-bằng một nửa. Đo trên BB0: `tr8` (kéo một chiều) làm vùng không đổi đậm dần sau mỗi lần cleanup, nên không dùng làm
-cleanup fast.
+Cleanup fast dùng profile `clean_full50` (640 ms, 50 Hz). Pixel được chọn lắc cùng chiều: 10 LUT frame mọi pixel cùng
+nhận VSL (về trắng), rồi 20 LUT frame pixel về đen nhận VSH, pixel về trắng đứng 0 V. Bảng về đen (+10) và bảng về
+trắng (−10) bù nhau, nên một pixel đổi màu qua lại không tích điện. Đo trên BB0: `tr8` (kéo một chiều) làm vùng không
+đổi đậm dần sau mỗi lần cleanup, nên không dùng làm cleanup fast.
+
+Không lắc ngược pha (pixel về đen và pixel về trắng nhận điện áp ngược dấu cùng lúc). Đo trên BB0 (2026-11-16): với
+bảng ngược pha, window có dither diện rộng làm đường source đổi VSH ↔ VSL ở gần như mỗi hàng suốt lần vẽ, và cả window
+không về đúng màu (màn gần như trắng). Số đo ở `docs/hardware/parts/weact-epaper-3.7/refresh.md`, mục "Cleanup fast
+trên vùng dither".
 
 Drive border bật ở cleanup strong và `PAGE`. Đo trên BB0: không drive border thì border xám dần, kể cả trong partial
 mode. `TEXT`, `UI`, cleanup fast và các cleanup stage để border nổi.
@@ -144,6 +180,21 @@ Cleanup strong và cleanup fast đọc lại nhiệt độ trước khi vẽ; b�
 Old plane của mọi cleanup cả panel là frame mới đảo bit, không bao giờ là shown frame. Khi đó mọi pixel được coi là
 đổi màu, nên panel kéo hết pixel về đúng màu. Dùng shown frame thì waveform chỉ kéo pixel đổi màu, và ảnh vẫn mờ sau
 cleanup (đã gặp trên BB0 với band TR6).
+
+**Lượt đẩy sau cleanup strong.** Ví dụ: màn có ô đen nằm dưới một vùng dither gần bàn cờ. Sau cleanup strong bằng
+`tr4`, ô đen ở các hàng quét sau (gần cáp FPC) chỉ xám, không đen. Vì vậy mỗi cleanup strong gồm hai lần gọi driver:
+
+1. Profile theo band của preset `CLEANUP_STRONG`, old plane là frame mới đảo bit (như mọi cleanup cả panel).
+2. Lượt đẩy: profile theo band của preset `strong_push`, cùng window, old plane bằng chính frame mới.
+   Mọi pixel chạy bảng giữ màu. Profile `push_k10` cho pixel đen thêm 10 LUT frame VSH ở 50 Hz (DRF 240 ms) và để
+   pixel trắng ở 0 V, nên chỉ điểm đen được kéo thêm.
+
+Lượt đẩy chạy sau cleanup strong ở mọi chỗ trong bảng preset, kể cả trước khi ngủ, và không chạy sau cleanup fast hay
+cleanup stage. Preset `strong_push` có danh sách band rỗng thì bỏ lượt đẩy. Lượt đẩy lỗi thì xử lý như lần vẽ lỗi:
+lần decide sau là cleanup strong. Hai lần gọi driver chung một report; id profile trong report là của lần 1.
+
+Không gộp phần đẩy vào cuối sóng cleanup strong: đo trên BB0, cách đó cũng làm ô đen đen, nhưng mọi vùng trắng tối
+đi và nhìn đục. Số đo ở `docs/hardware/parts/weact-epaper-3.7/refresh.md`, mục "Ô đen xám ở hàng quét sau".
 
 ## Decide
 
@@ -156,10 +207,17 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
-| 5 | Flag `REDRAW_WINDOW` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó |
-| 6 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn); ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
-| 7 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
+| 5 | Intent `PAGE` và debt lớn nhất ≥ `debt_page` | Cleanup strong |
+| 6 | Flag `REDRAW_WINDOW`, hoặc intent `PAGE` | Cleanup fast. Mọi pixel trong changed window (đã căn theo `x_align`) được cộng debt ít nhất 1, kể cả pixel không đổi màu, nên cleanup fast chọn cả vùng đó. Đã đủ `fast_limit` lần cleanup fast thì cleanup strong |
+| 7 | Một pixel trong changed window sẽ vượt debt ceiling | Trong active period: cleanup fast (chỉ pixel bẩn), hoặc cleanup strong nếu đã đủ `fast_limit` lần cleanup fast; ngoài: cleanup strong. Cả hai vẽ luôn frame này, không cleanup trước rồi mới vẽ |
 | 8 | Còn lại | Preset của intent, chỉ changed window |
+
+**`PAGE` kéo mọi pixel trong changed window.** Ví dụ: bấm qua lại giữa hai màn, một màn có ô đen và dither, màn kia là
+trang chữ. Vẽ `PAGE` bằng `tr8` với old plane là shown frame thì pixel đen → đen chạy LUT giữ màu, không được kéo, và
+nhạt hơn pixel vừa được kéo sang đen. Đo trên BB0 (2026-11-16): sau 2–6 lần chuyển, chữ của màn kia hiện thành chữ sáng
+trong ô đen; tới khi debt chạm `debt_page` mới có cleanup strong làm sạch. Vẽ `PAGE` như `REDRAW_WINDOW` (cleanup fast
+cả changed window, 640 ms) thì sau 8 lần chuyển cả hai màn vẫn sạch. Draw preset `PAGE` chỉ còn dùng ở lần vẽ đầu
+sau wake (dòng 4).
 
 Sau wake, display coi background frame là shown frame: máy đã vẽ nó ngay trước deep sleep, và panel e-ink giữ hình khi
 mất nguồn. Driver nhận background frame làm old plane ở lần vẽ đó, nên panel không chớp.
@@ -193,6 +251,11 @@ tâm (center); các pixel kề cạnh tâm được xử lý ở cleanup edge ne
 `debt_ceiling_max`, để người dùng ít bị ngắt giữa chừng; vượt ceiling trong active period thì cleanup fast thay cho
 cleanup strong. Idle quá `active_ms` thì debt ceiling về `debt_ceiling`.
 
+**Cleanup strong là cách làm sạch chính.** Cleanup fast đưa debt của pixel nó kéo về 0, nhưng không làm sạch bằng
+cleanup strong: mực vẫn có thể lệch điện áp. Vì vậy policy đếm số lần cleanup fast từ lần cleanup strong gần nhất. Đã
+đủ `fast_limit` lần thì lần cần cleanup fast tiếp theo (dòng 6 và 7 của bảng decision) chạy cleanup strong, kể cả
+trong active period. Mọi cleanup strong đưa bộ đếm về 0.
+
 Deep sleep làm mất PSRAM, và RTC memory (8 KB slow + 8 KB fast) không chứa nổi 100 KB. Vì vậy panel phải sạch trước khi ngủ (flag
 `BEFORE_SLEEP`), và sau wake mọi pixel bắt đầu với debt 0, đúng với panel thật.
 
@@ -214,6 +277,10 @@ bắt đầu lại. Idle càng lâu thì cleanup càng mạnh, vì người dùn
 | 2 | Idle `light_ms`, debt lớn nhất ≥ `debt_light` | Cleanup light các pixel có debt ≥ `debt_light`; debt của chúng về 0 | DRF dưới 100 ms |
 | 3 | Idle `strong_ms`, còn debt hoặc còn edge flag | Cleanup strong một lần; mọi debt và edge flag về 0 | Theo band nhiệt độ |
 
+- Mặc định chỉ stage 3 chạy, sau 20 s idle; stage 1 và 2 có thời gian 0 nên không chạy. Đo trên BB0 (2026-11-12): sau
+  cleanup edge, các vùng đen và vùng dither có vệt xám dạng cột dọc, và một lần cleanup strong không xoá hết vệt đó.
+  Profile của hai stage này kéo về màu đích quá ngắn ở cuối (`clean_edge` 10 ms, `clean_light` 20 ms), nên pixel
+  không về đủ đen hoặc đủ trắng.
 - Mỗi stage chạy tối đa một lần trong một idle period. Stage có thời gian 0 thì bỏ.
 - DRF không ngắt được. Frame mới tới giữa hai cleanup thì dừng các stage và vẽ frame đó. Lần lật trùng lúc cleanup
   chậm thêm tối đa một DRF cleanup, nên profile của cleanup edge neighbor và cleanup light phải có DRF dưới 100 ms.
@@ -291,6 +358,7 @@ Capabilities của driver:
 | `x_align` | Mép trái và mép phải window là bội của số này |
 | `profiles` | Id, tên, source (band TR nào của OTP, hoặc `SOURCE_CUSTOM`) và thời gian một lần vẽ của từng profile |
 | `draw_defaults`, `cleanup_defaults` | Với mỗi intent (bỏ `AUTO`) và mỗi loại cleanup (bỏ `INVALID`): danh sách band → id profile, và draw config. Display dựng preset mặc định từ đây |
+| `strong_push_default` | Như trên, cho preset `strong_push` (lượt đẩy sau cleanup strong) |
 
 ## Profile waveform
 
@@ -325,7 +393,8 @@ Danh sách profile:
 | 21 | `clean_edge` | Pixel được chọn lắc 2–1–1–1–1–2 LUT frame, kết thúc ở màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup edge neighbor |
 | 22 | `clean_light` | Pixel được chọn: 4 LUT frame về màu ngược, rồi 4 LUT frame về màu của nó, 200 Hz; giữ màu 0 V | 50 ms | Cleanup light |
 | 24 | `clean_full100` | Pixel được chọn: 15 LUT frame về màu ngược, rồi 15 LUT frame về màu của nó, 100 Hz; giữ màu 0 V | 320 ms | Cleanup edge center |
-| 29 | `clean_full50` | Như `clean_full100`, 50 Hz (cùng waveform với id 23 đã bỏ) | 640 ms | Cleanup fast |
+| 29 | `clean_full50` | Mọi pixel được chọn 10 LUT frame VSL; rồi pixel về đen 20 LUT frame VSH, pixel về trắng 0 V; 50 Hz; giữ màu theo TR8 | 640 ms | Cleanup fast |
+| 42 | `push_k10` | Chỉ bảng giữ màu: KK 10 LUT frame VSH, WW 0 V; 50 Hz | 240 ms | Lượt đẩy sau cleanup strong |
 
 Id 10–12, 14–17, 20, 23, 25–28 là các profile đã thử bằng bench rồi bỏ; kết quả đo ở
 `docs/hardware/parts/weact-epaper-3.7/refresh.md`. Thời gian một lần vẽ là số script tính, khớp số đo trên BB0 trong
@@ -386,11 +455,13 @@ sau. Khi khởi động, `system` truyền options đã lưu vào `ink_display_s
 | Option | Nghĩa | Mặc định |
 |---|---|---|
 | `draw_presets[intent]`, `cleanup_presets[cleanup]` | Danh sách band → id profile; draw config. Draw preset có thêm `debt_weight` và `marks_edges`. Id không còn trong danh sách thì dùng mặc định của driver cho intent hoặc cleanup đó | Mặc định của driver; debt weight `TEXT` 1, `UI` 2, `PAGE` 1; `marks_edges` chỉ `UI` |
+| `strong_push` | Preset của lượt đẩy sau cleanup strong (mục "Một lần gọi driver"); danh sách band rỗng = không đẩy | Mặc định của driver: `push_k10` cho mọi nhiệt độ |
 | `auto_ui_percent` | Ngưỡng diện tích để `AUTO` thành `UI` | 10 % |
-| `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` | 2, 6 |
+| `debt_light`, `debt_page` | Ngưỡng của cleanup light, và của cleanup strong khi `PAGE` (dòng 5 của bảng decision) | 2, 6 |
 | `debt_ceiling`, `debt_ceiling_max` | Debt ceiling sau idle, và debt ceiling lớn nhất trong active period | 8, 15 |
 | `active_ms` | Frame tới trong khoảng này sau frame trước là active period: debt ceiling tăng 1, vượt ceiling thì cleanup fast; 0 = tắt | 2 s |
-| `edge_ms`, `light_ms`, `strong_ms` | Thời gian idle của ba cleanup stage; 0 = bỏ stage đó | 2 s, 10 s, 60 s |
+| `edge_ms`, `light_ms`, `strong_ms` | Thời gian idle của ba cleanup stage; 0 = bỏ stage đó | 0, 0, 20 s (stage 1–2 tắt, xem mục "Cleanup khi idle") |
+| `fast_limit` | Số lần cleanup fast tối đa giữa hai lần cleanup strong; 0 = không giới hạn | 4 |
 | `power_off_ms` | Không có DRF trong khoảng này thì tắt analog power; 0 = chỉ tắt trước khi ngủ | 4 s |
 
 Các mặc định về debt và thời gian là điểm xuất phát, chưa đo; chỉnh bằng bench.

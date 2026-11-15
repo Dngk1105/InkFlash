@@ -34,6 +34,7 @@ static ink_display_policy_config_t default_config(void) {
         .edge_ms          = 2000,
         .light_ms         = 10000,
         .strong_ms        = 60000,
+        .fast_limit       = 4,
     };
 }
 
@@ -384,11 +385,51 @@ static void test_page_with_high_debt_draws_cleanup_strong(void) {
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
 }
 
+/* PAGE with low debt drives the whole changed window with cleanup fast, not just the pixel that changed colour. */
+static void test_page_with_low_debt_draws_cleanup_fast_over_changed_window(void) {
+    const ink_display_policy_config_t config = default_config();
+    start(&config);
+    set_black(s_next, 5, 2);
+    s_now_ms += 100;
+    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_INTENT_PAGE, 0);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_CLEANUP, decision.action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, decision.cleanup);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OLD_SELECTED, decision.old_plane);
+    TEST_ASSERT_EQUAL_UINT16(0, decision.window.x);
+    TEST_ASSERT_EQUAL_UINT16(8, decision.window.width);
+    TEST_ASSERT_EQUAL_UINT16(2, decision.window.y);
+    TEST_ASSERT_EQUAL_UINT16(1, decision.window.height);
+    ink_display_rect_t window;
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_plane(&s_state, s_shown, INK_DISPLAY_CLEANUP_FAST, s_old, &window));
+    for (uint32_t x = 0; x < 8; x++) { TEST_ASSERT_NOT_EQUAL(is_white(s_shown, x, 2), is_white(s_old, x, 2)); }
+}
+
+/* After fast_limit cleanup fast runs, the next PAGE switch is cleanup strong. */
+static void test_page_after_fast_limit_is_cleanup_strong(void) {
+    const ink_display_policy_config_t config = default_config();
+    start(&config);
+    for (int i = 0; i < 4; i++) {
+        if (is_white(s_shown, 5, 2)) {
+            set_black(s_next, 5, 2);
+        } else {
+            set_white(s_next, 5, 2);
+        }
+        s_now_ms += 100;
+        TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, draw_next(INK_DISPLAY_INTENT_PAGE, 0).cleanup);
+        TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    }
+    set_black(s_next, 5, 2);
+    set_white(s_next, 5, 2);
+    set_black(s_next, 6, 2);
+    s_now_ms += 100;
+    expect_decision_cleanup(INK_DISPLAY_CLEANUP_STRONG, draw_next(INK_DISPLAY_INTENT_PAGE, 0));
+}
+
 static void test_before_sleep_cleans_only_when_dirty(void) {
     const ink_display_policy_config_t config = default_config();
     start(&config);
     set_black(s_next, 2, 2); /* clean panel: normal draw */
-    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
+    TEST_ASSERT_EQUAL(INK_DISPLAY_ACTION_DRAW, draw_next(INK_DISPLAY_INTENT_TEXT, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP).action);
     set_black(s_next, 12, 2); /* debt left from the previous frame */
     expect_decision_cleanup(INK_DISPLAY_CLEANUP_STRONG, draw_next(INK_DISPLAY_INTENT_PAGE, INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP));
 }
@@ -438,6 +479,46 @@ static void test_redraw_window_debt_is_cleared_by_cleanup_done(void) {
     TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
     TEST_ASSERT_EQUAL_UINT8(0, ink_display_policy_max_debt(&s_state));
     TEST_ASSERT_EQUAL_UINT32(0, ink_display_policy_flagged_count(&s_state));
+}
+
+/* Toggle pixel (5,2) with REDRAW_WINDOW: one cleanup fast decision per call (cleanup_done included). */
+static ink_display_policy_decision_t redraw_toggle(void) {
+    if (is_white(s_shown, 5, 2)) {
+        set_black(s_next, 5, 2);
+    } else {
+        set_white(s_next, 5, 2);
+    }
+    s_now_ms += 100;
+    const ink_display_policy_decision_t decision = draw_next(INK_DISPLAY_INTENT_UI, INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW);
+    if (decision.cleanup == INK_DISPLAY_CLEANUP_FAST) {
+        TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    }
+    return decision;
+}
+
+static void test_cleanup_fast_after_fast_limit_is_cleanup_strong(void) {
+    (void)redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW); /* cleanup fast 1 */
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    for (int i = 2; i <= 4; i++) { TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, redraw_toggle().cleanup); }
+    expect_decision_cleanup(INK_DISPLAY_CLEANUP_STRONG, redraw_toggle());
+    TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, redraw_toggle().cleanup); /* cleanup strong reset the count */
+}
+
+static void test_zero_fast_limit_never_turns_cleanup_fast_into_strong(void) {
+    ink_display_policy_config_t config = default_config();
+    config.fast_limit                  = 0;
+    set_black(s_shown, 2, 2);
+    start(&config);
+    memcpy(s_next, s_shown, SIZE);
+    for (int i = 0; i < 20; i++) { TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, redraw_toggle().cleanup); }
+}
+
+static void test_idle_cleanup_strong_resets_fast_count(void) {
+    (void)redraw_after_adding_black(INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW); /* cleanup fast 1 */
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_FAST));
+    for (int i = 2; i <= 4; i++) { (void)redraw_toggle(); }
+    TEST_ASSERT_EQUAL(INK_DISPLAY_POLICY_OK, ink_display_policy_cleanup_done(&s_state, INK_DISPLAY_CLEANUP_STRONG));
+    TEST_ASSERT_EQUAL(INK_DISPLAY_CLEANUP_FAST, redraw_toggle().cleanup);
 }
 
 static void test_redraw_window_not_requested_draws_changed_pixels_only(void) {
@@ -786,6 +867,8 @@ int main(void) {
     RUN_TEST(test_cleanup_fast_leaves_dirty_pixels_outside_window);
     RUN_TEST(test_ceiling_grows_while_active_and_resets_after_rest);
     RUN_TEST(test_page_with_high_debt_draws_cleanup_strong);
+    RUN_TEST(test_page_with_low_debt_draws_cleanup_fast_over_changed_window);
+    RUN_TEST(test_page_after_fast_limit_is_cleanup_strong);
     RUN_TEST(test_before_sleep_cleans_only_when_dirty);
     RUN_TEST(test_redraw_window_draws_cleanup_fast_with_selected_plane);
     RUN_TEST(test_redraw_window_inverts_unchanged_pixels_inside_window_only);
@@ -794,6 +877,9 @@ int main(void) {
     RUN_TEST(test_before_sleep_beats_redraw_window_when_dirty);
     RUN_TEST(test_redraw_window_with_identical_frame_draws_nothing);
     RUN_TEST(test_redraw_window_after_wake_draws_whole_screen_with_intent);
+    RUN_TEST(test_cleanup_fast_after_fast_limit_is_cleanup_strong);
+    RUN_TEST(test_zero_fast_limit_never_turns_cleanup_fast_into_strong);
+    RUN_TEST(test_idle_cleanup_strong_resets_fast_count);
     RUN_TEST(test_marks_dark_edge_around_box_that_turns_white);
     RUN_TEST(test_intent_without_edge_flags_marks_nothing_but_adds_debt);
     RUN_TEST(test_marks_light_edge_next_to_pixel_that_turns_black);

@@ -6,6 +6,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+#include "ink_demo.h"
 #include "ink_display.h"
 #include "ink_input.h"
 #include "ink_platform.h"
@@ -20,6 +21,7 @@ static const char *TAG = "ink_system";
 
 typedef enum : uint8_t {
     MESSAGE_SOURCE_INPUT = 0,
+    MESSAGE_SOURCE_DEMO, /* HACK(system): starts the ui test screens; remove with ink_demo */
     /* EXTEND(system): one source per module that posts messages (session, storage...). */
 } message_source_t;
 
@@ -63,9 +65,10 @@ static void IRAM_ATTR post_input_from_isr(const ink_input_message_t *input) {
 
 /* ---- Main task ---- */
 
-#define TASK_STACK_BYTES \
-    4096 /* WARN: stack must stay in internal RAM (xTaskCreatePinnedToCore default); deep sleep is called from this task */
-#define TASK_PRIORITY 5
+/* WARN: stack must stay in internal RAM (xTaskCreatePinnedToCore default); deep sleep is called from this task.
+ * REVIEW(system): raised from 4096 for the ui test screens (text layout on the stack); not measured. */
+#define TASK_STACK_BYTES 8192
+#define TASK_PRIORITY    5
 
 static void task_main(void *user_data) {
     (void)user_data;
@@ -83,10 +86,15 @@ static void task_main(void *user_data) {
             case MESSAGE_SOURCE_INPUT:
                 /* TODO(system): pass gestures to keymap and the open app; they are only logged for now. */
                 ink_input_handle(&message.input, &gestures);
+                ink_demo_handle(&gestures);
+                break;
+            case MESSAGE_SOURCE_DEMO:
+                ESP_ERROR_CHECK_WITHOUT_ABORT(ink_demo_start());
                 break;
         }
         if (uxQueueMessagesWaiting(s_queue) == 0) {
             ink_input_on_queue_empty(messages_dropped, &gestures);
+            ink_demo_handle(&gestures);
             messages_dropped = false;
         }
     }
@@ -119,6 +127,11 @@ esp_err_t ink_system_start(const ink_system_config_t *config) {
             .options = config->display_options,
         };
         error = ink_display_start(&display_config);
+    }
+    if (error == ESP_OK) {
+        /* HACK(system): ink_demo draws on the main task, so it is started by a message, not from app_main. */
+        const message_t message = {.source = MESSAGE_SOURCE_DEMO};
+        post_message(&message);
     }
     return error;
 }

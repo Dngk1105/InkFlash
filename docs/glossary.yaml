@@ -32,6 +32,9 @@ scope:
   - components/ink_bsp
   - components/ink_platform
   - components/ink_system
+  - components/core/ink_ui
+  - components/ink_u8g2
+  - components/ink_demo
   - main
   - docs/architecture.md
   - docs/design
@@ -82,6 +85,15 @@ modules:
   - id: system
     prefix: ink_system
     meaning: 'main queue và main task; chuyển message cho module owner; khởi động input và display.'
+  - id: ui
+    prefix: ink_ui
+    meaning: 'core module: canvas trên 1 frame, họa cụ vẽ primitive, text và ruler; dùng ink_u8g2 làm backend.'
+  - id: u8g2
+    prefix: ink_u8g2
+    meaning: 'component bọc thư viện U8g2; tạo màn ảo vẽ thẳng vào frame K1.'
+  - id: demo
+    prefix: ink_demo
+    meaning: 'shell module tạm: 4 màn thử vẽ ink_ui trên main task, chuyển màn bằng 2 nút.'
 
 terms:
   # ---- Task ----
@@ -392,9 +404,46 @@ terms:
     avoid: [app Cài đặt]
   - id: canvas
     term: canvas
-    meaning: 'ảnh 1 bit app vẽ vào, đúng bố cục frame. Thiết kế ui chưa chốt.'
+    meaning: 'frame kèm frame info, góc xoay và vùng clip để app vẽ qua ink_ui.'
     avoid: []
   - id: scene_stack
     term: scene stack
     meaning: 'stack scene của app, tối đa 4 tầng; BACK pop về scene trước.'
     avoid: [ngăn xếp scene]
+
+  # ---- UI (ink_ui) ----
+  - id: paint
+    term: paint
+    meaning: 'màu mong muốn và chế độ vẽ (COPY, XOR); canvas đổi sang pixel theo pixel format.'
+    avoid: [mực vẽ, màu vẽ]
+    symbols: [ink_ui_paint_t, ink_ui_paint_mode_t, INK_UI_PAINT_BLACK, INK_UI_PAINT_WHITE, INK_UI_PAINT_XOR, INK_UI_PAINT_GRAY]
+  - id: pixel_format
+    term: pixel format
+    meaning: 'bố cục bit của pixel trong frame (hiện có K1: 1 bit/pixel, 1 là trắng).'
+    avoid: [định dạng pixel, dạng pixel]
+    symbols: [ink_display_pixel_format_t, INK_DISPLAY_PIXEL_FORMAT_K1]
+  - id: frame_info
+    term: frame info
+    meaning: 'thông tin một frame: rộng, cao theo chiều gốc của panel và pixel format.'
+    avoid: [thông tin khung, thông tin frame]
+    symbols: [ink_display_frame_info_t, ink_display_frame_info]
+  - id: primitive
+    term: primitive
+    meaning: 'hình vẽ cơ bản: fill, stroke, line, bitmap.'
+    avoid: [hình cơ bản, hình vẽ cơ bản]
+    symbols: []
+  - id: rotation
+    term: rotation
+    meaning: 'góc xoay theo chiều kim đồng hồ của canvas so với chiều gốc của panel (0, 90, 180, 270 độ).'
+    avoid: [hướng xoay]
+    symbols: [ink_ui_rotation_t, INK_UI_ROTATION_0, INK_UI_ROTATION_90, INK_UI_ROTATION_180, INK_UI_ROTATION_270]
+  - id: clip
+    term: clip
+    meaning: 'giới hạn vùng vẽ trên canvas; lệnh vẽ ngoài vùng clip không ghi pixel nào.'
+    avoid: [cắt vùng, vùng cắt, xén]
+    symbols: [ink_ui_canvas_set_clip]
+  - id: dither
+    term: dither
+    meaning: 'tạo ảo giác mức xám trên panel 1 bit bằng pattern chấm 4 × 4 theo độ sáng.'
+    avoid: [phối màu]
+    symbols: []

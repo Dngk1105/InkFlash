@@ -4,19 +4,15 @@
 /*
  * Sole owner of the panel. The main task acquires a frame, draws, and submits it with an intent; the display task
  * always draws the latest frame (pending frames in between are dropped), picks preset and profile, runs cleanup
- * while idle, and turns analog power off. Frame layout as in ink_hal_display.h; size from driver capabilities.
+ * while idle, and turns analog power off. This header is for system, Settings and the bench firmware (start, options,
+ * report); code that only draws includes ink_display_frame.h.
  */
 #include "esp_err.h"
+#include "ink_display_frame.h"
 #include "ink_display_policy.h"
 #include "ink_hal_display.h"
 #include <stddef.h>
 #include <stdint.h>
-
-/* ---- Flags of a frame (intent, cleanup, action, rect: ink_display_types.h) ---- */
-
-#define INK_DISPLAY_FLAG_DEFER_CLEANUP INK_DISPLAY_POLICY_FLAG_DEFER_CLEANUP
-#define INK_DISPLAY_FLAG_BEFORE_SLEEP  INK_DISPLAY_POLICY_FLAG_BEFORE_SLEEP
-#define INK_DISPLAY_FLAG_REDRAW_WINDOW INK_DISPLAY_POLICY_FLAG_REDRAW_WINDOW
 
 /* ---- Options ---- */
 
@@ -49,6 +45,8 @@ typedef struct {
     uint32_t                  light_ms;
     uint32_t                  strong_ms;
     uint32_t                  power_off_ms; /**< no DRF for this long -> analog power off; 0 = only before sleep */
+    uint8_t                   fast_limit;   /**< see ink_display_policy_config_t */
+    ink_display_preset_t      strong_push;  /**< push pass right after each cleanup strong; band_count 0 = none */
 } ink_display_options_t;
 
 /* ---- Report ---- */
@@ -116,22 +114,3 @@ esp_err_t ink_display_start(const ink_display_config_t *config);
  * @retval ESP_ERR_INVALID_ARG options is NULL or invalid (band count, weights, debt thresholds).
  */
 esp_err_t ink_display_set_options(const ink_display_options_t *options);
-
-/**
- * @brief Acquire a frame to draw into. It already holds the latest submitted image (white if none yet).
- * @par Called from
- * Main task.
- * @return Frame, or NULL if not started or the previous frame is acquired and not submitted.
- */
-uint8_t *ink_display_acquire(void);
-
-/**
- * @brief Submit the acquired frame with its intent and flags; does not wait.
- * @par Called from
- * Main task.
- * @param input_ms Input time from ink_platform_now_ms(); copied into the report.
- * @param flags INK_DISPLAY_FLAG_*.
- * @retval ESP_ERR_INVALID_STATE not started, or no frame acquired.
- * @retval ESP_ERR_INVALID_ARG `frame` is not the acquired frame, or intent is out of range.
- */
-esp_err_t ink_display_submit(uint8_t *frame, uint32_t input_ms, ink_display_intent_t intent, uint8_t flags);
