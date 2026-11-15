@@ -18,6 +18,7 @@ export const Command = Object.freeze({
     READ_TEMP: 0x0b,
     OTP_DUMP: 0x0c,
     SET_PANEL: 0x0d,
+    BUTTON_EMULATE: 0x0e,
 });
 
 const Event = Object.freeze({ACK: 0x80, INFO: 0x81, DRAWN: 0x82, GESTURE: 0x83, TEMP: 0x84, LOG: 0x85, OTP: 0x86});
@@ -324,6 +325,11 @@ export class BenchLink extends EventTarget {
     }
 
     async hello() { return (await this.command(Command.HELLO)).info; }
+
+    async buttonEmulate(button, action = 2, durationMs = 50) {
+        const payload = new Uint8Array([button, action, durationMs & 0xff, (durationMs >> 8) & 0xff]);
+        return await this.command(Command.BUTTON_EMULATE, payload);
+    }
 
     async upload(slot, frame) {
         for (let offset = 0; offset < frame.length; offset += UPLOAD_CHUNK_BYTES) {

@@ -35,7 +35,17 @@ typedef enum : uint8_t {
     BENCH_READ_TEMP    = 0x0B,
     BENCH_OTP_DUMP     = 0x0C,
     BENCH_SET_PANEL    = 0x0D,
+    BENCH_BUTTON_EMULATE = 0x0E,
 } bench_command_t;
+
+/** Hành động giả lập nút bấm cho gói BENCH_BUTTON_EMULATE. */
+typedef enum : uint8_t {
+    BENCH_BUTTON_ACTION_RELEASE      = 0, /**< nhả nút (mức 0) */
+    BENCH_BUTTON_ACTION_PRESS        = 1, /**< nhấn giữ (mức 1) */
+    BENCH_BUTTON_ACTION_CLICK        = 2, /**< click ngắn (nhấn rồi nhả sau duration_ms, mặc định 50 ms) */
+    BENCH_BUTTON_ACTION_DOUBLE_CLICK = 3, /**< click kép */
+    BENCH_BUTTON_ACTION_HOLD         = 4, /**< nhấn giữ trong duration_ms (mặc định 600 ms) rồi nhả */
+} bench_button_action_t;
 
 /** Gói máy gửi lên. */
 typedef enum : uint8_t {
@@ -95,6 +105,7 @@ typedef enum : uint8_t {
     BENCH_EVENT_SEQUENCE_NEXT, /**< timer giữa hai khung của chuỗi */
     BENCH_EVENT_DRAWN,         /**< ink_display báo vẽ xong (đường pipeline) */
     BENCH_EVENT_POWER_TIMER,   /**< đường raw: hết thời gian chờ thì tắt nguồn màn */
+    BENCH_EVENT_BUTTON_TIMER,  /**< timer giả lập nhả nút tự động */
 } bench_event_type_t;
 
 typedef struct {

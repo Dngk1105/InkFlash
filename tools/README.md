@@ -10,4 +10,5 @@ Thư mục chứa các công cụ phát triển phần cứng và phần mềm c
 - `fix_compile_commands.py`: xoá cờ `-m*`, `-f*` khỏi `build/compile_commands.json` để clangd hết báo "Unknown argument"; `idf.py build` tự chạy nó.
 - `build_all.py`: chạy check, host test, build `templates/`, firmware và firmware bench (chạy trong terminal ESP-IDF).
 - `display_bench/`: công cụ test panel (`docs/design/display/bench.md`). Nạp firmware bench: `idf.py -C tools/display_bench/firmware -p COM4 flash`; mở giao diện: `python tools/display_bench/bench_server.py` rồi vào `http://localhost:8253` trên Chrome hoặc Edge. Test xong nạp lại firmware chính: `idf.py -p COM4 flash`.
+- `button_cli.py`: công cụ dòng lệnh serial giả lập nút bấm (`click`, `double`, `hold`, `combo`, `down`, `up`) cho AI agent và test tự động (`python tools/button_cli.py click A --json`; xem chi tiết tại `docs/design/display/bench.md`).
 - `vision_test/`: bộ công cụ kiểm thử thị giác thời gian thực cho màn hình e-ink từ camera iPhone qua cáp Lightning hoặc Webcam. Xem chi tiết tại `tools/vision_test/README.md`.

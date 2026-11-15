@@ -65,6 +65,7 @@ Gói PC gửi xuống, mỗi gói được trả ACK (mã `esp_err_t`, 4 byte) c
 | `0B` | READ_TEMP | trống; trả TEMP. Chỉ đường raw (đường pipeline có nhiệt độ trong DRAWN của lần cleanup strong) |
 | `0C` | OTP_DUMP | trống; trả các gói OTP rồi ACK. Chỉ đường raw |
 | `0D` | SET_PANEL | byte 2 của lệnh PSR (`0x00`), D7–D5 phải bằng 0, gửi controller trước lần vẽ hoặc tắt nguồn sau; rồi (không bắt buộc) VCOM_DC thay cho của mọi profile (byte lệnh `0x82`, tối đa `7E`; `FF` = theo profile), có tác dụng từ lần vẽ sau; rồi (không bắt buộc) số frame từ lúc tắt source tới lúc tắt gate khi POF (lệnh PFS `0x03`, 1–4); rồi (không bắt buộc) hướng quét gate: 0 = quét lên (UD = 1, mặc định), 1 = quét xuống (UD = 0), có tác dụng từ lần vẽ sau; rồi (không bắt buộc) byte TCON (lệnh `0x60`): nibble cao S2G, nibble thấp G2S, mỗi khoảng hở (n + 1) × 4 × 650 ns, mặc định `22`, có tác dụng từ lần vẽ sau; rồi (không bắt buộc) byte 3 của BTST (lệnh `0x06`, pha C: tăng áp khi đang chạy; bit 5–3 độ mạnh, bit 2–0 thời gian tắt tối thiểu của GDR), mặc định `17`, có tác dụng từ lần bật analog power sau; rồi (không bắt buộc) PSR byte 1 thay thế (RES, REG, KW/R, UD, SHL, SHD_N, RST_N), `00` = theo driver, có tác dụng từ lần vẽ sau. REG = 0 thì controller dùng sóng OTP chọn theo cảm biến nhiệt thay cho profile đã nạp. Đổi hướng quét thì ảnh lật trên dưới và RAM không còn khớp với panel, nên lần vẽ sau phải là cả màn với old plane đảo bit. Máy khởi động lại thì về `0A`, theo profile, 1 frame, quét lên, TCON `22`, BTST pha C `17`, PSR byte 1 theo driver. Cả hai đường |
+| `0E` | BUTTON_EMULATE | nút (1 = A, 2 = B, 3 = AB), hành động (0 nhả, 1 nhấn, 2 click, 3 double click, 4 hold), thời gian ms (2 byte little-endian; 0 = mặc định). Giả lập nút bấm cho AI agent và test tự động. Cả hai đường |
 
 Khối options (trong SET_OPTIONS và INFO): số thứ tự bản ghi là giá trị enum. Trước hết 4 bản ghi draw theo
 `ink_display_intent_t` (`AUTO`, `TEXT`, `UI`, `PAGE`; `AUTO` không dùng), rồi 6 bản ghi cleanup theo
@@ -131,3 +132,31 @@ này commit được, để so về sau.
 2. Đóng `idf.py monitor` nếu đang mở: mỗi lúc chỉ một chương trình mở được cổng COM.
 3. `python tools/display_bench/bench_server.py`, rồi mở `http://localhost:8253` trên Chrome hoặc Edge.
 4. Test xong: `idf.py -p COM4 flash` để nạp lại firmware chính.
+
+### Giả lập nút bấm cho AI agent và test tự động
+
+AI agent hoặc script tự động có thể điều khiển nút bấm thay người qua công cụ dòng lệnh serial:
+
+```powershell
+# Click nút A hoặc B (mặc định giữ 50 ms rồi nhả, trả về JSON cho AI agent)
+python tools/display_bench/button_cli.py click A --json
+python tools/display_bench/button_cli.py click B --json
+
+# Double click
+python tools/display_bench/button_cli.py double A --json
+
+# Nhấn giữ (HOLD) trong 800 ms
+python tools/display_bench/button_cli.py hold A --duration 800 --json
+
+# Tổ hợp hai nút A+B (combo)
+python tools/display_bench/button_cli.py combo --json
+
+# Nhấn giữ liên tục (down) và nhả (up)
+python tools/display_bench/button_cli.py down A
+python tools/display_bench/button_cli.py up A
+
+# Lắng nghe các sự kiện (GESTURE, DRAWN, LOG) từ máy trong 5 s
+python tools/display_bench/button_cli.py listen --seconds 5 --json
+```
+
+Cổng COM được tự động dò tìm (ESP32-S3 USB-Serial-JTAG). Có thể chỉ định cổng qua `-p / --port COM4`.

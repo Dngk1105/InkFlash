@@ -369,6 +369,8 @@ static void step_by_button(bool forward, uint32_t input_at_ms) {
 /* ---- Gói từ PC ---- */
 
 static esp_err_t handle_set_path(uint8_t seq, const uint8_t *payload, size_t length);
+static esp_err_t handle_button_emulate(const uint8_t *payload, size_t length);
+static void      handle_button_timer_step(void);
 
 static esp_err_t handle_draw(const uint8_t *payload, size_t length) {
     ESP_RETURN_ON_FALSE(length >= 16, ESP_ERR_INVALID_ARG, TAG, "draw");
@@ -502,6 +504,9 @@ static void handle_packet(const bench_packet_t *packet) {
         case BENCH_SET_PANEL:
             error = handle_set_panel(payload, length);
             break;
+        case BENCH_BUTTON_EMULATE:
+            error = handle_button_emulate(payload, length);
+            break;
         default:
             error = ESP_ERR_NOT_SUPPORTED;
             break;
@@ -566,6 +571,9 @@ static void handle_event(const bench_event_message_t *event) {
         case BENCH_EVENT_POWER_TIMER:
             raw_power_off();
             break;
+        case BENCH_EVENT_BUTTON_TIMER:
+            handle_button_timer_step();
+            break;
     }
     if (uxQueueMessagesWaiting(s_events) == 0) {
         ink_gesture_output_t gestures;
@@ -598,6 +606,170 @@ static void IRAM_ATTR post_input_from_isr(const ink_input_message_t *message) {
     portYIELD_FROM_ISR(woken);
 }
 
+/* ---- Virtual buttons and emulation ---- */
+
+#define DEFAULT_CLICK_MS    50
+#define DEFAULT_HOLD_MS     600
+#define DOUBLE_CLICK_GAP_MS 80
+
+typedef struct {
+    const ink_hal_button_device_t *physical;
+    ink_hal_button_callback_t      callback;
+    void                          *user_data;
+    bool                           emulated_pressed;
+} virtual_button_t;
+
+static virtual_button_t            s_virtual_buttons[INK_GESTURE_BUTTON_COUNT];
+static ink_hal_button_operations_t s_virtual_button_ops;
+static ink_hal_button_device_t     s_virtual_button_devices[INK_GESTURE_BUTTON_COUNT];
+static ink_platform_timer_t        s_button_timer;
+
+typedef struct {
+    uint8_t               button_mask;
+    bench_button_action_t action;
+    uint8_t               step;
+    uint16_t              duration_ms;
+} emulate_state_t;
+
+static emulate_state_t s_emulate;
+
+static void set_virtual_button_level(uint8_t button_index, bool pressed) {
+    if (button_index >= INK_GESTURE_BUTTON_COUNT) { return; }
+    virtual_button_t *vb = &s_virtual_buttons[button_index];
+    if (vb->emulated_pressed == pressed) { return; }
+    vb->emulated_pressed = pressed;
+    const ink_input_message_t message = {
+        .type = INK_INPUT_MESSAGE_BUTTON_EDGE,
+        .button_edge = {
+            .button  = ink_gesture_button_of_index(button_index),
+            .level   = pressed ? INK_GESTURE_LEVEL_PRESSED : INK_GESTURE_LEVEL_RELEASED,
+            .time_ms = ink_platform_now_ms(),
+        },
+    };
+    post_input(&message);
+}
+
+static void apply_virtual_button_mask(uint8_t button_mask, bool pressed) {
+    if (button_mask & INK_GESTURE_BUTTON_A) { set_virtual_button_level(0, pressed); }
+    if (button_mask & INK_GESTURE_BUTTON_B) { set_virtual_button_level(1, pressed); }
+}
+
+static void on_button_timer(void *user_data) {
+    (void)user_data;
+    const bench_event_message_t event = {.type = BENCH_EVENT_BUTTON_TIMER};
+    xQueueSend(s_events, &event, 0);
+}
+
+static void handle_button_timer_step(void) {
+    switch (s_emulate.action) {
+        case BENCH_BUTTON_ACTION_CLICK:
+        case BENCH_BUTTON_ACTION_HOLD:
+            apply_virtual_button_mask(s_emulate.button_mask, false);
+            s_emulate.button_mask = 0;
+            break;
+        case BENCH_BUTTON_ACTION_DOUBLE_CLICK:
+            if (s_emulate.step == 1) {
+                apply_virtual_button_mask(s_emulate.button_mask, false);
+                s_emulate.step = 2;
+                ESP_ERROR_CHECK(ink_platform_timer_start(s_button_timer, DOUBLE_CLICK_GAP_MS));
+            } else if (s_emulate.step == 2) {
+                apply_virtual_button_mask(s_emulate.button_mask, true);
+                s_emulate.step = 3;
+                ESP_ERROR_CHECK(ink_platform_timer_start(s_button_timer, s_emulate.duration_ms));
+            } else if (s_emulate.step == 3) {
+                apply_virtual_button_mask(s_emulate.button_mask, false);
+                s_emulate.button_mask = 0;
+                s_emulate.step        = 0;
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static esp_err_t handle_button_emulate(const uint8_t *payload, size_t length) {
+    ESP_RETURN_ON_FALSE(length >= 2, ESP_ERR_INVALID_ARG, TAG, "button_emulate length");
+    const uint8_t               button_mask = payload[0];
+    const bench_button_action_t action      = (bench_button_action_t)payload[1];
+    uint16_t                    duration_ms = 0;
+    if (length >= 4) { duration_ms = read_u16(&payload[2]); }
+    ESP_RETURN_ON_FALSE(button_mask >= 1 && button_mask <= INK_GESTURE_BUTTON_AB, ESP_ERR_INVALID_ARG, TAG, "button mask");
+
+    ESP_ERROR_CHECK(ink_platform_timer_stop(s_button_timer));
+    if (s_emulate.button_mask != 0) {
+        apply_virtual_button_mask(s_emulate.button_mask, false);
+        s_emulate.button_mask = 0;
+        s_emulate.step        = 0;
+    }
+
+    switch (action) {
+        case BENCH_BUTTON_ACTION_RELEASE:
+            apply_virtual_button_mask(button_mask, false);
+            break;
+        case BENCH_BUTTON_ACTION_PRESS:
+            apply_virtual_button_mask(button_mask, true);
+            s_emulate.button_mask = button_mask;
+            s_emulate.action      = action;
+            break;
+        case BENCH_BUTTON_ACTION_CLICK:
+            if (duration_ms == 0) { duration_ms = DEFAULT_CLICK_MS; }
+            s_emulate.button_mask = button_mask;
+            s_emulate.action      = action;
+            s_emulate.duration_ms = duration_ms;
+            apply_virtual_button_mask(button_mask, true);
+            ESP_ERROR_CHECK(ink_platform_timer_start(s_button_timer, duration_ms));
+            break;
+        case BENCH_BUTTON_ACTION_HOLD:
+            if (duration_ms == 0) { duration_ms = DEFAULT_HOLD_MS; }
+            s_emulate.button_mask = button_mask;
+            s_emulate.action      = action;
+            s_emulate.duration_ms = duration_ms;
+            apply_virtual_button_mask(button_mask, true);
+            ESP_ERROR_CHECK(ink_platform_timer_start(s_button_timer, duration_ms));
+            break;
+        case BENCH_BUTTON_ACTION_DOUBLE_CLICK:
+            if (duration_ms == 0) { duration_ms = DEFAULT_CLICK_MS; }
+            s_emulate.button_mask = button_mask;
+            s_emulate.action      = action;
+            s_emulate.duration_ms = duration_ms;
+            s_emulate.step        = 1;
+            apply_virtual_button_mask(button_mask, true);
+            ESP_ERROR_CHECK(ink_platform_timer_start(s_button_timer, duration_ms));
+            break;
+        default:
+            return ESP_ERR_NOT_SUPPORTED;
+    }
+    return ESP_OK;
+}
+
+static esp_err_t virtual_button_read(void *context, bool *out_pressed) {
+    if (context == nullptr || out_pressed == nullptr) { return ESP_ERR_INVALID_ARG; }
+    const virtual_button_t *vb               = (const virtual_button_t *)context;
+    bool                    physical_pressed = false;
+    if (vb->physical != nullptr && vb->physical->operations != nullptr && vb->physical->operations->read != nullptr) {
+        const esp_err_t err = vb->physical->operations->read(vb->physical->context, &physical_pressed);
+        if (err != ESP_OK) { return err; }
+    }
+    *out_pressed = vb->emulated_pressed || physical_pressed;
+    return ESP_OK;
+}
+
+static void IRAM_ATTR on_physical_button_edge(void *user_data, bool pressed) {
+    const virtual_button_t *vb = (const virtual_button_t *)user_data;
+    if (vb != nullptr && vb->callback != nullptr) { vb->callback(vb->user_data, pressed || vb->emulated_pressed); }
+}
+
+static esp_err_t virtual_button_set_callback(void *context, ink_hal_button_callback_t callback, void *user_data) {
+    if (context == nullptr) { return ESP_ERR_INVALID_ARG; }
+    virtual_button_t *vb = (virtual_button_t *)context;
+    vb->callback         = callback;
+    vb->user_data        = user_data;
+    if (vb->physical != nullptr && vb->physical->operations != nullptr && vb->physical->operations->set_callback != nullptr) {
+        return vb->physical->operations->set_callback(vb->physical->context, on_physical_button_edge, vb);
+    }
+    return ESP_OK;
+}
+
 /* ---- Khởi động ---- */
 
 static esp_err_t create_queues(void) {
@@ -625,7 +797,26 @@ esp_err_t bench_task_start(bench_path_t path) {
     const ink_hal_button_device_t *buttons      = nullptr;
     size_t                         button_count = 0;
     ESP_RETURN_ON_ERROR(ink_bsp_buttons(&buttons, &button_count), TAG, "buttons");
-    ESP_RETURN_ON_ERROR(ink_input_start(buttons, button_count, post_input, post_input_from_isr), TAG, "input");
+    ESP_RETURN_ON_FALSE(button_count == INK_GESTURE_BUTTON_COUNT, ESP_ERR_INVALID_STATE, TAG, "buttons");
+
+    s_virtual_button_ops = (ink_hal_button_operations_t){
+        .read         = virtual_button_read,
+        .set_callback = virtual_button_set_callback,
+    };
+    for (size_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
+        s_virtual_buttons[i] = (virtual_button_t){
+            .physical         = &buttons[i],
+            .emulated_pressed = false,
+        };
+        s_virtual_button_devices[i] = (ink_hal_button_device_t){
+            .operations   = &s_virtual_button_ops,
+            .context      = &s_virtual_buttons[i],
+            .capabilities = buttons[i].capabilities,
+        };
+    }
+    ESP_RETURN_ON_ERROR(ink_platform_timer_create(on_button_timer, nullptr, "btn_emu", &s_button_timer), TAG, "btn timer");
+    ESP_RETURN_ON_ERROR(ink_input_start(s_virtual_button_devices, INK_GESTURE_BUTTON_COUNT, post_input, post_input_from_isr), TAG,
+                        "input");
 
     const BaseType_t created = xTaskCreate(task_main, "bench", TASK_STACK_BYTES, nullptr, TASK_PRIORITY, nullptr);
     ESP_RETURN_ON_FALSE(created == pdPASS, ESP_ERR_NO_MEM, TAG, "task");
