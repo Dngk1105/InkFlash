@@ -509,8 +509,6 @@ ink_display_policy_error_t ink_display_policy_decide(ink_display_policy_state_t 
         }
         /* Changed pixels get debt (at least 1), so cleanup_plane() selects them with the other dirty pixels; clean
          * pixels around them (text) are not driven. */
-        /* REVIEW(display_policy): local cleanup fast with clean_full50 is not benched yet; rerun the cell flip test
-         * on BB0 (whole-panel clean_full100 greyed the text, 2026-11-09). */
         add_debt(state, shown, next, changed, weight > 0 ? weight : 1);
         decide_fast(state, window, out_decision);
         return INK_DISPLAY_POLICY_OK;
