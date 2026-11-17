@@ -600,9 +600,10 @@ esp_err_t ink_drv_uc8253_load_temporary(ink_drv_uc8253_t *driver, const uint8_t 
     memcpy(driver->temporary_request_name, name, sizeof(name));
     driver->temporary_pending = true;
     taskEXIT_CRITICAL(&driver->request_lock);
-    /* Capabilities show the id and timing at once (bench re-reads INFO); the name changes at the next draw. */
+    /* Capabilities show the id, timing and name at once (bench re-reads INFO). */
     driver->profile_info[TEMPORARY_PROFILE].id      = profile.id;
     driver->profile_info[TEMPORARY_PROFILE].draw_ms = (uint32_t)profile.drf_ms * profile.scans;
+    driver->profile_info[TEMPORARY_PROFILE].name    = driver->temporary_request_name;
     return ESP_OK;
 }
 

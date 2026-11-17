@@ -2,7 +2,7 @@
 
 /* Điều khiển trang: kết nối, chế độ, ảnh, chuỗi, bài test, chấm điểm, lịch sử. Trạng thái gom trong `app`. */
 import {
-    Action, BenchLink, CLEANUP_NAMES, Cleanup, Command, INTENT_NAMES, INTENT_NONE, Intent, SOURCE_CUSTOM, SubmitFlag, Writer, delay, espErrorName, writeOptions,
+    Action, BenchLink, CLEANUP_NAMES, Cleanup, Command, INTENT_NAMES, INTENT_NONE, Intent, SOURCE_CUSTOM, SubmitFlag, Writer, delay, espErrorName, parseInkwHeader, writeOptions,
 } from './link.js';
 import {
     DITHER_NAMES, DitherMethod, FRAME_BYTES, createFrame, grayToFrame, imageToGray, renderFrame, viewRectToPanel, viewSize,
@@ -211,7 +211,11 @@ function profileNameById(id) { return profileById(id)?.name ?? `id ${id}`; }
 
 function profileLabel(profile) {
     const source = profile.source === SOURCE_CUSTOM ? 'custom' : `TR${profile.source}`;
-    return `${profile.name} · id ${profile.id} · ${source} · ${profile.drawMs} ms`;
+    /* Profile tạm: ưu tiên tên đã nạp nếu gói INFO trả về tên cũ chưa kịp cập nhật hoặc 'tmp'. */
+    const name = (profile.source === SOURCE_CUSTOM && app.settings.temporaryProfile)
+        ? app.settings.temporaryProfile
+        : profile.name;
+    return `${name} · id ${profile.id} · ${source} · ${profile.drawMs} ms`;
 }
 
 /* Profile của dải chứa `celsius` trong preset, như profile_for() của ink_display. */
@@ -460,10 +464,18 @@ async function loadTemporaryProfile() {
     }
     await guarded(async () => {
         const bytes = new Uint8Array(await file.arrayBuffer());
+        const header = parseInkwHeader(bytes);
+        /* Lấy tên profile từ blob .inkw; nếu không đọc được thì lấy tên file bỏ đuôi .inkw. */
+        const profileName = header?.name || file.name.replace(/\.[^/.]+$/, '');
         await app.link.command(Command.PROFILE_LOAD, bytes);
-        app.settings.temporaryProfile = file.name;
-        log(`[web] nạp profile tạm ${file.name}; có tác dụng từ lần vẽ sau`);
+        app.settings.temporaryProfile = profileName;
+        log(`[web] nạp profile tạm ${profileName} (${file.name}); có tác dụng từ lần vẽ sau`);
         app.info = await app.link.hello();
+        /* Gói INFO từ máy có thể giữ tên cũ (hoặc 'tmp') cho tới lần vẽ sau; cập nhật tên đúng vào profile tạm. */
+        const custom = app.info?.profiles.find((p) => p.source === SOURCE_CUSTOM);
+        if (custom) {
+            custom.name = profileName;
+        }
         renderProfiles();
         renderOptionsForm();
     });

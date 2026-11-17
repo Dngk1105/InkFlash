@@ -35,6 +35,18 @@ export const SubmitFlag = Object.freeze({DEFER_CLEANUP: 1, BEFORE_SLEEP: 2, REDR
 export const MAX_BANDS = 9;
 export const SOURCE_CUSTOM = 255;
 
+/* Đọc header profile tạm (.inkw): id (2 byte ở offset 8) và tên (12 byte ở offset 10). */
+export function parseInkwHeader(bytes) {
+    if (!bytes || bytes.length < 22) { return null; }
+    if (bytes[0] !== 0x49 || bytes[1] !== 0x4E || bytes[2] !== 0x4B || bytes[3] !== 0x57) { return null; } /* 'INKW' */
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const id = view.getUint16(8, true);
+    let end = 10;
+    while (end < 22 && bytes[end] !== 0) { end++; }
+    const name = new TextDecoder().decode(bytes.subarray(10, end)).trim();
+    return {id, name};
+}
+
 const UPLOAD_CHUNK_BYTES = 4096;
 const REPLY_TIMEOUT_MS = 3000;
 const RECONNECT_DELAY_MS = 2500;
