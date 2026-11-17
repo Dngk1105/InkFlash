@@ -5,14 +5,14 @@
 #include "ink_display_frame.h"
 #include "ink_platform.h"
 #include "ink_ui.h"
-#include <stdio.h>
+#include "views/example_view.gen.h"
 
 static const char *TAG = "ink_app_example";
 
 /* ---- Scenes ---- */
 
 enum : uint8_t {
-    SCENE_MAIN = 0, /* root scene; state byte 0 = counter */
+    SCENE_MAIN = 0, /* root scene; state byte 0 = rows shown, 0..EXAMPLE_VIEW_ROWS_MAX */
     SCENE_COUNT,
 };
 
@@ -43,16 +43,15 @@ static void end_frame(ink_display_intent_t intent, uint8_t flags) {
 
 /* ---- Scene main ---- */
 
-/* Draw the counter centered; the area is cleared first so a shorter number leaves nothing behind. */
-static void draw_counter(uint8_t counter) {
-    const ink_ui_rect_t       bounds = ink_ui_canvas_bounds(&s_canvas);
-    const ink_ui_text_style_t style  = {.font = &ink_ui_font_unifont_vi_16, .align = INK_UI_ALIGN_CENTER, .max_lines = 1};
-    char                      text[8];
-    snprintf(text, sizeof(text), "%u", (unsigned)counter);
-    ink_ui_fill(&s_canvas, bounds, 0, INK_UI_PAINT_WHITE);
-    const ink_ui_size_t size = ink_ui_text_measure(&s_canvas, text, bounds.width, &style);
-    const ink_ui_rect_t area = ink_ui_rect_align(bounds, size, INK_UI_ALIGN_CENTER, INK_UI_ALIGN_CENTER);
-    ink_ui_text_draw(&s_canvas, area, text, &style, INK_UI_PAINT_BLACK);
+/* Labels of the rows; the counter shows the first `counter` of them. */
+static const char *const s_labels[EXAMPLE_VIEW_ROWS_MAX] = {"Hàng 1", "Hàng 2", "Hàng 3", "Hàng 4"};
+
+/* Fill the view data from the scene state: byte 0 = rows shown. */
+static example_view_data_t view_data(uint8_t counter) {
+    if (counter > EXAMPLE_VIEW_ROWS_MAX) { counter = EXAMPLE_VIEW_ROWS_MAX; }
+    example_view_data_t data = {.title = "Example", .rows_count = counter, .show_empty_hint = counter == 0};
+    for (uint8_t i = 0; i < counter; i++) { data.rows[i].label = s_labels[i]; }
+    return data;
 }
 
 static void main_enter(uint8_t *state, bool restored) {
@@ -61,14 +60,15 @@ static void main_enter(uint8_t *state, bool restored) {
 
 static void main_draw(const uint8_t *state) {
     if (!begin_frame()) { return; }
-    draw_counter(state[0]);
+    const example_view_data_t data = view_data(state[0]);
+    example_view_draw(&s_canvas, &data);
     end_frame(INK_DISPLAY_INTENT_PAGE, 0);
 }
 
 static bool main_command(uint8_t *state, ink_keymap_command_t command) {
     switch (command) {
         case INK_KEYMAP_COMMAND_NEXT:
-            state[0]++;
+            if (state[0] < EXAMPLE_VIEW_ROWS_MAX) { state[0]++; }
             break;
         case INK_KEYMAP_COMMAND_SELECT:
             state[0] = 0;
@@ -76,9 +76,10 @@ static bool main_command(uint8_t *state, ink_keymap_command_t command) {
         default:
             return false; /* BACK and unknown commands go back to system */
     }
-    /* A change inside the scene draws at once (intent UI for a small change), without waiting for draw(). */
+    /* A change inside the scene redraws only part:body at once (intent UI for a small change), without waiting for draw(). */
     if (begin_frame()) {
-        draw_counter(state[0]);
+        const example_view_data_t data = view_data(state[0]);
+        example_view_draw_body(&s_canvas, &data);
         end_frame(INK_DISPLAY_INTENT_UI, 0);
     }
     return true;

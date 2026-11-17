@@ -3,7 +3,7 @@
 
     python tools/build_all.py
 
-Các bước: tools/check.py → host test (gcc trên PC) → build templates/ → build firmware.
+Các bước: tools/check.py → host test (gcc trên PC) → host renderer vẽ view mẫu → build templates/ → build firmware.
 Dừng ở bước đầu tiên lỗi.
 """
 import os
@@ -35,6 +35,7 @@ def main():
                                "-DCMAKE_C_COMPILER=gcc"], env)
     run("Build host test", ["cmake", "--build", "build-host"], env)
     run("Chạy host test", ["ctest", "--test-dir", "build-host", "--output-on-failure"], env)
+    run("Host renderer, view mẫu", [sys.executable, "tools/render_view.py", "example_view"], env)
 
     idf = shutil.which("idf.py") or shutil.which("idf.py.exe")
     if not idf:

@@ -23,7 +23,9 @@ KINDS = {
     "app": ("templates/components/ink_app_example", "ink_app_example", "components/apps", "ink_app_"),
 }
 
-TEXT_EXT = (".c", ".h", ".txt", ".cmake")
+TEXT_EXT = (".c", ".h", ".txt", ".cmake", ".json")
+# Extra tokens renamed per kind: the sample view of the app template (docs/design/figma-to-code.md).
+EXTRA_TOKENS = {"app": ("example_view", "{name}_view")}
 DESIGN_RE = re.compile(r"(?:Design|Thiết kế): docs/[\w/.-]+\.md")
 CMAKE_INCLUDE_RE = re.compile(r"include\(\$\{CMAKE_CURRENT_LIST_DIR\}/[./]*cmake/ink\.cmake\)")
 
@@ -56,19 +58,27 @@ def main():
 
     shutil.copytree(src, dest)
     cmake_rel = os.path.relpath(os.path.join(ROOT, "cmake", "ink.cmake"), dest).replace(os.sep, "/")
+    renames = [(token, new_name)]
+    if args.kind in EXTRA_TOKENS:
+        old, new = EXTRA_TOKENS[args.kind]
+        renames.append((old, new.format(name=args.name)))
     for dirpath, _, files in os.walk(dest):
         for fname in files:
             path = os.path.join(dirpath, fname)
             if fname.endswith(TEXT_EXT):
                 with open(path, encoding="utf-8") as f:
                     text = f.read()
-                text = text.replace(token, new_name).replace(token.upper(), new_name.upper())
+                for old, new in renames:
+                    text = text.replace(old, new).replace(old.upper(), new.upper())
                 text = DESIGN_RE.sub(f"Design: {args.design}", text, count=1)
                 text = CMAKE_INCLUDE_RE.sub(f"include(${{CMAKE_CURRENT_LIST_DIR}}/{cmake_rel})", text)
                 with open(path, "w", encoding="utf-8", newline="\n") as f:
                     f.write(text)
-            if token in fname:
-                os.rename(path, os.path.join(dirpath, fname.replace(token, new_name)))
+            renamed = fname
+            for old, new in renames:
+                renamed = renamed.replace(old, new)
+            if renamed != fname:
+                os.rename(path, os.path.join(dirpath, renamed))
 
     print(f"Đã tạo {os.path.relpath(dest, ROOT)} từ template {args.kind}.")
     print("Việc tiếp theo:")

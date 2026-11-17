@@ -1,0 +1,9 @@
+{
+  "title": "Example",
+  "rows": [
+    {"label": "Hàng 1"},
+    {"label": "Hàng 2"},
+    {"label": "Tiếng Việt có dấu"}
+  ],
+  "show_empty_hint": false
+}

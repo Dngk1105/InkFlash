@@ -20,6 +20,7 @@ components/apps/ink_app_<tên>/
   scene_list.c           viết tay: command, scene state, chọn intent, acquire, submit
   views/list_view.gen.c  sinh từ Figma
   views/list_view.gen.h  sinh từ Figma: struct dữ liệu và prototype
+  views/list_view.sample.json  sinh từ Figma: dữ liệu mẫu cho host renderer
 ```
 
 - File `.gen.c` và `.gen.h` luôn sinh lại từ Figma, không sửa tay. Dòng đầu file ghi nguồn Figma và hash của phần còn
@@ -59,6 +60,11 @@ y như Figma.
 | `*tên` | Frame Auto Layout chứa các hàng giống nhau | Mảng struct của một hàng, cỡ bằng số hàng vẽ trong Figma, kèm `uint8_t tên_count` | `*rows` có 6 hàng `{name}` → `rows[6]`, `rows_count` |
 
 Hàng đầu tiên của `*tên` là hàng mẫu; các hàng còn lại trong Figma chỉ để đếm số hàng tối đa.
+
+Tên sinh ra cho `*tên` trong view `list_view`:
+
+- Struct một hàng: `list_view_<tên>_row_t`, ví dụ `list_view_rows_row_t`.
+- Số hàng tối đa: macro `LIST_VIEW_<TÊN>_MAX`, ví dụ `LIST_VIEW_ROWS_MAX`. Scene dùng macro này để không ghi quá mảng.
 
 ### Scene chọn intent, view chia part
 
@@ -114,10 +120,74 @@ Công cụ sinh view kiểm Figma trước khi sinh. Lỗi thì dừng, không g
 | Fill xám có corner radius | Cảnh báo | Fill dither bỏ qua radius |
 | Stroke, line màu xám | Cảnh báo | Thành đen hoặc trắng theo ngưỡng 50 % |
 
+### Host renderer vẽ view trên PC
+
+Host renderer là công cụ chạy trên PC: biên dịch một view cùng `ink_ui` thật bằng gcc, vẽ vào frame K1 240 × 416, rồi
+ghi ra ảnh. Người làm so ảnh này với ảnh chụp từ Figma mà không cần nạp board.
+
+Ví dụ, vẽ view mẫu của template app:
+
+```text
+python tools/render_view.py example_view                     → build-render/example_view.png
+python tools/render_view.py example_view --part body         → build-render/example_view_body.png
+python tools/render_view.py example_view --data d.json --scale 2 -o out.png
+```
+
+Lệnh chạy trong terminal ESP-IDF, vì cần `gcc`, `cmake`, `ninja` trong PATH.
+
+**Đầu vào**
+
+| Tham số | Ý nghĩa |
+|---|---|
+| `<view>` | Tên view, ví dụ `example_view`. Renderer tìm `<view>.gen.h` trong `components/apps/*/views/` và `templates/components/*/views/`. Trùng tên thì truyền đường dẫn file `.gen.h`. |
+| `--data <file.json>` | Dữ liệu điền struct `<view>_data_t`. Không truyền thì dùng `<view>.sample.json` cạnh file `.gen.h`. |
+| `--part <tên>` | Chỉ gọi `<view>_draw_<tên>()` lên nền trắng. Không truyền thì gọi `<view>_draw()`. |
+| `--scale N` | Phóng mỗi pixel thành N × N. Mặc định 1. |
+| `-o <file>` | Đuôi `.png` hoặc `.pbm`. Mặc định `build-render/<view>[_<part>].png`. |
+
+File JSON là một object, mỗi key là tên field của struct, theo đúng quy ước tên layer:
+
+```json
+{"title": "Bộ thẻ", "rows": [{"name": "Tiếng Anh"}, {"name": "Hán tự"}], "show_empty_hint": false}
+```
+
+- Chuỗi JSON thành chuỗi C (UTF-8), `true`/`false` thành `bool`, `null` thành `nullptr`.
+- Mảng `rows` tự điền thêm `rows_count` bằng số phần tử, trừ khi JSON đã ghi `rows_count`.
+- Key không có trong struct hoặc mảng dài hơn `<VIEW>_<TÊN>_MAX` thì gcc báo lỗi, renderer in lỗi đó rồi dừng.
+
+File `<view>.sample.json` do công cụ sinh view ghi, lấy từ nội dung đang có trong Figma: chữ trong layer `{tên}`, các
+hàng của `*tên`, và layer `?tên` đang hiện hay ẩn. Vì vậy ảnh vẽ bằng dữ liệu mẫu phải khớp ảnh chụp Figma.
+
+**Đầu ra**
+
+| Định dạng | Pixel |
+|---|---|
+| PNG | Xám 1 bit, 1 = trắng, giống frame K1. Ghi bằng thư viện chuẩn Python, không cần Pillow. |
+| PBM P4 | 1 = đen, ngược frame K1. |
+
+Ảnh có cỡ 240 × 416 nhân `--scale`, đúng hướng frame dọc. Canvas dùng góc xoay `INK_UI_ROTATION_0`.
+
+**Cách chạy bên trong**
+
+1. `tools/render_view.py` đọc JSON, ghi `build-render/render_main.c` chứa struct dữ liệu dạng designated initializer.
+2. CMake ở `tools/render_view/` build `render_main.c`, file `.gen.c` của view và các khối C thuần (giống `test/host`).
+3. Chương trình vẽ vào frame trắng, ghi frame thô ra file. Python đổi frame thành PNG hoặc PBM.
+
+`tools/build_all.py` chạy renderer với view mẫu `example_view` sau bước host test, để renderer không bị hỏng âm thầm.
+
+### View mẫu trong template app
+
+Template app `templates/components/ink_app_example/views/` có view `example_view` viết tay theo đúng dạng công cụ sinh
+view sẽ ghi. View này có đủ ba loại field (`{title}`, `*rows` với `{label}`, `?empty_hint`) và hai part (`header`,
+`body`). Scene của template gọi `example_view_draw()` khi vào màn và `example_view_draw_body()` khi đổi số hàng.
+
+`tools/new.py app <tên>` đổi `example_view` thành `<tên>_view` cả trong tên file lẫn nội dung, để hai app tạo từ
+template không trùng tên hàm.
+
 ### Luồng làm việc
 
 1. Người thiết kế vẽ màn trong Figma theo design system của panel: frame 240 × 416, text style `unifont_vi_16` hoặc
    `fixed_10`, màu đen, trắng, xám.
-2. Công cụ sinh view đọc màn qua Figma MCP, kiểm theo bảng "Luật kiểm", ghi `.gen.c` và `.gen.h`.
-3. Host renderer biên dịch view cùng `ink_ui` trên PC, vẽ ra PNG, so với ảnh xuất từ Figma.
+2. Công cụ sinh view đọc màn qua Figma MCP, kiểm theo bảng "Luật kiểm", ghi `.gen.c`, `.gen.h` và `.sample.json`.
+3. `python tools/render_view.py <view>` vẽ view ra PNG, so với ảnh xuất từ Figma.
 4. Build firmware, nạp board, chụp màn bằng `tools/vision_test`.
