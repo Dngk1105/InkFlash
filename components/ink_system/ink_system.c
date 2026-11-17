@@ -176,7 +176,8 @@ esp_err_t ink_system_open_app(uint8_t app_index) {
 }
 
 esp_err_t ink_system_scene_push(uint8_t scene_id, const uint8_t *state) {
-    if (s_app == nullptr || scene_id >= s_app->scene_count) { return ESP_ERR_INVALID_ARG; }
+    if (s_app == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (scene_id >= s_app->scene_count) { return ESP_ERR_INVALID_ARG; }
     const ink_scene_error_t error = ink_scene_push(&s_stack, scene_id, state);
     if (error != INK_SCENE_OK) { return to_esp_err(error); }
     show_top_scene(true);
@@ -192,7 +193,8 @@ esp_err_t ink_system_scene_pop(void) {
 }
 
 esp_err_t ink_system_scene_replace(uint8_t scene_id, const uint8_t *state) {
-    if (s_app == nullptr || scene_id >= s_app->scene_count) { return ESP_ERR_INVALID_ARG; }
+    if (s_app == nullptr) { return ESP_ERR_INVALID_STATE; }
+    if (scene_id >= s_app->scene_count) { return ESP_ERR_INVALID_ARG; }
     const ink_scene_error_t error = ink_scene_replace(&s_stack, scene_id, state);
     if (error != INK_SCENE_OK) { return to_esp_err(error); }
     show_top_scene(true);

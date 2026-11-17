@@ -31,8 +31,7 @@ static const uint8_t s_arrow_data[32] = {
     0xFF, 0xFF, 0xFF, 0xFE, 0x00, 0x3C, 0x00, 0x38, 0x00, 0x30, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
 };
 
-/* NOTE: used by draw_cursor() once its body exists; maybe_unused until then. */
-[[maybe_unused]] static const ink_ui_bitmap_t s_arrow = {
+static const ink_ui_bitmap_t s_arrow = {
     .width  = ARROW_SIZE,
     .height = ARROW_SIZE,
     .format = INK_UI_BITMAP_FORMAT_MASK1,
@@ -71,44 +70,94 @@ static uint8_t item_count(void) {
     return ink_system_app_count();
 }
 
-/* Text of an item: the name of app (index + 1), or "Ngủ" for the last item. */
-[[maybe_unused]] static const char *item_label(uint8_t index) {
-    /* LEAF: last item (index == item_count() - 1) -> "Ngủ"; otherwise ink_system_app_at(index + 1)->name; "" if NULL. */
-    (void)index;
-    return "";
+/* Text of an item: the name of app (index + 1), or the sleep item for the last item. */
+static const char *item_label(uint8_t index) {
+    const uint8_t count = item_count();
+    if (count == 0 || index >= count) { return ""; }
+    if (index == count - 1) { return "Ngủ"; }
+    const ink_system_app_t *app = ink_system_app_at(index + 1);
+    if (app == nullptr || app->name == nullptr) { return ""; }
+    return app->name;
 }
 
 /* Cursor position after `step` (+1 or -1) from `index` among `count` items, wrapping at both ends. */
 static uint8_t cursor_step(uint8_t index, uint8_t count, int8_t step) {
-    /* LEAF: (index + step) modulo count without going negative; return index when count is 0. */
-    (void)count;
-    (void)step;
-    return index;
+    if (count == 0) { return index; }
+    int16_t next = (int16_t)index + step;
+    next         = next % (int16_t)count;
+    if (next < 0) { next += count; }
+    return (uint8_t)next;
 }
 
 /* Rectangle of item row `index` over the full canvas width: y = ROW_TOP + index * ROW_HEIGHT, height ROW_HEIGHT. */
-[[maybe_unused]] static ink_ui_rect_t item_row_rect(uint8_t index) {
-    /* LEAF: build the rect from the layout constants and ink_ui_canvas_bounds(&s_canvas).width. */
-    (void)index;
-    return (ink_ui_rect_t){0};
+static ink_ui_rect_t item_row_rect(uint8_t index) {
+    return (ink_ui_rect_t){
+        .x      = 0,
+        .y      = (int16_t)(ROW_TOP + index * ROW_HEIGHT),
+        .width  = ink_ui_canvas_bounds(&s_canvas).width,
+        .height = ROW_HEIGHT,
+    };
 }
 
 /* Clear the canvas to white and draw the black title bar with "Home" centered in white (Unifont 16 px). */
 static void draw_background(void) {
-    /* LEAF: ink_ui_fill white over the bounds, black bar of TITLE_HEIGHT, centered white text with ink_ui_text_*. */
+    const ink_ui_rect_t bounds = ink_ui_canvas_bounds(&s_canvas);
+    ink_ui_fill(&s_canvas, bounds, 0, INK_UI_PAINT_WHITE);
+    const ink_ui_rect_t bar = {
+        .x      = 0,
+        .y      = 0,
+        .width  = bounds.width,
+        .height = TITLE_HEIGHT,
+    };
+    ink_ui_fill(&s_canvas, bar, 0, INK_UI_PAINT_BLACK);
+    const ink_ui_text_style_t style = {
+        .font      = &ink_ui_font_unifont_vi_16,
+        .align     = INK_UI_ALIGN_CENTER,
+        .max_lines = 1,
+    };
+    const ink_ui_size_t size = ink_ui_text_measure(&s_canvas, "Home", bar.width, &style);
+    const ink_ui_rect_t area = ink_ui_rect_align(bar, size, INK_UI_ALIGN_CENTER, INK_UI_ALIGN_CENTER);
+    ink_ui_text_draw(&s_canvas, area, "Home", &style, INK_UI_PAINT_WHITE);
 }
 
 /* Draw the label of every item left-aligned at LABEL_X, vertically centered in its row, black Unifont 16 px. */
 static void draw_items(void) {
-    /* LEAF: for each index below item_count(): item_row_rect(index), inset to start at LABEL_X, ink_ui_text_draw. */
+    const ink_ui_text_style_t style = {
+        .font      = &ink_ui_font_unifont_vi_16,
+        .align     = INK_UI_ALIGN_START,
+        .max_lines = 1,
+    };
+    const uint8_t count = item_count();
+    for (uint8_t i = 0; i < count; i++) {
+        const ink_ui_rect_t row        = item_row_rect(i);
+        const ink_ui_rect_t label_rect = {
+            .x      = LABEL_X,
+            .y      = row.y,
+            .width  = (int16_t)(row.width - LABEL_X),
+            .height = row.height,
+        };
+        const char         *label = item_label(i);
+        const ink_ui_size_t size  = ink_ui_text_measure(&s_canvas, label, label_rect.width, &style);
+        const ink_ui_rect_t area  = ink_ui_rect_align(label_rect, size, INK_UI_ALIGN_START, INK_UI_ALIGN_CENTER);
+        ink_ui_text_draw(&s_canvas, area, label, &style, INK_UI_PAINT_BLACK);
+    }
 }
 
 /* Draw the arrow of item `index` at ARROW_X, vertically centered in its row (visible), or clear its 16 × 16 box to
  * white (not visible). Touches nothing outside that box. */
 static void draw_cursor(uint8_t index, bool visible) {
-    /* LEAF: ink_ui_bitmap(&s_arrow, black) when visible; ink_ui_fill white over the arrow box otherwise. */
-    (void)index;
-    (void)visible;
+    const ink_ui_rect_t row = item_row_rect(index);
+    const ink_ui_rect_t box = {
+        .x      = ARROW_X,
+        .y      = (int16_t)(row.y + (ROW_HEIGHT - ARROW_SIZE) / 2),
+        .width  = ARROW_SIZE,
+        .height = ARROW_SIZE,
+    };
+    if (visible) {
+        ink_ui_bitmap(&s_canvas, box.x, box.y, &s_arrow, INK_UI_PAINT_BLACK);
+    } else {
+        ink_ui_fill(&s_canvas, box, 0, INK_UI_PAINT_WHITE);
+    }
 }
 
 /* ---- Item actions ---- */

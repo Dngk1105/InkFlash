@@ -47,6 +47,7 @@ typedef struct {
  * @par Called from
  * Main task, from a scene function.
  * @param state INK_SCENE_STATE_BYTES bytes copied into the new entry; NULL = zeros.
+ * @retval ESP_ERR_INVALID_STATE no app is open.
  * @retval ESP_ERR_INVALID_ARG scene_id is not a scene of the open app.
  * @retval ESP_ERR_NO_MEM the stack is full; it is unchanged and the caller handles the error.
  */
@@ -56,7 +57,7 @@ typedef struct {
  * @brief Pop the scene on top, then call draw() of the scene now on top.
  * @par Called from
  * Main task, from a scene function.
- * @retval ESP_ERR_INVALID_STATE only the root scene is left; it is never popped.
+ * @retval ESP_ERR_INVALID_STATE no app is open, or only the root scene is left; the root is never popped.
  */
 [[nodiscard]] esp_err_t ink_system_scene_pop(void);
 
@@ -65,6 +66,7 @@ typedef struct {
  * @par Called from
  * Main task, from a scene function.
  * @param state INK_SCENE_STATE_BYTES bytes copied into the entry; NULL = zeros.
+ * @retval ESP_ERR_INVALID_STATE no app is open.
  * @retval ESP_ERR_INVALID_ARG scene_id is not a scene of the open app.
  */
 [[nodiscard]] esp_err_t ink_system_scene_replace(uint8_t scene_id, const uint8_t *state);

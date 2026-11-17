@@ -93,7 +93,7 @@ void ink_scene_reset(ink_scene_stack_t *stack);
  * @brief Get the entry on top.
  * @par Called from
  * Main task (system).
- * @return The entry, valid until the next push, pop, replace or reset; NULL if stack is NULL.
+ * @return The entry, valid until the next push, pop, replace or reset; NULL if stack is NULL or was never initialized (depth 0).
  */
 ink_scene_entry_t *ink_scene_top(ink_scene_stack_t *stack);
 

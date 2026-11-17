@@ -2,68 +2,72 @@
 #include "ink_scene.h"
 
 #include <stdbool.h>
+#include <string.h>
 
 /* ---- Leaf functions ---- */
-/* Bodies marked LEAF are implemented later from the spec; the public functions in "Step lists" only call them. */
 
 /* Set one entry to `scene_id` and a copy of `state`; a NULL `state` zeroes the state bytes. */
 static void entry_write(ink_scene_entry_t *entry, uint8_t scene_id, const uint8_t *state) {
-    /* LEAF: set entry->scene_id; copy INK_SCENE_STATE_BYTES bytes from state, or zero them when state is NULL. */
-    (void)entry;
-    (void)scene_id;
-    (void)state;
+    if (entry == nullptr) { return; }
+    entry->scene_id = scene_id;
+    if (state != nullptr) {
+        memcpy(entry->state, state, INK_SCENE_STATE_BYTES);
+    } else {
+        memset(entry->state, 0, INK_SCENE_STATE_BYTES);
+    }
 }
 
 /* True when the snapshot depth is 1..INK_SCENE_STACK_MAX and every scene id of the used entries is below scene_count. */
 static bool snapshot_valid(const ink_scene_snapshot_t *snapshot, uint8_t scene_count) {
-    /* LEAF: check depth range and each used entry's scene_id against scene_count. */
-    (void)snapshot;
-    (void)scene_count;
-    return false;
+    if (snapshot == nullptr) { return false; }
+    if (snapshot->depth < 1 || snapshot->depth > INK_SCENE_STACK_MAX) { return false; }
+    for (uint8_t i = 0; i < snapshot->depth; i++) {
+        if (snapshot->entries[i].scene_id >= scene_count) { return false; }
+    }
+    return true;
 }
 
 /* ---- Public leaves ---- */
 
 void ink_scene_init(ink_scene_stack_t *stack, uint8_t root_id) {
-    /* LEAF: depth = 1, entries[0] = root_id with zeroed state; do nothing if stack is NULL. */
-    (void)stack;
-    (void)root_id;
+    if (stack == nullptr) { return; }
+    memset(stack, 0, sizeof(*stack)); /* unused entries are zero, so a saved snapshot has no stale bytes */
+    stack->priv.depth = 1;
+    entry_write(&stack->priv.entries[0], root_id, nullptr);
 }
 
 ink_scene_error_t ink_scene_pop(ink_scene_stack_t *stack) {
-    /* LEAF: ARGUMENT if stack is NULL; EMPTY if depth <= 1; otherwise depth-- and OK. */
-    (void)stack;
-    return INK_SCENE_ERROR_ARGUMENT;
+    if (stack == nullptr) { return INK_SCENE_ERROR_ARGUMENT; }
+    if (stack->priv.depth <= 1) { return INK_SCENE_ERROR_EMPTY; }
+    stack->priv.depth--;
+    return INK_SCENE_OK;
 }
 
 void ink_scene_reset(ink_scene_stack_t *stack) {
-    /* LEAF: depth = 1; the root entry and its state stay; do nothing if stack is NULL. */
-    (void)stack;
+    if (stack == nullptr) { return; }
+    stack->priv.depth = 1;
 }
 
 ink_scene_entry_t *ink_scene_top(ink_scene_stack_t *stack) {
-    /* LEAF: &entries[depth - 1]; NULL if stack is NULL or depth is 0. */
-    (void)stack;
-    return nullptr;
+    if (stack == nullptr || stack->priv.depth == 0) { return nullptr; }
+    return &stack->priv.entries[stack->priv.depth - 1];
 }
 
 uint8_t ink_scene_depth(const ink_scene_stack_t *stack) {
-    /* LEAF: depth; 0 if stack is NULL. */
-    (void)stack;
-    return 0;
+    if (stack == nullptr) { return 0; }
+    return stack->priv.depth;
 }
 
 const ink_scene_entry_t *ink_scene_entry_at(const ink_scene_stack_t *stack, uint8_t index) {
-    /* LEAF: &entries[index]; NULL if stack is NULL or index >= depth. */
-    (void)stack;
-    (void)index;
-    return nullptr;
+    if (stack == nullptr || index >= stack->priv.depth) { return nullptr; }
+    return &stack->priv.entries[index];
 }
 
 void ink_scene_save(const ink_scene_stack_t *stack, ink_scene_snapshot_t *out) {
-    /* LEAF: copy depth and the used entries into out; do nothing if a pointer is NULL. */
-    (void)stack;
-    (void)out;
+    if (stack == nullptr || out == nullptr) { return; }
+    memset(out, 0, sizeof(*out)); /* unused entries are zero, so the bytes depend only on the used entries */
+    out->depth = stack->priv.depth;
+    for (uint8_t i = 0; i < stack->priv.depth && i < INK_SCENE_STACK_MAX; i++) { out->entries[i] = stack->priv.entries[i]; }
 }
 
 /* ---- Step lists ---- */
