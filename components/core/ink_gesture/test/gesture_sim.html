@@ -505,7 +505,9 @@ const TYPE_DOUBLE_PRESS  = 1;
 const TYPE_HOLD          = 2;
 const TYPE_HOLD_AB_SHORT = 3;
 const TYPE_HOLD_AB_LONG  = 4;
-const TYPE_NAMES = ["press", "double", "hold", "hold_ab_short", "hold_ab_long"];
+const TYPE_HOLD_SHORT    = 5;
+const TYPE_HOLD_LONG     = 6;
+const TYPE_NAMES = ["press", "double", "hold", "hold_ab_short", "hold_ab_long", "hold_short", "hold_long"];
 
 const SOURCE_BUTTON = 0;
 
@@ -518,13 +520,13 @@ const WAIT_MODIFIER = 1 << 1;
 
 const OUTPUT_MAX = 4;
 
-const CONFIG_FIELDS = ["debounce_ms", "double_ms", "hold_ms", "combo_ms", "ab_short_ms", "ab_long_ms"];
+const CONFIG_FIELDS = ["debounce_ms", "double_ms", "hold_short_ms", "hold_ms", "hold_long_ms", "combo_ms", "ab_short_ms", "ab_long_ms"];
 
-/* Giống s_default_gesture_config trong ink_system.c. */
-const FIRMWARE_CONFIG = {debounce_ms: 20, double_ms: 400, hold_ms: 600, combo_ms: 100, ab_short_ms: 2000, ab_long_ms: 30000};
+/* Giống s_default_gesture_config trong ink_input.c. */
+const FIRMWARE_CONFIG = {debounce_ms: 20, double_ms: 400, hold_short_ms: 600, hold_ms: 2000, hold_long_ms: 8000, combo_ms: 100, ab_short_ms: 2000, ab_long_ms: 30000};
 
 /* Giống TEST_CONFIG trong test_ink_gesture.c. */
-const TEST_CONFIG = {debounce_ms: 20, double_ms: 300, hold_ms: 600, combo_ms: 100, ab_short_ms: 2000, ab_long_ms: 8000};
+const TEST_CONFIG = {debounce_ms: 20, double_ms: 300, hold_short_ms: 600, hold_ms: 2000, hold_long_ms: 8000, combo_ms: 100, ab_short_ms: 10000, ab_long_ms: 30000};
 
 function button_name(button)
 {
@@ -551,11 +553,12 @@ const MODE_AB_DONE = 2;
 const MODE_BLOCK   = 3;
 const MODE_NAMES = ["NORMAL", "AB", "AB_DONE", "BLOCK"];
 
-const DEADLINE_DEBOUNCE = 0;
-const DEADLINE_HOLD     = 1;
-const DEADLINE_DOUBLE   = 2;
-const DEADLINE_AB_LONG  = 3;
-const DEADLINE_NAMES = ["debounce", "hold", "double", "ab_long"];
+const DEADLINE_DEBOUNCE  = 0;
+const DEADLINE_HOLD      = 1;
+const DEADLINE_DOUBLE    = 2;
+const DEADLINE_AB_LONG   = 3;
+const DEADLINE_HOLD_LONG = 4;
+const DEADLINE_NAMES = ["debounce", "hold", "double", "ab_long", "hold_long"];
 
 function new_button_state()
 {
@@ -581,8 +584,10 @@ function time_reached(now_ms, time_ms)
 function config_valid(config)
 {
     return config.debounce_ms < config.double_ms
-        && config.debounce_ms < config.hold_ms
-        && config.combo_ms < config.hold_ms
+        && config.debounce_ms < config.hold_short_ms
+        && config.hold_short_ms < config.hold_ms
+        && config.hold_ms < config.hold_long_ms
+        && config.combo_ms < config.hold_short_ms
         && config.ab_short_ms > 0
         && config.ab_short_ms < config.ab_long_ms;
 }
@@ -684,9 +689,13 @@ function on_release(state, button_index, time_ms, out)
         return;
     }
     if (button.phase === PHASE_DOWN) {
-        const held = u32(time_ms - button.pressed_at_ms) >= config.hold_ms;
-        if ((button.wait_mask & WAIT_MODIFIER) && held) {
+        const held_ms = u32(time_ms - button.pressed_at_ms);
+        if (held_ms >= config.hold_long_ms) {
+            emit(state, out, button.modifier, button_bit(button_index), TYPE_HOLD_LONG);
+        } else if (held_ms >= config.hold_ms) {
             emit(state, out, button.modifier, button_bit(button_index), TYPE_HOLD);
+        } else if (held_ms >= config.hold_short_ms) {
+            emit(state, out, button.modifier, button_bit(button_index), TYPE_HOLD_SHORT);
         } else if (button.wait_mask & WAIT_DOUBLE) {
             button.phase          = PHASE_UP_WAIT;
             button.released_at_ms = time_ms;
@@ -728,7 +737,7 @@ function earliest_deadline(state)
         if (button.locked) { keep_earlier(deadline, button.lock_until_ms, DEADLINE_DEBOUNCE, i); }
         if (state.mode !== MODE_NORMAL) { continue; }
         if (button.phase === PHASE_DOWN && !button.used_as_modifier && !(button.wait_mask & WAIT_MODIFIER)) {
-            keep_earlier(deadline, u32(button.pressed_at_ms + config.hold_ms), DEADLINE_HOLD, i);
+            keep_earlier(deadline, u32(button.pressed_at_ms + config.hold_long_ms), DEADLINE_HOLD_LONG, i);
         }
         if (button.phase === PHASE_UP_WAIT) {
             keep_earlier(deadline, u32(button.released_at_ms + config.double_ms), DEADLINE_DOUBLE, i);
@@ -762,6 +771,10 @@ function run_deadline(state, deadline, out)
         case DEADLINE_AB_LONG:
             emit(state, out, MODIFIER_NONE, BUTTON_AB, TYPE_HOLD_AB_LONG);
             state.mode = MODE_AB_DONE;
+            break;
+        case DEADLINE_HOLD_LONG:
+            emit(state, out, button.modifier, button_bit(deadline.button_index), TYPE_HOLD_LONG);
+            button.phase = PHASE_WAIT_RELEASE;
             break;
     }
 }
@@ -860,16 +873,41 @@ function gesture_progress(state, now_ms)
     for (let i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const button = state.buttons[i];
         if (button.phase !== PHASE_DOWN || button.used_as_modifier) { continue; }
-        const hold_at_ms = u32(button.pressed_at_ms + config.hold_ms);
-        const past_hold  = time_reached(now_ms, hold_at_ms);
+        const pressed_at_ms = button.pressed_at_ms;
+        const short_at_ms   = u32(pressed_at_ms + config.hold_short_ms);
+        const hold_at_ms    = u32(pressed_at_ms + config.hold_ms);
+        const long_at_ms    = u32(pressed_at_ms + config.hold_long_ms);
+
+        let on_release, has_next, next, next_ms;
+        if (!time_reached(now_ms, short_at_ms)) {
+            on_release = TYPE_PRESS;
+            has_next   = true;
+            next       = TYPE_HOLD_SHORT;
+            next_ms    = short_at_ms;
+        } else if (!time_reached(now_ms, hold_at_ms)) {
+            on_release = TYPE_HOLD_SHORT;
+            has_next   = true;
+            next       = TYPE_HOLD;
+            next_ms    = hold_at_ms;
+        } else if (!time_reached(now_ms, long_at_ms)) {
+            on_release = TYPE_HOLD;
+            has_next   = true;
+            next       = TYPE_HOLD_LONG;
+            next_ms    = long_at_ms;
+        } else {
+            on_release = TYPE_HOLD_LONG;
+            has_next   = false;
+            next       = TYPE_HOLD_LONG;
+            next_ms    = long_at_ms;
+        }
         return {
             modifier: button.modifier,
             button: button_bit(i),
-            on_release: past_hold ? TYPE_HOLD : TYPE_PRESS,
-            has_next: !past_hold,
-            next: TYPE_HOLD,
-            start_ms: button.pressed_at_ms,
-            next_ms: hold_at_ms,
+            on_release,
+            has_next,
+            next,
+            start_ms: pressed_at_ms,
+            next_ms,
         };
     }
     return null;
@@ -1334,9 +1372,9 @@ const PHASE_LAYOUT = [
 
 const PHASE_EDGES = [
     {from: PHASE_IDLE, to: PHASE_DOWN, label: "bấm", bend: -18},
-    {from: PHASE_DOWN, to: PHASE_IDLE, label: "nhả → press", bend: -18, label_dx: 10, label_dy: 8},
+    {from: PHASE_DOWN, to: PHASE_IDLE, label: "nhả → press / short / hold", bend: -18, label_dx: 10, label_dy: 8},
     {from: PHASE_DOWN, to: PHASE_UP_WAIT, label: "nhả, có DOUBLE", bend: 0, label_dx: 18, label_dy: 6},
-    {from: PHASE_DOWN, to: PHASE_WAIT_RELEASE, label: "hold_ms → hold", bend: 0, label_dx: 44},
+    {from: PHASE_DOWN, to: PHASE_WAIT_RELEASE, label: "hold_long_ms → long", bend: 0, label_dx: 44},
     {from: PHASE_UP_WAIT, to: PHASE_WAIT_RELEASE, label: "bấm lần 2 → double", bend: 0, label_dx: 52},
     {from: PHASE_UP_WAIT, to: PHASE_IDLE, label: "hết double_ms → press", bend: -26, label_dy: 14},
     {from: PHASE_WAIT_RELEASE, to: PHASE_IDLE, label: "nhả", bend: 0, label_dx: -20},
@@ -1610,23 +1648,24 @@ const NONE = MODIFIER_NONE;
 
 const TEST_CASES = [
     {group: "Argument, config", name: "test_bad_config_rejected_and_old_kept", title: "Config sai bị từ chối, giữ config cũ",
-     description: "ab_short_ms bằng ab_long_ms, rồi combo_ms bằng hold_ms: cả hai lần đều trả ERROR_CONFIG.",
+     description: "ab_short_ms bằng ab_long_ms, rồi hold_short_ms bằng hold_ms, rồi combo_ms bằng hold_short_ms: cả ba lần đều trả ERROR_CONFIG.",
      run(test) {
          test.set_config({ab_short_ms: TEST_CONFIG.ab_long_ms}, "ERROR_CONFIG");
-         test.set_config({combo_ms: TEST_CONFIG.hold_ms}, "ERROR_CONFIG");
+         test.set_config({hold_short_ms: TEST_CONFIG.hold_ms}, "ERROR_CONFIG");
+         test.set_config({combo_ms: TEST_CONFIG.hold_short_ms}, "ERROR_CONFIG");
          test.expect_config("combo_ms", TEST_CONFIG.combo_ms);
          test.expect_config("ab_short_ms", TEST_CONFIG.ab_short_ms);
      }},
-    {group: "Argument, config", name: "test_set_config_applies_new_threshold", title: "Đổi hold_ms lúc chạy",
-     description: "hold_ms = 1000: hold ra đúng t = 1000, không ra ở 999.",
+    {group: "Argument, config", name: "test_set_config_applies_new_threshold", title: "Đổi hold_long_ms lúc chạy",
+     description: "hold_long_ms = 10000: hold_long ra đúng t = 10000, không ra ở 9999.",
      run(test) {
-         test.set_config({hold_ms: 1000}, "OK");
+         test.set_config({hold_long_ms: 10000}, "OK");
          test.down(A, 0);
-         test.advance(999);
+         test.advance(9999);
          test.expect_count(0);
-         test.advance(1000);
+         test.advance(10000);
          test.expect_count(1);
-         test.expect(0, NONE, A, TYPE_HOLD);
+         test.expect(0, NONE, A, TYPE_HOLD_LONG);
      }},
     {group: "Press, hold, debounce", name: "test_idle_needs_no_timer", title: "Rảnh thì không cần timer",
      description: "Trước và sau một lần nhấn, next_deadline trả false: firmware tắt timer.",
@@ -1676,20 +1715,40 @@ const TEST_CASES = [
          test.expect_count(1);
          test.expect(0, NONE, A, TYPE_PRESS);
      }},
-    {group: "Press, hold, debounce", name: "test_hold_emitted_at_threshold_not_on_release", title: "Hold phát lúc đủ hold_ms",
-     description: "Hold ra ở t = 600, không chờ nhả; lần nhả sau đó bỏ qua.",
+    {group: "Press, hold, debounce", name: "test_hold_short_emitted_on_release", title: "Hold short phát lúc nhả",
+     description: "Nhả ở t = 1000: phát HOLD_SHORT.",
      run(test) {
          test.down(A, 0);
-         test.advance(599);
+         test.advance(999);
          test.expect_count(0);
-         test.advance(600);
+         test.up(A, 1000);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_HOLD_SHORT);
+     }},
+    {group: "Press, hold, debounce", name: "test_hold_emitted_on_release", title: "Hold phát lúc nhả",
+     description: "Nhả ở t = 3000: phát HOLD.",
+     run(test) {
+         test.down(A, 0);
+         test.advance(2999);
+         test.expect_count(0);
+         test.up(A, 3000);
          test.expect_count(1);
          test.expect(0, NONE, A, TYPE_HOLD);
-         test.up(A, 900);
+     }},
+    {group: "Press, hold, debounce", name: "test_hold_long_emitted_at_threshold", title: "Hold long phát lúc đủ hold_long_ms",
+     description: "Hold long ra ở t = 8000, không chờ nhả; lần nhả sau đó bỏ qua.",
+     run(test) {
+         test.down(A, 0);
+         test.advance(7999);
+         test.expect_count(0);
+         test.advance(8000);
+         test.expect_count(1);
+         test.expect(0, NONE, A, TYPE_HOLD_LONG);
+         test.up(A, 9000);
          test.expect_count(1);
      }},
     {group: "Press, hold, debounce", name: "test_time_wraps", title: "Đồng hồ quay vòng qua 0",
-     description: "Bắt đầu ở UINT32_MAX - 50: press và hold vẫn đúng khi uint32_t tràn. Trục thời gian vẽ tương đối.",
+     description: "Bắt đầu ở UINT32_MAX - 50: press và hold_long vẫn đúng khi uint32_t tràn. Trục thời gian vẽ tương đối.",
      origin_ms: u32(0xFFFFFFFF - 50),
      run(test) {
          const start_ms = u32(0xFFFFFFFF - 50);
@@ -1698,9 +1757,9 @@ const TEST_CASES = [
          test.expect_count(1);
          test.expect(0, NONE, A, TYPE_PRESS);
          test.down(B, u32(start_ms + 200));
-         test.advance(u32(start_ms + 800));
+         test.advance(u32(start_ms + 8200));
          test.expect_count(2);
-         test.expect(1, NONE, B, TYPE_HOLD);
+         test.expect(1, NONE, B, TYPE_HOLD_LONG);
      }},
     {group: "Double press", name: "test_double_off_gives_two_presses", title: "Tắt nhấn kép: hai press",
      description: "Không bật WAIT_DOUBLE: hai lần nhấn nhanh ra hai press, không chờ.",
@@ -1762,10 +1821,10 @@ const TEST_CASES = [
      run(test) {
          test.down(B, 0);
          test.down(A, 80);
-         test.advance(3000);
+         test.advance(12000);
          test.expect_count(0);
-         test.up(A, 3000);
-         test.up(B, 3010);
+         test.up(A, 12000);
+         test.up(B, 12010);
          test.expect_count(1);
          test.expect(0, NONE, AB, TYPE_HOLD_AB_SHORT);
      }},
@@ -1774,13 +1833,13 @@ const TEST_CASES = [
      run(test) {
          test.down(A, 0);
          test.down(B, 50);
-         test.advance(8049);
+         test.advance(30049);
          test.expect_count(0);
-         test.advance(8050);
+         test.advance(30050);
          test.expect_count(1);
          test.expect(0, NONE, AB, TYPE_HOLD_AB_LONG);
-         test.up(A, 9000);
-         test.up(B, 9000);
+         test.up(A, 31000);
+         test.up(B, 31000);
          test.expect_count(1);
      }},
     {group: "A+B", name: "test_late_second_button_without_mod_ignored", title: "Nút thứ hai bấm muộn, không modifier",
@@ -1821,11 +1880,12 @@ const TEST_CASES = [
          test.expect_count(1);
          test.expect(0, MODIFIER_A, B, TYPE_PRESS);
          test.down(B, 500);
-         test.advance(1100);
+         test.advance(3500);
+         test.expect_count(1);
+         test.up(B, 3500);
          test.expect_count(2);
          test.expect(1, MODIFIER_A, B, TYPE_HOLD);
-         test.up(B, 1200);
-         test.up(A, 1300);
+         test.up(A, 3600);
          test.advance(5000);
          test.expect_count(2);
      }},
@@ -1843,13 +1903,13 @@ const TEST_CASES = [
          test.expect(0, MODIFIER_A, B, TYPE_PRESS);
      }},
     {group: "Modifier", name: "test_modifier_enabled_hold_waits_release", title: "Bật modifier: hold chờ nhả",
-     description: "Nút có modifier thì hold chỉ biết lúc nhả (t = 800), không phát ở t = 600.",
+     description: "Nút có modifier thì hold chỉ biết lúc nhả (t = 3000), không phát ở t = 2000.",
      run(test) {
          test.enable(A, WAIT_MODIFIER);
          test.down(A, 0);
-         test.advance(700);
+         test.advance(2500);
          test.expect_count(0);
-         test.up(A, 800);
+         test.up(A, 3000);
          test.expect_count(1);
          test.expect(0, NONE, A, TYPE_HOLD);
      }},
@@ -1899,26 +1959,39 @@ const TEST_CASES = [
          test.expect_count(1);
      }},
     {group: "Progress", name: "test_progress_hold", title: "Progress khi giữ một nút",
-     description: "t = 100: nhả ra press, giữ tới 600 ra hold. Sau khi hold phát thì hết progress.",
+     description: "Qua 3 khoảng: press -> hold_short -> hold -> hold_long. Sau khi hold_long phát thì hết progress.",
      run(test) {
          test.down(A, 0);
-         const progress = test.progress_at(100);
+         let progress = test.progress_at(300);
          test.expect_equal(progress.modifier, NONE, "progress.modifier");
          test.expect_equal(progress.button, A, "progress.button");
          test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
          test.expect_equal(progress.has_next, true, "progress.has_next");
-         test.expect_equal(progress.next, TYPE_HOLD, "progress.next (type)");
+         test.expect_equal(progress.next, TYPE_HOLD_SHORT, "progress.next (type)");
          test.expect_equal(progress.start_ms, 0, "progress.start_ms");
          test.expect_equal(progress.next_ms, 600, "progress.next_ms");
-         test.expect_no_progress(700);
+
+         progress = test.progress_at(1000);
+         test.expect_equal(progress.on_release, TYPE_HOLD_SHORT, "progress.on_release (type)");
+         test.expect_equal(progress.has_next, true, "progress.has_next");
+         test.expect_equal(progress.next, TYPE_HOLD, "progress.next (type)");
+         test.expect_equal(progress.next_ms, 2000, "progress.next_ms");
+
+         progress = test.progress_at(3000);
+         test.expect_equal(progress.on_release, TYPE_HOLD, "progress.on_release (type)");
+         test.expect_equal(progress.has_next, true, "progress.has_next");
+         test.expect_equal(progress.next, TYPE_HOLD_LONG, "progress.next (type)");
+         test.expect_equal(progress.next_ms, 8000, "progress.next_ms");
+
+         test.expect_no_progress(8000);
      }},
     {group: "Progress", name: "test_progress_modifier_hold_waits_release", title: "Progress của nút có modifier",
-     description: "Quá hold_ms: nhả ra hold, không còn mốc kế tiếp.",
+     description: "Quá hold_long_ms: nhả ra hold_long, không còn mốc kế tiếp.",
      run(test) {
          test.enable(A, WAIT_MODIFIER);
          test.down(A, 0);
-         const progress = test.progress_at(700);
-         test.expect_equal(progress.on_release, TYPE_HOLD, "progress.on_release (type)");
+         const progress = test.progress_at(8500);
+         test.expect_equal(progress.on_release, TYPE_HOLD_LONG, "progress.on_release (type)");
          test.expect_equal(progress.has_next, false, "progress.has_next");
      }},
     {group: "Progress", name: "test_progress_ab_short_then_long", title: "Progress A+B: short rồi long",
@@ -1931,12 +2004,12 @@ const TEST_CASES = [
          test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
          test.expect_equal(progress.next, TYPE_HOLD_AB_SHORT, "progress.next (type)");
          test.expect_equal(progress.start_ms, 50, "progress.start_ms");
-         test.expect_equal(progress.next_ms, 2050, "progress.next_ms");
-         progress = test.progress_at(3000);
+         test.expect_equal(progress.next_ms, 10050, "progress.next_ms");
+         progress = test.progress_at(12000);
          test.expect_equal(progress.on_release, TYPE_HOLD_AB_SHORT, "progress.on_release (type)");
          test.expect_equal(progress.next, TYPE_HOLD_AB_LONG, "progress.next (type)");
-         test.expect_equal(progress.next_ms, 8050, "progress.next_ms");
-         test.expect_no_progress(8050);
+         test.expect_equal(progress.next_ms, 30050, "progress.next_ms");
+         test.expect_no_progress(30050);
      }},
     {group: "Progress", name: "test_progress_modifier_target", title: "Progress của nút được modifier",
      description: "Giữ A (modifier) rồi giữ B: progress là của B, mang modifier A.",
@@ -1948,7 +2021,7 @@ const TEST_CASES = [
          test.expect_equal(progress.modifier, MODIFIER_A, "progress.modifier");
          test.expect_equal(progress.button, B, "progress.button");
          test.expect_equal(progress.on_release, TYPE_PRESS, "progress.on_release (type)");
-         test.expect_equal(progress.next, TYPE_HOLD, "progress.next (type)");
+         test.expect_equal(progress.next, TYPE_HOLD_SHORT, "progress.next (type)");
          test.expect_equal(progress.next_ms, 900, "progress.next_ms");
      }},
     {group: "Progress", name: "test_progress_none_when_blocked", title: "Không có progress khi bị chặn",

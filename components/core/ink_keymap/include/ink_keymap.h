@@ -5,7 +5,7 @@
  * Gesture -> command through the scene table and the app table. Stateless: system owns the tables.
  * Pure C (C23).
  */
-#include "ink_gesture.h"
+#include "ink_gesture_types.h"
 
 #include <stdint.h>
 

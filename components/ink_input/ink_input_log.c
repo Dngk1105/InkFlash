@@ -27,8 +27,12 @@ static const char *gesture_type_name(ink_gesture_type_t type) {
             return "press";
         case INK_GESTURE_TYPE_DOUBLE_PRESS:
             return "double";
+        case INK_GESTURE_TYPE_HOLD_SHORT:
+            return "hold_short";
         case INK_GESTURE_TYPE_HOLD:
             return "hold";
+        case INK_GESTURE_TYPE_HOLD_LONG:
+            return "hold_long";
         case INK_GESTURE_TYPE_HOLD_AB_SHORT:
             return "hold_ab_short";
         case INK_GESTURE_TYPE_HOLD_AB_LONG:

@@ -1,6 +1,7 @@
 /* Design: docs/design/input/input.md */
 #include "ink_keymap.h"
 
+#include "ink_gesture.h"
 #include <string.h>
 
 /* ---- Compare gestures ---- */
