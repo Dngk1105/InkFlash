@@ -1,0 +1,366 @@
+{
+ "file_key": "FIXTUREfile0000000000",
+ "node_id": "1:2",
+ "name": "InkFlash fixture",
+ "version": "0",
+ "document": {
+  "id": "1:2",
+  "name": "flashcard_front",
+  "type": "FRAME",
+  "absoluteBoundingBox": {
+   "x": 1000,
+   "y": 2000,
+   "width": 240,
+   "height": 416
+  },
+  "fills": [
+   {
+    "type": "SOLID",
+    "color": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 1
+    }
+   }
+  ],
+  "strokes": [],
+  "effects": [],
+  "layoutMode": "NONE",
+  "children": [
+   {
+    "id": "1:2",
+    "name": "part:header",
+    "type": "FRAME",
+    "absoluteBoundingBox": {
+     "x": 1000,
+     "y": 2000,
+     "width": 240,
+     "height": 40
+    },
+    "fills": [
+     {
+      "type": "SOLID",
+      "color": {
+       "r": 0,
+       "g": 0,
+       "b": 0,
+       "a": 1
+      }
+     }
+    ],
+    "strokes": [],
+    "layoutMode": "HORIZONTAL",
+    "paddingLeft": 8,
+    "paddingRight": 8,
+    "paddingTop": 12,
+    "paddingBottom": 12,
+    "itemSpacing": 8,
+    "counterAxisAlignItems": "MIN",
+    "children": [
+     {
+      "id": "1:3",
+      "name": "{deck}",
+      "type": "TEXT",
+      "characters": "Tiếng Anh",
+      "absoluteBoundingBox": {
+       "x": 1008,
+       "y": 2012,
+       "width": 168,
+       "height": 16
+      },
+      "fills": [
+       {
+        "type": "SOLID",
+        "color": {
+         "r": 1,
+         "g": 1,
+         "b": 1,
+         "a": 1
+        }
+       }
+      ],
+      "styles": {
+       "text": "S:uni"
+      },
+      "characterStyleOverrides": [],
+      "style": {
+       "fontFamily": "Unifont",
+       "fontSize": 16,
+       "textAlignHorizontal": "LEFT",
+       "textAlignVertical": "TOP",
+       "letterSpacing": 0,
+       "lineHeightPx": 16,
+       "lineHeightUnit": "PIXELS",
+       "textAutoResize": "NONE"
+      },
+      "layoutSizingHorizontal": "FILL"
+     },
+     {
+      "id": "1:4",
+      "name": "{progress}",
+      "type": "TEXT",
+      "characters": "3/20",
+      "absoluteBoundingBox": {
+       "x": 1184,
+       "y": 2012,
+       "width": 48,
+       "height": 16
+      },
+      "fills": [
+       {
+        "type": "SOLID",
+        "color": {
+         "r": 1,
+         "g": 1,
+         "b": 1,
+         "a": 1
+        }
+       }
+      ],
+      "styles": {
+       "text": "S:uni"
+      },
+      "characterStyleOverrides": [],
+      "style": {
+       "fontFamily": "Unifont",
+       "fontSize": 16,
+       "textAlignHorizontal": "RIGHT",
+       "textAlignVertical": "TOP",
+       "letterSpacing": 0,
+       "lineHeightPx": 16,
+       "lineHeightUnit": "PIXELS",
+       "textAutoResize": "NONE"
+      },
+      "layoutSizingHorizontal": "FIXED"
+     }
+    ]
+   },
+   {
+    "id": "1:5",
+    "name": "part:card",
+    "type": "FRAME",
+    "absoluteBoundingBox": {
+     "x": 1000,
+     "y": 2040,
+     "width": 240,
+     "height": 336
+    },
+    "fills": [
+     {
+      "type": "SOLID",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      }
+     }
+    ],
+    "strokes": [],
+    "layoutMode": "NONE",
+    "children": [
+     {
+      "id": "1:6",
+      "name": "border",
+      "type": "RECTANGLE",
+      "absoluteBoundingBox": {
+       "x": 1016,
+       "y": 2056,
+       "width": 208,
+       "height": 304
+      },
+      "fills": [],
+      "strokes": [
+       {
+        "type": "SOLID",
+        "color": {
+         "r": 0,
+         "g": 0,
+         "b": 0,
+         "a": 1
+        }
+       }
+      ],
+      "strokeWeight": 2,
+      "strokeAlign": "INSIDE",
+      "cornerRadius": 8
+     }
+    ]
+   },
+   {
+    "id": "1:7",
+    "name": "part:text",
+    "type": "FRAME",
+    "absoluteBoundingBox": {
+     "x": 1024,
+     "y": 2064,
+     "width": 192,
+     "height": 288
+    },
+    "fills": [
+     {
+      "type": "SOLID",
+      "color": {
+       "r": 1,
+       "g": 1,
+       "b": 1,
+       "a": 1
+      }
+     }
+    ],
+    "strokes": [],
+    "layoutMode": "VERTICAL",
+    "paddingLeft": 8,
+    "paddingRight": 8,
+    "paddingTop": 8,
+    "paddingBottom": 8,
+    "itemSpacing": 8,
+    "counterAxisAlignItems": "MIN",
+    "children": [
+     {
+      "id": "1:8",
+      "name": "{front}",
+      "type": "TEXT",
+      "characters": "apple",
+      "absoluteBoundingBox": {
+       "x": 1032,
+       "y": 2072,
+       "width": 176,
+       "height": 240
+      },
+      "fills": [
+       {
+        "type": "SOLID",
+        "color": {
+         "r": 0,
+         "g": 0,
+         "b": 0,
+         "a": 1
+        }
+       }
+      ],
+      "styles": {
+       "text": "S:uni"
+      },
+      "characterStyleOverrides": [],
+      "style": {
+       "fontFamily": "Unifont",
+       "fontSize": 16,
+       "textAlignHorizontal": "CENTER",
+       "textAlignVertical": "TOP",
+       "letterSpacing": 0,
+       "lineHeightPx": 16,
+       "lineHeightUnit": "PIXELS",
+       "textAutoResize": "NONE"
+      }
+     },
+     {
+      "id": "1:9",
+      "name": "?hint",
+      "type": "TEXT",
+      "characters": "Bấm A để lật",
+      "absoluteBoundingBox": {
+       "x": 1032,
+       "y": 2320,
+       "width": 176,
+       "height": 16
+      },
+      "fills": [
+       {
+        "type": "SOLID",
+        "color": {
+         "r": 0,
+         "g": 0,
+         "b": 0,
+         "a": 1
+        }
+       }
+      ],
+      "styles": {
+       "text": "S:uni"
+      },
+      "characterStyleOverrides": [],
+      "style": {
+       "fontFamily": "Unifont",
+       "fontSize": 16,
+       "textAlignHorizontal": "CENTER",
+       "textAlignVertical": "TOP",
+       "letterSpacing": 0,
+       "lineHeightPx": 16,
+       "lineHeightUnit": "PIXELS",
+       "textAutoResize": "NONE"
+      }
+     }
+    ]
+   },
+   {
+    "id": "1:10",
+    "name": "rule",
+    "type": "RECTANGLE",
+    "absoluteBoundingBox": {
+     "x": 1000,
+     "y": 2376,
+     "width": 240,
+     "height": 1
+    },
+    "fills": [
+     {
+      "type": "SOLID",
+      "color": {
+       "r": 0,
+       "g": 0,
+       "b": 0,
+       "a": 1
+      }
+     }
+    ],
+    "strokes": []
+   },
+   {
+    "id": "1:11",
+    "name": "footer",
+    "type": "TEXT",
+    "characters": "A: lật   B: bỏ qua",
+    "absoluteBoundingBox": {
+     "x": 1008,
+     "y": 2392,
+     "width": 224,
+     "height": 16
+    },
+    "fills": [
+     {
+      "type": "SOLID",
+      "color": {
+       "r": 0,
+       "g": 0,
+       "b": 0,
+       "a": 1
+      }
+     }
+    ],
+    "styles": {
+     "text": "S:uni"
+    },
+    "characterStyleOverrides": [],
+    "style": {
+     "fontFamily": "Unifont",
+     "fontSize": 16,
+     "textAlignHorizontal": "CENTER",
+     "textAlignVertical": "TOP",
+     "letterSpacing": 0,
+     "lineHeightPx": 16,
+     "lineHeightUnit": "PIXELS",
+     "textAutoResize": "NONE"
+    }
+   }
+  ]
+ },
+ "styles": {
+  "S:uni": {
+   "key": "k",
+   "name": "unifont_vi_16",
+   "styleType": "TEXT"
+  }
+ }
+}

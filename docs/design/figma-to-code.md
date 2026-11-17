@@ -13,18 +13,30 @@ xuống 8 px trong Figma. Code phải đổi theo mà không ai sửa tay file C
 
 ### Một màn Figma là một view sinh lại, không sửa tay
 
-View là hàm C vẽ một màn Figma lên canvas. Công cụ sinh view đọc Figma rồi ghi hai file vào thư mục của app:
+View là hàm C vẽ một màn Figma lên canvas. Công cụ sinh view đọc Figma rồi ghi ba file vào thư mục của app. Ví dụ
+màn `list` của app `deck`:
 
 ```text
-components/apps/ink_app_<tên>/
-  scene_list.c           viết tay: command, scene state, chọn intent, acquire, submit
-  views/list_view.gen.c  sinh từ Figma
-  views/list_view.gen.h  sinh từ Figma: struct dữ liệu và prototype
-  views/list_view.sample.json  sinh từ Figma: dữ liệu mẫu cho host renderer
+components/apps/ink_app_deck/
+  scene_list.c                     viết tay: command, scene state, chọn intent, acquire, submit
+  views/deck_list_view.gen.c       sinh từ Figma
+  views/deck_list_view.gen.h       sinh từ Figma: struct dữ liệu và prototype
+  views/deck_list_view.sample.json sinh từ Figma: dữ liệu mẫu cho host renderer
 ```
 
+- Tên frame của màn trong Figma là `<app>_<màn>`, ví dụ `deck_list`. View tên `<app>_<màn>_view`. Hàm view là symbol
+  toàn cục của firmware, nên tiền tố app giữ cho hai app cùng có màn `list` không trùng tên khi link. Công cụ sinh view
+  báo lỗi khi tên frame không bắt đầu bằng `<app>_`; `tools/check.py` báo lỗi khi file trong
+  `ink_app_<app>/views/` có tên không bắt đầu bằng `<app>_`.
 - File `.gen.c` và `.gen.h` luôn sinh lại từ Figma, không sửa tay. Dòng đầu file ghi nguồn Figma và hash của phần còn
-  lại; `tools/check.py` báo lỗi khi hash không khớp.
+  lại:
+
+  ```c
+  /* Generated from Figma: AbCdEf123 node 12:34 (version 2087441375); hash: sha256:4fc2079e9c812221 */
+  ```
+
+  Hash là 16 chữ số hex đầu của SHA-256 trên nội dung file từ dòng 2 tới hết, tính sau khi chạy `clang-format`.
+  `tools/check.py` tính lại hash và báo lỗi khi không khớp. File viết tay làm mẫu ghi `hash: none` và không được kiểm.
 - Sửa thiết kế thì sửa Figma rồi chạy lại công cụ sinh view.
 - Hành vi (command, scene state, intent, submit) nằm trong file scene viết tay. View chỉ vẽ.
 
@@ -32,9 +44,9 @@ Hàm `draw` của scene điền struct dữ liệu rồi gọi view:
 
 ```c
 static void list_draw(const uint8_t *state) {
-    const list_view_data_t data = {.title = "Bộ thẻ", .rows_count = 3 /* ... */};
+    const deck_list_view_data_t data = {.title = "Bộ thẻ", .rows_count = 3 /* ... */};
     /* acquire, bind canvas */
-    list_view_draw(canvas, &data);
+    deck_list_view_draw(canvas, &data);
     /* submit với intent PAGE */
 }
 ```
@@ -61,10 +73,14 @@ y như Figma.
 
 Hàng đầu tiên của `*tên` là hàng mẫu; các hàng còn lại trong Figma chỉ để đếm số hàng tối đa.
 
-Tên sinh ra cho `*tên` trong view `list_view`:
+Tên sinh ra cho `*tên` trong view `deck_list_view`:
 
-- Struct một hàng: `list_view_<tên>_row_t`, ví dụ `list_view_rows_row_t`.
-- Số hàng tối đa: macro `LIST_VIEW_<TÊN>_MAX`, ví dụ `LIST_VIEW_ROWS_MAX`. Scene dùng macro này để không ghi quá mảng.
+- Struct một hàng: `deck_list_view_<tên>_row_t`, ví dụ `deck_list_view_rows_row_t`.
+- Số hàng tối đa: macro `DECK_LIST_VIEW_<TÊN>_MAX`, ví dụ `DECK_LIST_VIEW_ROWS_MAX`. Scene dùng macro này để không ghi
+  quá mảng.
+
+Hàng mẫu phải hiện mọi layer `?tên` của nó. Các hàng còn lại được ẩn `?tên` để làm dữ liệu mẫu, ví dụ hàng đã học có dấu
+`?done`, hàng chưa học thì ẩn.
 
 ### Scene chọn intent, view chia part
 
@@ -95,9 +111,10 @@ Ví dụ màn thẻ có `part:card` (viền thẻ) và `part:text` (chữ):
 | Layer đặt tự do (không Auto Layout) | Rect tính sẵn, tương đối với frame cha |
 | Rectangle có fill | `ink_ui_fill()`, corner radius → `radius` |
 | Stroke canh trong | `ink_ui_stroke()`, stroke weight → `thickness` |
-| Line | `ink_ui_line()` |
+| Line ngang hoặc dọc dày 1 px | `ink_ui_line()` |
+| Line dày hơn 1 px | `ink_ui_fill()` trên vùng line phủ |
 | Text | `ink_ui_text_draw()`: text style → font, căn trái/giữa/phải → `align`, số dòng tối đa và cắt `…` → `max_lines`, line height → `line_gap` |
-| Vector, icon | Ảnh 1 bit `INK_UI_BITMAP_FORMAT_MASK1`, `static const` trong `.gen.c`, vẽ bằng `ink_ui_bitmap()` |
+| Vector, icon (vector, ellipse, boolean, star, polygon) | Ảnh 1 bit `INK_UI_BITMAP_FORMAT_MASK1`, `static const` trong `.gen.c`, vẽ bằng `ink_ui_bitmap()`. Figma xuất PNG của layer; pixel có alpha từ 128 trở lên thành bit 1, vẽ bằng màu fill (đen hoặc trắng) |
 | Màu đen, trắng | `INK_UI_PAINT_BLACK`, `INK_UI_PAINT_WHITE` |
 | Màu xám (R = G = B) | `INK_UI_PAINT_GRAY(level)`, `level` = giá trị R |
 
@@ -111,14 +128,72 @@ Công cụ sinh view kiểm Figma trước khi sinh. Lỗi thì dừng, không g
 | Luật | Mức | Lý do |
 |---|---|---|
 | Frame của màn cỡ 240 × 416 (dọc) hoặc 416 × 240 (ngang) | Lỗi | Cỡ panel |
+| Tên frame không phải `<app>_<màn>` | Lỗi | Tránh trùng symbol khi link |
+| Toạ độ hoặc cỡ layer không nguyên | Lỗi | Panel không vẽ nửa pixel |
 | Text style không có trong danh sách font của `ui` | Lỗi | Firmware không có font đó |
 | Màu không phải xám (R, G, B khác nhau), gradient, opacity dưới 100 %, effect (shadow, blur) | Lỗi | Panel 1 bit không vẽ được |
 | Chữ màu xám | Lỗi | Chữ xám bị làm thành đen hoặc trắng theo ngưỡng 50 % |
 | Stroke canh giữa hoặc canh ngoài | Lỗi | `ink_ui_stroke()` chỉ vẽ vào trong |
-| Text `{tên}` để Hug | Lỗi | Cỡ chữ động không biết trước lúc sinh |
+| Text `{tên}` để Hug hoặc Auto height | Lỗi | Cỡ chữ động không biết trước lúc sinh |
+| Text căn dọc giữa hoặc dưới (trừ text cao đúng một dòng), letter spacing khác 0, nhiều style trong một text | Lỗi | `ink_ui_text_draw()` vẽ từ mép trên, một font |
+| Layer `?tên` đang ẩn trong frame Auto Layout | Lỗi | Figma dồn các layer khác vào chỗ trống, view thì không; ảnh mẫu sẽ lệch Figma |
+| Line nằm lệch nửa pixel (stroke của Line luôn canh giữa đường) | Lỗi | Dùng Rectangle cao hoặc rộng 1 px thay cho Line |
+| Kiểu layer ngoài bảng ánh xạ (ảnh, video, Auto Layout wrap, stroke dày khác nhau theo từng edge, góc bo khác nhau) | Lỗi | `ink_ui` không có họa cụ tương ứng |
 | Mép trái, mép phải của layer động (`{}`, `?`, `*`) không trên bội của 8 px | Cảnh báo | Display căn changed window theo 8 px |
 | Fill xám có corner radius | Cảnh báo | Fill dither bỏ qua radius |
 | Stroke, line màu xám | Cảnh báo | Thành đen hoặc trắng theo ngưỡng 50 % |
+
+### Công cụ sinh view `tools/figma2ink.py`
+
+Công cụ sinh view là script Python đọc một frame Figma qua Figma REST API, kiểm theo bảng "Luật kiểm", rồi ghi
+`.gen.c`, `.gen.h` và `.sample.json`. Cùng một frame Figma luôn cho cùng ba file.
+
+Ví dụ, sinh màn `flashcard_front` của app `flashcard` rồi vẽ để so:
+
+```text
+python tools/figma2ink.py "https://www.figma.com/design/<key>/<tên>?node-id=12-34" --app flashcard --save build-render/snap
+python tools/render_view.py flashcard_front_view -o build-render/front.png
+```
+
+Link lấy bằng chuột phải frame → Copy link to selection. Lệnh chạy trong terminal ESP-IDF, vì cần `clang-format`.
+
+**Đầu vào**
+
+| Tham số | Ý nghĩa |
+|---|---|
+| `<nguồn>` | Link Figma tới frame của màn, hoặc thư mục snapshot do `--save` ghi. |
+| `--app <app>` | Tên app. Tên frame phải bắt đầu bằng `<app>_`. |
+| `--out <thư mục>` | Nơi ghi view. Mặc định `components/apps/ink_app_<app>/views/`; app phải có sẵn. |
+| `--save <thư mục>` | Lưu snapshot: `node.json` (cây node và text style), `icons/*.png`, `figma.png` (ảnh cả frame do Figma xuất, để so với ảnh của host renderer). |
+
+Đọc từ link cần biến môi trường `FIGMA_TOKEN`: Personal access token của Figma (Settings → Security), quyền File content:
+Read-only. Đọc từ snapshot thì không cần mạng và token.
+
+**Cách sinh code**
+
+- Thứ tự vẽ theo thứ tự layer trong Figma, layer dưới vẽ trước. Layer ẩn không có tên `?` thì bỏ qua.
+- Frame con cấp một `part:<tên>` thành hàm part. Hàm part tô nền bằng fill của frame part, không có fill thì bằng fill
+  của màn. `<view>_draw()` tô cả canvas bằng fill của màn rồi vẽ các layer cấp một theo thứ tự, gặp part thì gọi hàm part.
+- Frame Auto Layout thành `ink_ui_rect_split()`. Công cụ tính lại phép chia bằng đúng số học của `ink_ui` để biết rect
+  của từng con. Con nào rơi đúng slot thì dùng slot, lệch theo trục ngang thì dùng `ink_ui_rect_align()`, còn lại thì
+  ghi rect bằng số. Vì vậy view luôn vẽ đúng chỗ Figma.
+- Layer trong hàng của `*tên` ghi toạ độ tương đối với rect của hàng (`row`), nên mọi hàng vẽ cùng một khuôn.
+- Dữ liệu mẫu lấy từ chữ trong layer `{tên}`, từng hàng của `*tên`, và layer `?tên` đang hiện hay ẩn.
+- Ghi xong chạy `clang-format -i`, rồi mới tính hash cho dòng đầu.
+
+`.gen.h` có thêm macro `<VIEW>_WIDTH` và `<VIEW>_HEIGHT`: cỡ canvas sau khi xoay, 240 × 416 hoặc 416 × 240.
+
+**Màn ngang**
+
+Frame 416 × 240 sinh view ngang. View vẽ theo toạ độ ngang như Figma. App dùng view ngang phải khởi tạo canvas với góc
+xoay `INK_UI_ROTATION_90` hoặc `INK_UI_ROTATION_270`, tuỳ cách cầm máy.
+
+**Snapshot mẫu**
+
+`tools/figma2ink/fixture/` (màn `flashcard_front`, dọc, có part và Auto Layout) và `tools/figma2ink/fixture_wide/` (màn
+`flashcard_wide`, ngang, có `*tên`, icon, line, fill xám) là snapshot viết tay theo dạng REST API. `tools/build_all.py`
+sinh view từ hai snapshot này vào `build-render/figma2ink/` rồi vẽ bằng host renderer, để công cụ sinh view không bị hỏng
+âm thầm.
 
 ### Host renderer vẽ view trên PC
 
@@ -165,7 +240,9 @@ hàng của `*tên`, và layer `?tên` đang hiện hay ẩn. Vì vậy ảnh v�
 | PNG | Xám 1 bit, 1 = trắng, giống frame K1. Ghi bằng thư viện chuẩn Python, không cần Pillow. |
 | PBM P4 | 1 = đen, ngược frame K1. |
 
-Ảnh có cỡ 240 × 416 nhân `--scale`, đúng hướng frame dọc. Canvas dùng góc xoay `INK_UI_ROTATION_0`.
+Ảnh có cỡ của view nhân `--scale`, đúng hướng Figma. Renderer đọc cỡ view từ macro `<VIEW>_WIDTH`, `<VIEW>_HEIGHT` trong
+`.gen.h`; không có macro thì coi là dọc. View dọc vẽ trên canvas góc xoay `INK_UI_ROTATION_0`. View ngang vẽ trên canvas
+`INK_UI_ROTATION_90`, rồi ảnh được xoay lại thành 416 × 240.
 
 **Cách chạy bên trong**
 
@@ -188,6 +265,7 @@ template không trùng tên hàm.
 
 1. Người thiết kế vẽ màn trong Figma theo design system của panel: frame 240 × 416, text style `unifont_vi_16` hoặc
    `fixed_10`, màu đen, trắng, xám.
-2. Công cụ sinh view đọc màn qua Figma MCP, kiểm theo bảng "Luật kiểm", ghi `.gen.c`, `.gen.h` và `.sample.json`.
-3. `python tools/render_view.py <view>` vẽ view ra PNG, so với ảnh xuất từ Figma.
+2. `python tools/figma2ink.py <link> --app <app> --save <thư mục>` đọc màn qua Figma REST API, kiểm theo bảng
+   "Luật kiểm", ghi `.gen.c`, `.gen.h` và `.sample.json`.
+3. `python tools/render_view.py <view>` vẽ view ra PNG, so với `figma.png` trong snapshot.
 4. Build firmware, nạp board, chụp màn bằng `tools/vision_test`.

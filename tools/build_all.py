@@ -3,7 +3,8 @@
 
     python tools/build_all.py
 
-Các bước: tools/check.py → host test (gcc trên PC) → host renderer vẽ view mẫu → build templates/ → build firmware.
+Các bước: tools/check.py → host test (gcc trên PC) → host renderer vẽ view mẫu → công cụ sinh view chạy trên
+snapshot mẫu (tools/figma2ink/) rồi vẽ → build templates/ → build firmware.
 Dừng ở bước đầu tiên lỗi.
 """
 import os
@@ -36,6 +37,11 @@ def main():
     run("Build host test", ["cmake", "--build", "build-host"], env)
     run("Chạy host test", ["ctest", "--test-dir", "build-host", "--output-on-failure"], env)
     run("Host renderer, view mẫu", [sys.executable, "tools/render_view.py", "example_view"], env)
+    for fixture, view in (("fixture", "flashcard_front_view"), ("fixture_wide", "flashcard_wide_view")):
+        out = os.path.join("build-render", "figma2ink")
+        run(f"Công cụ sinh view, {fixture}", [sys.executable, "tools/figma2ink.py", f"tools/figma2ink/{fixture}",
+                                              "--app", "flashcard", "--out", out])
+        run(f"Host renderer, {view}", [sys.executable, "tools/render_view.py", os.path.join(out, f"{view}.gen.h")], env)
 
     idf = shutil.which("idf.py") or shutil.which("idf.py.exe")
     if not idf:

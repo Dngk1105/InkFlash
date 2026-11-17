@@ -23,7 +23,8 @@ BUILD_DIR = os.path.join(ROOT, "build-render")
 NINJA_FALLBACK = r"C:\Espressif\tools\ninja\1.12.1"
 
 # Panel frame K1: 1 bit per pixel, bit 1 = white, MSB = leftmost pixel, rows packed with no padding.
-# EXTEND: landscape views (416 x 240 in Figma) need a canvas rotation and an image rotated back to the Figma orientation.
+# A landscape view (416 x 240) is drawn on a canvas rotated by INK_UI_ROTATION_90; the image is turned back to the Figma
+# orientation, so the result looks the same for any landscape rotation the app picks.
 PANEL_WIDTH = 240
 PANEL_HEIGHT = 416
 FRAME_BYTES = PANEL_WIDTH // 8 * PANEL_HEIGHT
@@ -44,7 +45,7 @@ int main(int argc, char **argv) {{
     static uint8_t                 frame[{frame_bytes}];
     const ink_display_frame_info_t info = {{.width = {width}, .height = {height}, .format = INK_DISPLAY_PIXEL_FORMAT_K1}};
     ink_ui_canvas_t                canvas;
-    if (ink_ui_canvas_init(&canvas, &info, INK_UI_ROTATION_0) != INK_UI_OK) {{ return 1; }}
+    if (ink_ui_canvas_init(&canvas, &info, {rotation}) != INK_UI_OK) {{ return 1; }}
     memset(frame, 0xFF, sizeof(frame)); /* white */
     ink_ui_canvas_bind(&canvas, frame);
     {draw}(&canvas, &s_data);
@@ -136,17 +137,35 @@ def view_parts(view, header_text):
     return re.findall(rf"\bvoid\s+{view}_draw_(\w+)\s*\(", header_text)
 
 
-def write_image(frame, path, scale):
-    """Write the K1 frame as PNG (1 bit gray, 1 = white like K1) or PBM P4 (1 = black)."""
-    rows = [frame[y * PANEL_WIDTH // 8:(y + 1) * PANEL_WIDTH // 8] for y in range(PANEL_HEIGHT)]
-    width, height = PANEL_WIDTH * scale, PANEL_HEIGHT * scale
-    if scale > 1:
-        scaled = []
-        for row in rows:
-            bits = [(row[x // 8] >> (7 - x % 8)) & 1 for x in range(PANEL_WIDTH) for _ in range(scale)]
-            packed = bytes(sum(bits[i + b] << (7 - b) for b in range(8)) for i in range(0, width, 8))
-            scaled += [packed] * scale
-        rows = scaled
+def view_size(view, header_text):
+    """(width, height) of the view canvas from <VIEW>_WIDTH / <VIEW>_HEIGHT; portrait when the header has none."""
+    w = re.search(rf"#define\s+{view.upper()}_WIDTH\s+(\d+)", header_text)
+    h = re.search(rf"#define\s+{view.upper()}_HEIGHT\s+(\d+)", header_text)
+    size = (int(w.group(1)), int(h.group(1))) if w and h else (PANEL_WIDTH, PANEL_HEIGHT)
+    if size not in ((PANEL_WIDTH, PANEL_HEIGHT), (PANEL_HEIGHT, PANEL_WIDTH)):
+        fail(f"view {view} cỡ {size[0]} x {size[1]}: chỉ nhận {PANEL_WIDTH} x {PANEL_HEIGHT} hoặc {PANEL_HEIGHT} x {PANEL_WIDTH}")
+    return size
+
+
+def frame_pixel(frame, x, y):
+    return (frame[y * PANEL_WIDTH // 8 + x // 8] >> (7 - x % 8)) & 1
+
+
+def write_image(frame, path, scale, landscape):
+    """Write the K1 frame as PNG (1 bit gray, 1 = white like K1) or PBM P4 (1 = black), in the view orientation."""
+    if landscape:
+        # INK_UI_ROTATION_90 (clockwise): view pixel (x, y) is panel pixel (PANEL_WIDTH - 1 - y, x).
+        src_w, src_h = PANEL_HEIGHT, PANEL_WIDTH
+        pixel = lambda x, y: frame_pixel(frame, PANEL_WIDTH - 1 - y, x)  # noqa: E731
+    else:
+        src_w, src_h = PANEL_WIDTH, PANEL_HEIGHT
+        pixel = lambda x, y: frame_pixel(frame, x, y)  # noqa: E731
+    width, height = src_w * scale, src_h * scale
+    rows = []
+    for y in range(src_h):
+        bits = [pixel(x, y) for x in range(src_w) for _ in range(scale)]
+        packed = bytes(sum(bits[i + b] << (7 - b) for b in range(8)) for i in range(0, width, 8))
+        rows += [packed] * scale
     if path.lower().endswith(".pbm"):
         with open(path, "wb") as f:
             f.write(f"P4\n{width} {height}\n".encode())
@@ -187,7 +206,10 @@ def main():
     source = header[: -len(".h")] + ".c"
     if not os.path.isfile(source):
         fail(f"không có {rel(source)}")
-    parts = view_parts(view, open(header, encoding="utf-8").read())
+    header_text = open(header, encoding="utf-8").read()
+    parts = view_parts(view, header_text)
+    size = view_size(view, header_text)
+    landscape = size[0] > size[1]
     draw = f"{view}_draw"
     if args.part:
         if args.part not in parts:
@@ -214,7 +236,8 @@ def main():
     os.makedirs(BUILD_DIR, exist_ok=True)
     main_c = os.path.join(BUILD_DIR, "render_main.c")
     text = MAIN_TEMPLATE.format(view=view, init=c_struct(data, "data"), draw=draw, frame_bytes=FRAME_BYTES,
-                                width=PANEL_WIDTH, height=PANEL_HEIGHT)
+                                width=PANEL_WIDTH, height=PANEL_HEIGHT,
+                                rotation="INK_UI_ROTATION_90" if landscape else "INK_UI_ROTATION_0")
     with open(main_c, "w", encoding="utf-8", newline="\n") as f:
         f.write(text)
 
@@ -234,9 +257,8 @@ def main():
     if len(frame) != FRAME_BYTES:
         fail(f"frame {len(frame)} byte, cần {FRAME_BYTES}")
     os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
-    write_image(frame, output, args.scale)
-    print(f"Đã vẽ {draw} → {rel(output)} ({PANEL_WIDTH * args.scale} x "
-          f"{PANEL_HEIGHT * args.scale})")
+    write_image(frame, output, args.scale, landscape)
+    print(f"Đã vẽ {draw} → {rel(output)} ({size[0] * args.scale} x {size[1] * args.scale})")
 
 
 if __name__ == "__main__":

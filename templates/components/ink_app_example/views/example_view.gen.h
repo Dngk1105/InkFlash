@@ -9,7 +9,9 @@
 #include "ink_ui.h"
 #include <stdint.h>
 
-#define EXAMPLE_VIEW_ROWS_MAX 4 /**< rows drawn in Figma for *rows */
+#define EXAMPLE_VIEW_WIDTH    240 /**< canvas width after rotation, px */
+#define EXAMPLE_VIEW_HEIGHT   416 /**< canvas height after rotation, px */
+#define EXAMPLE_VIEW_ROWS_MAX 4   /**< rows drawn in Figma for *rows */
 
 /** One row of *rows. */
 typedef struct {

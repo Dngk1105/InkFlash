@@ -120,6 +120,24 @@ def check_priv(path, text, core_dirs):
                 "(docs/design/code-structure.md)")
 
 
+VIEW_RE = re.compile(r"/ink_app_(\w+)/views/(\w+)\.gen\.[ch]$")
+
+
+def check_view(path, text):
+    """View sinh từ Figma (docs/design/figma-to-code.md): không sửa tay (hash dòng 1), tên view có tiền tố app."""
+    rel = os.path.relpath(path, ROOT).replace(os.sep, "/")
+    if not rel.endswith((".gen.c", ".gen.h")):
+        return
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import figma2ink
+    msg = figma2ink.check_generated(path, text)
+    if msg:
+        err(path, 1, msg)
+    m = VIEW_RE.search("/" + rel)
+    if m and not m.group(2).startswith(m.group(1) + "_"):
+        err(path, 0, f"tên view phải bắt đầu bằng tên app '{m.group(1)}_' để không trùng symbol khi link")
+
+
 def component_dirs():
     for base in ("components", "templates/components"):
         top = os.path.join(ROOT, base)
@@ -249,6 +267,7 @@ def main():
             check_banned(path, text)
             check_board_if(path, text)
             check_priv(path, text, core_dirs)
+            check_view(path, text)
     for comp in component_dirs():
         check_component(comp)
     check_format(code_files)
