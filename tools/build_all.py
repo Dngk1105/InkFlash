@@ -37,7 +37,8 @@ def main():
     run("Build host test", ["cmake", "--build", "build-host"], env)
     run("Chạy host test", ["ctest", "--test-dir", "build-host", "--output-on-failure"], env)
     run("Host renderer, view mẫu", [sys.executable, "tools/render_view.py", "example_view"], env)
-    for fixture, view in (("fixture", "flashcard_front_view"), ("fixture_wide", "flashcard_wide_view")):
+    for fixture, view in (("fixture", "flashcard_front_view"), ("fixture_wide", "flashcard_wide_view"),
+                          ("fixture_figma", "flashcard_front_view")):
         out = os.path.join("build-render", "figma2ink")
         run(f"Công cụ sinh view, {fixture}", [sys.executable, "tools/figma2ink.py", f"tools/figma2ink/{fixture}",
                                               "--app", "flashcard", "--out", out])

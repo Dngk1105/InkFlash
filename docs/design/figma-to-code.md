@@ -191,8 +191,8 @@ xoay `INK_UI_ROTATION_90` hoặc `INK_UI_ROTATION_270`, tuỳ cách cầm máy.
 **Snapshot mẫu**
 
 `tools/figma2ink/fixture/` (màn `flashcard_front`, dọc, có part và Auto Layout) và `tools/figma2ink/fixture_wide/` (màn
-`flashcard_wide`, ngang, có `*tên`, icon, line, fill xám) là snapshot viết tay theo dạng REST API. `tools/build_all.py`
-sinh view từ hai snapshot này vào `build-render/figma2ink/` rồi vẽ bằng host renderer, để công cụ sinh view không bị hỏng
+`flashcard_wide`, ngang, có `*tên`, icon, line, fill xám) là snapshot viết tay theo dạng REST API. `tools/figma2ink/fixture_figma/` là snapshot lưu từ một file Figma thật (màn
+`flashcard_front`), kèm `figma.png`. `tools/build_all.py` sinh view từ ba snapshot này vào `build-render/figma2ink/` rồi vẽ bằng host renderer, để công cụ sinh view không bị hỏng
 âm thầm.
 
 ### Host renderer vẽ view trên PC
