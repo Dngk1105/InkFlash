@@ -428,6 +428,14 @@ terms:
     term: scene state
     meaning: '8 byte state của một tầng scene stack, chỉ chứa số (không pointer); scene ghi thẳng vào đó, snapshot chép nguyên.'
     avoid: []
+  - id: view
+    term: view
+    meaning: 'hàm C sinh từ một màn Figma (file .gen.c, .gen.h), vẽ màn đó lên canvas từ struct dữ liệu; không acquire, không submit, không sửa tay.'
+    avoid: []
+  - id: view_part
+    term: part
+    meaning: 'frame con cấp một của màn Figma tên part:<tên>; sinh thêm hàm vẽ riêng để scene vẽ hai nhịp.'
+    avoid: []
   - id: home_app
     term: Home
     meaning: 'app máy boot vào: liệt kê app và mục Ngủ; HOLD_AB_SHORT và BACK ở scene gốc của app khác đều về Home.'
