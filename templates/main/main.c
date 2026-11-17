@@ -1,11 +1,13 @@
 /* Design: docs/design/code-structure.md */
 
-/* Smoke test of the templates: the core handles events, the shell receives messages.
- * Peripheral templates only need to build. */
+/* Smoke test of the templates: the core handles events, the shell receives messages, the app table of the app template
+ * is valid. Peripheral templates only need to build. */
 #include "esp_err.h"
 #include "esp_log.h"
 #include "ink_example.h"
+#include "ink_app_example.h"
 #include "ink_example_shell.h"
+#include "ink_keymap.h"
 
 static const char *TAG = "templates";
 
@@ -24,6 +26,11 @@ void app_main(void) {
         }
     }
     ESP_LOGI(TAG, "core action %d", action);
+
+    if (ink_keymap_validate(nullptr, ink_app_example.app_table) != INK_KEYMAP_OK) {
+        ESP_LOGE(TAG, "app table of %s is invalid", ink_app_example.name);
+        return;
+    }
 
     ESP_ERROR_CHECK(ink_example_shell_start());
     const ink_example_shell_message_t message = {.value = 1};

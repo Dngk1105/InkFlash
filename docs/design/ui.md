@@ -83,12 +83,6 @@ U8g2. Đổi thư viện vẽ, hoặc thêm backend vẽ cho pixel format khác,
 U8g2 ghi buffer theo từng hàng, pixel trái nằm ở bit cao nhất, trùng layout frame `K1`. Vì vậy U8g2 ghi thẳng vào
 frame, không có bước chép đổi dạng.
 
-### Vẽ thử trên board
-
-`ink_demo` là shell module tạm, tồn tại tới khi có app đầu tiên. `system` gọi nó trên main task: sau khi boot nó vẽ
-màn thử thứ nhất; gesture `PRESS` của nút A sang màn kế, của nút B về màn trước. Bốn màn thử: primitive và paint,
-chữ tiếng Việt, thước và XOR, vẽ hai frame liên tiếp với intent `UI` rồi `TEXT`.
-
 ## Tham khảo
 
 - U8g2: thư viện đồ hoạ đơn sắc viết bằng C, giấy phép BSD 2 điều khoản; font đi kèm có giấy phép riêng theo từng font.

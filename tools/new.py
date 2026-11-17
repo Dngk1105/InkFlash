@@ -3,8 +3,9 @@
 
     python tools/new.py <loại> <tên> --design docs/design/<file>.md
 
-Loại: core (khối C thuần), shell (khối vỏ có task), driver (driver chip).
+Loại: core (khối C thuần), shell (khối vỏ có task), driver (driver chip), app (app của máy).
 Ví dụ: python tools/new.py core gesture --design docs/design/input/input.md
+       python tools/new.py app home --design docs/design/app-framework.md
 """
 import argparse
 import os
@@ -19,6 +20,7 @@ KINDS = {
     "core": ("templates/components/ink_example", "ink_example", "components/core", "ink_"),
     "shell": ("templates/components/ink_example_shell", "ink_example_shell", "components", "ink_"),
     "driver": ("templates/components/ink_drv_example", "ink_drv_example", "components/drivers", "ink_drv_"),
+    "app": ("templates/components/ink_app_example", "ink_app_example", "components/apps", "ink_app_"),
 }
 
 TEXT_EXT = (".c", ".h", ".txt", ".cmake")
@@ -74,6 +76,8 @@ def main():
     print("  2. Khai báo REQUIRES trong CMakeLists.txt theo bảng 'Được gọi' trong docs/architecture.md.")
     if args.kind == "driver":
         print("  3. Đổi ink_hal_example (interface mẫu) thành interface HAL thật mà driver làm theo.")
+    if args.kind == "app":
+        print("  3. Thêm &ink_app_<tên> vào mảng apps trong main/main.c và ink_app_<tên> vào PRIV_REQUIRES của main/CMakeLists.txt.")
     print("  Để clangd thấy khối mới: chạy idf.py reconfigure (terminal ESP-IDF), rồi khởi động lại clangd.")
     print("  Cuối cùng: chạy python tools/check.py.")
 

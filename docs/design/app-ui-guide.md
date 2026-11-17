@@ -78,7 +78,8 @@ Luật:
 `AUTO` thành `UI` khi changed window nhỏ hơn 10 % diện tích panel, còn lại thành `TEXT`.
 
 **Vẽ hai nhịp.** Thẻ có viền và chữ: submit viền với `UI` (240 ms), rồi vẽ chữ vào cùng frame và submit với `TEXT`.
-Người dùng thấy phản hồi sớm, chữ hiện rõ sau. Màn 4/4 của `ink_demo` làm đúng như vậy.
+Người dùng thấy phản hồi sớm, chữ hiện rõ sau. Scene submit frame chữ sau khi report của frame viền tới main queue
+(`ink_system_after_report()`), không tự chờ bằng delay.
 
 **`REDRAW_WINDOW`.** Ví dụ: popup nền đen mở đè lên trang chữ. Pixel chữ vốn đen dưới popup đi đen → đen, nên không
 được kéo, và chữ cũ hiện mờ trong khối đen (đo trên BB0). Có flag, display lắc mọi pixel trong changed window bằng

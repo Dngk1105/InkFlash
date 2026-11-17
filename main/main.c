@@ -6,10 +6,14 @@
 #include "esp_app_desc.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "ink_app_home.h"
 #include "ink_bsp.h"
 #include "ink_system.h"
 
 static const char *TAG = "main";
+
+/* Apps built into the firmware; apps[0] is Home. EXTEND(main): add each new app here (tools/new.py app prints the reminder). */
+static const ink_system_app_t *const s_apps[] = {&ink_app_home};
 
 void app_main(void) {
     const esp_app_desc_t *app_description = esp_app_get_description();
@@ -25,6 +29,8 @@ void app_main(void) {
         .buttons      = buttons,
         .button_count = button_count,
         .display      = display,
+        .apps         = s_apps,
+        .app_count    = sizeof(s_apps) / sizeof(s_apps[0]),
     };
     ESP_ERROR_CHECK(ink_system_start(&config));
 }

@@ -34,7 +34,8 @@ scope:
   - components/ink_system
   - components/core/ink_ui
   - components/ink_u8g2
-  - components/ink_demo
+  - components/core/ink_scene
+  - components/apps
   - main
   - docs/architecture.md
   - docs/design
@@ -91,9 +92,12 @@ modules:
   - id: u8g2
     prefix: ink_u8g2
     meaning: 'component bọc thư viện U8g2; tạo màn ảo vẽ thẳng vào frame K1.'
-  - id: demo
-    prefix: ink_demo
-    meaning: 'shell module tạm: 4 màn thử vẽ ink_ui trên main task, chuyển màn bằng 2 nút.'
+  - id: scene
+    prefix: ink_scene
+    meaning: 'core module: scene stack tối đa 4 tầng, mỗi tầng scene_id và scene state; chép ra và vào snapshot.'
+  - id: app_home
+    prefix: ink_app_home
+    meaning: 'app Home: danh sách app và mục Ngủ, mũi tên chọn.'
 
 terms:
   # ---- Task ----

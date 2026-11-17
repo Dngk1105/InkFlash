@@ -16,7 +16,8 @@ Máy boot vào Home. Home là app như mọi app: liệt kê các app trong danh
 
 | Tình huống | Kết quả |
 |---|---|
-| `HOLD_AB_SHORT` ở bất kỳ app nào | `system` đóng app đang mở, mở Home |
+| `HOLD_AB_SHORT` ở app khác Home | `system` đóng app đang mở, mở Home |
+| `HOLD_AB_SHORT` ở Home | Bỏ qua |
 | `BACK` ở scene gốc của app khác Home | `system` đóng app, mở Home |
 | `BACK` ở scene gốc của Home | Bỏ qua |
 

@@ -18,7 +18,6 @@ components/
     ink_session/ ink_gesture/ ink_keymap/ ink_scene/ ink_study/ ink_fsrs/ ink_record/ ink_ui/ ink_display_policy/
   ink_system/ ink_display/ ink_storage/ ink_platform/
   ink_u8g2/            component bọc thư viện U8g2
-  ink_demo/            vẽ thử ink_ui trên board (tạm)
   ink_hal/             interface phần cứng
   ink_bsp/             pin map theo board
   drivers/ink_drv_<chip>/

@@ -7,8 +7,8 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 
 | Module | Việc | Task | Core module | Có code | Được gọi |
 |---|---|---|---|---|---|
-| `apps/` | Home, Settings và các app khác: hàm vòng đời, app table, scene | main | | Chưa | `system`, `study`, `display`, `ui` |
-| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform`, `demo` |
+| `apps/` | Home, Settings và các app khác: hàm vòng đời, app table, scene | main | | Có (Home) | `system`, `study`, `display`, `ui` |
+| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform`; app qua con trỏ hàm do `main` đưa vào |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
 | `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Có | Chỉ thư viện C chuẩn |
@@ -17,11 +17,10 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | Có | `gesture`, `hal`, `platform` |
 | `gesture/` | Edge của nút, IMU → gesture | main | Có | Có | Chỉ thư viện C chuẩn |
 | `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
-| `scene/` | Scene stack trong app | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `scene/` | Scene stack trong app | main | Có | Có | Chỉ thư viện C chuẩn |
 | `fsrs/`, `record/` | Tính lịch ôn, mã hoá bản ghi | main | Có | Chưa | Chỉ thư viện C chuẩn |
 | `ui/` | Họa cụ để app vẽ lên frame: canvas, primitive, paint, chữ, thước | main | Có | Có | `u8g2`; `display_policy` (chỉ dùng kiểu frame info) |
 | `u8g2/` | Component bọc thư viện U8g2 trong `third_party/`: chọn file biên dịch, dựng màn ảo trỏ vào frame | caller | | Có | U8g2 |
-| `demo/` | Vẽ thử `ui` trên board, tạm tới khi có app đầu tiên | main | | Có | `ui`, `display`, `gesture` (chỉ dùng kiểu gesture) |
 | `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
 | `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
 | `hal/` | Interface phần cứng | caller | | Có | |
@@ -29,8 +28,8 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `bsp/` | Pin map, chọn driver theo board | boot | | Có | `hal`, `drivers` |
 
 Module không có trong cột "Được gọi" của một module thì module đó không được gọi tới. Cột "Có code" = "Chưa": kiến
-trúc đã chốt, chưa có component trong `components/`. `system/` có code nhưng mới gồm main queue, main task và khởi động
-`input`, `display`.
+trúc đã chốt, chưa có component trong `components/`. `system/` có code gồm main queue, main task, khởi động
+`input` và `display`, mở app, chạy scene stack và chuyển command; phần đi ngủ chờ `session`.
 
 ## Task
 

@@ -45,6 +45,7 @@ TEMPLATE_HINT = {
     "core": "templates/components/ink_example",
     "shell": "templates/components/ink_example_shell",
     "driver": "templates/components/ink_drv_example",
+    "app": "templates/components/ink_app_example",
 }
 
 errors = []
@@ -135,7 +136,7 @@ def check_component(comp):
     name = os.path.basename(comp)
     cmake = read(os.path.join(comp, "CMakeLists.txt"))
     is_core = "ink_core_component(" in cmake
-    kind = "core" if is_core else ("driver" if name.startswith("ink_drv_") else "shell")
+    kind = "core" if is_core else ("driver" if name.startswith("ink_drv_") else ("app" if name.startswith("ink_app_") else "shell"))
     hint = TEMPLATE_HINT[kind]
 
     if not name.startswith("ink_"):

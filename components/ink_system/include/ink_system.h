@@ -8,6 +8,7 @@
 #include "esp_err.h"
 #include "ink_display.h"
 #include "ink_hal.h"
+#include "ink_system_app.h"
 #include <stddef.h>
 
 typedef struct {
@@ -15,13 +16,16 @@ typedef struct {
     size_t                          button_count;
     const ink_hal_display_device_t *display;
     const ink_display_options_t    *display_options; /**< stored display options; NULL = defaults */
+    const ink_system_app_t *const  *apps;            /**< fixed list of apps; apps[0] is Home; must live for the whole program */
+    uint8_t                         app_count;       /**< at least 1 */
 } ink_system_config_t;
 
 /**
  * @brief Create the main queue and the main task, then start input (button interrupts on) and display.
  * @par Called from
  * app_main, once, after ink_bsp_init().
- * @retval ESP_ERR_INVALID_ARG config or display is NULL, button_count is not 2, or display options are invalid.
+ * @retval ESP_ERR_INVALID_ARG config or display is NULL, button_count is not 2, display options are invalid, or the app list is
+ *         empty or has an app with no scene, a missing scene function, or an app table without BACK.
  * @retval ESP_ERR_NOT_SUPPORTED a button has no interrupt.
  * @retval ESP_ERR_INVALID_STATE already started.
  * @retval ESP_ERR_NO_MEM the main queue, a task or the frames could not be allocated.
