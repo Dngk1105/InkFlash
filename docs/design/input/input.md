@@ -30,7 +30,8 @@ Sơ đồ cùng thư mục, vẽ từ code ở commit ghi trong mỗi file, mở
 ### `gesture` là core module
 
 Đầu vào: chuỗi edge "nút X bấm/nhả lúc t" và tín hiệu IMU. Đầu ra: gesture. `gesture` không dính FreeRTOS hay phần
-cứng, nên mọi trường hợp khó đều test được trên PC.
+cứng, nên mọi trường hợp khó đều test được trên PC. Kiểu dữ liệu dùng chung (`ink_gesture_t`, `ink_gesture_type_t`,
+`ink_gesture_config_t`...) nằm riêng trong `ink_gesture_types.h`; `gesture` giữ state machine trong `ink_gesture.h`.
 
 Mỗi edge mang level của chân sau edge (bấm hay nhả), không chỉ báo "có edge". Debounce làm trong `gesture`: nhận edge
 đầu tiên ngay, bỏ mọi edge trong `debounce_ms` sau đó, hết khoảng này thì so level cuối với level đã nhận.
@@ -43,7 +44,7 @@ Gesture là cặp (modifier, trigger). Ví dụ: giữ A rồi bấm B ra (modif
 |---|---|---|
 | trigger: `source` | Gesture đến từ đâu | `BUTTON`. IMU và giọng nói thêm vào field này |
 | trigger: `button` | Nút nào | A, B, A+B |
-| trigger: `type` | Làm gì | `PRESS`, `DOUBLE_PRESS`, `HOLD`, `HOLD_AB_SHORT`, `HOLD_AB_LONG` |
+| trigger: `type` | Làm gì | `PRESS`, `DOUBLE_PRESS`, `HOLD`, `HOLD_AB_SHORT`, `HOLD_AB_LONG`, `HOLD_SHORT`, `HOLD_LONG` |
 | `modifier` | Nút đang giữ khi trigger bắt đầu | `NONE`, A, B |
 
 Enum `type`, `button`, `source` chỉ được thêm giá trị vào cuối, không đổi thứ tự. Keymap table người dùng sửa lưu
@@ -56,11 +57,12 @@ thêm bit; mọi tổ hợp tự có mã, mã cũ trong keymap table đã lưu v
 
 | Gesture | Phát lúc |
 |---|---|
-| `PRESS`, nút không bật `WAIT_DOUBLE` | Nhả, nếu đã giữ dưới `hold_ms` |
+| `PRESS`, nút không bật `WAIT_DOUBLE` | Nhả, nếu đã giữ dưới `hold_short_ms` |
 | `PRESS`, nút bật `WAIT_DOUBLE` | Hết `double_ms` sau lần nhả mà không có lần bấm thứ hai |
 | `DOUBLE_PRESS` | Bấm lần thứ hai trong `double_ms`. Lần nhả sau đó không phát gì |
-| `HOLD`, nút không bật `WAIT_MODIFIER` | Giữ đủ `hold_ms`, không chờ nhả. Lần nhả sau đó không phát gì |
-| `HOLD`, nút bật `WAIT_MODIFIER` | Nhả, nếu đã giữ đủ `hold_ms` và trong lúc giữ không bấm nút kia |
+| `HOLD_SHORT` | Nhả, nếu đã giữ từ `hold_short_ms` tới dưới `hold_ms`. Phát lúc nhả để còn tới được `HOLD` và `HOLD_LONG` |
+| `HOLD` | Nhả, nếu đã giữ từ `hold_ms` tới dưới `hold_long_ms`. Phát lúc nhả để còn tới được `HOLD_LONG` |
+| `HOLD_LONG` | Giữ đủ `hold_long_ms`, không chờ nhả. Lần nhả sau đó không phát gì |
 | `PRESS` của A+B | Nút thứ hai bấm trong `combo_ms` sau nút đầu thì thành A+B. Phát lúc nhả nút cuối, nếu đã giữ dưới `ab_short_ms` |
 | `HOLD_AB_SHORT` | Nhả nút cuối, nếu đã giữ từ `ab_short_ms` tới dưới `ab_long_ms`. Phát lúc nhả để còn tới được `HOLD_AB_LONG` |
 | `HOLD_AB_LONG` | Giữ đủ `ab_long_ms`, không chờ nhả |
@@ -70,9 +72,10 @@ Nút thứ hai bấm sau `combo_ms` mà nút đầu không bật `WAIT_MODIFIER`
 
 ### Gesture config đổi được lúc chạy
 
-Các ngưỡng thời gian (`debounce_ms`, `double_ms`, `hold_ms`, `combo_ms`, `ab_short_ms`, `ab_long_ms`) nằm trong
-`ink_gesture_config_t`, đổi được lúc máy chạy, không cần build lại. `gesture` kiểm config trước khi nhận, ví dụ
-`ab_short_ms` phải nhỏ hơn `ab_long_ms`. `ab_long_ms` khoảng 30 s. Giá trị mặc định nằm trong `ink_input.c`.
+Các ngưỡng thời gian (`debounce_ms`, `double_ms`, `hold_short_ms`, `hold_ms`, `hold_long_ms`, `combo_ms`, `ab_short_ms`, `ab_long_ms`) nằm trong
+`ink_gesture_config_t`, đổi được lúc máy chạy, không cần build lại. `gesture` kiểm config trước khi nhận:
+`debounce_ms < hold_short_ms < hold_ms < hold_long_ms`, `combo_ms < hold_short_ms`, và `ab_short_ms < ab_long_ms`.
+Ngưỡng mặc định: `debounce_ms = 20 ms`, `double_ms = 400 ms`, `hold_short_ms = 600 ms`, `hold_ms = 2000 ms`, `hold_long_ms = 8000 ms`, `combo_ms = 100 ms`, `ab_short_ms = 2000 ms`, `ab_long_ms = 30000 ms`. Giá trị mặc định nằm trong `ink_input.c`.
 
 App Settings đổi gesture config bằng `ink_input_set_gesture_config()`. `system` đặt wait mask của một nút bằng
 `ink_input_set_wait_mask()` khi mở app hoặc đổi scene. Cả hai gọi trên main task.
@@ -81,7 +84,7 @@ App Settings đổi gesture config bằng `ink_input_set_gesture_config()`. `sys
 
 - Chân nút đổi level → GPIO interrupt → ISR của `input` lấy timestamp bằng `ink_platform_now_ms()` → post message vào
   main queue qua hàm post của `system`. Driver nút không lấy timestamp, nên chỉ có một nguồn giờ.
-- Timer one-shot của `platform` chỉ chạy khi có gesture đang dở, ví dụ đang giữ nút, chờ xem đủ `hold_ms` chưa.
+- Timer one-shot của `platform` chỉ chạy khi có gesture đang dở, ví dụ đang giữ nút, chờ xem đủ `hold_long_ms` chưa.
   `ink_gesture_next_deadline()` cho biết deadline tiếp theo, hoặc không cần timer.
 - Thời gian truyền vào làm tham số; `gesture` không tự đọc đồng hồ.
 - Timer callback chạy trên task `esp_timer` (một helper task), nên chỉ post message vào main queue, không gọi thẳng
@@ -133,7 +136,7 @@ Lần bấm làm máy wake không tính là thao tác: lần nhả đầu tiên 
 ### Wait mask bật riêng từng nút
 
 Nút có `DOUBLE_PRESS` thì mỗi lần `PRESS` phải chờ hết `double_ms` (khoảng 400 ms) mới biết là `PRESS`. Nút làm modifier thì
-`HOLD` phải chờ tới lúc nhả mới biết người dùng giữ để làm modifier hay để `HOLD`.
+phải chờ tới lúc nhả mới biết người dùng giữ để làm modifier hay để phát gesture.
 
 Vì vậy mỗi nút có một wait mask (`WAIT_DOUBLE`, `WAIT_MODIFIER`), mặc định tắt hết. `system` tính wait mask bằng
 `ink_keymap_wait_mask()` từ scene table và app table mỗi khi mở app hoặc đổi scene: bật bit nào keymap table có dùng
@@ -148,15 +151,22 @@ mới. Mất một lần bấm ít hại hơn, vì người dùng thấy màn đ
 Ví dụ: người dùng giữ A+B để tắt nguồn. Màn hiện thanh đếm ngược tới `ab_long_ms`, nên người dùng biết máy đang làm gì
 và còn bao lâu; nhả ra trước thì không tắt.
 
-`ink_gesture_progress()` cho biết gesture nào đang giữ dở, bắt đầu lúc nào, ngưỡng kế tiếp lúc nào; hàm chỉ đọc state,
-không phát gesture. Có progress thì `input` đặt timer thêm, mỗi 1 s một lần, để báo lại progress.
+`ink_gesture_progress()` cho biết gesture nào đang giữ dở (`on_release`), có ngưỡng kế tiếp không (`has_next`), type kế tiếp (`next`)
+và lúc tới (`next_ms`); hàm chỉ đọc state, không phát gesture. Có progress thì `input` đặt timer thêm, mỗi 1 s một lần, để báo lại progress.
+
+Với nút đơn:
+- Dưới `hold_short_ms`: `on_release` là `PRESS`, `next` là `HOLD_SHORT` tại `hold_short_ms`.
+- Từ `hold_short_ms` tới dưới `hold_ms`: `on_release` là `HOLD_SHORT`, `next` là `HOLD` tại `hold_ms`.
+- Từ `hold_ms` tới dưới `hold_long_ms`: `on_release` là `HOLD`, `next` là `HOLD_LONG` tại `hold_long_ms`.
+- Đủ `hold_long_ms`: `on_release` là `HOLD_LONG`, `has_next` là `false`.
 
 | Thao tác | Màn hiện |
 |---|---|
-| Giữ A+B đủ `ab_short_ms` | Báo nhả ra thì về menu |
-| Giữ A+B tới `ab_long_ms` | Đếm ngược tới lúc tắt nguồn |
+| Giữ nút đơn tới `hold_long_ms` (8 s) | Đếm ngược tới lúc phát `HOLD_LONG` |
+| Giữ A+B đủ `ab_short_ms` | Báo nhả ra thì về menu (`HOLD_AB_SHORT`) |
+| Giữ A+B tới `ab_long_ms` | Đếm ngược tới lúc tắt nguồn (`HOLD_AB_LONG`) |
 | Nhập macro nhiều bước | Số bước đã nhập |
-| Giữ một nút (`hold_ms`) | Không hiện: panel vẽ một lần mất khoảng 350 ms, xong thì gesture đã phát |
+| Giữ nút đơn dưới `hold_short_ms` (600 ms) | Không hiện: panel vẽ một lần mất khoảng 350 ms, gần bằng ngưỡng |
 
 ### IMU
 

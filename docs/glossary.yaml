@@ -327,12 +327,22 @@ terms:
     avoid: []
   - id: trigger
     term: trigger
-    meaning: 'phần (source, button, type) của gesture. type: PRESS, DOUBLE_PRESS, HOLD, HOLD_AB_SHORT, HOLD_AB_LONG.'
+    meaning: 'phần (source, button, type) của gesture. type: PRESS, DOUBLE_PRESS, HOLD, HOLD_AB_SHORT, HOLD_AB_LONG, HOLD_SHORT, HOLD_LONG.'
     avoid: []
   - id: double_press
     term: double press
     meaning: 'gesture type DOUBLE_PRESS: bấm lần hai trong double_ms sau lần nhả.'
     avoid: [nhấn kép, bấm kép]
+  - id: hold_short
+    term: hold short
+    meaning: 'gesture type HOLD_SHORT: giữ nút từ hold_short_ms đến dưới hold_ms rồi nhả.'
+    avoid: [giữ ngắn, bấm giữ ngắn]
+    symbols: [INK_GESTURE_TYPE_HOLD_SHORT]
+  - id: hold_long
+    term: hold long
+    meaning: 'gesture type HOLD_LONG: giữ nút đủ hold_long_ms (phát ngay tại deadline, không chờ nhả).'
+    avoid: [giữ dài, bấm giữ dài]
+    symbols: [INK_GESTURE_TYPE_HOLD_LONG]
   - id: hold_ab
     term: hold A+B
     meaning: 'giữ cả A và B: HOLD_AB_SHORT (≥ ab_short_ms, về menu), HOLD_AB_LONG (≥ ab_long_ms, tắt nguồn). System xử lý; app không thấy, không gán được.'
@@ -344,7 +354,7 @@ terms:
     symbols: [ink_gesture_wait_mask_t, ink_gesture_set_wait_mask]
   - id: deadline
     term: deadline
-    meaning: 'thời điểm gesture cần được tick tiếp: hết debounce, đủ hold_ms, hết double_ms, đủ ab_long_ms.'
+    meaning: 'thời điểm gesture cần được tick tiếp: hết debounce, đủ hold_long_ms, hết double_ms, đủ ab_long_ms.'
     avoid: []
   - id: progress
     term: progress
@@ -353,7 +363,7 @@ terms:
     symbols: [ink_gesture_progress, ink_gesture_progress_t]
   - id: gesture_config
     term: gesture config
-    meaning: 'các ngưỡng thời gian của gesture (debounce_ms, double_ms, hold_ms, combo_ms, ab_short_ms, ab_long_ms); đổi được lúc chạy.'
+    meaning: 'các ngưỡng thời gian của gesture (debounce_ms, double_ms, hold_short_ms, hold_ms, hold_long_ms, combo_ms, ab_short_ms, ab_long_ms); đổi được lúc chạy.'
     avoid: []
     symbols: [ink_gesture_config_t]
   - id: resync

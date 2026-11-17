@@ -3,6 +3,7 @@
 /* Module state and the main task side: edge -> gesture, timer at deadlines, resync, gesture config. */
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "ink_gesture.h"
 #include "ink_input_internal.h"
 #include "ink_platform.h"
 #include <stdbool.h>
@@ -42,12 +43,14 @@ static void on_timer_expired(void *user_data) {
 
 /* REVIEW(input): defaults not measured on BB0 buttons; move to options when Settings exists. */
 static const ink_gesture_config_t s_default_gesture_config = {
-    .debounce_ms = 20,
-    .double_ms   = 400,
-    .hold_ms     = 600,
-    .combo_ms    = 100,
-    .ab_short_ms = 2000,
-    .ab_long_ms  = 30000,
+    .debounce_ms   = 20,
+    .double_ms     = 400,
+    .hold_short_ms = 600,
+    .hold_ms       = 2000,
+    .hold_long_ms  = 8000,
+    .combo_ms      = 100,
+    .ab_short_ms   = 2000,
+    .ab_long_ms    = 30000,
 };
 
 static ink_gesture_state_t            s_gesture_state;

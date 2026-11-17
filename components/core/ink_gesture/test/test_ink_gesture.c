@@ -7,12 +7,14 @@
 #define LOG_MAX 32
 
 static const ink_gesture_config_t TEST_CONFIG = {
-    .debounce_ms = 20,
-    .double_ms   = 300,
-    .hold_ms     = 600,
-    .combo_ms    = 100,
-    .ab_short_ms = 2000,
-    .ab_long_ms  = 8000,
+    .debounce_ms   = 20,
+    .double_ms     = 300,
+    .hold_short_ms = 600,
+    .hold_ms       = 2000,
+    .hold_long_ms  = 8000,
+    .combo_ms      = 100,
+    .ab_short_ms   = 10000,
+    .ab_long_ms    = 30000,
 };
 
 static ink_gesture_state_t s_state;
@@ -79,6 +81,8 @@ static void test_codes_are_stable(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_BUTTON_B, INK_GESTURE_MODIFIER_B);
     TEST_ASSERT_EQUAL(0, INK_GESTURE_TYPE_PRESS);
     TEST_ASSERT_EQUAL(4, INK_GESTURE_TYPE_HOLD_AB_LONG);
+    TEST_ASSERT_EQUAL(5, INK_GESTURE_TYPE_HOLD_SHORT);
+    TEST_ASSERT_EQUAL(6, INK_GESTURE_TYPE_HOLD_LONG);
 }
 
 static void test_button_index_and_code_convert(void) {
@@ -104,8 +108,11 @@ static void test_bad_config_rejected_and_old_kept(void) {
     ink_gesture_config_t bad = TEST_CONFIG;
     bad.ab_short_ms          = bad.ab_long_ms;
     TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_CONFIG, ink_gesture_set_config(&s_state, &bad));
+    bad               = TEST_CONFIG;
+    bad.hold_short_ms = bad.hold_ms;
+    TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_CONFIG, ink_gesture_set_config(&s_state, &bad));
     bad          = TEST_CONFIG;
-    bad.combo_ms = bad.hold_ms;
+    bad.combo_ms = bad.hold_short_ms;
     TEST_ASSERT_EQUAL(INK_GESTURE_ERROR_CONFIG, ink_gesture_set_config(&s_state, &bad));
     ink_gesture_config_t got;
     TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_get_config(&s_state, &got));
@@ -115,14 +122,14 @@ static void test_bad_config_rejected_and_old_kept(void) {
 
 static void test_set_config_applies_new_threshold(void) {
     ink_gesture_config_t config = TEST_CONFIG;
-    config.hold_ms              = 1000;
+    config.hold_long_ms         = 10000;
     TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_config(&s_state, &config));
     down(INK_GESTURE_BUTTON_A, 0);
-    advance(999);
+    advance(9999);
     TEST_ASSERT_EQUAL(0, s_count);
-    advance(1000);
+    advance(10000);
     TEST_ASSERT_EQUAL(1, s_count);
-    expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD);
+    expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD_LONG);
 }
 
 /* ---- Press, hold, debounce ---- */
@@ -172,14 +179,32 @@ static void test_level_after_lock_is_checked(void) {
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_PRESS);
 }
 
-static void test_hold_emitted_at_threshold_not_on_release(void) {
+static void test_hold_short_emitted_on_release(void) {
     down(INK_GESTURE_BUTTON_A, 0);
-    advance(599);
+    advance(999);
     TEST_ASSERT_EQUAL(0, s_count);
-    advance(600);
+    up(INK_GESTURE_BUTTON_A, 1000);
+    TEST_ASSERT_EQUAL(1, s_count);
+    expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD_SHORT);
+}
+
+static void test_hold_emitted_on_release(void) {
+    down(INK_GESTURE_BUTTON_A, 0);
+    advance(2999);
+    TEST_ASSERT_EQUAL(0, s_count);
+    up(INK_GESTURE_BUTTON_A, 3000);
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD);
-    up(INK_GESTURE_BUTTON_A, 900);
+}
+
+static void test_hold_long_emitted_at_threshold(void) {
+    down(INK_GESTURE_BUTTON_A, 0);
+    advance(7999);
+    TEST_ASSERT_EQUAL(0, s_count);
+    advance(8000);
+    TEST_ASSERT_EQUAL(1, s_count);
+    expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD_LONG);
+    up(INK_GESTURE_BUTTON_A, 9000);
     TEST_ASSERT_EQUAL(1, s_count);
 }
 
@@ -190,9 +215,9 @@ static void test_time_wraps(void) {
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_PRESS);
     down(INK_GESTURE_BUTTON_B, start_ms + 200);
-    advance(start_ms + 800);
+    advance(start_ms + 8200);
     TEST_ASSERT_EQUAL(2, s_count);
-    expect(1, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_HOLD);
+    expect(1, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_HOLD_LONG);
 }
 
 /* ---- Double press ---- */
@@ -252,10 +277,10 @@ static void test_ab_press(void) {
 static void test_ab_hold_short_on_release(void) {
     down(INK_GESTURE_BUTTON_B, 0);
     down(INK_GESTURE_BUTTON_A, 80);
-    advance(3000);
+    advance(12000);
     TEST_ASSERT_EQUAL(0, s_count);
-    up(INK_GESTURE_BUTTON_A, 3000);
-    up(INK_GESTURE_BUTTON_B, 3010);
+    up(INK_GESTURE_BUTTON_A, 12000);
+    up(INK_GESTURE_BUTTON_B, 12010);
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_AB, INK_GESTURE_TYPE_HOLD_AB_SHORT);
 }
@@ -263,13 +288,13 @@ static void test_ab_hold_short_on_release(void) {
 static void test_ab_hold_long_at_threshold(void) {
     down(INK_GESTURE_BUTTON_A, 0);
     down(INK_GESTURE_BUTTON_B, 50);
-    advance(8049);
+    advance(30049);
     TEST_ASSERT_EQUAL(0, s_count);
-    advance(8050);
+    advance(30050);
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_AB, INK_GESTURE_TYPE_HOLD_AB_LONG);
-    up(INK_GESTURE_BUTTON_A, 9000);
-    up(INK_GESTURE_BUTTON_B, 9000);
+    up(INK_GESTURE_BUTTON_A, 31000);
+    up(INK_GESTURE_BUTTON_B, 31000);
     TEST_ASSERT_EQUAL(1, s_count);
 }
 
@@ -310,11 +335,12 @@ static void test_modifier_press(void) {
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_PRESS);
     down(INK_GESTURE_BUTTON_B, 500);
-    advance(1100);
+    advance(3500);
+    TEST_ASSERT_EQUAL(1, s_count);
+    up(INK_GESTURE_BUTTON_B, 3500);
     TEST_ASSERT_EQUAL(2, s_count);
     expect(1, INK_GESTURE_MODIFIER_A, INK_GESTURE_BUTTON_B, INK_GESTURE_TYPE_HOLD);
-    up(INK_GESTURE_BUTTON_B, 1200);
-    up(INK_GESTURE_BUTTON_A, 1300);
+    up(INK_GESTURE_BUTTON_A, 3600);
     advance(5000);
     TEST_ASSERT_EQUAL(2, s_count);
 }
@@ -334,9 +360,9 @@ static void test_modifier_kept_when_released_first(void) {
 static void test_modifier_enabled_hold_waits_release(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
-    advance(700);
+    advance(2500);
     TEST_ASSERT_EQUAL(0, s_count);
-    up(INK_GESTURE_BUTTON_A, 800);
+    up(INK_GESTURE_BUTTON_A, 3000);
     TEST_ASSERT_EQUAL(1, s_count);
     expect(0, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_A, INK_GESTURE_TYPE_HOLD);
 }
@@ -409,22 +435,35 @@ static void test_progress_none_when_idle(void) {
 
 static void test_progress_hold(void) {
     down(INK_GESTURE_BUTTON_A, 0);
-    const ink_gesture_progress_t progress = progress_at(100);
+    ink_gesture_progress_t progress = progress_at(300);
     TEST_ASSERT_EQUAL(INK_GESTURE_MODIFIER_NONE, progress.modifier);
     TEST_ASSERT_EQUAL(INK_GESTURE_BUTTON_A, progress.button);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_PRESS, progress.on_release);
     TEST_ASSERT_TRUE(progress.has_next);
-    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.next);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_SHORT, progress.next);
     TEST_ASSERT_EQUAL(0, progress.start_ms);
     TEST_ASSERT_EQUAL(600, progress.next_ms);
-    expect_no_progress(700); /* HOLD already emitted */
+
+    progress = progress_at(1000);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_SHORT, progress.on_release);
+    TEST_ASSERT_TRUE(progress.has_next);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.next);
+    TEST_ASSERT_EQUAL(2000, progress.next_ms);
+
+    progress = progress_at(3000);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.on_release);
+    TEST_ASSERT_TRUE(progress.has_next);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_LONG, progress.next);
+    TEST_ASSERT_EQUAL(8000, progress.next_ms);
+
+    expect_no_progress(8000); /* HOLD_LONG already emitted */
 }
 
 static void test_progress_modifier_hold_waits_release(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_OK, ink_gesture_set_wait_mask(&s_state, INK_GESTURE_BUTTON_A, INK_GESTURE_WAIT_MODIFIER));
     down(INK_GESTURE_BUTTON_A, 0);
-    const ink_gesture_progress_t progress = progress_at(700);
-    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.on_release);
+    const ink_gesture_progress_t progress = progress_at(8500);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_LONG, progress.on_release);
     TEST_ASSERT_FALSE(progress.has_next);
 }
 
@@ -436,12 +475,12 @@ static void test_progress_ab_short_then_long(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_PRESS, progress.on_release);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_AB_SHORT, progress.next);
     TEST_ASSERT_EQUAL(50, progress.start_ms);
-    TEST_ASSERT_EQUAL(2050, progress.next_ms);
-    progress = progress_at(3000);
+    TEST_ASSERT_EQUAL(10050, progress.next_ms);
+    progress = progress_at(12000);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_AB_SHORT, progress.on_release);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_AB_LONG, progress.next);
-    TEST_ASSERT_EQUAL(8050, progress.next_ms);
-    expect_no_progress(8050); /* HOLD_AB_LONG already emitted */
+    TEST_ASSERT_EQUAL(30050, progress.next_ms);
+    expect_no_progress(30050); /* HOLD_AB_LONG already emitted */
 }
 
 static void test_progress_modifier_target(void) {
@@ -452,7 +491,7 @@ static void test_progress_modifier_target(void) {
     TEST_ASSERT_EQUAL(INK_GESTURE_MODIFIER_A, progress.modifier);
     TEST_ASSERT_EQUAL(INK_GESTURE_BUTTON_B, progress.button);
     TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_PRESS, progress.on_release);
-    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD, progress.next);
+    TEST_ASSERT_EQUAL(INK_GESTURE_TYPE_HOLD_SHORT, progress.next);
     TEST_ASSERT_EQUAL(900, progress.next_ms);
 }
 
@@ -474,7 +513,9 @@ int main(void) {
     RUN_TEST(test_wake_release_ignored);
     RUN_TEST(test_bounce_gives_one_press);
     RUN_TEST(test_level_after_lock_is_checked);
-    RUN_TEST(test_hold_emitted_at_threshold_not_on_release);
+    RUN_TEST(test_hold_short_emitted_on_release);
+    RUN_TEST(test_hold_emitted_on_release);
+    RUN_TEST(test_hold_long_emitted_at_threshold);
     RUN_TEST(test_time_wraps);
     RUN_TEST(test_double_off_gives_two_presses);
     RUN_TEST(test_double_on_single_press_waits_window);

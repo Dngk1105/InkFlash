@@ -7,7 +7,7 @@
  * system calls ink_input_handle() on the main task. Only the main task reads or changes this module's state.
  */
 #include "esp_err.h"
-#include "ink_gesture.h"
+#include "ink_gesture_types.h"
 #include "ink_hal.h"
 #include <stddef.h>
 #include <stdint.h>

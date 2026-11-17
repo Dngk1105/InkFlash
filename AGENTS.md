@@ -34,6 +34,7 @@ Không đọc hết `docs/`. Bắt đầu từ `docs/architecture.md`: toàn c�
 | Docs (tiếng Việt, thuật ngữ tiếng Anh, 5C) | `docs/writing-docs.md` |
 | Thuật ngữ, đổi tên identifier | `docs/glossary.yaml` |
 | Visualize, file mô phỏng (`*_sim.html`) | `docs/writing-visualizations.md` |
+| Giọng văn tiếng Việt (chat, docs, 5C) | skill `inkflash-vn` |
 
 - Chat với người làm: tiếng Việt, câu ngắn, thuật ngữ viết đúng `term` trong `docs/glossary.yaml`. Không dịch `frame`, `display task`, `debt`... sang tiếng Việt.
 - Trước khi báo xong: `python tools/terms.py check` (thuật ngữ, comment, tag, Doxygen) và `python tools/check.py` phải qua. Cả hai cần PyYAML, có sẵn trong terminal ESP-IDF.

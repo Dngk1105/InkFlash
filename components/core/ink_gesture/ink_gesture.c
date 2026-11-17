@@ -10,7 +10,7 @@
 
 enum : uint8_t {
     PHASE_IDLE,         /* released, nothing in progress */
-    PHASE_DOWN,         /* pressed; PRESS or HOLD not decided yet */
+    PHASE_DOWN,         /* pressed; gesture type not decided yet */
     PHASE_UP_WAIT,      /* released, waiting for a second press */
     PHASE_WAIT_RELEASE, /* waiting for release; emits nothing */
 };
@@ -31,8 +31,10 @@ static bool time_reached(uint32_t now_ms, uint32_t time_ms) {
 
 static bool config_valid(const ink_gesture_config_t *config) {
     return config->debounce_ms < config->double_ms
-        && config->debounce_ms < config->hold_ms
-        && config->combo_ms < config->hold_ms
+        && config->debounce_ms < config->hold_short_ms
+        && config->hold_short_ms < config->hold_ms
+        && config->hold_ms < config->hold_long_ms
+        && config->combo_ms < config->hold_short_ms
         && config->ab_short_ms > 0
         && config->ab_short_ms < config->ab_long_ms;
 }
@@ -138,9 +140,13 @@ static void on_release(ink_gesture_state_t *state, uint8_t button_index, uint32_
         return;
     }
     if (button->phase == PHASE_DOWN) {
-        const bool held = time_ms - button->pressed_at_ms >= config->hold_ms;
-        if ((button->wait_mask & INK_GESTURE_WAIT_MODIFIER) && held) {
+        const uint32_t held_ms = time_ms - button->pressed_at_ms;
+        if (held_ms >= config->hold_long_ms) {
+            emit(out, button->modifier, button_bit(button_index), INK_GESTURE_TYPE_HOLD_LONG);
+        } else if (held_ms >= config->hold_ms) {
             emit(out, button->modifier, button_bit(button_index), INK_GESTURE_TYPE_HOLD);
+        } else if (held_ms >= config->hold_short_ms) {
+            emit(out, button->modifier, button_bit(button_index), INK_GESTURE_TYPE_HOLD_SHORT);
         } else if (button->wait_mask & INK_GESTURE_WAIT_DOUBLE) {
             button->phase          = PHASE_UP_WAIT;
             button->released_at_ms = time_ms;
@@ -173,6 +179,7 @@ enum : uint8_t {
     DEADLINE_HOLD,
     DEADLINE_DOUBLE,
     DEADLINE_AB_LONG,
+    DEADLINE_HOLD_LONG,
 };
 
 typedef struct {
@@ -196,7 +203,7 @@ static deadline_t earliest_deadline(const ink_gesture_state_t *state) {
         if (button->locked) { keep_earlier(&deadline, button->lock_until_ms, DEADLINE_DEBOUNCE, i); }
         if (state->priv.mode != MODE_NORMAL) { continue; }
         if (button->phase == PHASE_DOWN && !button->used_as_modifier && !(button->wait_mask & INK_GESTURE_WAIT_MODIFIER)) {
-            keep_earlier(&deadline, button->pressed_at_ms + config->hold_ms, DEADLINE_HOLD, i);
+            keep_earlier(&deadline, button->pressed_at_ms + config->hold_long_ms, DEADLINE_HOLD_LONG, i);
         }
         if (button->phase == PHASE_UP_WAIT) { keep_earlier(&deadline, button->released_at_ms + config->double_ms, DEADLINE_DOUBLE, i); }
     }
@@ -222,6 +229,10 @@ static void run_deadline(ink_gesture_state_t *state, const deadline_t *deadline,
         case DEADLINE_AB_LONG:
             emit(out, INK_GESTURE_MODIFIER_NONE, INK_GESTURE_BUTTON_AB, INK_GESTURE_TYPE_HOLD_AB_LONG);
             state->priv.mode = MODE_AB_DONE;
+            break;
+        case DEADLINE_HOLD_LONG:
+            emit(out, button->modifier, button_bit(deadline->button_index), INK_GESTURE_TYPE_HOLD_LONG);
+            button->phase = PHASE_WAIT_RELEASE;
             break;
     }
 }
@@ -344,17 +355,46 @@ bool ink_gesture_progress(const ink_gesture_state_t *state, uint32_t now_ms, ink
     for (uint8_t i = 0; i < INK_GESTURE_BUTTON_COUNT; i++) {
         const ink_gesture_button_state_t *button = &state->priv.buttons[i];
         if (button->phase != PHASE_DOWN || button->used_as_modifier) { continue; }
-        const uint32_t hold_at_ms = button->pressed_at_ms + config->hold_ms;
-        const bool     past_hold  = time_reached(now_ms, hold_at_ms);
+        const uint32_t pressed_at_ms = button->pressed_at_ms;
+        const uint32_t short_at_ms   = pressed_at_ms + config->hold_short_ms;
+        const uint32_t hold_at_ms    = pressed_at_ms + config->hold_ms;
+        const uint32_t long_at_ms    = pressed_at_ms + config->hold_long_ms;
+
+        ink_gesture_type_t on_release;
+        bool               has_next;
+        ink_gesture_type_t next;
+        uint32_t           next_ms;
+
+        if (!time_reached(now_ms, short_at_ms)) {
+            on_release = INK_GESTURE_TYPE_PRESS;
+            has_next   = true;
+            next       = INK_GESTURE_TYPE_HOLD_SHORT;
+            next_ms    = short_at_ms;
+        } else if (!time_reached(now_ms, hold_at_ms)) {
+            on_release = INK_GESTURE_TYPE_HOLD_SHORT;
+            has_next   = true;
+            next       = INK_GESTURE_TYPE_HOLD;
+            next_ms    = hold_at_ms;
+        } else if (!time_reached(now_ms, long_at_ms)) {
+            on_release = INK_GESTURE_TYPE_HOLD;
+            has_next   = true;
+            next       = INK_GESTURE_TYPE_HOLD_LONG;
+            next_ms    = long_at_ms;
+        } else {
+            on_release = INK_GESTURE_TYPE_HOLD_LONG;
+            has_next   = false;
+            next       = INK_GESTURE_TYPE_HOLD_LONG;
+            next_ms    = long_at_ms;
+        }
 
         *out = (ink_gesture_progress_t){
             .modifier   = (ink_gesture_modifier_t)button->modifier,
             .button     = (ink_gesture_button_t)button_bit(i),
-            .on_release = past_hold ? INK_GESTURE_TYPE_HOLD : INK_GESTURE_TYPE_PRESS,
-            .has_next   = !past_hold,
-            .next       = INK_GESTURE_TYPE_HOLD,
-            .start_ms   = button->pressed_at_ms,
-            .next_ms    = hold_at_ms,
+            .on_release = on_release,
+            .has_next   = has_next,
+            .next       = next,
+            .start_ms   = pressed_at_ms,
+            .next_ms    = next_ms,
         };
         return true;
     }
