@@ -108,7 +108,7 @@ App Settings đổi gesture config bằng `ink_input_set_gesture_config()`. `sys
 
 | Gesture | Ai xử lý |
 |---|---|
-| `HOLD_AB_SHORT` | `system`: về menu. App không thấy, không gán lại được, nên người dùng luôn thoát được app. Đang ở menu thì bỏ qua |
+| `HOLD_AB_SHORT` | `system`: về Home. App không thấy, không gán lại được, nên người dùng luôn thoát được app. Đang ở Home thì bỏ qua |
 | `HOLD_AB_LONG` | `system`: tắt nguồn (ship mode). App không thấy, không gán lại được |
 | Mọi gesture khác | Tra keymap table ra command, đưa cho app đang mở. Gesture chưa gán thì bỏ |
 
@@ -163,7 +163,7 @@ Với nút đơn:
 | Thao tác | Màn hiện |
 |---|---|
 | Giữ nút đơn tới `hold_long_ms` (8 s) | Đếm ngược tới lúc phát `HOLD_LONG` |
-| Giữ A+B đủ `ab_short_ms` | Báo nhả ra thì về menu (`HOLD_AB_SHORT`) |
+| Giữ A+B đủ `ab_short_ms` | Báo nhả ra thì về Home (`HOLD_AB_SHORT`) |
 | Giữ A+B tới `ab_long_ms` | Đếm ngược tới lúc tắt nguồn (`HOLD_AB_LONG`) |
 | Nhập macro nhiều bước | Số bước đã nhập |
 | Giữ nút đơn dưới `hold_short_ms` (600 ms) | Không hiện: panel vẽ một lần mất khoảng 350 ms, gần bằng ngưỡng |

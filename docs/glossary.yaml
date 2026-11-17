@@ -345,7 +345,7 @@ terms:
     symbols: [INK_GESTURE_TYPE_HOLD_LONG]
   - id: hold_ab
     term: hold A+B
-    meaning: 'giữ cả A và B: HOLD_AB_SHORT (≥ ab_short_ms, về menu), HOLD_AB_LONG (≥ ab_long_ms, tắt nguồn). System xử lý; app không thấy, không gán được.'
+    meaning: 'giữ cả A và B: HOLD_AB_SHORT (≥ ab_short_ms, về Home), HOLD_AB_LONG (≥ ab_long_ms, tắt nguồn). System xử lý; app không thấy, không gán được.'
     avoid: [giữ A+B ngắn, giữ A+B dài]
   - id: wait_mask
     term: wait mask
@@ -392,21 +392,25 @@ terms:
     avoid: [phiên thức]
   - id: cold_boot
     term: cold boot
-    meaning: 'boot khi vừa cấp điện, không phải wake từ deep sleep: không có snapshot, shown frame chưa biết.'
+    meaning: 'mọi lần boot có reset reason không phải deep sleep wake (cấp điện, panic, watchdog, brownout...): không đọc snapshot, shown frame chưa biết.'
     avoid: [khởi động nguội]
+  - id: reset_reason
+    term: reset reason
+    meaning: 'nguyên nhân chip boot lại; chỉ deep sleep wake mới đọc RTC slot, mọi reason khác là cold boot.'
+    avoid: [nguyên nhân wake, nguyên nhân reset]
   - id: snapshot
     term: snapshot
     meaning: 'state một module ghi vào RTC slot của nó trước deep sleep, đọc lại sau wake.'
     avoid: []
   - id: rtc_slot
     term: RTC slot
-    meaning: 'vùng RTC memory cỡ cố định, có version, dành riêng cho một module.'
+    meaning: 'vùng RTC memory cỡ cố định, dành riêng cho một module; đầu slot có header magic, version, độ dài, CRC.'
     avoid: [ô RTC memory, ô RTC]
 
   # ---- App ----
   - id: scene
     term: scene
-    meaning: 'một màn của app, có cùng bộ hàm như app.'
+    meaning: 'một màn của app, có 3 hàm enter, command, draw; nhận mọi command và yêu cầu vẽ lại khi ở đỉnh scene stack.'
     avoid: []
   - id: settings_app
     term: Settings
@@ -418,8 +422,16 @@ terms:
     avoid: []
   - id: scene_stack
     term: scene stack
-    meaning: 'stack scene của app, tối đa 4 tầng; BACK pop về scene trước.'
+    meaning: 'stack scene của app, tối đa 4 tầng; mỗi tầng là scene_id và scene state; BACK pop về scene trước.'
     avoid: [ngăn xếp scene]
+  - id: scene_state
+    term: scene state
+    meaning: '8 byte state của một tầng scene stack, chỉ chứa số (không pointer); scene ghi thẳng vào đó, snapshot chép nguyên.'
+    avoid: []
+  - id: home_app
+    term: Home
+    meaning: 'app máy boot vào: liệt kê app và mục Ngủ; HOLD_AB_SHORT và BACK ở scene gốc của app khác đều về Home.'
+    avoid: [menu chính, màn chính]
 
   # ---- UI (ink_ui) ----
   - id: paint

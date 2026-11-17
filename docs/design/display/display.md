@@ -203,7 +203,7 @@ window (mép x căn theo `x_align`), rồi xét các điều kiện theo thứ t
 
 | # | Điều kiện | Decision |
 |---|---|---|
-| 1 | Chưa biết panel đang hiện gì (cold boot), hoặc lần vẽ trước lỗi | Cleanup strong |
+| 1 | Chưa biết panel đang hiện gì (cold boot, tức mọi reset không phải deep sleep wake), hoặc lần vẽ trước lỗi | Cleanup strong |
 | 2 | Flag `BEFORE_SLEEP`, và còn debt hoặc còn edge flag | Cleanup strong |
 | 3 | Frame giống hệt shown frame | Không vẽ |
 | 4 | Lần vẽ đầu sau wake, shown frame là background frame | Preset của intent, window cả panel |
@@ -469,7 +469,9 @@ Các mặc định về debt và thời gian là điểm xuất phát, chưa đo
 Sau mỗi lần display task làm việc với panel (vẽ frame, một cleanup, tắt analog power), nó gọi callback `on_report`
 (nếu có) với một report gồm: action (thêm `POWER_OFF`), intent hoặc loại cleanup, id profile, window, nhiệt độ nếu vừa đọc, lỗi, debt lớn nhất, số pixel
 có edge flag, debt ceiling, và 6 mốc thời gian theo bảng "Một lần vẽ đi qua đâu". `input_ms` do main task đưa vào lúc
-submit; các mốc khác display tự ghi. Report là sự kiện "vẽ xong" mà luồng đi ngủ chờ, và là nguồn số đo của bench.
+submit; các mốc khác display tự ghi. Callback chạy trên display task nên không chờ: `system` chép report vào một
+message rồi gửi vào main queue. Main task nhận report đó để vẽ nhịp thứ hai của scene và để đi ngủ khi thấy
+`POWER_OFF`. Report cũng là nguồn số đo của bench.
 Firmware chính không in log hay giữ thống kê thời gian.
 
 ## Khi nào xem lại

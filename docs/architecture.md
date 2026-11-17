@@ -7,7 +7,7 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 
 | Module | Việc | Task | Core module | Có code | Được gọi |
 |---|---|---|---|---|---|
-| `apps/` | Flashcard, Settings, menu: màn hình và luồng thao tác | main | | Chưa | `system`, `study`, `display`, `ui` |
+| `apps/` | Home, Settings và các app khác: hàm vòng đời, app table, scene | main | | Chưa | `system`, `study`, `display`, `ui` |
 | `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform`, `demo` |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
 | `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
@@ -46,7 +46,7 @@ trúc đã chốt, chưa có component trong `components/`. `system/` có code n
 scene, vẽ canvas → submit frame cho display task → `display` chọn preset theo intent của frame → driver vẽ. Khi idle,
 `display` chạy cleanup edge, cleanup light, rồi tắt analog power.
 
-**Ngủ và wake:** hết giờ chờ hoặc chọn Ngủ trong menu → `session` ra lệnh save → mỗi module ghi snapshot vào RTC slot
+**Ngủ và wake:** hết giờ chờ hoặc chọn Ngủ trong Home → `session` ra lệnh save → mỗi module ghi snapshot vào RTC slot
 của mình → vẽ background frame (còn debt thì cleanup strong luôn), tắt analog power → deep sleep. Bấm nút → boot → đọc
 snapshot → `display` coi background frame là shown frame → vẽ cả panel ra đúng màn trước bằng preset của intent, không
 chớp.
@@ -64,7 +64,7 @@ Mỗi file tự đứng được; chỉ mở file khớp với vấn đề.
 | Đi ngủ, wake không về đúng chỗ, snapshot, RTC memory | [design/wake-session.md](design/wake-session.md) |
 | Panel vẽ chậm, chớp, ghosting, viền xám, intent của app, hợp đồng giữa app và display, đổi panel hoặc controller, cleanup khi idle, đổi waveform (profile, LUT), viết hoặc sửa driver panel, đo tốc độ vẽ | [design/display/display.md](design/display/display.md) |
 | App vẽ chữ, hình, bố cục lên frame; chữ không xuống dòng; đổi font; vẽ sai chiều; đổi thư viện vẽ; thêm pixel format | [design/ui.md](design/ui.md) |
-| Thêm app, scene, mục menu, `BACK`, Settings | [design/app-framework.md](design/app-framework.md) |
+| Thêm app, scene, Home, `BACK`, Settings | [design/app-framework.md](design/app-framework.md) |
 | Thiết kế màn, bố cục, chọn intent và flag khi viết app, màn chớp hoặc còn bóng mờ vì cách app vẽ | [design/app-ui-guide.md](design/app-ui-guide.md) |
 | Mất dữ liệu khi mất điện, đổi định dạng file, nâng cấp dữ liệu, đồng bộ trùng hoặc thiếu | [design/data-and-sync.md](design/data-and-sync.md) |
 | Thêm board, đổi chân GPIO, đổi linh kiện, muốn viết `#if BOARD` | [design/hardware-variants.md](design/hardware-variants.md) |

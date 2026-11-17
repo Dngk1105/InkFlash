@@ -120,14 +120,14 @@ Shell module đổi sang `esp_err_t` khi trả lên trên.
 | `shell` | Shell module có task và queue | `templates/components/ink_example_shell/` |
 | `driver` | Driver chip: operations, capabilities, init nhận chân qua tham số | `templates/components/ink_drv_example/` (làm theo interface mẫu `ink_hal_example`) |
 | `host_test` | Test trên PC bằng Unity (lấy mã nguồn Unity có sẵn trong ESP-IDF) | `templates/components/ink_example/test/` |
-| `app` | App 5 hàm, một scene, snapshot | Tạo cùng lúc với `ink_system`, vì app cần interface app của `ink_system` |
+| `app` | App có `start`, `save`, `stop`, app table và một scene gốc | `templates/components/ink_app_example/` (dùng interface app của `ink_system`) |
 
 `templates/components/ink_periph_examples/` chứa mẫu dùng đúng API ESP-IDF v6.1 cho từng ngoại vi: mỗi ngoại vi một file.
 
 `templates/` là một project ESP-IDF riêng, không nằm trong firmware. `tools/build_all.py` build cả firmware,
 `templates/` và host test, nên template hỏng là biết ngay.
 
-- Tạo khối mới: `tools/new.py <loại> <tên>` (loại: `core`, `shell`, `driver`). Script chép template và đổi tên theo quy tắc ở trên. AI luôn bắt đầu
+- Tạo khối mới: `tools/new.py <loại> <tên>` (loại: `core`, `shell`, `driver`, `app`; `app` tạo `components/apps/ink_app_<tên>/`). Script chép template và đổi tên theo quy tắc ở trên. AI luôn bắt đầu
   từ lệnh này, không tự viết từ đầu.
 - Docs chỉ ghi tên template, không chép code template vào docs.
 
