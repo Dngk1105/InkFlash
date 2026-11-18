@@ -58,6 +58,13 @@ static int16_t measure_span(ink_ui_canvas_t *canvas, const char *text, size_t le
     return (int16_t)u8g2_GetUTF8Width(&ui_screen(canvas)->u8g2, span);
 }
 
+/* y reference of u8g2_SetFontPosTop is ascent + 1, which draws every glyph one pixel below the typographic baseline and
+ * cuts the last descender row against the line box. Use ascent so the baseline sits ascent px below the top of the line,
+ * as in a TrueType font (Figma) with the same ascent. */
+static u8g2_uint_t font_vref_top(u8g2_t *u8g2) {
+    return (u8g2_uint_t)u8g2->font_ref_ascent;
+}
+
 /* Select `font` in the backend: transparent glyph background, y = top of the line. */
 static void select_font(ink_ui_canvas_t *canvas, const ink_ui_font_t *font) {
     u8g2_t *u8g2 = &ui_screen(canvas)->u8g2;
@@ -65,6 +72,7 @@ static void select_font(ink_ui_canvas_t *canvas, const ink_ui_font_t *font) {
     u8g2_SetFontRefHeightAll(u8g2);
     u8g2_SetFontMode(u8g2, 1);
     u8g2_SetFontPosTop(u8g2);
+    u8g2->font_calc_vref = font_vref_top;
 }
 
 /* Height of one line of the selected font, px: ascent plus descent. */

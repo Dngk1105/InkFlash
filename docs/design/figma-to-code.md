@@ -119,7 +119,10 @@ Ví dụ màn thẻ có `part:card` (viền thẻ) và `part:text` (chữ):
 | Màu xám (R = G = B) | `INK_UI_PAINT_GRAY(level)`, `level` = giá trị R |
 
 Text style trong Figma đặt tên đúng tên font của `ui`: `unifont_vi_16` → `ink_ui_font_unifont_vi_16`, `fixed_10` →
-`ink_ui_font_fixed_10`. Máy thiết kế cài font GNU Unifont để Figma hiện gần đúng chữ trên panel.
+`ink_ui_font_fixed_10`. Máy thiết kế cài font GNU Unifont để Figma hiện chữ đúng từng pixel như panel: tạo file TTF bằng
+`python tools/figma2ink/make_unifont_ttf.py <unifont.otf> -o unifont-vi-18.0.01.ttf --install`. Script tính lại left side
+bearing (`hmtx`) bằng `xMin` của glyph; thiếu bước này Figma vẽ chữ lệch trái 1 px. So render với ảnh Figma:
+`python tools/render_view.py <view> --compare figma.png` (in số pixel lệch, ghi `<output>_diff.pbm`).
 
 ### Luật kiểm
 

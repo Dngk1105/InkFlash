@@ -274,9 +274,42 @@ static void test_word_longer_than_line_buffer_breaks_cleanly(void) {
     TEST_ASSERT_EQUAL_INT16(lines * one.height, measured.height);
 }
 
+/* Return the first and last frame row in [y0, y1) that has a black pixel in columns [x0, x1); -1 when there is none. */
+static void black_rows(int x0, int x1, int y0, int y1, int *first, int *last) {
+    *first = -1;
+    *last  = -1;
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
+            if ((s_frame[y * ROW_BYTES + x / 8] & (0x80 >> (x % 8))) == 0) {
+                if (*first < 0) { *first = y; }
+                *last = y;
+                break;
+            }
+        }
+    }
+}
+
+/* Purpose: the glyph baseline must sit ascent (14 px) below the top of the line, like a TrueType font with ascent 14/16 em
+ * (Figma), and a descender must not be cut by the line box.
+ * Does: draws "Hg" at the top of a 16 px rect and checks 'H' spans rows 4..13 and 'g' ends on row 15, the last row of the
+ * line. */
+static void test_baseline_is_ascent_below_top(void) {
+    const ink_ui_rect_t       rect  = {.x = 8, .y = 8, .width = 40, .height = 16};
+    const ink_ui_text_style_t style = {.font = &ink_ui_font_unifont_vi_16, .align = INK_UI_ALIGN_START, .max_lines = 1, .line_gap = 0};
+    ink_ui_text_draw(&s_canvas, rect, "Hg", &style, INK_UI_PAINT_BLACK);
+
+    int first, last;
+    black_rows(rect.x, rect.x + 8, rect.y - 4, rect.y + 24, &first, &last);
+    TEST_ASSERT_EQUAL_INT(rect.y + 4, first);
+    TEST_ASSERT_EQUAL_INT(rect.y + 13, last);
+    black_rows(rect.x + 8, rect.x + 16, rect.y - 4, rect.y + 24, &first, &last);
+    TEST_ASSERT_EQUAL_INT(rect.y + 15, last);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_line_height_positive);
+    RUN_TEST(test_baseline_is_ascent_below_top);
     RUN_TEST(test_vietnamese_glyphs_present);
     RUN_TEST(test_example5_measure_wrap);
     RUN_TEST(test_newline_forces_break);

@@ -49,7 +49,7 @@
          "height": 16.0
         },
         "absoluteRenderBounds": {
-         "x": 8.0,
+         "x": 9.0,
          "y": 13.0,
          "width": 70.0,
          "height": 15.0
@@ -174,7 +174,7 @@
          "height": 16.0
         },
         "absoluteRenderBounds": {
-         "x": 200.0,
+         "x": 201.0,
          "y": 16.0,
          "width": 30.0,
          "height": 10.0
@@ -494,7 +494,7 @@
          "height": 240.0
         },
         "absoluteRenderBounds": {
-         "x": 100.0,
+         "x": 101.0,
          "y": 75.0,
          "width": 38.0,
          "height": 13.0
@@ -620,7 +620,7 @@
          "height": 16.0
         },
         "absoluteRenderBounds": {
-         "x": 72.0,
+         "x": 73.0,
          "y": 320.0,
          "width": 93.0,
          "height": 16.0
@@ -873,7 +873,7 @@
      "height": 16.0
     },
     "absoluteRenderBounds": {
-     "x": 48.0,
+     "x": 49.0,
      "y": 393.0,
      "width": 142.0,
      "height": 15.0

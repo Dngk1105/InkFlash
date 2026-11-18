@@ -191,6 +191,35 @@ def run(cmd, env, what):
         fail(what)
 
 
+def compare_png(frame, landscape, figma_png, diff_path):
+    """Compare the render with a Figma export (luminance < 128 = black) and print the diff pixel count at shifts -2..2.
+    Writes the diff at shift (0, 0) as a PBM (black = differs). Shift (dx, dy): render(x + dx, y + dy) vs figma(x, y)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from figma2ink import png_alpha  # noqa: E402
+    with open(figma_png, "rb") as f:
+        width, height, luma = png_alpha(f.read(), luma=True)
+    if landscape:
+        ours = lambda x, y: frame_pixel(frame, PANEL_WIDTH - 1 - y, x)  # noqa: E731
+        size = (PANEL_HEIGHT, PANEL_WIDTH)
+    else:
+        ours = lambda x, y: frame_pixel(frame, x, y)  # noqa: E731
+        size = (PANEL_WIDTH, PANEL_HEIGHT)
+    if (width, height) != size:
+        fail(f"{figma_png} là {width} x {height}, render là {size[0]} x {size[1]}")
+    diffs = {}
+    for dy in range(-2, 3):
+        for dx in range(-2, 3):
+            diffs[(dx, dy)] = sum((ours(x + dx, y + dy) == 0) != (luma[y][x] < 128)
+                                  for y in range(max(0, -dy), min(height, height - dy))
+                                  for x in range(max(0, -dx), min(width, width - dx)))
+    best = min(diffs, key=diffs.get)
+    print(f"So với {rel(figma_png)}: lệch {diffs[(0, 0)]} pixel ở (0,0); tốt nhất {diffs[best]} pixel ở dịch {best}")
+    rows = [bytes(sum(((ours(x + b, y) == 0) != (luma[y][x + b] < 128)) << (7 - b) for b in range(8) if x + b < width)
+                  for x in range(0, width, 8)) for y in range(height)]
+    with open(diff_path, "wb") as f:
+        f.write(f"P4\n{width} {height}\n".encode() + b"".join(rows))
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -199,6 +228,7 @@ def main():
     parser.add_argument("--data", help="file JSON điền struct <view>_data_t; mặc định <view>.sample.json cạnh .gen.h")
     parser.add_argument("--part", help="chỉ vẽ part này (<view>_draw_<part>) lên nền trắng")
     parser.add_argument("--scale", type=int, default=1, help="phóng mỗi pixel thành N x N (mặc định 1)")
+    parser.add_argument("--compare", help="PNG xuất từ Figma: in số pixel lệch và ghi <output>_diff.pbm")
     parser.add_argument("-o", "--output", help="file ảnh .png hoặc .pbm; mặc định build-render/<view>[_<part>].png")
     args = parser.parse_args()
 
@@ -259,6 +289,8 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(output)), exist_ok=True)
     write_image(frame, output, args.scale, landscape)
     print(f"Đã vẽ {draw} → {rel(output)} ({size[0] * args.scale} x {size[1] * args.scale})")
+    if args.compare:
+        compare_png(frame, landscape, args.compare, os.path.splitext(output)[0] + "_diff.pbm")
 
 
 if __name__ == "__main__":

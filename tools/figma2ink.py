@@ -137,8 +137,9 @@ def walk(node):
 # ---- PNG → 1 bit mask (icons) ----
 
 
-def png_alpha(png):
-    """(width, height, rows of alpha 0..255) of an 8 bit, non-interlaced PNG; no alpha channel = darkness."""
+def png_alpha(png, luma=False):
+    """(width, height, rows of alpha 0..255) of an 8 bit, non-interlaced PNG; no alpha channel = darkness.
+    luma=True returns the luminance 0..255 instead (for comparing a Figma export with a render)."""
     if png[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError("không phải PNG")
     pos, idat, ihdr = 8, b"", None
@@ -172,7 +173,11 @@ def png_alpha(png):
                 pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
                 line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 0xFF
         prev = line
-        if channels in (2, 4):
+        if luma:
+            rows.append([line[x * channels] if channels < 3 else (299 * line[x * channels] + 587 * line[x * channels + 1]
+                                                                  + 114 * line[x * channels + 2]) // 1000
+                         for x in range(width)])
+        elif channels in (2, 4):
             rows.append([line[x * channels + channels - 1] for x in range(width)])
         else:
             rows.append([255 - line[x * channels] for x in range(width)])
