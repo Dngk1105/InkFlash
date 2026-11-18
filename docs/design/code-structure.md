@@ -22,6 +22,7 @@ components/
   ink_bsp/             pin map theo board
   drivers/ink_drv_<chip>/
   apps/ink_app_<tên>/
+    views/             view sinh từ Figma (*.gen.c, *.gen.h, *.sample.json); không sửa tay
 third_party/           mã nguồn ngoài, mỗi thư viện một git submodule; tools/check.py không quét
   u8g2/
 templates/             project ESP-IDF riêng chứa khối mẫu, build được
@@ -29,7 +30,8 @@ test/
   host/                project CMake build khối C thuần bằng gcc trên PC
   vectors/             test vector dùng chung mọi nền tảng
 tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile waveform),
-                       u8g2_font.py (chép một font của U8g2 ra file .c)
+                       u8g2_font.py (chép một font của U8g2 ra file .c), figma2ink.py (sinh view từ Figma),
+                       render_view.py (host renderer vẽ view ra ảnh)
 ```
 
 Tên thư mục của component chính là tên component (luật của ESP-IDF), nên thư mục cũng mang tiền tố `ink_`.

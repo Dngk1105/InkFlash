@@ -222,6 +222,7 @@ Lệnh chạy trong terminal ESP-IDF, vì cần `gcc`, `cmake`, `ninja` trong PA
 | `--part <tên>` | Chỉ gọi `<view>_draw_<tên>()` lên nền trắng. Không truyền thì gọi `<view>_draw()`. |
 | `--scale N` | Phóng mỗi pixel thành N × N. Mặc định 1. |
 | `-o <file>` | Đuôi `.png` hoặc `.pbm`. Mặc định `build-render/<view>[_<part>].png`. |
+| `--compare <figma.png>` | So ảnh vừa vẽ với ảnh Figma xuất: in số pixel lệch, ghi `<output>_diff.pbm`. |
 
 File JSON là một object, mỗi key là tên field của struct, theo đúng quy ước tên layer:
 
@@ -270,5 +271,6 @@ template không trùng tên hàm.
    `fixed_10`, màu đen, trắng, xám.
 2. `python tools/figma2ink.py <link> --app <app> --save <thư mục>` đọc màn qua Figma REST API, kiểm theo bảng
    "Luật kiểm", ghi `.gen.c`, `.gen.h` và `.sample.json`.
-3. `python tools/render_view.py <view>` vẽ view ra PNG, so với `figma.png` trong snapshot.
+3. `python tools/render_view.py <view> --compare <thư mục>/figma.png` vẽ view ra PNG và đếm pixel lệch so với ảnh
+   Figma trong snapshot.
 4. Build firmware, nạp board, chụp màn bằng `tools/vision_test`.
