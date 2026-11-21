@@ -162,11 +162,10 @@ static void draw_cursor(uint8_t index, bool visible) {
 
 /* ---- Item actions ---- */
 
-/* Open the app of item `index`; the sleep item does nothing yet. */
+/* Open the app of item `index`; the sleep item saves and goes to deep sleep. */
 static void activate_item(uint8_t index) {
     if (index + 1 >= item_count()) {
-        /* TODO(home): sleep item: ask system to power off once the session block exists. */
-        ESP_LOGW(TAG, "sleep item: session not built");
+        ink_system_sleep();
         return;
     }
     ESP_ERROR_CHECK_WITHOUT_ABORT(ink_system_open_app(index + 1));

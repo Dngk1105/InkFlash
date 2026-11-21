@@ -2,4 +2,4 @@
 idf_component_register(SRCS "ink_system.c"
                        INCLUDE_DIRS "include"
                        REQUIRES ink_hal ink_display ink_keymap
-                       PRIV_REQUIRES freertos ink_input ink_platform ink_scene)
+                       PRIV_REQUIRES freertos ink_input ink_platform ink_scene ink_session ink_ui)

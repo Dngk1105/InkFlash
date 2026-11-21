@@ -15,6 +15,8 @@ static const char *TAG = "main";
 /* Apps built into the firmware; apps[0] is Home. EXTEND(main): add each new app here (tools/new.py app prints the reminder). */
 static const ink_system_app_t *const s_apps[] = {&ink_app_home};
 
+#define IDLE_MS 60000 /* no gesture for 60 s -> deep sleep (docs/design/wake-session.md) */
+
 void app_main(void) {
     const esp_app_desc_t *app_description = esp_app_get_description();
     ESP_ERROR_CHECK(ink_bsp_init());
@@ -26,11 +28,13 @@ void app_main(void) {
     const ink_hal_display_device_t *display = nullptr;
     ESP_ERROR_CHECK(ink_bsp_display(&display));
     const ink_system_config_t config = {
-        .buttons      = buttons,
-        .button_count = button_count,
-        .display      = display,
-        .apps         = s_apps,
-        .app_count    = sizeof(s_apps) / sizeof(s_apps[0]),
+        .buttons       = buttons,
+        .button_count  = button_count,
+        .display       = display,
+        .apps          = s_apps,
+        .app_count     = sizeof(s_apps) / sizeof(s_apps[0]),
+        .idle_ms       = IDLE_MS,
+        .wake_pin_mask = ink_bsp_wake_pin_mask(),
     };
     ESP_ERROR_CHECK(ink_system_start(&config));
 }

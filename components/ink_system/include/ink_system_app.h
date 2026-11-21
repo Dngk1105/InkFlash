@@ -103,6 +103,13 @@ uint8_t ink_system_app_count(void);
 const ink_system_app_t *ink_system_app_at(uint8_t app_index);
 
 /**
+ * @brief Save and go to deep sleep now (the sleep item of Home); returns at once, sleep follows the display report.
+ * @par Called from
+ * Main task, from a scene function.
+ */
+void ink_system_sleep(void);
+
+/**
  * @brief Ask system not to sleep for `ms` (for example while playing audio).
  * @par Called from
  * Main task.
