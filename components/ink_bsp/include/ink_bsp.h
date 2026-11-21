@@ -35,6 +35,14 @@ const char *ink_bsp_board_name(void);
 esp_err_t ink_bsp_buttons(const ink_hal_button_device_t **out_devices, size_t *out_count);
 
 /**
+ * @brief Get the pins that wake the chip from deep sleep (bit n = GPIOn). BB0: button A only, GPIO46 is not an RTC GPIO.
+ * @par Called from
+ * app_main.
+ * @return Pin mask; never 0.
+ */
+uint64_t ink_bsp_wake_pin_mask(void);
+
+/**
  * @brief Get the display device of the board.
  * @par Called from
  * app_main, after ink_bsp_init().

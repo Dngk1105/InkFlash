@@ -19,6 +19,10 @@ static const ink_drv_gpio_button_config_t s_button_pins[BUTTON_COUNT] = {
     {.pin = GPIO_NUM_46, .active_low = true, .pull_up = true},
 };
 
+uint64_t ink_bsp_wake_pin_mask(void) {
+    return 1ULL << s_button_pins[0].pin; /* button A; GPIO46 (B) cannot wake (docs/hardware/boards/bb0.md) */
+}
+
 static ink_drv_gpio_button_t   s_button_drivers[BUTTON_COUNT];
 static ink_hal_button_device_t s_button_devices[BUTTON_COUNT];
 
