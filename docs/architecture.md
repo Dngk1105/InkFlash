@@ -8,12 +8,12 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | Module | Việc | Task | Core module | Có code | Được gọi |
 |---|---|---|---|---|---|
 | `apps/` | Home, Settings và các app khác: hàm vòng đời, app table, scene | main | | Có (Home) | `system`, `study`, `display`, `ui` |
-| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `platform`; app qua con trỏ hàm do `main` đưa vào |
+| `system/` | Nhận message từ main queue, chuyển cho `session` và app, chạy scene stack, đi ngủ | main | | Có | `session`, `input`, `display`, `keymap`, `scene`, `ui` (vẽ background frame), `platform`; app qua con trỏ hàm do `main` đưa vào |
 | `study/` | Hàng thẻ đến hạn, chấm điểm | main | Có | Chưa | `fsrs`, `record`; storage và đồng hồ qua port |
 | `display/` | Owner duy nhất của panel: take frame kèm intent, chọn preset và profile, cleanup khi idle, tắt analog power, gọi driver, đo thời gian | display | | Có | `display_policy`, `frame_slots`, `hal`, `platform` |
 | `display_policy/` | Phần quyết định của `display`: so frame, tìm changed window, giữ debt và edge flag của từng pixel, chọn decision, cleanup stage khi idle, dựng old plane | display | Có | Có | Chỉ thư viện C chuẩn |
 | `frame_slots/` | Owner của 3 frame của `display`: acquire, submit, take, shown frame, đếm frame bị drop | main, display (caller giữ lock) | Có | Có | Chỉ thư viện C chuẩn |
-| `session/` | State machine của wake session | main | Có | Chưa | Chỉ thư viện C chuẩn |
+| `session/` | State machine của wake session, kiểm header của RTC slot | main | Có | Có | Chỉ thư viện C chuẩn |
 | `input/` | Shell module của `gesture`: interrupt nút, timestamp, timer theo deadline của `gesture`, resync, nhận gesture config và wait mask | main | | Có | `gesture`, `hal`, `platform` |
 | `gesture/` | Edge của nút, IMU → gesture | main | Có | Có | Chỉ thư viện C chuẩn |
 | `keymap/` | Gesture → command theo keymap table của app; kiểm keymap table | main | Có | Có | `gesture` (chỉ dùng kiểu gesture) |
@@ -22,7 +22,7 @@ Máy dùng deep sleep gần như cả ngày. Trên ESP32-S3, mỗi lần wake l�
 | `ui/` | Họa cụ để app vẽ lên frame: canvas, primitive, paint, chữ, thước | main | Có | Có | `u8g2`; `display_policy` (chỉ dùng kiểu frame info) |
 | `u8g2/` | Component bọc thư viện U8g2 trong `third_party/`: chọn file biên dịch, dựng màn ảo trỏ vào frame | caller | | Có | U8g2 |
 | `storage/` | Đọc ghi file trên LittleFS | main | | Chưa | `platform` |
-| `platform/` | Log, config, giờ, timer, RTC memory | caller | | Có | ESP-IDF |
+| `platform/` | Log, config, giờ, timer, RTC slot, reset reason, deep sleep | caller | | Có | ESP-IDF |
 | `hal/` | Interface phần cứng | caller | | Có | |
 | `drivers/` | Mỗi chip một component; driver panel mang danh sách profile waveform do `tools/profile_gen.py` sinh | caller | | Có | Làm theo interface `hal` |
 | `bsp/` | Pin map, chọn driver theo board | boot | | Có | `hal`, `drivers` |

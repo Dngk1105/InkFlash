@@ -35,6 +35,7 @@ scope:
   - components/core/ink_ui
   - components/ink_u8g2
   - components/core/ink_scene
+  - components/core/ink_session
   - components/apps
   - main
   - docs/architecture.md
@@ -95,6 +96,9 @@ modules:
   - id: scene
     prefix: ink_scene
     meaning: 'core module: scene stack tối đa 4 tầng, mỗi tầng scene_id và scene state; chép ra và vào snapshot.'
+  - id: session
+    prefix: ink_session
+    meaning: 'core module: state machine của wake session (event vào, action ra) và kiểm header của RTC slot.'
   - id: app_home
     prefix: ink_app_home
     meaning: 'app Home: danh sách app và mục Ngủ, mũi tên chọn.'

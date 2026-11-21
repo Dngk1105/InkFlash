@@ -14,18 +14,25 @@ Máy dùng deep sleep để dòng ngủ thấp. Deep sleep trên ESP32-S3 làm m
 | Deep sleep | Boot | Bấm nút |
 | Boot | Restore | Boot xong |
 | Restore | Active | Đọc xong snapshot |
-| Active | Save | Hết giờ chờ, hoặc chọn Ngủ trong Home |
+| Active | Save | Hết giờ chờ, giữ `HOLD_AB_LONG`, hoặc chọn Ngủ trong Home |
 | Save | Deep sleep | Save xong, background frame vẽ xong |
 
-State machine này nằm trong `session`, là core module: nhận event (nút, hết giờ chờ, pin yếu, vẽ xong), trả action
-(lưu snapshot, vẽ background frame, ngủ). Phần gọi phần cứng nằm ở `system`.
+State machine này nằm trong `session`, là core module: nhận event (nút, hết giờ chờ, giữ máy thức, vẽ xong), trả
+action (đặt timer, lưu snapshot và vẽ background frame, ngủ). Phần gọi phần cứng nằm ở `system`. Event đến sai trạng
+thái thì bị drop: ví dụ bấm nút lúc đang Save thì không vẽ gì đè lên background frame.
+
+Giờ chờ là `idle_ms` trong config của `system`; `main` đặt 60 s. Mỗi lần nhấn hoặc nhả nút đặt lại giờ chờ, không
+chờ gesture xong. Ví dụ: giữ hai nút 30 s tới `HOLD_AB_LONG` thì lúc đó giờ chờ còn 30 s, máy không ngủ giữa lúc
+giữ. Pin yếu chưa là event: board BB0 chưa có chân đo pin.
 
 ### Snapshot trong RTC memory
 
 RTC memory là vùng RAM nhỏ vẫn giữ dữ liệu khi deep sleep. Snapshot nằm trong RTC slow memory (8 KB, `RTC_DATA_ATTR`);
 RTC fast memory (8 KB) đang dùng làm heap.
 
-- Mỗi module xin một RTC slot riêng, cỡ cố định. Snapshot chỉ chứa số, không chứa pointer hay địa chỉ RAM.
+- Mỗi module xin một RTC slot riêng, cỡ cố định, khai trong `platform`. Hiện có hai RTC slot: của `system` (32 byte,
+  metadata của background frame và app đang mở) và của app (256 byte, scene stack rồi state cấp app). Snapshot chỉ
+  chứa số, không chứa pointer hay địa chỉ RAM.
 - Đầu mỗi RTC slot có header: magic, version, độ dài payload, CRC của payload.
 - Wake thấy RTC slot nào sai magic, sai version, sai độ dài hoặc sai CRC thì chỉ bỏ RTC slot đó; module đó khởi động
   như mới, module khác không ảnh hưởng.
@@ -51,7 +58,8 @@ Nạp firmware mới cũng gây reset khác deep sleep, nên snapshot luôn do c
 ### Background frame dựng lại từ metadata
 
 Background frame cỡ 240 × 416 pixel, 1 bit mỗi pixel, là 12 480 byte, không vừa RTC slow memory 8 KB. Vì vậy `system`
-không lưu ảnh, chỉ lưu metadata vào RTC slot của mình: số thẻ cần ôn và mức pin đã đo lúc đi ngủ.
+không lưu ảnh, chỉ lưu metadata vào RTC slot của mình: số thẻ cần ôn và mức pin đã đo lúc đi ngủ. Hiện số thẻ luôn là
+0 (chưa có `study`) và mức pin là "không rõ" (BB0 chưa đo được pin); background frame là màn tạm vẽ bằng `ui`.
 
 Wake xong, `system` vẽ lại background frame bằng chính hàm vẽ đã dùng trước khi ngủ, với metadata đọc từ RTC slot.
 Cùng firmware, cùng hàm, cùng số thì ra cùng pixel. Mức pin lấy từ metadata, không đo lại. `system` đưa frame này cho
@@ -65,7 +73,11 @@ Cùng firmware, cùng hàm, cùng số thì ra cùng pixel. Mức pin lấy từ
    strong, rồi tắt analog power. Debt và edge flag của từng pixel nằm trong PSRAM, mất khi deep sleep, nên panel phải
    sạch trước khi ngủ.
 4. Chờ report `POWER_OFF` của display tới main queue.
-5. Vào deep sleep; nút được cấu hình để wake.
+5. Chờ thả hết nút wake, rồi vào deep sleep; nút được cấu hình để wake. Nút wake ở mức thấp khi bấm, nên còn giữ nút
+   lúc ngủ thì máy dậy ngay: `HOLD_AB_LONG` bắn khi hai nút vẫn đang giữ. Trên BB0 chỉ nút A wake được, vì nút B (GPIO46) không phải RTC GPIO.
+
+Không lấy được frame để vẽ background frame thì `system` xoá RTC slot của mình rồi ngủ luôn; lần wake sau là cold
+boot.
 
 ### Giữ máy thức
 
@@ -75,7 +87,7 @@ thì gọi lại. App treo và không gọi lại thì máy ngủ sau tối đa 
 ### Wake
 
 1. Đọc reset reason. Wake từ deep sleep thì dùng kết quả dò phần cứng đã lưu, không dò lại.
-2. Đọc snapshot.
+2. Đọc snapshot. RTC slot của `system` hỏng thì cold boot. RTC slot của app hỏng thì mở lại đúng app đó như mới.
 3. Dựng lại background frame từ metadata. Coi background frame là shown frame: máy đã vẽ nó trước khi ngủ, và panel e-ink giữ hình khi mất nguồn. Rồi vẽ màn
    cần hiện trên cả panel bằng preset của intent, với old plane là background frame. Màn không chớp. Mọi pixel bắt đầu
    với debt bằng 0.
