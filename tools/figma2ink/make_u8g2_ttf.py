@@ -2,8 +2,9 @@
 """Đổi một font U8g2 (mảng trong third_party/u8g2/csrc/u8g2_fonts.c) thành TTF để dùng trong Figma.
 
 Firmware vẽ chữ bằng chính mảng U8g2 này. Script giải mã từng glyph của mảng rồi vẽ mỗi pixel thành ô vuông
-trong TTF, nên Figma vẽ đúng bitmap mà panel vẽ. Cỡ chữ trong Figma = line height của font (ascent + descent
-theo u8g2_SetFontRefHeightAll), khi đó 1 pixel font = 1 pixel Figma.
+trong TTF, nên Figma vẽ đúng bitmap mà panel vẽ. Một em là 16 pixel font (units per em 1024, 64 unit một pixel):
+cỡ chữ 16 trong Figma vẽ 1 pixel font = 1 pixel, cỡ 32 và 48 là 2× và 3×. Line height = ascent + descent theo
+u8g2_SetFontRefHeightAll, nhân cùng độ phóng.
 
 Font sinh ra không có kerning và có ascent/descent đúng như firmware, nên Figma đặt baseline và độ rộng chữ đúng như
 panel. Một TTF gốc (ví dụ Tiny5 của Google Fonts) thì khác: Figma áp kerning và đặt baseline theo metric của TTF.
@@ -29,7 +30,11 @@ from u8g2_font import find_font  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_unifont_ttf import install  # noqa: E402
 
-UNIT = 100  # font units per pixel
+# Units per em is a power of two: with 1000 or 1400 Figma places glyphs 1/8 px off after a dozen characters (gray
+# fringe on the right part of a line); Unifont (64) and Google's Tiny5 (1024) stay sharp.
+UNITS_PER_EM = 1024
+UNIT = 64                     # font units per pixel
+FIGMA_SIZE = UNITS_PER_EM // UNIT  # Figma font size for 1 font pixel = 1 px: 16
 HEADER_SIZE = 23
 
 
@@ -224,7 +229,7 @@ def build(source, family, dst):
         metrics[name] = (dx * UNIT, xmin or 0)  # lsb = xMin, or rasterizers shift the glyph
 
     ps_name = re.sub(r"[^A-Za-z0-9-]", "", family) + "-Regular"
-    fb = FontBuilder(px_size * UNIT, isTTF=True)
+    fb = FontBuilder(UNITS_PER_EM, isTTF=True)
     fb.setupGlyphOrder(order)
     fb.setupCharacterMap(cmap)
     fb.setupGlyf(ttglyphs)
@@ -251,8 +256,8 @@ def main():
     parser.add_argument("--install", action="store_true", help="cài vào thư mục font của người dùng (Windows)")
     args = parser.parse_args()
     px_size, count = build(args.u8g2_name, args.family, args.output)
-    print(f"đã ghi {args.output}: {count} glyph; trong Figma đặt font '{args.family}', cỡ {px_size}, "
-          f"line height {px_size}")
+    print(f"đã ghi {args.output}: {count} glyph; trong Figma đặt font '{args.family}', cỡ {FIGMA_SIZE} × N, "
+          f"line height {px_size} × N (N = độ phóng của font firmware)")
     if args.install:
         install(args.output, os.path.basename(args.output), f"{args.family} Regular (TrueType)")
 

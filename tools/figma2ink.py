@@ -43,10 +43,10 @@ FONTS = {
 # property such as line height is changed on the layer). Families and sizes as in docs/design/figma-setup.md.
 FONT_FACES = {
     ("Unifont", 16): "unifont_vi_16",
-    ("Fixed 6x10", 10): "fixed_10",
-    ("Tiny5 Ink", 14): "tiny5_8",
-    ("Tiny5 Ink", 28): "tiny5_16",
-    ("Tiny5 Ink", 42): "tiny5_24",
+    ("Fixed 6x10", 16): "fixed_10",
+    ("Tiny5 Ink", 16): "tiny5_8",
+    ("Tiny5 Ink", 32): "tiny5_16",
+    ("Tiny5 Ink", 48): "tiny5_24",
 }
 ALIGN_H = {"LEFT": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "RIGHT": "INK_UI_ALIGN_END"}
 ALIGN_AXIS = {"MIN": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "MAX": "INK_UI_ALIGN_END"}

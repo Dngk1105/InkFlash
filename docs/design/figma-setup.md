@@ -15,15 +15,18 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
 | Text style | Font Figma | Cỡ | Line height | Nguồn |
 |---|---|---|---|---|
 | `unifont_vi_16` | `Unifont` | 16 | 16 | `tools/figma2ink/make_unifont_ttf.py` |
-| `fixed_10` | `Fixed 6x10` | 10 | 10 | `tools/figma2ink/make_u8g2_ttf.py` từ `u8g2_font_6x10_tf` |
-| `tiny5_8` | `Tiny5 Ink` | 14 | 14 | `tools/figma2ink/make_u8g2_ttf.py` từ `ink_ui_font_tiny5_8.c` |
-| `tiny5_16` | `Tiny5 Ink` | 28 | 28 | như trên, 2× |
-| `tiny5_24` | `Tiny5 Ink` | 42 | 42 | như trên, 3× |
+| `fixed_10` | `Fixed 6x10` | 16 | 10 | `tools/figma2ink/make_u8g2_ttf.py` từ `u8g2_font_6x10_tf` |
+| `tiny5_8` | `Tiny5 Ink` | 16 | 14 | `tools/figma2ink/make_u8g2_ttf.py` từ `ink_ui_font_tiny5_8.c` |
+| `tiny5_16` | `Tiny5 Ink` | 32 | 28 | như trên, 2× |
+| `tiny5_24` | `Tiny5 Ink` | 48 | 42 | như trên, 3× |
 
 - Cỡ khác (ví dụ 18) không có trong firmware: figma2ink báo lỗi "text style không có trong danh sách font của `ui`".
 - Không dùng `Tiny5` của Google Fonts cho text style: Figma áp kerning của font đó (chuỗi có số, dấu cách hẹp hơn
   firmware 1–2 px, chữ bị cắt `…` trên panel) và đặt baseline theo metric của TTF (chữ cao hơn panel 1, 3, 4 px ở cỡ
   8, 16, 24). `Tiny5 Ink` sinh từ chính font firmware, không kerning, ascent 11 px và descent 3 px như firmware.
+- Font do `make_u8g2_ttf.py` sinh có units per em 1024, một em là 16 pixel font: cỡ 16 vẽ 1 pixel font = 1 pixel, cỡ
+  32 và 48 là 2× và 3×; cỡ chữ vì vậy khác line height. Units per em không phải lũy thừa của 2 (1000, 1400) thì Figma
+  đặt glyph lệch 1/8 px từ khoảng ký tự thứ 13 của dòng, chữ có viền xám.
 - Line height của `tiny5_*` là chiều cao glyph cao nhất (chữ có hai dấu chồng); muốn dòng sát hơn thì đặt line height
   nhỏ hơn trong Figma, figma2ink đổi chênh lệch thành `line_gap`.
 - Đổi line height trên layer thì Figma tách layer khỏi text style. figma2ink khi đó nhận font theo cặp font Figma và cỡ
@@ -37,6 +40,8 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
   ô vuông, nên glyph trong Figma trùng bitmap trên panel.
 - Cài `Tiny5 Ink`: `python tools/figma2ink/make_u8g2_ttf.py components/core/ink_ui/fonts/ink_ui_font_tiny5_8.c --family
   "Tiny5 Ink" -o tiny5-ink.ttf --install`, rồi khởi động lại `figma_agent.exe`.
+- Đặt cỡ và line height cho các text style trên: chạy plugin `tools/figma_plugin/tiny5_ink` (Plugins → Development →
+  Import plugin from manifest). Plugin cũng chuyển layer một dòng bị xuống dòng sau khi đổi font sang auto width.
 - Hai script trên cần `fontTools` (`pip install fonttools`).
 
 ### Grid và toạ độ
