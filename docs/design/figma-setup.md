@@ -26,6 +26,8 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
   8, 16, 24). `Tiny5 Ink` sinh từ chính font firmware, không kerning, ascent 11 px và descent 3 px như firmware.
 - Line height của `tiny5_*` là chiều cao glyph cao nhất (chữ có hai dấu chồng); muốn dòng sát hơn thì đặt line height
   nhỏ hơn trong Figma, figma2ink đổi chênh lệch thành `line_gap`.
+- Đổi line height trên layer thì Figma tách layer khỏi text style. figma2ink khi đó nhận font theo cặp font Figma và cỡ
+  trong bảng trên; cặp khác bảng thì báo lỗi.
 - Cỡ chữ và line height là số nguyên, letter spacing 0, một style trong một text.
 - Mỗi text style tạo một lần trong Figma (Local styles), layer text gắn style đó. Không đổi cỡ bằng tay trên layer.
 - Cài `Unifont`: `python tools/figma2ink/make_unifont_ttf.py <unifont.otf> -o unifont-vi-18.0.01.ttf --install`, rồi

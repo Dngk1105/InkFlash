@@ -39,6 +39,15 @@ FONTS = {
     "tiny5_16": ("ink_ui_font_tiny5_16", 28),
     "tiny5_24": ("ink_ui_font_tiny5_24", 42),
 }
+# Figma font family and size → text style name, for a text detached from its style (Figma detaches the style when a
+# property such as line height is changed on the layer). Families and sizes as in docs/design/figma-setup.md.
+FONT_FACES = {
+    ("Unifont", 16): "unifont_vi_16",
+    ("Fixed 6x10", 10): "fixed_10",
+    ("Tiny5 Ink", 14): "tiny5_8",
+    ("Tiny5 Ink", 28): "tiny5_16",
+    ("Tiny5 Ink", 42): "tiny5_24",
+}
 ALIGN_H = {"LEFT": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "RIGHT": "INK_UI_ALIGN_END"}
 ALIGN_AXIS = {"MIN": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "MAX": "INK_UI_ALIGN_END"}
 CONTAINERS = {"FRAME", "GROUP", "COMPONENT", "COMPONENT_SET", "INSTANCE", "SECTION"}
@@ -469,6 +478,8 @@ class Generator:
         style = node.get("style", {})
         style_id = (node.get("styles") or {}).get("text")
         style_name = (self.snap["styles"].get(style_id) or {}).get("name") if style_id else None
+        if style_name is None:
+            style_name = FONT_FACES.get((style.get("fontFamily"), int(round(style.get("fontSize", 0)))))
         if style_name not in FONTS:
             self.error(node, f"text style '{style_name or '(không có)'}' không có trong font của ui: "
                              f"{', '.join(FONTS)}")

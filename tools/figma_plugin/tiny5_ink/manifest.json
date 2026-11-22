@@ -1,0 +1,9 @@
+{
+  "name": "InkFlash Tiny5 Ink styles",
+  "id": "inkflash-tiny5-ink-styles",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {"allowedDomains": ["none"]}
+}
