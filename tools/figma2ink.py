@@ -523,7 +523,19 @@ class Generator:
         else:
             text = c_string(node.get("characters", ""))
             out.append(f"/* {ascii_name(node)}: static text, {style_name} */")
-        out.append(f"ink_ui_text_draw(canvas, {expr}, {text}, &{sname}, {self.paint(level)});")
+        if not gap:
+            out.append(f"ink_ui_text_draw(canvas, {expr}, {text}, &{sname}, {self.paint(level)});")
+            return
+        # Figma centers the font line (line_px) in a line of line_px + gap and rounds the baseline down the page: the
+        # first line starts ceil(gap / 2) px off the top of the box, and the last line needs line_px, not
+        # line_px + gap, so the box drawn by ink_ui is gap px taller (shorter when gap > 0).
+        dy = -((-gap) // 2)
+        out.append("{")
+        out.append(f"const ink_ui_rect_t text_rect = {expr};")
+        out.append(f"ink_ui_text_draw(canvas, (ink_ui_rect_t){{.x = text_rect.x, .y = (int16_t)(text_rect.y + ({dy})), "
+                   f".width = text_rect.width, .height = (int16_t)(text_rect.height - ({gap}))}}, {text}, &{sname}, "
+                   f"{self.paint(level)});")
+        out.append("}")
 
     def line(self, node, scope, out):
         box = node.get("absoluteRenderBounds") or {}
