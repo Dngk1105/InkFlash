@@ -35,6 +35,9 @@ SIZES = {(240, 416): "portrait", (416, 240): "landscape"}
 FONTS = {
     "unifont_vi_16": ("ink_ui_font_unifont_vi_16", 16),
     "fixed_10": ("ink_ui_font_fixed_10", 10),
+    "tiny5_8": ("ink_ui_font_tiny5_8", 14),
+    "tiny5_16": ("ink_ui_font_tiny5_16", 28),
+    "tiny5_24": ("ink_ui_font_tiny5_24", 42),
 }
 ALIGN_H = {"LEFT": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "RIGHT": "INK_UI_ALIGN_END"}
 ALIGN_AXIS = {"MIN": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "MAX": "INK_UI_ALIGN_END"}
@@ -492,7 +495,8 @@ class Generator:
             self.error(node, "chữ màu xám: bị làm thành đen hoặc trắng theo ngưỡng 50 %")
         key = (style_name, align, max_lines, gap)
         if key not in self.styles:
-            parts = ["s", style_name.split("_")[0], align.rsplit("_", 1)[1].lower()]
+            # Full style name: tiny5_8, tiny5_16 and tiny5_24 share the prefix "tiny5".
+            parts = ["s", style_name, align.rsplit("_", 1)[1].lower()]
             if max_lines:
                 parts.append(f"l{max_lines}")
             if gap:

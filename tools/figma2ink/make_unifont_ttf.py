@@ -87,10 +87,12 @@ def build(src, dst):
     font.save(dst)
 
 
-def install(path):
-    """Copy to the per-user font folder, register it with GDI and tell running apps (Windows only)."""
+def install(path, file_name=INSTALL_NAME, registry_name="Unifont Regular (TrueType)"):
+    """Copy to the per-user font folder, register it with GDI and in HKCU (kept after a reboot), tell running apps
+    (Windows only)."""
     import ctypes
-    target = os.path.join(os.environ["LOCALAPPDATA"], "Microsoft", "Windows", "Fonts", INSTALL_NAME)
+    import winreg
+    target = os.path.join(os.environ["LOCALAPPDATA"], "Microsoft", "Windows", "Fonts", file_name)
     gdi32 = ctypes.windll.gdi32
     while os.path.exists(target) and gdi32.RemoveFontResourceW(target):  # release the copy Windows has loaded
         pass
@@ -99,6 +101,9 @@ def install(path):
     except PermissionError:
         sys.exit(f"{target} đang bị một ứng dụng giữ; đóng Figma và figma_agent.exe rồi chạy lại")
     gdi32.AddFontResourceW(target)
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows NT\CurrentVersion\Fonts", 0,
+                        winreg.KEY_SET_VALUE) as key:
+        winreg.SetValueEx(key, registry_name, 0, winreg.REG_SZ, target)
     ctypes.windll.user32.SendMessageTimeoutW(0xFFFF, 0x001D, 0, 0, 2, 1000, None)  # WM_FONTCHANGE
     print(f"đã cài {target}; khởi động lại figma_agent.exe")
 
