@@ -199,13 +199,16 @@ void ink_ui_bitmap(ink_ui_canvas_t *canvas, int16_t x, int16_t y, const ink_ui_b
 
 /* ---- Text ---- */
 
-/** One font; create with tools/u8g2_font.py. */
+/** One font; create with tools/u8g2_font.py (U8g2 fonts) or tools/u8g2_font_ttf.py (pixel TTF). */
 typedef struct {
     const uint8_t *data; /**< font data in U8g2 format */
 } ink_ui_font_t;
 
 extern const ink_ui_font_t ink_ui_font_unifont_vi_16; /**< GNU Unifont, 16 px line, Vietnamese */
 extern const ink_ui_font_t ink_ui_font_fixed_10;      /**< X11 6x10, 10 px line, Latin-1 only */
+extern const ink_ui_font_t ink_ui_font_tiny5_8;       /**< Tiny5 at 1x, 14 px line, Vietnamese, IPA */
+extern const ink_ui_font_t ink_ui_font_tiny5_16;      /**< Tiny5 at 2x, 28 px line, Vietnamese, IPA */
+extern const ink_ui_font_t ink_ui_font_tiny5_24;      /**< Tiny5 at 3x, 42 px line, Vietnamese, IPA */
 
 typedef struct {
     const ink_ui_font_t *font;      /**< font used to measure and draw */

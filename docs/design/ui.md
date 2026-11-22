@@ -66,8 +66,16 @@ của pixel format đó mà app không đổi code.
 ### Font
 
 Font là dữ liệu trong flash, theo định dạng font của U8g2. `tools/u8g2_font.py` chép một font theo tên từ mã nguồn
-U8g2 ra một file `.c` trong `components/core/ink_ui/fonts/`. Hiện có một font: GNU Unifont 16 px, có đủ dấu tiếng
-Việt.
+U8g2 ra một file `.c` trong `components/core/ink_ui/fonts/`. `tools/u8g2_font_ttf.py` sinh font từ một TTF pixel
+(nét thẳng, lưới pixel đều) rồi phóng nguyên N lần, qua `bdfconv` của U8g2.
+
+| Font | Nguồn | Dòng cao | Phủ |
+|---|---|---|---|
+| `unifont_vi_16` | GNU Unifont | 16 px | Latin, tiếng Việt |
+| `fixed_10` | X11 6x10 | 10 px | Latin-1 |
+| `tiny5_8`, `tiny5_16`, `tiny5_24` | Tiny5 (OFL 1.1, `third_party/fonts/tiny5/`) 1×, 2×, 3× | 14, 28, 42 px | Latin-1, tiếng Việt, IPA (thiếu `ː`) |
+
+Dòng cao của `tiny5_*` tính theo glyph cao nhất (chữ có hai dấu chồng); dùng `line_gap` âm để thu hẹp dòng.
 
 ### U8g2 nằm sau API của `ui`
 

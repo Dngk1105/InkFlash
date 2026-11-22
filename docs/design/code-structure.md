@@ -30,7 +30,7 @@ test/
   host/                project CMake build khối C thuần bằng gcc trên PC
   vectors/             test vector dùng chung mọi nền tảng
 tools/                 new.py, check.py, build_all.py, profile_gen.py (sinh danh sách profile waveform),
-                       u8g2_font.py (chép một font của U8g2 ra file .c), figma2ink.py (sinh view từ Figma),
+                       u8g2_font.py (chép một font của U8g2 ra file .c), u8g2_font_ttf.py (sinh font từ TTF pixel), figma2ink.py (sinh view từ Figma),
                        render_view.py (host renderer vẽ view ra ảnh)
 ```
 
