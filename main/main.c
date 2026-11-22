@@ -6,6 +6,7 @@
 #include "esp_app_desc.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "ink_app_foundations.h"
 #include "ink_app_home.h"
 #include "ink_bsp.h"
 #include "ink_system.h"
@@ -13,7 +14,7 @@
 static const char *TAG = "main";
 
 /* Apps built into the firmware; apps[0] is Home. EXTEND(main): add each new app here (tools/new.py app prints the reminder). */
-static const ink_system_app_t *const s_apps[] = {&ink_app_home};
+static const ink_system_app_t *const s_apps[] = {&ink_app_home, &ink_app_foundations};
 
 #define IDLE_MS 60000 /* no gesture for 60 s -> deep sleep (docs/design/wake-session.md) */
 
