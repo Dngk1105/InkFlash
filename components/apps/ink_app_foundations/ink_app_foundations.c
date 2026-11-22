@@ -5,6 +5,8 @@
 #include "ink_display_frame.h"
 #include "ink_platform.h"
 #include "ink_ui.h"
+#include "views/foundations_2_landscape_view.gen.h"
+#include "views/foundations_2_portrait_view.gen.h"
 #include "views/foundations_landscape_view.gen.h"
 #include "views/foundations_portrait_view.gen.h"
 
@@ -20,6 +22,8 @@ enum : uint8_t {
 enum : uint8_t {
     PAGE_PORTRAIT = 0, /* Figma frame foundations_portrait, 240 x 416 */
     PAGE_LANDSCAPE,    /* Figma frame foundations_landscape, 416 x 240 on a canvas turned 90° */
+    PAGE_2_PORTRAIT,   /* Figma frame foundations_2_portrait: dither, select, text, icon */
+    PAGE_2_LANDSCAPE,  /* Figma frame foundations_2_landscape */
     PAGE_COUNT,
 };
 
@@ -53,17 +57,32 @@ static void end_frame(ink_ui_canvas_t *canvas, ink_display_intent_t intent, uint
 
 /* Draw page `page` over the whole screen: intent PAGE, every pixel may change. */
 static void draw_page(uint8_t page) {
-    if (page == PAGE_LANDSCAPE) {
-        if (!begin_frame(&s_landscape)) { return; }
-        const foundations_landscape_view_data_t data = {0};
-        foundations_landscape_view_draw(&s_landscape, &data);
-        end_frame(&s_landscape, INK_DISPLAY_INTENT_PAGE, 0);
-        return;
+    const bool       landscape = page == PAGE_LANDSCAPE || page == PAGE_2_LANDSCAPE;
+    ink_ui_canvas_t *canvas    = landscape ? &s_landscape : &s_portrait;
+    if (!begin_frame(canvas)) { return; }
+    switch (page) {
+        case PAGE_LANDSCAPE: {
+            const foundations_landscape_view_data_t data = {0};
+            foundations_landscape_view_draw(canvas, &data);
+            break;
+        }
+        case PAGE_2_PORTRAIT: {
+            const foundations_2_portrait_view_data_t data = {0};
+            foundations_2_portrait_view_draw(canvas, &data);
+            break;
+        }
+        case PAGE_2_LANDSCAPE: {
+            const foundations_2_landscape_view_data_t data = {0};
+            foundations_2_landscape_view_draw(canvas, &data);
+            break;
+        }
+        default: {
+            const foundations_portrait_view_data_t data = {0};
+            foundations_portrait_view_draw(canvas, &data);
+            break;
+        }
     }
-    if (!begin_frame(&s_portrait)) { return; }
-    const foundations_portrait_view_data_t data = {0};
-    foundations_portrait_view_draw(&s_portrait, &data);
-    end_frame(&s_portrait, INK_DISPLAY_INTENT_PAGE, 0);
+    end_frame(canvas, INK_DISPLAY_INTENT_PAGE, 0);
 }
 
 static void main_enter(uint8_t *state, bool restored) {
@@ -74,7 +93,7 @@ static void main_draw(const uint8_t *state) {
     draw_page(state[0]);
 }
 
-/* NEXT and SELECT switch between the portrait and the landscape page. */
+/* NEXT and SELECT show the next page, wrapping after the last one. */
 static bool main_command(uint8_t *state, ink_keymap_command_t command) {
     switch (command) {
         case INK_KEYMAP_COMMAND_NEXT:
