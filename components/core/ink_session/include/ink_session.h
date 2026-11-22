@@ -38,7 +38,7 @@ typedef enum : uint8_t {
     INK_SESSION_EVENT_ACTIVITY,   /**< a button was pressed or released */
     INK_SESSION_EVENT_KEEP_AWAKE, /**< app asks to stay awake `value` ms from `time_ms`; capped at INK_SESSION_KEEP_AWAKE_MAX_MS */
     INK_SESSION_EVENT_TIMER,      /**< the idle timer fired */
-    INK_SESSION_EVENT_SLEEP,      /**< sleep asked now: HOLD_AB_LONG or "Ngủ" in Home */
+    INK_SESSION_EVENT_SLEEP,      /**< sleep asked now: HOLD_AB_LONG or the Sleep item in Home */
     INK_SESSION_EVENT_POWER_OFF,  /**< display reported analog power off */
     INK_SESSION_EVENT_COUNT,
 } ink_session_event_type_t;
