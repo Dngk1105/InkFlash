@@ -16,13 +16,14 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
 |---|---|---|---|---|
 | `unifont_vi_16` | `Unifont` | 16 | 16 | `tools/figma2ink/make_unifont_ttf.py` |
 | `fixed_10` | `Fixed 6x10` | 10 | 10 | `tools/figma2ink/make_u8g2_ttf.py` từ `u8g2_font_6x10_tf` |
-| `tiny5_8` | `Tiny5` | 8 | 14 | Google Fonts, OFL 1.1 |
-| `tiny5_16` | `Tiny5` | 16 | 28 | Google Fonts, OFL 1.1 |
-| `tiny5_24` | `Tiny5` | 24 | 42 | Google Fonts, OFL 1.1 |
+| `tiny5_8` | `Tiny5 Ink` | 14 | 14 | `tools/figma2ink/make_u8g2_ttf.py` từ `ink_ui_font_tiny5_8.c` |
+| `tiny5_16` | `Tiny5 Ink` | 28 | 28 | như trên, 2× |
+| `tiny5_24` | `Tiny5 Ink` | 42 | 42 | như trên, 3× |
 
 - Cỡ khác (ví dụ 18) không có trong firmware: figma2ink báo lỗi "text style không có trong danh sách font của `ui`".
-- `Tiny5` là font variable: giữ trục mặc định (`wght` 400, `wdth` 100, `ROND` 0, `BLED` 0, `JITT` 0), vì firmware sinh từ
-  đúng các giá trị này. Cỡ 8 vẽ đúng 1 pixel font = 1 pixel panel; 16 và 24 là 2× và 3×.
+- Không dùng `Tiny5` của Google Fonts cho text style: Figma áp kerning của font đó (chuỗi có số, dấu cách hẹp hơn
+  firmware 1–2 px, chữ bị cắt `…` trên panel) và đặt baseline theo metric của TTF (chữ cao hơn panel 1, 3, 4 px ở cỡ
+  8, 16, 24). `Tiny5 Ink` sinh từ chính font firmware, không kerning, ascent 11 px và descent 3 px như firmware.
 - Line height của `tiny5_*` là chiều cao glyph cao nhất (chữ có hai dấu chồng); muốn dòng sát hơn thì đặt line height
   nhỏ hơn trong Figma, figma2ink đổi chênh lệch thành `line_gap`.
 - Cỡ chữ và line height là số nguyên, letter spacing 0, một style trong một text.
@@ -32,6 +33,8 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
 - Cài `Fixed 6x10`: `python tools/figma2ink/make_u8g2_ttf.py u8g2_font_6x10_tf --family "Fixed 6x10" -o fixed-6x10.ttf
   --install`, rồi khởi động lại `figma_agent.exe`. Script giải mã chính mảng font mà firmware dùng, mỗi pixel thành một
   ô vuông, nên glyph trong Figma trùng bitmap trên panel.
+- Cài `Tiny5 Ink`: `python tools/figma2ink/make_u8g2_ttf.py components/core/ink_ui/fonts/ink_ui_font_tiny5_8.c --family
+  "Tiny5 Ink" -o tiny5-ink.ttf --install`, rồi khởi động lại `figma_agent.exe`.
 - Hai script trên cần `fontTools` (`pip install fonttools`).
 
 ### Grid và toạ độ
@@ -53,7 +56,7 @@ Firmware có năm font. Text style trong Figma đặt tên đúng tên font củ
 | Opacity | 100 % |
 | Effect | Không shadow, blur |
 | Chữ | Đen hoặc trắng, không xám |
-| Fill xám | Hiện trên panel thành dither 4 × 4 Bayer neo tại gốc canvas (`ink_ui_fill()`); corner radius bị bỏ qua |
+| Fill xám | Hiện trên panel thành dither 4 × 4 Bayer neo tại gốc canvas (`ink_ui_fill()`); fill dither bỏ qua corner radius |
 
 Tạo Local styles màu cho từng mức xám dùng trong thiết kế, đặt tên `gray_<level>` với `level` là giá trị R (0 đến 255).
 Mức xám ra mẫu dither nào xem `fill_dither()` trong `components/core/ink_ui/ink_ui_canvas.c`.

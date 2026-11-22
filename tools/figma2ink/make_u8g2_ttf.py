@@ -5,8 +5,13 @@ Firmware vẽ chữ bằng chính mảng U8g2 này. Script giải mã từng gly
 trong TTF, nên Figma vẽ đúng bitmap mà panel vẽ. Cỡ chữ trong Figma = line height của font (ascent + descent
 theo u8g2_SetFontRefHeightAll), khi đó 1 pixel font = 1 pixel Figma.
 
+Font sinh ra không có kerning và có ascent/descent đúng như firmware, nên Figma đặt baseline và độ rộng chữ đúng như
+panel. Một TTF gốc (ví dụ Tiny5 của Google Fonts) thì khác: Figma áp kerning và đặt baseline theo metric của TTF.
+
 Cách dùng (cần fontTools):
     python tools/figma2ink/make_u8g2_ttf.py u8g2_font_6x10_tf --family "Fixed 6x10" -o fixed-6x10.ttf --install
+    python tools/figma2ink/make_u8g2_ttf.py components/core/ink_ui/fonts/ink_ui_font_tiny5_8.c --family "Tiny5 Ink" \
+        -o tiny5-ink.ttf --install
 
 --install chép file vào thư mục font của người dùng và đăng ký với Windows, như make_unifont_ttf.py.
 """
@@ -173,8 +178,21 @@ def outline(x, y, rows):
     return contours
 
 
-def build(u8g2_name, family, dst):
-    size, lines = find_font(u8g2_name)
+def font_source(source):
+    """Return (declared size, C string lines) of a U8g2 array: by name in u8g2_fonts.c, or the data[] of an ink_ui
+    font file (components/core/ink_ui/fonts/*.c)."""
+    if not source.endswith(".c"):
+        return find_font(source)
+    with open(source, encoding="latin-1") as f:
+        text = f.read()
+    m = re.search(r'data\[(\d+)\]\s*=((?:\s*"(?:[^"\\]|\\.)*")+)\s*;', text)  # ';' may occur inside the strings
+    if not m:
+        sys.exit(f"make_u8g2_ttf.py: không thấy mảng data[] trong {source}")
+    return int(m.group(1)), re.findall(r'"(?:[^"\\]|\\.)*"', m.group(2))
+
+
+def build(source, family, dst):
+    size, lines = font_source(source)
     data = c_bytes(lines)
     if len(data) not in (size, size - 1):
         sys.exit(f"make_u8g2_ttf.py: đọc được {len(data)} byte, mảng khai báo {size}")
@@ -214,7 +232,7 @@ def build(u8g2_name, family, dst):
     fb.setupHorizontalHeader(ascent=ascent * UNIT, descent=descent * UNIT, lineGap=0)
     fb.setupNameTable({"familyName": family, "styleName": "Regular", "fullName": f"{family} Regular",
                        "psName": ps_name, "version": "Version 1.0",
-                       "uniqueFontIdentifier": f"{ps_name} from {u8g2_name}"})
+                       "uniqueFontIdentifier": f"{ps_name} from {os.path.basename(source)}"})
     fb.setupOS2(version=4, sTypoAscender=ascent * UNIT, sTypoDescender=descent * UNIT, sTypoLineGap=0,
                 usWinAscent=ascent * UNIT, usWinDescent=-descent * UNIT, fsSelection=0x40 | 0x80)
     fb.setupPost()
@@ -226,7 +244,8 @@ def build(u8g2_name, family, dst):
 def main():
     sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles may use a legacy code page
     parser = argparse.ArgumentParser(description="Đổi font U8g2 sang TTF cho Figma")
-    parser.add_argument("u8g2_name", help="tên mảng font trong u8g2_fonts.c, ví dụ u8g2_font_6x10_tf")
+    parser.add_argument("u8g2_name", help="tên mảng font trong u8g2_fonts.c (ví dụ u8g2_font_6x10_tf), hoặc file font "
+                                          "của ink_ui (ví dụ components/core/ink_ui/fonts/ink_ui_font_tiny5_8.c)")
     parser.add_argument("--family", required=True, help='tên font hiện trong Figma, ví dụ "Fixed 6x10"')
     parser.add_argument("-o", "--output", required=True)
     parser.add_argument("--install", action="store_true", help="cài vào thư mục font của người dùng (Windows)")
