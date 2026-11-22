@@ -1,4 +1,4 @@
-/* Generated from Figma: SU7kpiOJEQ2DaBnUmDPBff node 57:2 (version 2424762519534052102); hash: sha256:0df1c6f026998d4c */
+/* Generated from Figma: SU7kpiOJEQ2DaBnUmDPBff node 57:2 (version 2424764074327803648); hash: sha256:0df1c6f026998d4c */
 /* Design: docs/design/figma-to-code.md */
 #pragma once
 

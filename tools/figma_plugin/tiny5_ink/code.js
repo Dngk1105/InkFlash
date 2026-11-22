@@ -40,16 +40,24 @@ const RELINK = [["57:38", "tiny5_8"], ["57:99", "tiny5_8"]];
     }
     const lineOf = Object.fromEntries(Object.entries(STYLES).filter(([n]) => byName[n]).map(([n, s]) => [byName[n].id, s[2]]));
     let hugged = 0;
+    let relaid = 0;
     for (const page of figma.root.children) {
       await page.loadAsync();
       for (const node of page.findAllWithCriteria({types: ["TEXT"]})) {
         const line = lineOf[node.textStyleId];
-        if (!line || node.height <= line || node.characters.includes("\n") || node.textTruncation === "ENDING") continue;
+        if (!line) continue;
+        // Figma keeps the glyph outlines laid out with the font file it had; after a font file changes (same family
+        // name) the export and other viewers still show the old glyphs until the text is laid out again.
+        const text = node.characters;
+        node.characters = text + " ";
+        node.characters = text;
+        relaid++;
+        if (node.height <= line || text.includes("\n") || node.textTruncation === "ENDING") continue;
         node.textAutoResize = "WIDTH_AND_HEIGHT";
         hugged++;
       }
     }
-    log.push(`${hugged} wrapped layers set to auto width`);
+    log.push(`${relaid} layers laid out again, ${hugged} wrapped layers set to auto width`);
     console.log(log.join("\n"));
     figma.closePlugin(`Done: ${log.join("; ")}`);
   } catch (e) {

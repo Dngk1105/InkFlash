@@ -1,4 +1,4 @@
-/* Generated from Figma: SU7kpiOJEQ2DaBnUmDPBff node 57:100 (version 2424762519534052102); hash: sha256:916982c8773a7213 */
+/* Generated from Figma: SU7kpiOJEQ2DaBnUmDPBff node 57:100 (version 2424764074327803648); hash: sha256:216c28b6dbebb445 */
 /* Design: docs/design/figma-to-code.md */
 #include "foundations_landscape_view.gen.h"
 
@@ -17,21 +17,21 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     (void)data;
     ink_ui_fill(canvas, ink_ui_canvas_bounds(canvas), 0, INK_UI_PAINT_WHITE);
     ink_ui_fill(canvas, (ink_ui_rect_t){.x = 0, .y = 0, .width = 416, .height = 24}, 0, INK_UI_PAINT_BLACK);
-    /* header: Auto Layout row, spacing 268 */
+    /* header: Auto Layout row, spacing 270 */
     const ink_ui_length_t header_lengths[2] = {
-        {.fixed = 52, .flex = 0},
-        {.fixed = 80, .flex = 0}
+        {.fixed = 51, .flex = 0},
+        {.fixed = 79, .flex = 0}
     };
     ink_ui_rect_t header_slots[2];
-    ink_ui_rect_split(ink_ui_rect_inset((ink_ui_rect_t){.x = 0, .y = 0, .width = 416, .height = 24}, 8, 0), INK_UI_AXIS_ROW, 268,
+    ink_ui_rect_split(ink_ui_rect_inset((ink_ui_rect_t){.x = 0, .y = 0, .width = 416, .height = 24}, 8, 0), INK_UI_AXIS_ROW, 270,
                       header_lengths, 2, header_slots);
     /* FOUNDATIONS: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(header_slots[0], (ink_ui_size_t){.width = 52, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_CENTER),
+        canvas, ink_ui_rect_align(header_slots[0], (ink_ui_size_t){.width = 51, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_CENTER),
         "FOUNDATIONS", &s_tiny5_8_start, INK_UI_PAINT_WHITE);
     /* ULTRA-LIGHT 416x240: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(header_slots[1], (ink_ui_size_t){.width = 80, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_CENTER),
+        canvas, ink_ui_rect_align(header_slots[1], (ink_ui_size_t){.width = 79, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_CENTER),
         "ULTRA-LIGHT 416x240", &s_tiny5_8_start, INK_UI_PAINT_WHITE);
     /* body: Auto Layout row, spacing 8 */
     const ink_ui_length_t body_lengths[3] = {
@@ -59,7 +59,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     ink_ui_rect_split(col_1_slots[0], INK_UI_AXIS_COLUMN, 0, n_01_color_lengths, 2, n_01_color_slots);
     /* 01 COLOR: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(n_01_color_slots[0], (ink_ui_size_t){.width = 36, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        canvas, ink_ui_rect_align(n_01_color_slots[0], (ink_ui_size_t){.width = 35, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "01 COLOR", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* color list: Auto Layout column, spacing 0 */
     const ink_ui_length_t color_list_lengths[11] = {
@@ -216,7 +216,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     ink_ui_rect_split(col_2_slots[0], INK_UI_AXIS_COLUMN, 0, n_02_space_lengths, 2, n_02_space_slots);
     /* 02 SPACE: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(n_02_space_slots[0], (ink_ui_size_t){.width = 36, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        canvas, ink_ui_rect_align(n_02_space_slots[0], (ink_ui_size_t){.width = 35, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "02 SPACE", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* space list: Auto Layout column, spacing 0 */
     const ink_ui_length_t space_list_lengths[6] = {
@@ -229,16 +229,16 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     };
     ink_ui_rect_t space_list_slots[6];
     ink_ui_rect_split(
-        ink_ui_rect_align(n_02_space_slots[1], (ink_ui_size_t){.width = 57, .height = 84}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(n_02_space_slots[1], (ink_ui_size_t){.width = 56, .height = 84}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_COLUMN, 0, space_list_lengths, 6, space_list_slots);
     /* row space/2xs: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_2xs_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 19, .flex = 0}
+        {.fixed = 18, .flex = 0}
     };
     ink_ui_rect_t row_space_2xs_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(space_list_slots[0], (ink_ui_size_t){.width = 55, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(space_list_slots[0], (ink_ui_size_t){.width = 54, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, row_space_2xs_lengths, 2, row_space_2xs_slots);
     /* cell: Auto Layout row, spacing 0 */
     const ink_ui_length_t cell_lengths[1] = {
@@ -252,11 +252,11 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* row space/xs: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_xs_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 15, .flex = 0}
+        {.fixed = 14, .flex = 0}
     };
     ink_ui_rect_t row_space_xs_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(space_list_slots[1], (ink_ui_size_t){.width = 51, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(space_list_slots[1], (ink_ui_size_t){.width = 50, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, row_space_xs_lengths, 2, row_space_xs_slots);
     /* cell: Auto Layout row, spacing 0 */
     const ink_ui_length_t cell_2_lengths[1] = {
@@ -270,11 +270,11 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* row space/sm: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_sm_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 17, .flex = 0}
+        {.fixed = 16, .flex = 0}
     };
     ink_ui_rect_t row_space_sm_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(space_list_slots[2], (ink_ui_size_t){.width = 53, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(space_list_slots[2], (ink_ui_size_t){.width = 52, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, row_space_sm_lengths, 2, row_space_sm_slots);
     /* cell: Auto Layout row, spacing 0 */
     const ink_ui_length_t cell_3_lengths[1] = {
@@ -288,7 +288,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* row space/md: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_md_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 21, .flex = 0}
+        {.fixed = 20, .flex = 0}
     };
     ink_ui_rect_t row_space_md_slots[2];
     ink_ui_rect_split(space_list_slots[3], INK_UI_AXIS_ROW, 4, row_space_md_lengths, 2, row_space_md_slots);
@@ -304,11 +304,11 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* row space/lg: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_lg_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 17, .flex = 0}
+        {.fixed = 16, .flex = 0}
     };
     ink_ui_rect_t row_space_lg_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(space_list_slots[4], (ink_ui_size_t){.width = 53, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(space_list_slots[4], (ink_ui_size_t){.width = 52, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, row_space_lg_lengths, 2, row_space_lg_slots);
     /* cell: Auto Layout row, spacing 0 */
     const ink_ui_length_t cell_5_lengths[1] = {
@@ -322,11 +322,11 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* row space/xl: Auto Layout row, spacing 4 */
     const ink_ui_length_t row_space_xl_lengths[2] = {
         {.fixed = 32, .flex = 0},
-        {.fixed = 17, .flex = 0}
+        {.fixed = 16, .flex = 0}
     };
     ink_ui_rect_t row_space_xl_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(space_list_slots[5], (ink_ui_size_t){.width = 53, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(space_list_slots[5], (ink_ui_size_t){.width = 52, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, row_space_xl_lengths, 2, row_space_xl_slots);
     /* cell: Auto Layout row, spacing 0 */
     const ink_ui_length_t cell_6_lengths[1] = {
@@ -346,7 +346,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     ink_ui_rect_split(col_2_slots[1], INK_UI_AXIS_COLUMN, 0, n_03_radius_lengths, 2, n_03_radius_slots);
     /* 03 RADIUS: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(n_03_radius_slots[0], (ink_ui_size_t){.width = 38, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        canvas, ink_ui_rect_align(n_03_radius_slots[0], (ink_ui_size_t){.width = 37, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "03 RADIUS", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* radius row: Auto Layout row, spacing 8 */
     const ink_ui_length_t radius_row_lengths[4] = {
@@ -371,7 +371,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* none: static text, tiny5_8 */
     ink_ui_text_draw(
         canvas,
-        ink_ui_rect_align(item_radius_none_slots[1], (ink_ui_size_t){.width = 17, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(item_radius_none_slots[1], (ink_ui_size_t){.width = 16, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "none", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* item radius/sm: Auto Layout column, spacing 2 */
     const ink_ui_length_t item_radius_sm_lengths[2] = {
@@ -385,7 +385,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* sm 2: static text, tiny5_8 */
     ink_ui_text_draw(
         canvas,
-        ink_ui_rect_align(item_radius_sm_slots[1], (ink_ui_size_t){.width = 17, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(item_radius_sm_slots[1], (ink_ui_size_t){.width = 16, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "sm 2", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* item radius/md: Auto Layout column, spacing 2 */
     const ink_ui_length_t item_radius_md_lengths[2] = {
@@ -399,7 +399,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* md 4: static text, tiny5_8 */
     ink_ui_text_draw(
         canvas,
-        ink_ui_rect_align(item_radius_md_slots[1], (ink_ui_size_t){.width = 17, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(item_radius_md_slots[1], (ink_ui_size_t){.width = 16, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "md 4", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* item radius/full: Auto Layout column, spacing 2 */
     const ink_ui_length_t item_radius_full_lengths[2] = {
@@ -437,7 +437,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     ink_ui_rect_split(col_3_slots[0], INK_UI_AXIS_COLUMN, 0, n_05_type_lengths, 6, n_05_type_slots);
     /* 05 TYPE: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(n_05_type_slots[0], (ink_ui_size_t){.width = 31, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        canvas, ink_ui_rect_align(n_05_type_slots[0], (ink_ui_size_t){.width = 30, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "05 TYPE", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* sample tiny5_24: static text, tiny5_24 */
     ink_ui_text_draw(canvas, n_05_type_slots[1], "tiny5_24", &s_tiny5_24_start, INK_UI_PAINT_BLACK);
@@ -458,7 +458,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     ink_ui_rect_split(col_3_slots[1], INK_UI_AXIS_COLUMN, 0, n_04_stroke_lengths, 2, n_04_stroke_slots);
     /* 04 STROKE: static text, tiny5_8 */
     ink_ui_text_draw(
-        canvas, ink_ui_rect_align(n_04_stroke_slots[0], (ink_ui_size_t){.width = 40, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        canvas, ink_ui_rect_align(n_04_stroke_slots[0], (ink_ui_size_t){.width = 39, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         "04 STROKE", &s_tiny5_8_start, INK_UI_PAINT_BLACK);
     /* stroke list: Auto Layout column, spacing 0 */
     const ink_ui_length_t stroke_list_lengths[3] = {
@@ -468,16 +468,16 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     };
     ink_ui_rect_t stroke_list_slots[3];
     ink_ui_rect_split(
-        ink_ui_rect_align(n_04_stroke_slots[1], (ink_ui_size_t){.width = 52, .height = 42}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(n_04_stroke_slots[1], (ink_ui_size_t){.width = 51, .height = 42}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_COLUMN, 0, stroke_list_lengths, 3, stroke_list_slots);
     /* pair stroke/none: Auto Layout row, spacing 4 */
     const ink_ui_length_t pair_stroke_none_lengths[2] = {
         {.fixed = 24, .flex = 0},
-        {.fixed = 23, .flex = 0}
+        {.fixed = 22, .flex = 0}
     };
     ink_ui_rect_t pair_stroke_none_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(stroke_list_slots[0], (ink_ui_size_t){.width = 51, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(stroke_list_slots[0], (ink_ui_size_t){.width = 50, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, pair_stroke_none_lengths, 2, pair_stroke_none_slots);
     ink_ui_fill(canvas, (ink_ui_rect_t){.x = 280, .y = 175, .width = 24, .height = 12}, 0, INK_UI_PAINT_WHITE);
     /* none 0: static text, tiny5_8 */
@@ -485,11 +485,11 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* pair stroke/thin: Auto Layout row, spacing 4 */
     const ink_ui_length_t pair_stroke_thin_lengths[2] = {
         {.fixed = 24, .flex = 0},
-        {.fixed = 20, .flex = 0}
+        {.fixed = 19, .flex = 0}
     };
     ink_ui_rect_t pair_stroke_thin_slots[2];
     ink_ui_rect_split(
-        ink_ui_rect_align(stroke_list_slots[1], (ink_ui_size_t){.width = 48, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
+        ink_ui_rect_align(stroke_list_slots[1], (ink_ui_size_t){.width = 47, .height = 14}, INK_UI_ALIGN_START, INK_UI_ALIGN_START),
         INK_UI_AXIS_ROW, 4, pair_stroke_thin_lengths, 2, pair_stroke_thin_slots);
     ink_ui_fill(canvas, (ink_ui_rect_t){.x = 280, .y = 189, .width = 24, .height = 12}, 0, INK_UI_PAINT_WHITE);
     ink_ui_stroke(canvas, (ink_ui_rect_t){.x = 280, .y = 189, .width = 24, .height = 12}, 1, 0, INK_UI_PAINT_BLACK);
@@ -498,7 +498,7 @@ void foundations_landscape_view_draw(ink_ui_canvas_t *canvas, const foundations_
     /* pair stroke/thick: Auto Layout row, spacing 4 */
     const ink_ui_length_t pair_stroke_thick_lengths[2] = {
         {.fixed = 24, .flex = 0},
-        {.fixed = 24, .flex = 0}
+        {.fixed = 23, .flex = 0}
     };
     ink_ui_rect_t pair_stroke_thick_slots[2];
     ink_ui_rect_split(stroke_list_slots[2], INK_UI_AXIS_ROW, 4, pair_stroke_thick_lengths, 2, pair_stroke_thick_slots);
