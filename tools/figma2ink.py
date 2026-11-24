@@ -35,6 +35,18 @@ SIZES = {(240, 416): "portrait", (416, 240): "landscape"}
 FONTS = {
     "unifont_vi_16": ("ink_ui_font_unifont_vi_16", 16),
     "fixed_10": ("ink_ui_font_fixed_10", 10),
+    "tiny5_8": ("ink_ui_font_tiny5_8", 14),
+    "tiny5_16": ("ink_ui_font_tiny5_16", 28),
+    "tiny5_24": ("ink_ui_font_tiny5_24", 42),
+}
+# Figma font family and size → text style name, for a text detached from its style (Figma detaches the style when a
+# property such as line height is changed on the layer). Families and sizes as in docs/design/figma-setup.md.
+FONT_FACES = {
+    ("Unifont", 16): "unifont_vi_16",
+    ("Fixed 6x10", 16): "fixed_10",
+    ("Tiny5 Ink", 16): "tiny5_8",
+    ("Tiny5 Ink", 32): "tiny5_16",
+    ("Tiny5 Ink", 48): "tiny5_24",
 }
 ALIGN_H = {"LEFT": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "RIGHT": "INK_UI_ALIGN_END"}
 ALIGN_AXIS = {"MIN": "INK_UI_ALIGN_START", "CENTER": "INK_UI_ALIGN_CENTER", "MAX": "INK_UI_ALIGN_END"}
@@ -466,6 +478,8 @@ class Generator:
         style = node.get("style", {})
         style_id = (node.get("styles") or {}).get("text")
         style_name = (self.snap["styles"].get(style_id) or {}).get("name") if style_id else None
+        if style_name is None:
+            style_name = FONT_FACES.get((style.get("fontFamily"), int(round(style.get("fontSize", 0)))))
         if style_name not in FONTS:
             self.error(node, f"text style '{style_name or '(không có)'}' không có trong font của ui: "
                              f"{', '.join(FONTS)}")
@@ -492,7 +506,8 @@ class Generator:
             self.error(node, "chữ màu xám: bị làm thành đen hoặc trắng theo ngưỡng 50 %")
         key = (style_name, align, max_lines, gap)
         if key not in self.styles:
-            parts = ["s", style_name.split("_")[0], align.rsplit("_", 1)[1].lower()]
+            # Full style name: tiny5_8, tiny5_16 and tiny5_24 share the prefix "tiny5".
+            parts = ["s", style_name, align.rsplit("_", 1)[1].lower()]
             if max_lines:
                 parts.append(f"l{max_lines}")
             if gap:
@@ -508,7 +523,19 @@ class Generator:
         else:
             text = c_string(node.get("characters", ""))
             out.append(f"/* {ascii_name(node)}: static text, {style_name} */")
-        out.append(f"ink_ui_text_draw(canvas, {expr}, {text}, &{sname}, {self.paint(level)});")
+        if not gap:
+            out.append(f"ink_ui_text_draw(canvas, {expr}, {text}, &{sname}, {self.paint(level)});")
+            return
+        # Figma centers the font line (line_px) in a line of line_px + gap and rounds the baseline down the page: the
+        # first line starts ceil(gap / 2) px off the top of the box, and the last line needs line_px, not
+        # line_px + gap, so the box drawn by ink_ui is gap px taller (shorter when gap > 0).
+        dy = -((-gap) // 2)
+        out.append("{")
+        out.append(f"const ink_ui_rect_t text_rect = {expr};")
+        out.append(f"ink_ui_text_draw(canvas, (ink_ui_rect_t){{.x = text_rect.x, .y = (int16_t)(text_rect.y + ({dy})), "
+                   f".width = text_rect.width, .height = (int16_t)(text_rect.height - ({gap}))}}, {text}, &{sname}, "
+                   f"{self.paint(level)});")
+        out.append("}")
 
     def line(self, node, scope, out):
         box = node.get("absoluteRenderBounds") or {}

@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<!-- Thiết kế: docs/design/figma-to-code.md, docs/design/figma-setup.md -->
+<!--
+  Công cụ theo dõi và hỗ trợ quy trình port giao diện từ Figma sang code C (InkFlash).
+  Tuân thủ preset Editorial (docs/writing-visualizations.md), chạy trực tiếp trên trình duyệt (file://).
+-->
+<html lang="vi" data-preset="editorial" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InkFlash — Figma → Code Tracker</title>
+<style>
+    /* ---- Theme: preset Editorial của Archify (docs/writing-visualizations.md) ---- */
+    :root, [data-preset="editorial"][data-theme="light"] {
+        --bg: #f2eee5;
+        --grid: #d8d0c2;
+        --panel: #fbf8f1;
+        --panel-strong: #ede6d8;
+        --panel-border: #c4b9a6;
+        --panel-border-soft: #dcd4c5;
+        --text: #242018;
+        --text-muted: #6f6658;
+        --text-dim: #948a79;
+        --accent: #9f403d;
+        --accent-strong: #7d2a27;
+        --accent-soft: #f4dcdb;
+        --on-accent: #ffffff;
+        --brand-teal: #287e84;
+        --brand-teal-soft: #e0f0f1;
+        --brand-bronze: #9a671f;
+        --brand-bronze-soft: #f5ead7;
+        --brand-green: #397b53;
+        --brand-green-soft: #e6f3eb;
+        --brand-purple: #765d86;
+        --error: #b42318;
+        --error-soft: #fbeae8;
+        --pixel-white: #ffffff;
+        --pixel-black: #1f1d1a;
+        --font-serif: "Newsreader", "Charter", "Cambria", "Georgia", serif;
+        --font-sans: "Segoe UI", system-ui, sans-serif;
+        --font-mono: "Cascadia Code", Consolas, monospace;
+    }
+
+    [data-preset="editorial"][data-theme="dark"] {
+        --bg: #181611;
+        --grid: #39342a;
+        --panel: #231f18;
+        --panel-strong: #2e2921;
+        --panel-border: #625a4a;
+        --panel-border-soft: #443e33;
+        --text: #f4eddf;
+        --text-muted: #b9ae9b;
+        --text-dim: #776e60;
+        --accent: #cf6662;
+        --accent-strong: #f4eddf;
+        --accent-soft: #382424;
+        --on-accent: #181611;
+        --brand-teal: #7fc6c7;
+        --brand-teal-soft: #193234;
+        --brand-bronze: #d8ad68;
+        --brand-bronze-soft: #33291a;
+        --brand-green: #8fc29e;
+        --brand-green-soft: #1c2b21;
+        --brand-purple: #c0a4d0;
+        --error: #f0857d;
+        --error-soft: #381f1e;
+        --pixel-white: #e9e3d5;
+        --pixel-black: #0c0b09;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        background-color: var(--bg);
+        background-image:
+            linear-gradient(90deg, transparent 0, transparent 4.6rem, color-mix(in srgb, var(--accent) 14%, transparent) 4.6rem,
+                color-mix(in srgb, var(--accent) 14%, transparent) calc(4.6rem + 1px), transparent calc(4.6rem + 1px)),
+            repeating-linear-gradient(0deg, transparent 0, transparent 31px, color-mix(in srgb, var(--grid) 38%, transparent) 31px,
+                color-mix(in srgb, var(--grid) 38%, transparent) 32px);
+        background-attachment: fixed;
+        color: var(--text);
+        font: 14px/1.5 var(--font-sans);
+    }
+
+    header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 20px;
+        padding: 12px 24px;
+        background: var(--panel);
+        border-bottom: 2px solid var(--panel-border);
+    }
+
+    .brand-title {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+    }
+
+    header h1 {
+        margin: 0;
+        font: 600 22px var(--font-serif);
+        letter-spacing: -0.01em;
+        color: var(--accent-strong);
+    }
+
+    .sub-title {
+        font-size: 13px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+    }
+
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 14px;
+        font: 500 13px var(--font-sans);
+        color: var(--text);
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .btn:hover {
+        background: var(--panel-strong);
+        border-color: var(--accent);
+    }
+
+    .btn-primary {
+        background: var(--accent);
+        color: var(--on-accent);
+        border-color: var(--accent-strong);
+    }
+
+    .btn-primary:hover {
+        background: var(--accent-strong);
+        color: var(--on-accent);
+    }
+
+    .btn-sm {
+        padding: 3px 8px;
+        font-size: 12px;
+    }
+
+    /* Tabs */
+    .tabs-bar {
+        display: flex;
+        gap: 6px;
+        padding: 8px 24px 0;
+        background: var(--panel-strong);
+        border-bottom: 1px solid var(--panel-border);
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        padding: 8px 16px;
+        font: 600 13px var(--font-sans);
+        color: var(--text-muted);
+        background: transparent;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 4px 4px 0 0;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+
+    .tab-btn:hover {
+        color: var(--text);
+        background: color-mix(in srgb, var(--panel) 50%, transparent);
+    }
+
+    .tab-btn.active {
+        color: var(--accent-strong);
+        background: var(--panel);
+        border-color: var(--panel-border);
+        border-bottom-color: var(--panel);
+        margin-bottom: -1px;
+    }
+
+    /* Main Container */
+    main {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 24px 40px;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    /* Cards & Panels */
+    .card {
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    .card-title {
+        margin: 0 0 14px;
+        font: 600 17px var(--font-serif);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .grid-2col {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+        gap: 20px;
+    }
+
+    /* Step Timeline */
+    .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .step-item {
+        display: flex;
+        gap: 16px;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 16px;
+        position: relative;
+    }
+
+    .step-item.done {
+        border-left: 5px solid var(--brand-green);
+    }
+
+    .step-num {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--panel-strong);
+        border: 1px solid var(--panel-border);
+        font: 700 14px var(--font-mono);
+        color: var(--accent);
+        flex-shrink: 0;
+    }
+
+    .step-item.done .step-num {
+        background: var(--brand-green);
+        color: #fff;
+        border-color: var(--brand-green);
+    }
+
+    .step-body {
+        flex: 1;
+    }
+
+    .step-title {
+        font: 600 15px var(--font-sans);
+        margin: 0 0 6px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .step-desc {
+        color: var(--text-muted);
+        font-size: 13px;
+        margin: 0 0 10px;
+    }
+
+    .checklist {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .checklist-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 13px;
+    }
+
+    .checklist-item input[type="checkbox"] {
+        margin-top: 3px;
+        cursor: pointer;
+    }
+
+    /* Code blocks & Badges */
+    pre, code {
+        font-family: var(--font-mono);
+        font-size: 12.5px;
+    }
+
+    pre {
+        background: var(--panel-strong);
+        border: 1px solid var(--panel-border-soft);
+        border-radius: 4px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        color: var(--text);
+        margin: 8px 0;
+    }
+
+    code {
+        background: var(--panel-strong);
+        padding: 2px 5px;
+        border-radius: 3px;
+        border: 1px solid var(--panel-border-soft);
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 3px;
+        font: 600 11px var(--font-mono);
+        text-transform: uppercase;
+    }
+
+    .badge-error { background: var(--error-soft); color: var(--error); border: 1px solid var(--error); }
+    .badge-warn { background: var(--brand-bronze-soft); color: var(--brand-bronze); border: 1px solid var(--brand-bronze); }
+    .badge-ok { background: var(--brand-green-soft); color: var(--brand-green); border: 1px solid var(--brand-green); }
+    .badge-info { background: var(--brand-teal-soft); color: var(--brand-teal); border: 1px solid var(--brand-teal); }
+
+    /* Forms */
+    .form-group {
+        margin-bottom: 14px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--text-muted);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        font: 13px var(--font-mono);
+        background: var(--panel-strong);
+        border: 1px solid var(--panel-border);
+        border-radius: 4px;
+        color: var(--text);
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    /* Tables */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        margin: 10px 0;
+    }
+
+    .data-table th, .data-table td {
+        padding: 8px 12px;
+        border: 1px solid var(--panel-border-soft);
+        text-align: left;
+    }
+
+    .data-table th {
+        background: var(--panel-strong);
+        font-weight: 600;
+        color: var(--text-muted);
+    }
+
+    .data-table tr:hover td {
+        background: color-mix(in srgb, var(--panel-strong) 40%, transparent);
+    }
+
+    /* Drop Zone */
+    .dropzone {
+        border: 2px dashed var(--panel-border);
+        border-radius: 6px;
+        padding: 28px;
+        text-align: center;
+        background: var(--panel-strong);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .dropzone.dragover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+    }
+
+    .dropzone-icon {
+        font-size: 28px;
+        margin-bottom: 8px;
+        color: var(--accent);
+    }
+
+    .preview-box {
+        margin-top: 14px;
+        max-height: 280px;
+        overflow-y: auto;
+    }
+
+    .copy-hint {
+        font-size: 12px;
+        color: var(--brand-green);
+        margin-left: 8px;
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+<header>
+    <div class="brand-title">
+        <h1>InkFlash</h1>
+        <span class="sub-title">Figma → Code Interactive Tracker</span>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-sm" id="themeBtn" onclick="toggleTheme()">Giao diện: Tối</button>
+        <button class="btn btn-sm" onclick="resetProgress()">Làm mới tiến độ</button>
+    </div>
+</header>
+
+<div class="tabs-bar">
+    <button class="tab-btn active" onclick="switchTab('pipeline')">1. Quy trình 6 bước</button>
+    <button class="tab-btn" onclick="switchTab('layer')">2. Thử nghiệm cú pháp Layer</button>
+    <button class="tab-btn" onclick="switchTab('cli')">3. Bộ tạo lệnh CLI</button>
+    <button class="tab-btn" onclick="switchTab('rules')">4. Luật kiểm & Snapshot</button>
+</div>
+
+<main>
+    <!-- TAB 1: PIPELINE GUIDE -->
+    <div id="tab-pipeline" class="tab-content active">
+        <div class="card">
+            <h2 class="card-title">Kiến trúc tổng quan: Một màn Figma = Một View sinh tự động</h2>
+            <p>Màn panel e-ink 240 × 416 (1 bit). View được sinh tự động bằng script C từ Figma, có mã hash bảo vệ. File Scene viết tay điều khiển hành vi, điền struct dữ liệu và submit intent hiển thị.</p>
+            <div style="background: var(--panel-strong); padding: 12px; border-radius: 4px; border: 1px solid var(--panel-border-soft); font-family: var(--font-mono); font-size: 13px;">
+                Figma Frame &rarr; <code>figma2ink.py</code> &rarr; <code>&lt;view&gt;.gen.c</code> + <code>&lt;view&gt;.gen.h</code> &rarr; <code>render_view.py</code> (diff = 0) &rarr; Scene C
+            </div>
+        </div>
+
+        <div class="timeline">
+            <!-- Step 1 -->
+            <div class="step-item" id="step1">
+                <div class="step-num">1</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Thiết lập Figma chuẩn Pixel Art</span>
+                        <span class="badge badge-info">Figma Setup</span>
+                    </div>
+                    <p class="step-desc">Chuẩn bị frame và các thông số hiển thị trước khi vẽ để tránh lỗi nửa pixel và font không hỗ trợ.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_1" onchange="updateStepState('step1')">
+                            <label for="c1_1">Frame đúng cỡ chuẩn: <b>240 × 416</b> (màn dọc) hoặc <b>416 × 240</b> (màn ngang).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_2" onchange="updateStepState('step1')">
+                            <label for="c1_2">Tên frame bắt đầu bằng tên app: <code>&lt;app&gt;_&lt;màn&gt;</code> (ví dụ: <code>deck_list</code>, <code>home_main</code>).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_3" onchange="updateStepState('step1')">
+                            <label for="c1_3">Cài 3 font pixel trên máy thiết kế (bảng font bên dưới), khởi động lại <code>figma_agent.exe</code> và Figma.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_6" onchange="updateStepState('step1')">
+                            <label for="c1_6">Chạy plugin <code>tools/figma_plugin/tiny5_ink</code> để đặt cỡ và line height cho text style (Plugins &rarr; Development &rarr; Import plugin from manifest).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_7" onchange="updateStepState('step1')">
+                            <label for="c1_7">Layer text gắn một trong 5 text style: <code>unifont_vi_16</code>, <code>fixed_10</code>, <code>tiny5_8</code>, <code>tiny5_16</code>, <code>tiny5_24</code>.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_4" onchange="updateStepState('step1')">
+                            <label for="c1_4">Màu sắc 100% Opacity: Chỉ đen <code>#000000</code>, trắng <code>#FFFFFF</code> hoặc xám R=G=B (tạo dither).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c1_5" onchange="updateStepState('step1')">
+                            <label for="c1_5">Toạ độ, kích thước số nguyên. Stroke canh trong (Inside), không dùng line lẻ.</label>
+                        </li>
+                    </ul>
+
+                    <table class="data-table" aria-label="Font Figma cho từng text style">
+                        <thead>
+                            <tr><th>Text style</th><th>Font Figma</th><th>Cỡ</th><th>Line height</th><th>Cài bằng</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><code>unifont_vi_16</code></td><td>Unifont</td><td>16</td><td>16</td><td><code>make_unifont_ttf.py</code></td></tr>
+                            <tr><td><code>fixed_10</code> <span class="badge badge-ok">giữ</span></td><td>Fixed 6x10</td><td>16</td><td>10</td><td><code>make_u8g2_ttf.py u8g2_font_6x10_tf</code></td></tr>
+                            <tr><td><code>tiny5_8</code></td><td>Tiny5 Ink</td><td>16</td><td>14</td><td rowspan="3"><code>make_u8g2_ttf.py ink_ui_font_tiny5_8.c</code></td></tr>
+                            <tr><td><code>tiny5_16</code></td><td>Tiny5 Ink</td><td>32</td><td>28</td></tr>
+                            <tr><td><code>tiny5_24</code></td><td>Tiny5 Ink</td><td>48</td><td>42</td></tr>
+                        </tbody>
+                    </table>
+                    <p class="step-desc">Cỡ khác line height là đúng: một em của font sinh ra là 16 pixel font (units per em 1024). Không dùng Tiny5 của Google Fonts: Figma áp kerning và đặt baseline khác panel.</p>
+                    <pre><code>py tools/figma2ink/make_u8g2_ttf.py u8g2_font_6x10_tf --family "Fixed 6x10" -o "$env:TEMP\fixed-6x10.ttf" --install
+py tools/figma2ink/make_u8g2_ttf.py components/core/ink_ui/fonts/ink_ui_font_tiny5_8.c --family "Tiny5 Ink" -o "$env:TEMP\tiny5-ink.ttf" --install</code></pre>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step-item" id="step2">
+                <div class="step-num">2</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Quy ước đặt tên Layer dữ liệu động & Nhịp vẽ</span>
+                        <span class="badge badge-info">Layer Naming</span>
+                    </div>
+                    <p class="step-desc">Tên layer trên Figma quyết định trường struct C trong file <code>.gen.h</code>.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c2_1" onchange="updateStepState('step2')">
+                            <label for="c2_1">Text động đặt tên <code>{tên}</code> &rarr; sinh field <code>const char *tên</code> (ví dụ: <code>{title}</code>).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c2_2" onchange="updateStepState('step2')">
+                            <label for="c2_2">Layer ẩn/hiện đặt tên <code>?tên</code> &rarr; sinh cờ <code>bool show_tên</code> (ví dụ: <code>?empty_hint</code>).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c2_3" onchange="updateStepState('step2')">
+                            <label for="c2_3">Danh sách lặp lại đặt tên <code>*tên</code> (Auto Layout) &rarr; sinh mảng row struct + count (ví dụ: <code>*rows</code>).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c2_4" onchange="updateStepState('step2')">
+                            <label for="c2_4">Vẽ hai nhịp đặt tên <code>part:&lt;tên&gt;</code> &rarr; sinh hàm <code>&lt;view&gt;_draw_&lt;tên&gt;()</code>.</label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step-item" id="step3">
+                <div class="step-num">3</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Chạy công cụ sinh View (figma2ink.py)</span>
+                        <span class="badge badge-info">Code Generation</span>
+                    </div>
+                    <p class="step-desc">Đọc Figma REST API, kiểm các luật ở tab 4 và tự sinh code C cùng hash bảo vệ. Có lỗi thì không ghi file.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c3_1" onchange="updateStepState('step3')">
+                            <label for="c3_1">Chuột phải frame trên Figma &rarr; Copy link to selection.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c3_2" onchange="updateStepState('step3')">
+                            <label for="c3_2">Chạy lệnh sinh view kèm lưu snapshot: <code>python tools/figma2ink.py &lt;link&gt; --app &lt;app&gt; --save build-render/snap</code>.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c3_3" onchange="updateStepState('step3')">
+                            <label for="c3_3">Kiểm tra kết quả: sinh đủ 3 file trong <code>components/apps/ink_app_&lt;app&gt;/views/</code> (<code>.gen.c</code>, <code>.gen.h</code>, <code>.sample.json</code>).</label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step-item" id="step4">
+                <div class="step-num">4</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Kiểm thử Visual trên PC (render_view.py)</span>
+                        <span class="badge badge-info">Host Renderer</span>
+                    </div>
+                    <p class="step-desc">Biên dịch view bằng gcc thật trên PC và so sánh từng pixel với ảnh xuất từ Figma.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c4_1" onchange="updateStepState('step4')">
+                            <label for="c4_1">Chạy lệnh render và so sánh: <code>python tools/render_view.py &lt;view&gt; --compare build-render/snap/figma.png</code>.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c4_2" onchange="updateStepState('step4')">
+                            <label for="c4_2">Đạt yêu cầu: Số pixel lệch bằng 0 (<b>diff = 0</b> đối với màn đen trắng).</label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="step-item" id="step5">
+                <div class="step-num">5</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Tích hợp vào Scene C</span>
+                        <span class="badge badge-info">Firmware Scene</span>
+                    </div>
+                    <p class="step-desc">Scene phụ trách hành vi, điều khiển canvas và intent hiển thị.</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c5_1" onchange="updateStepState('step5')">
+                            <label for="c5_1">Include file header: <code>#include "&lt;view&gt;.gen.h"</code> vào file scene.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c5_2" onchange="updateStepState('step5')">
+                            <label for="c5_2">Điền dữ liệu thực tế vào struct <code>&lt;view&gt;_data_t</code>.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c5_3" onchange="updateStepState('step5')">
+                            <label for="c5_3">Acquire canvas, gọi <code>&lt;view&gt;_draw(canvas, &amp;data)</code> và submit với intent phù hợp (PAGE, UI, TEXT...).</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c5_4" onchange="updateStepState('step5')">
+                            <label for="c5_4">App mới: tạo bằng <code>python tools/new.py app &lt;app&gt; --design &lt;docs&gt;</code>, thêm <code>&amp;ink_app_&lt;app&gt;</code> vào <code>s_apps</code> trong <code>main/main.c</code> và vào <code>PRIV_REQUIRES</code> của <code>main/CMakeLists.txt</code>.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c5_5" onchange="updateStepState('step5')">
+                            <label for="c5_5">Màn ngang (416 × 240): canvas khởi tạo với <code>INK_UI_ROTATION_90</code>.</label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step 6 -->
+            <div class="step-item" id="step6">
+                <div class="step-num">6</div>
+                <div class="step-body">
+                    <div class="step-title">
+                        <span>Build, nạp và kiểm trên panel</span>
+                        <span class="badge badge-info">Device</span>
+                    </div>
+                    <p class="step-desc">Máy ngủ sau 60 s không bấm nút; khi ngủ cổng USB biến mất. Bấm A hoặc B ngay trước khi nạp, hoặc vào download mode (giữ BOOT, bấm RESET).</p>
+                    <ul class="checklist">
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c6_1" onchange="updateStepState('step6')">
+                            <label for="c6_1"><code>python tools/check.py</code> và <code>python tools/terms.py check</code> qua.</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c6_2" onchange="updateStepState('step6')">
+                            <label for="c6_2">Build và nạp: <code>idf.py build</code>, rồi <code>idf.py -p COMx flash</code> (cổng "USB Serial Device").</label>
+                        </li>
+                        <li class="checklist-item">
+                            <input type="checkbox" id="c6_3" onchange="updateStepState('step6')">
+                            <label for="c6_3">Chụp panel bằng camera (bật Iriun Webcam trên điện thoại): <code>py tools/vision_test/capture.py -o &lt;tên&gt; --json</code>, so với ảnh Figma.</label>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: LAYER SYNTAX TESTER -->
+    <div id="tab-layer" class="tab-content">
+        <div class="grid-2col">
+            <div class="card">
+                <h2 class="card-title">Trình tạo & Kiểm tra cú pháp Layer</h2>
+                <p>Thử thêm các layer Figma theo quy ước để xem struct C sinh ra trong <code>.gen.h</code> tương ứng:</p>
+
+                <div class="form-group">
+                    <label>Tên App & Màn:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="demoApp" class="form-control" value="deck" placeholder="App (vd: deck)" oninput="updateStructPreview()">
+                        <input type="text" id="demoScreen" class="form-control" value="list" placeholder="Màn (vd: list)" oninput="updateStructPreview()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Thêm Layer mô phỏng:</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <select id="layerType" class="form-control" style="width: 140px;">
+                            <option value="text">{tên} — Text</option>
+                            <option value="bool">?tên — Ẩn/Hiện</option>
+                            <option value="list">*tên — Lặp hàng</option>
+                            <option value="part">part:tên — Nhịp vẽ</option>
+                        </select>
+                        <input type="text" id="layerName" class="form-control" placeholder="Tên (vd: title, done, rows)" value="title">
+                        <button class="btn btn-primary" onclick="addDemoLayer()">Thêm</button>
+                    </div>
+                </div>
+
+                <div style="margin-top: 14px;">
+                    <label style="font-weight: 600; font-size: 13px; color: var(--text-muted);">Danh sách Layer đang có:</label>
+                    <div id="layerList" style="margin-top: 6px; display: flex; flex-direction: column; gap: 6px;"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Mã nguồn C sinh ra tương ứng (.gen.h)</h2>
+                <pre><code id="structCode">/* C Struct Code Preview */</code></pre>
+
+                <h2 class="card-title" style="margin-top: 20px;">Hàm vẽ hỗ trợ (Prototypes)</h2>
+                <pre><code id="funcCode">/* C Functions Preview */</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: COMMAND BUILDER -->
+    <div id="tab-cli" class="tab-content">
+        <div class="card">
+            <h2 class="card-title">Bộ tạo lệnh tự động (PowerShell Terminal ESP-IDF)</h2>
+            <p>Dán link frame từ Figma để tự động trích xuất key, node-id và tạo lệnh sinh view chuẩn xác:</p>
+
+            <div class="form-group">
+                <label for="figmaUrl">Link Figma Frame (chuột phải frame &rarr; Copy link to selection):</label>
+                <input type="text" id="figmaUrl" class="form-control"
+                       placeholder="https://www.figma.com/design/AbCdEf123/InkFlash?node-id=12-34"
+                       value="https://www.figma.com/design/SU7kpiOJEQ2DaBnUmDPBff/InkFlash?node-id=57-2"
+                       oninput="generateCommands()">
+            </div>
+
+            <div style="display: flex; gap: 12px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="cliApp">Tên App (ví dụ: deck, home, foundations):</label>
+                    <input type="text" id="cliApp" class="form-control" value="foundations" oninput="generateCommands()">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="cliScreen">Tên Màn (ví dụ: portrait, list):</label>
+                    <input type="text" id="cliScreen" class="form-control" value="portrait" oninput="generateCommands()">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="figmaToken">FIGMA_TOKEN (Personal Access Token, tuỳ chọn nếu đã set):</label>
+                <input type="password" id="figmaToken" class="form-control" placeholder="figd_..." oninput="generateCommands()">
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">
+                <span>Câu lệnh thực thi</span>
+                <button class="btn btn-sm" onclick="copyAllCommands()">Sao chép tất cả <span id="copyHint" class="copy-hint">&check; Đã chép</span></button>
+            </h2>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px;">1. Thiết lập biến môi trường token (nếu chưa lưu vĩnh viễn):</p>
+            <pre><code id="cmdToken">$env:FIGMA_TOKEN="figd_..."</code></pre>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px;">2. Chạy công cụ sinh View và lưu snapshot:</p>
+            <pre><code id="cmdGen">python tools/figma2ink.py "..." --app ... --save build-render/snap</code></pre>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px;">3. Biên dịch Host Renderer và so khớp pixel:</p>
+            <pre><code id="cmdRender">python tools/render_view.py ... --compare build-render/snap/figma.png</code></pre>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px;">4. Build và nạp (bấm A/B trên máy ngay trước khi nạp; đổi COM theo cổng "USB Serial Device"):</p>
+            <pre><code id="cmdFlash">idf.py build</code></pre>
+
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 6px;">5. Chụp panel bằng camera (Iriun Webcam đang chạy):</p>
+            <pre><code id="cmdCapture">py tools/vision_test/capture.py -o ... --json</code></pre>
+            <p style="font-size: 12px; color: var(--text-dim);">Lệnh chạy trong terminal ESP-IDF: <code>. C:\Espressif\tools\Microsoft.v6.1.PowerShell_profile.ps1</code>. Riêng <code>py</code> (capture, cài font) dùng Python hệ thống có numpy và fontTools.</p>
+        </div>
+    </div>
+
+    <!-- TAB 4: RULES & SNAPSHOT INSPECTOR -->
+    <div id="tab-rules" class="tab-content">
+        <div class="card">
+            <h2 class="card-title">Luật kiểm của figma2ink.py (theo docs/design/figma-to-code.md)</h2>
+            <p>Bất kỳ lỗi nào (Lỗi) sẽ chặn sinh file để bảo vệ màn panel e-ink không bị vẽ sai hoặc tràn bộ đệm:</p>
+
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 250px;">Luật kiểm</th>
+                        <th style="width: 100px;">Mức</th>
+                        <th>Lý do & Cách xử lý</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><b>Cỡ frame 240 × 416 hoặc 416 × 240</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Kích thước panel chuẩn. Sai cỡ sẽ không thể render đúng.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Tên frame <code>&lt;app&gt;_&lt;màn&gt;</code></b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Tránh trùng ký hiệu hàm toàn cục khi liên kết firmware.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Toạ độ / Cỡ layer không nguyên</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Panel e-ink không vẽ được nửa pixel. Kiểm tra X, Y, W, H.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Text style nằm ngoài 5 font ui</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Firmware chỉ nhúng 5 font: <code>unifont_vi_16</code>, <code>fixed_10</code>, <code>tiny5_8/16/24</code>. Layer bị tách khỏi style (đổi line height trên layer) vẫn nhận được nếu font và cỡ đúng bảng font ở bước 1.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Màu lạ, gradient, opacity &lt; 100%, effect</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Panel 1 bit chỉ hỗ trợ đen, trắng và xám dither phẳng.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Chữ màu xám</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Chữ xám bị ngưỡng 50% làm nhoè nét. Text chỉ dùng đen hoặc trắng.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Stroke canh giữa / ngoài</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Họa cụ <code>ink_ui_stroke()</code> chỉ hỗ trợ vẽ vào trong (Inside).</td>
+                    </tr>
+                    <tr>
+                        <td><b>Text <code>{tên}</code> để Hug / Auto height</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Cỡ chữ động không biết trước khi chạy. Đặt fixed box cho text.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Text căn dọc giữa / dưới, letter spacing khác 0, nhiều style trong một text</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td><code>ink_ui_text_draw()</code> vẽ từ mép trên, một font. Text cao đúng một dòng thì căn dọc nào cũng được.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Layer <code>?tên</code> ẩn trong Auto Layout</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Figma dồn layout khi ẩn nhưng view không dồn; sẽ lệch pixel mẫu.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Line nằm lệch nửa pixel</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Dùng Rectangle cao hoặc rộng 1 px thay vì Line vector.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Kiểu layer ngoài bảng ánh xạ</b></td>
+                        <td><span class="badge badge-error">Lỗi</span></td>
+                        <td>Không dùng ảnh, video, Auto Layout wrap, stroke dày khác nhau theo cạnh, góc bo khác nhau.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Mép layer động không chia hết cho 8 px</b></td>
+                        <td><span class="badge badge-warn">Cảnh báo</span></td>
+                        <td>Display căn changed window theo byte (8 pixel) để tối ưu refresh.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Fill xám có corner radius</b></td>
+                        <td><span class="badge badge-warn">Cảnh báo</span></td>
+                        <td>Mẫu dither 4×4 Bayer bỏ qua bo góc.</td>
+                    </tr>
+                    <tr>
+                        <td><b>Stroke, line màu xám</b></td>
+                        <td><span class="badge badge-warn">Cảnh báo</span></td>
+                        <td>Thành đen hoặc trắng theo ngưỡng 50 %; chỉ fill mới dither.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2 class="card-title">Soi file snapshot cục bộ (Inspector)</h2>
+            <p>Kéo thả file <code>node.json</code> (từ thư mục <code>build-render/snap/</code>) vào đây để phân tích nhanh cây layer:</p>
+
+            <div class="dropzone" id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                <div class="dropzone-icon">&boxbox;</div>
+                <div style="font-weight: 600; margin-bottom: 4px;">Kéo & Thả file node.json vào đây</div>
+                <div style="font-size: 12px; color: var(--text-muted);">hoặc bấm để chọn file từ máy tính</div>
+                <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="handleFileSelect(event)">
+            </div>
+
+            <div id="inspectorResult" class="preview-box" style="display: none;">
+                <h3 style="font-size: 14px; margin: 10px 0 6px;">Kết quả phân tích:</h3>
+                <div id="inspectorSummary" style="font-family: var(--font-mono); font-size: 12.5px;"></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    /* ---- Khởi tạo & Theme ---- */
+    const STORAGE_KEY_THEME = "inkflash_tracker_theme";
+    const STORAGE_KEY_CHECK = "inkflash_tracker_checks";
+    const STEP_IDS = ["step1", "step2", "step3", "step4", "step5", "step6"];
+
+    /* Text style → [ink_ui font line height px]; Figma font and size → text style (tools/figma2ink.py FONTS, FONT_FACES). */
+    const FONT_LINE = {unifont_vi_16: 16, fixed_10: 10, tiny5_8: 14, tiny5_16: 28, tiny5_24: 42};
+    const FONT_FACES = {"Unifont/16": "unifont_vi_16", "Fixed 6x10/16": "fixed_10", "Tiny5 Ink/16": "tiny5_8",
+                        "Tiny5 Ink/32": "tiny5_16", "Tiny5 Ink/48": "tiny5_24"};
+
+    function initTheme() {
+        let saved = null;
+        try { saved = localStorage.getItem(STORAGE_KEY_THEME); } catch (e) {} // blocked storage must not stop the page
+        const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = saved || (preferDark ? "dark" : "light");
+        setTheme(theme);
+    }
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute("data-theme", theme);
+        const btn = document.getElementById("themeBtn");
+        if (btn) btn.innerText = theme === "dark" ? "Giao diện: Sáng" : "Giao diện: Tối";
+        try { localStorage.setItem(STORAGE_KEY_THEME, theme); } catch (e) {}
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute("data-theme");
+        setTheme(current === "dark" ? "light" : "dark");
+    }
+
+    /* ---- Tab Switching ---- */
+    function switchTab(tabId) {
+        document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+        const targetBtn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.getAttribute("onclick").includes(tabId));
+        if (targetBtn) targetBtn.classList.add("active");
+
+        const targetContent = document.getElementById("tab-" + tabId);
+        if (targetContent) targetContent.classList.add("active");
+    }
+
+    /* ---- Checklist State Persistence ---- */
+    function loadChecks() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY_CHECK);
+            if (!raw) return;
+            const checks = JSON.parse(raw);
+            Object.keys(checks).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.checked = checks[id];
+            });
+            STEP_IDS.forEach(updateStepState);
+        } catch (e) {}
+    }
+
+    function updateStepState(stepId) {
+        const container = document.getElementById(stepId);
+        if (!container) return;
+        const boxes = container.querySelectorAll('input[type="checkbox"]');
+        const allChecked = Array.from(boxes).every(b => b.checked);
+        if (allChecked && boxes.length > 0) {
+            container.classList.add("done");
+        } else {
+            container.classList.remove("done");
+        }
+
+        // Save
+        const data = {};
+        document.querySelectorAll('.checklist input[type="checkbox"]').forEach(b => {
+            data[b.id] = b.checked;
+        });
+        try { localStorage.setItem(STORAGE_KEY_CHECK, JSON.stringify(data)); } catch (e) {}
+    }
+
+    function resetProgress() {
+        if (!confirm("Đặt lại toàn bộ tiến độ kiểm tra?")) return;
+        document.querySelectorAll('.checklist input[type="checkbox"]').forEach(b => b.checked = false);
+        STEP_IDS.forEach(updateStepState);
+        try { localStorage.removeItem(STORAGE_KEY_CHECK); } catch (e) {}
+    }
+
+    /* ---- Layer Syntax Tester ---- */
+    let demoLayers = [
+        { type: "text", name: "title" },
+        { type: "bool", name: "is_favorite" },
+        { type: "list", name: "rows" },
+        { type: "part", name: "header" }
+    ];
+
+    function renderDemoLayers() {
+        const listEl = document.getElementById("layerList");
+        if (!listEl) return;
+        listEl.innerHTML = "";
+
+        demoLayers.forEach((l, idx) => {
+            const row = document.createElement("div");
+            row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: var(--panel-strong); padding: 5px 10px; border-radius: 4px; border: 1px solid var(--panel-border-soft); font-size: 13px;";
+
+            let prefix = "";
+            let badge = "";
+            if (l.type === "text") { prefix = `{${l.name}}`; badge = "Text"; }
+            else if (l.type === "bool") { prefix = `?${l.name}`; badge = "Bool"; }
+            else if (l.type === "list") { prefix = `*${l.name}`; badge = "List Row"; }
+            else if (l.type === "part") { prefix = `part:${l.name}`; badge = "Part Draw"; }
+
+            row.innerHTML = `
+                <div>
+                    <code style="font-weight: 600;">${prefix}</code>
+                    <span class="badge badge-info" style="margin-left: 8px;">${badge}</span>
+                </div>
+                <button class="btn btn-sm" onclick="removeDemoLayer(${idx})" style="padding: 1px 6px;">&times;</button>
+            `;
+            listEl.appendChild(row);
+        });
+
+        updateStructPreview();
+    }
+
+    function addDemoLayer() {
+        const type = document.getElementById("layerType").value;
+        const nameInput = document.getElementById("layerName");
+        let name = nameInput.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+        if (!name) name = "item";
+
+        demoLayers.push({ type, name });
+        nameInput.value = "";
+        renderDemoLayers();
+    }
+
+    function removeDemoLayer(idx) {
+        demoLayers.splice(idx, 1);
+        renderDemoLayers();
+    }
+
+    function updateStructPreview() {
+        const app = (document.getElementById("demoApp").value.trim() || "app").toLowerCase();
+        const screen = (document.getElementById("demoScreen").value.trim() || "main").toLowerCase();
+        const viewName = `${app}_${screen}_view`;
+        const viewMacro = `${app.toUpperCase()}_${screen.toUpperCase()}_VIEW`;
+
+        let structFields = [];
+        let listStructs = [];
+        let partFuncs = [];
+
+        demoLayers.forEach(l => {
+            if (l.type === "text") {
+                structFields.push(`    const char *${l.name}; /**< from {${l.name}} */`);
+            } else if (l.type === "bool") {
+                structFields.push(`    bool show_${l.name}; /**< from ?${l.name} */`);
+            } else if (l.type === "list") {
+                const rowType = `${viewName}_${l.name}_row_t`;
+                const maxMacro = `${viewMacro}_${l.name.toUpperCase()}_MAX`;
+                listStructs.push(`/** Row in *${l.name} */\ntypedef struct {\n    const char *label;\n} ${rowType};\n\n#define ${maxMacro} 6`);
+                structFields.push(`    ${rowType} ${l.name}[${maxMacro}];\n    uint8_t ${l.name}_count;`);
+            } else if (l.type === "part") {
+                partFuncs.push(`/** @brief Draw part '${l.name}' */\nvoid ${viewName}_draw_${l.name}(ink_ui_canvas_t *canvas, const ${viewName}_data_t *data);`);
+            }
+        });
+
+        if (structFields.length === 0) {
+            structFields.push("    uint8_t unused; /**< the screen has no dynamic layer */");
+        }
+
+        let fullStructCode = "";
+        if (listStructs.length > 0) {
+            fullStructCode += listStructs.join("\n\n") + "\n\n";
+        }
+        fullStructCode += `typedef struct {\n${structFields.join("\n")}\n} ${viewName}_data_t;`;
+
+        let fullFuncCode = `/** @brief Draw the whole screen */\nvoid ${viewName}_draw(ink_ui_canvas_t *canvas, const ${viewName}_data_t *data);`;
+        if (partFuncs.length > 0) {
+            fullFuncCode += "\n\n" + partFuncs.join("\n\n");
+        }
+
+        document.getElementById("structCode").innerText = fullStructCode;
+        document.getElementById("funcCode").innerText = fullFuncCode;
+    }
+
+    /* ---- Command Generator ---- */
+    function generateCommands() {
+        const url = document.getElementById("figmaUrl").value.trim();
+        const app = (document.getElementById("cliApp").value.trim() || "app").toLowerCase();
+        const screen = (document.getElementById("cliScreen").value.trim() || "main").toLowerCase();
+        const token = document.getElementById("figmaToken").value.trim();
+        const viewName = `${app}_${screen}_view`;
+
+        const snap = `build-render/snap_${app}_${screen}`;
+        const tokenCmd = token ? `$env:FIGMA_TOKEN="${token}"` : `# (FIGMA_TOKEN đã được cài đặt sẵn trong môi trường)`;
+        const genCmd = `python tools/figma2ink.py "${url || "https://www.figma.com/design/..."}" --app ${app} --save ${snap}`;
+        const renderCmd = `python tools/render_view.py ${viewName} -o build-render/${viewName}.png --compare ${snap}/figma.png`;
+        const flashCmd = `idf.py build\nidf.py -p COM4 flash`;
+        const captureCmd = `py tools/vision_test/capture.py -o ${app}/${screen} --json`;
+
+        document.getElementById("cmdToken").textContent = tokenCmd;
+        document.getElementById("cmdGen").textContent = genCmd;
+        document.getElementById("cmdRender").textContent = renderCmd;
+        document.getElementById("cmdFlash").textContent = flashCmd;
+        document.getElementById("cmdCapture").textContent = captureCmd;
+        const urlEl = document.getElementById("figmaUrl");
+        const okUrl = !url || /figma\.com\/design\/[0-9A-Za-z]+\/.*node-id=\d+-\d+/.test(url);
+        urlEl.style.borderColor = okUrl ? "" : "var(--error)";
+        urlEl.title = okUrl ? "" : "Link phải có dạng figma.com/design/<key>/<tên>?node-id=<a>-<b> (Copy link to selection)";
+    }
+
+    function copyAllCommands() {
+        const c1 = document.getElementById("cmdToken").textContent;
+        const c2 = document.getElementById("cmdGen").textContent;
+        const c3 = document.getElementById("cmdRender").textContent;
+        const c4 = document.getElementById("cmdFlash").textContent;
+        const c5 = document.getElementById("cmdCapture").textContent;
+        const full = `${c1}\n${c2}\n${c3}\n${c4}\n${c5}`;
+
+        navigator.clipboard.writeText(full).then(() => {
+            const hint = document.getElementById("copyHint");
+            hint.style.display = "inline";
+            setTimeout(() => { hint.style.display = "none"; }, 2500);
+        });
+    }
+
+    /* ---- Snapshot Inspector ---- */
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+
+    if (dropzone) {
+        dropzone.addEventListener("click", () => fileInput.click());
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        dropzone.classList.add("dragover");
+    }
+
+    function handleDragLeave(e) {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        dropzone.classList.remove("dragover");
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            processSnapshotFile(e.dataTransfer.files[0]);
+        }
+    }
+
+    function handleFileSelect(e) {
+        if (e.target.files && e.target.files.length > 0) {
+            processSnapshotFile(e.target.files[0]);
+        }
+    }
+
+    function processSnapshotFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = JSON.parse(evt.target.result);
+                analyzeSnapshotJson(data);
+            } catch (err) {
+                alert("Lỗi đọc JSON: " + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function analyzeSnapshotJson(data) {
+        const resBox = document.getElementById("inspectorResult");
+        const summary = document.getElementById("inspectorSummary");
+        resBox.style.display = "block";
+
+        const doc = data.document || data;
+        const name = doc.name || data.name || "Không rõ";
+        const bbox = doc.absoluteBoundingBox || {};
+        const width = bbox.width || 0;
+        const height = bbox.height || 0;
+
+        let issues = [];
+        if ((width === 240 && height === 416) || (width === 416 && height === 240)) {
+            issues.push(`&check; Kích thước chuẩn: ${width} × ${height} px.`);
+        } else {
+            issues.push(`&cross; Kích thước SAI: ${width} × ${height} px (Bắt buộc 240×416 hoặc 416×240).`);
+        }
+
+        if (!/^[a-z][a-z0-9]*_[a-z0-9_]+$/.test(name)) {
+            issues.push(`&cross; Tên frame <code>${escapeHtml(name)}</code> không theo dạng <code>&lt;app&gt;_&lt;màn&gt;</code>.`);
+        }
+
+        // Quick subset of the figma2ink rules; figma2ink stays the reference (it also checks layout and sizes).
+        const styles = data.styles || {};
+        const ox = bbox.x || 0, oy = bbox.y || 0;
+        const found = [];
+        const add = (node, msg) => found.push(`&cross; <code>${escapeHtml(node.name || node.id)}</code> (${node.id}): ${msg}`);
+        const notNeutral = c => c && (Math.abs(c.r - c.g) > 0.004 || Math.abs(c.g - c.b) > 0.004);
+        const level = c => Math.round((c.r || 0) * 255);
+        let childCount = 0;
+        let dynamicCount = 0;
+        function walk(node) {
+            if (!node || node.visible === false && !(node.name || "").startsWith("?")) return;
+            childCount++;
+            const nm = node.name || "";
+            if (nm.startsWith("{") || nm.startsWith("?") || nm.startsWith("*") || nm.startsWith("part:")) dynamicCount++;
+            const b = node.absoluteBoundingBox;
+            if (b && node !== doc) {
+                const vals = [b.x - ox, b.y - oy, b.width, b.height];
+                if (vals.some(v => Math.abs(v - Math.round(v)) > 0.01)) add(node, "toạ độ hoặc cỡ không nguyên");
+            }
+            if (node.opacity !== undefined && node.opacity < 0.999) add(node, "opacity dưới 100 %");
+            if ((node.effects || []).some(e => e.visible !== false)) add(node, "có effect (shadow, blur)");
+            for (const p of (node.fills || []).concat(node.strokes || [])) {
+                if (p.visible === false) continue;
+                if (p.type !== "SOLID") add(node, `paint ${p.type}: chỉ nhận màu phẳng`);
+                else if (notNeutral(p.color)) add(node, "màu không phải xám (R, G, B khác nhau)");
+                else if ((p.opacity ?? 1) < 0.999) add(node, "paint opacity dưới 100 %");
+            }
+            if ((node.strokes || []).some(s => s.visible !== false) && node.strokeWeight > 0 && node.type !== "LINE"
+                && node.strokeAlign && node.strokeAlign !== "INSIDE") add(node, "stroke không canh trong (Inside)");
+            if (node.type === "TEXT") {
+                const st = node.style || {};
+                const sid = (node.styles || {}).text;
+                let sname = sid && styles[sid] ? styles[sid].name : null;
+                if (!sname) sname = FONT_FACES[`${st.fontFamily}/${Math.round(st.fontSize || 0)}`] || null;
+                if (!sname || !(sname in FONT_LINE)) add(node, `font ${escapeHtml(st.fontFamily || "?")} ${st.fontSize || "?"} không thuộc 5 font của ui`);
+                if (Math.abs(st.letterSpacing || 0) > 0.01) add(node, "letter spacing khác 0");
+                const fill = (node.fills || []).find(p => p.visible !== false && p.type === "SOLID");
+                if (fill && ![0, 255].includes(level(fill.color))) add(node, "chữ màu xám");
+                if (nm.startsWith("{") && !["NONE", "TRUNCATE"].includes(st.textAutoResize || "NONE")) add(node, "text {tên} để Hug/Auto height");
+            }
+            if (node.children) node.children.forEach(walk);
+        }
+        walk(doc);
+        const shown = found.slice(0, 40);
+        if (found.length === 0) issues.push("&check; Không thấy lỗi trong các luật kiểm nhanh (chạy figma2ink để kiểm đủ).");
+
+        summary.innerHTML = `
+            <div><b>Tên frame:</b> <code>${escapeHtml(name)}</code></div>
+            <div><b>Tổng số layer:</b> ${childCount} | <b>Layer động/nhịp vẽ:</b> ${dynamicCount} | <b>Lỗi tìm thấy:</b> ${found.length}</div>
+            <div style="margin-top: 8px;"><b>Kiểm tra sơ bộ:</b></div>
+            <ul style="margin: 4px 0 0 16px; padding: 0;">
+                ${issues.concat(shown).map(i => `<li>${i}</li>`).join("")}
+                ${found.length > shown.length ? `<li>… và ${found.length - shown.length} lỗi nữa</li>` : ""}
+            </ul>
+        `;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+    }
+
+    /* ---- Setup ban đầu ---- */
+    function initPage() {
+        initTheme();
+        loadChecks();
+        renderDemoLayers();
+        generateCommands();
+    }
+    // The script sits at the end of body; some viewers insert it after DOMContentLoaded has fired.
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initPage);
+    } else {
+        initPage();
+    }
+</script>
+</body>
+</html>

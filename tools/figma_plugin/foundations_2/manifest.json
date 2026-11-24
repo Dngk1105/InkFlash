@@ -1,0 +1,9 @@
+{
+  "name": "InkFlash foundations 2",
+  "id": "inkflash-foundations-2",
+  "api": "1.0.0",
+  "main": "code.js",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {"allowedDomains": ["none"]}
+}
